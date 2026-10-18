@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+:root {
+  --bg: #f6f7f9;
+  --card: #fff;
+  --text: #1b1f27;
+  --muted: #5d6675;
+  --line: #c9cfd9;
+  --camera: #2f7de1;
+  --switch: #7a4fd6;
+  --pi: #1f9d6b;
+  --backup: #d98a1c;
+  --solar: #e0b400;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b;
+    --card: #1a1e26;
+    --text: #e8ebf1;
+    --muted: #98a1b1;
+    --line: #3a4150;
+    --camera: #5b9bf0;
+    --switch: #a07df0;
+    --pi: #3fc590;
+    --backup: #f0a940;
+    --solar: #f2cc3a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-fg: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-camera: var(--camera);
+  --color-switch: var(--switch);
+  --color-pi: var(--pi);
+  --color-backup: var(--backup);
+  --color-solar: var(--solar);
+}
+
+@layer base {
+  body {
+    @apply m-0 bg-bg font-sans text-base leading-normal text-fg;
+  }
+}
