@@ -8,6 +8,12 @@ sélectionnée, composants à brancher au secteur et tableau des prix relié au 
 
 Tout s'exécute dans le navigateur, sans serveur ni API. Le schéma est sauvegardé dans le `localStorage`.
 
+## Architecture
+
+![Schéma d'architecture : GitHub Actions construit et déploie le site sur GitHub Pages, l'application React garde l'état dans un hook et le sauvegarde dans le localStorage](docs/architecture.svg)
+
+Tout tourne dans le navigateur : à chaque push sur `main`, GitHub Actions construit le site (`tsc` puis `vite build`) et GitHub Pages sert les fichiers statiques. L'état du schéma vit dans le hook `useDiagram`, qui s'appuie sur des fonctions pures (modèle, branchements, prix) et alimente les vues ; il est relu et écrit dans le `localStorage`. La vue 3D des caméras (three.js) est chargée à la demande.
+
 ## Démarrer
 
 ```sh
