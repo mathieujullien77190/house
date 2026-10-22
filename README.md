@@ -14,6 +14,12 @@ Tout s'exécute dans le navigateur, sans serveur ni API. Le schéma est sauvegar
 
 Tout tourne dans le navigateur : à chaque push sur `main`, GitHub Actions construit le site (`tsc` puis `vite build`) et GitHub Pages sert les fichiers statiques. L'état du schéma vit dans le hook `useDiagram`, qui s'appuie sur des fonctions pures (modèle, branchements, prix) et alimente les vues ; il est relu et écrit dans le `localStorage`. La vue 3D des caméras (three.js) est chargée à la demande.
 
+## Phase 0 : une Reolink enregistrée par le PC
+
+Le schéma de la phase 0 est dans l'application, en deux vues (matériel et logiciel).
+
+La caméra n'a pas de prise : le switch lui envoie courant et données par un seul câble. Le PC lit son flux RTSP avec Frigate (détection de mouvement, clips), House API l'interroge et sert la WebApp, qu'ouvre le téléphone ; un script House Sync l'interroge à intervalle régulier (polling, sans Mosquitto) et copie les clips sur le disque de sauvegarde (il pourra passer sur le Pi de sauvegarde). Le contrôleur Omada, pour couper le PoE d'un port, viendra plus tard.
+
 ## Démarrer
 
 ```sh
