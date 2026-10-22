@@ -11,7 +11,11 @@ export interface AppUIProps {
   diagram: ReactNode
   legend: ReactNode
   info: ReactNode
+  /** Schéma d'architecture, vues matériel et logiciel (phase 0 seulement). */
+  architecture: ReactNode
+  /** Panneau secteur (absent en phase 0). */
   mains: ReactNode
+  /** Panneau k3s (absent en phase 0 : pas de cluster). */
   k3s: ReactNode
   pricing: ReactNode
   /** Bloc de définition qui monte depuis le bas. */

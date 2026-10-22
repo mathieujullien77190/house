@@ -1,7 +1,7 @@
 import Card from '@/components/UI/Card'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ title, subtitle, phaseSwitch, notice, hint, diagram, legend, info, mains, k3s, pricing, sheet }: AppUIProps) => {
+const AppUI = ({ title, subtitle, phaseSwitch, notice, hint, diagram, legend, info, architecture, mains, k3s, pricing, sheet }: AppUIProps) => {
   return (
     <>
       <header className="sticky top-0 z-10 border-b border-line bg-card/90 backdrop-blur">
@@ -31,10 +31,14 @@ const AppUI = ({ title, subtitle, phaseSwitch, notice, hint, diagram, legend, in
           </div>
         </div>
 
-        <div className="mt-4 grid items-start gap-4 min-[1000px]:grid-cols-2">
-          {mains}
-          {k3s}
-        </div>
+        {architecture}
+
+        {(mains || k3s) && (
+          <div className="mt-4 grid items-start gap-4 min-[1000px]:grid-cols-2">
+            {mains}
+            {k3s}
+          </div>
+        )}
 
         {pricing}
       </main>

@@ -7,6 +7,7 @@ import InfoPanel from '@/components/InfoPanel'
 import K3sPanel from '@/components/K3sPanel'
 import Legend from '@/components/Legend'
 import MainsPanel from '@/components/MainsPanel'
+import Phase0Architecture from '@/components/Phase0Architecture'
 import PhaseSwitch from '@/components/PhaseSwitch'
 import Pricing from '@/components/Pricing'
 import { GlossaryContext } from '@/lib/glossaryContext'
@@ -108,8 +109,9 @@ const App = () => {
             onSelectLink={selectLink}
           />
         }
-        mains={<MainsPanel nodes={nodes} phase={phase} />}
-        k3s={<K3sPanel nodes={nodes} />}
+        architecture={phase === 0 ? <Phase0Architecture /> : null}
+        mains={phase === 0 ? null : <MainsPanel nodes={nodes} phase={phase} />}
+        k3s={phase === 0 ? null : <K3sPanel nodes={nodes} />}
         pricing={
           <Pricing
             phase={phase}
