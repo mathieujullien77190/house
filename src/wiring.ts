@@ -69,7 +69,7 @@ export const autoWire = (nodes: DiagramNode[], links: DiagramLink[], cam: Diagra
  * - switch : un lien vers chaque Pi5 et vers le premier autre switch ;
  * - Pi de sauvegarde : un lien vers le switch le moins chargé.
  * Un lien n'existe que dans les phases communes aux deux composants.
- * Les autres types (panneau solaire, composant libre) restent sans lien.
+ * Les autres types (composant libre) restent sans lien.
  */
 export const wireInfra = (nodes: DiagramNode[], links: DiagramLink[], node: DiagramNode, makeId: () => string): DiagramLink[] => {
   const others = nodes.filter((n) => n.id !== node.id)

@@ -15,7 +15,8 @@ export const buildRows = (nodes: DiagramNode[]): K3sNodeRow[] => {
 }
 
 export const quorumSummary = (count: number): { text: string; ok: boolean } => {
-  if (count <= 1) return { text: `${count} nœud : cluster simple, sans haute disponibilité (version light).`, ok: true }
+  if (count === 0) return { text: 'Aucun nœud : pas de cluster, le PC enregistre les flux (version light).', ok: true }
+  if (count === 1) return { text: `${count} nœud : cluster simple, sans haute disponibilité (version light).`, ok: true }
   if (count < 3) return { text: `${count} nœud(s) control-plane : il en faut au moins 3 pour un quorum etcd.`, ok: false }
   const tolerated = Math.floor((count - 1) / 2)
   return { text: `${count} nœuds control-plane : quorum etcd assuré, tolère ${tolerated} panne${tolerated > 1 ? 's' : ''}.`, ok: true }

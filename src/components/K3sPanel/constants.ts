@@ -11,7 +11,7 @@ export const RULES: string[] = [
   'Les jobs de sauvegarde (CronJob) ajoutent la toleration correspondante et un nodeSelector role=backup, et écrivent sur le SSD.',
   'Pas de réplicas de volumes distribués sur le Pi de sauvegarde (désactiver le disque par défaut de Longhorn sur ce nœud).',
   'Les snapshots etcd (k3s etcd-snapshot) sont copiés sur le SSD du Pi de sauvegarde.',
-  'Alimenté par le solaire : cordon et drain avant une coupure prévue ; le cluster reste sain avec ce nœud hors ligne.',
+  'Cordon et drain avant une coupure prévue ; le cluster reste sain avec ce nœud hors ligne.',
 ]
 
 export const COMMANDS: CommandBlock[] = [

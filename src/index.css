@@ -10,7 +10,6 @@
   --switch: #7a4fd6;
   --pi: #1f9d6b;
   --backup: #d98a1c;
-  --solar: #e0b400;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,7 +23,6 @@
     --switch: #a07df0;
     --pi: #3fc590;
     --backup: #f0a940;
-    --solar: #f2cc3a;
   }
 }
 
@@ -38,7 +36,6 @@
   --color-switch: var(--switch);
   --color-pi: var(--pi);
   --color-backup: var(--backup);
-  --color-solar: var(--solar);
 }
 
 @layer base {

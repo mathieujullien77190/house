@@ -6,7 +6,7 @@ export const KIND_STROKE: Record<NodeKind, string> = {
   switch: 'stroke-switch',
   pi: 'stroke-pi',
   backup: 'stroke-backup',
-  solar: 'stroke-solar',
+  phone: 'stroke-muted',
   custom: 'stroke-muted',
 }
 
@@ -25,6 +25,11 @@ export const SUB_DY = 9
 export const ZONE_Y = 8
 /** Avec une zone, titre et description descendent pour lui laisser la place. */
 export const ZONE_SHIFT = 4
+
+/** Téléphone : écran en retrait, haut-parleur en haut, barre d'accueil en bas, texte sous le corps. */
+export const PHONE = { inset: 4, notchW: 12, notchY: 7, barW: 16, barY: 7, textGap: 12, subGap: 11 }
+export const PHONE_SCREEN_CLASS = 'fill-bg stroke-line stroke-1'
+export const PHONE_DETAIL_CLASS = 'stroke-muted stroke-[1.5] [stroke-linecap:round]'
 
 export const BADGE_CLASS = 'fill-backup'
 export const BOLT_CLASS = 'fill-white'

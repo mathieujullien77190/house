@@ -7,19 +7,26 @@ export type LinkLevel = 'normal' | 'highlight' | 'selected'
 const LINK_COLOR: Record<LinkType, string> = {
   poe: 'stroke-camera',
   eth: 'stroke-muted',
-  power: 'stroke-solar',
+  wifi: 'stroke-muted',
 }
 
 const LINK_WIDTH: Record<LinkType, string> = {
   poe: 'stroke-[2.5]',
   eth: 'stroke-2',
-  power: 'stroke-[3.5]',
+  wifi: 'stroke-2',
+}
+
+/** Le WiFi est en pointillés : pas de câble. */
+const LINK_DASH: Record<LinkType, string> = {
+  poe: '',
+  eth: '',
+  wifi: '[stroke-dasharray:2_6]',
 }
 
 const LINK_GLOW: Record<LinkType, string> = {
   poe: '[filter:drop-shadow(0_0_3px_var(--camera))]',
   eth: '[filter:drop-shadow(0_0_3px_var(--muted))]',
-  power: '[filter:drop-shadow(0_0_3px_var(--solar))]',
+  wifi: '[filter:drop-shadow(0_0_3px_var(--muted))]',
 }
 
 /** Une liaison mise en évidence garde la couleur de son type : plus épaisse, avec un halo. */
@@ -31,5 +38,5 @@ const LEVEL_WIDTH: Record<Exclude<LinkLevel, 'normal'>, string> = {
 export const linkClass = (type: LinkType, level: LinkLevel = 'normal'): string => {
   const style =
     level === 'normal' ? LINK_WIDTH[type] : `${LEVEL_WIDTH[level]} ${LINK_GLOW[type]}`
-  return `${LINK_COLOR[type]} ${style} [stroke-linecap:round]`
+  return `${LINK_COLOR[type]} ${style} ${LINK_DASH[type]} [stroke-linecap:round]`.replace(/\s+/g, ' ')
 }

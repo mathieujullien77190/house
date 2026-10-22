@@ -3,6 +3,9 @@ import {
   BADGE_RADIUS,
   BOLT_CLASS,
   BOLT_PATH,
+  PHONE,
+  PHONE_DETAIL_CLASS,
+  PHONE_SCREEN_CLASS,
   SUB_CLASS,
   SUB_DY,
   TITLE_CLASS,
@@ -29,7 +32,21 @@ const DiagramNodeUI = ({ n, mains, ghost, groupClass, rectClass, ariaLabel, onPo
       onPointerCancel={onPointerUp}
       onKeyDown={onKeyDown}
     >
-      <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="8" className={rectClass} />
+      <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={n.kind === 'phone' ? 10 : 8} className={rectClass} />
+      {n.kind === 'phone' && (
+        <g aria-hidden="true">
+          <rect
+            x={n.x + PHONE.inset}
+            y={n.y + PHONE.inset + PHONE.notchY}
+            width={n.w - PHONE.inset * 2}
+            height={n.h - PHONE.inset * 2 - PHONE.notchY - PHONE.barY}
+            rx="3"
+            className={PHONE_SCREEN_CLASS}
+          />
+          <line x1={cx - PHONE.notchW / 2} y1={n.y + PHONE.notchY} x2={cx + PHONE.notchW / 2} y2={n.y + PHONE.notchY} className={PHONE_DETAIL_CLASS} />
+          <line x1={cx - PHONE.barW / 2} y1={n.y + n.h - PHONE.barY} x2={cx + PHONE.barW / 2} y2={n.y + n.h - PHONE.barY} className={PHONE_DETAIL_CLASS} />
+        </g>
+      )}
       {mains && (
         <g transform={`translate(${n.x + n.w - 3} ${n.y + 3})`} aria-hidden="true">
           <circle r={BADGE_RADIUS} className={BADGE_CLASS} />
@@ -41,10 +58,10 @@ const DiagramNodeUI = ({ n, mains, ghost, groupClass, rectClass, ariaLabel, onPo
           {n.zone}
         </text>
       )}
-      <text x={cx} y={n.y + n.h / 2 + TITLE_DY + shift} textAnchor="middle" className={TITLE_CLASS}>
+      <text x={cx} y={n.kind === 'phone' ? n.y + n.h + PHONE.textGap : n.y + n.h / 2 + TITLE_DY + shift} textAnchor="middle" className={TITLE_CLASS}>
         {n.title}
       </text>
-      <text x={cx} y={n.y + n.h / 2 + SUB_DY + shift} textAnchor="middle" className={SUB_CLASS}>
+      <text x={cx} y={n.kind === 'phone' ? n.y + n.h + PHONE.textGap + PHONE.subGap : n.y + n.h / 2 + SUB_DY + shift} textAnchor="middle" className={SUB_CLASS}>
         {n.sub}
       </text>
     </g>

@@ -110,18 +110,6 @@ export const GLOSSARY: GlossaryEntry[] = [
     definition: 'Cordon empêche de nouvelles applications d’arriver sur un nœud ; drain déplace celles qui y tournent. On les utilise avant d’éteindre un nœud.',
     match: ['cordon et drain', 'cordon', 'drain'],
   },
-  {
-    id: 'mppt',
-    term: 'MPPT',
-    definition: 'Régulateur de charge solaire qui ajuste en permanence sa tension pour tirer le maximum de puissance du panneau, surtout par temps nuageux.',
-    match: ['MPPT'],
-  },
-  {
-    id: 'lifepo4',
-    term: 'LiFePO4',
-    definition: 'Batterie lithium fer phosphate : sûre, supporte des milliers de cycles de charge et convient bien à une installation solaire.',
-    match: ['LiFePO4'],
-  },
 ]
 
 export const findEntry = (id: string): GlossaryEntry | undefined => GLOSSARY.find((e) => e.id === id)

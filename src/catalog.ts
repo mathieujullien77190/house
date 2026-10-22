@@ -3,7 +3,7 @@
 import { inPhase, type DiagramNode, type NodeKind, type Phase } from './nodes'
 
 export type Source = 'repo' | 'estimation' | 'perso'
-export type Group = 'Caméras' | 'Réseau' | 'Raspberry Pi' | 'Solaire' | 'Divers'
+export type Group = 'Caméras' | 'Réseau' | 'Raspberry Pi' | 'Divers'
 
 export interface Counts {
   reolink: number
@@ -40,6 +40,8 @@ export const countsOf = (nodes: DiagramNode[]): Counts => {
 }
 
 export const PORTS_PER_SWITCH = 8
+/** Ports PoE par switch : les caméras ne se branchent que sur ceux-là (ES208GP : 8 ports PoE+). */
+export const POE_PORTS_PER_SWITCH = 8
 
 /** Pi de sauvegarde : absent de la version light (phase 0). */
 const backupCount = (phase: Phase): number => (phase === 0 ? 0 : 1)
@@ -67,29 +69,15 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = [], phase: Phase 
     { id: 'zero-eth', group: 'Caméras', label: 'Adaptateur Ethernet USB-OTG (micro-USB → RJ45) + cordon court', unit: 10, qty: c.zeros, source: 'estimation' },
     { id: 'zero-box', group: 'Caméras', label: 'Boîtier étanche (ou impression 3D)', unit: 10, qty: c.zeros, source: 'estimation' },
 
-    { id: 'switch', group: 'Réseau', label: 'Switch PoE Gigabit 8 ports TP-Link LS108GP', unit: 49.99, qty: c.switches, source: 'perso', editable: 'switches', note: 'budget PoE 65 W, non administrable (pas de RSTP)' },
+    { id: 'switch', group: 'Réseau', label: 'Switch PoE Gigabit 8 ports TP-Link Omada ES208GP', unit: 69.99, qty: c.switches, source: 'perso', editable: 'switches', note: '8 ports PoE+, budget PoE 64 W, administrable (Omada) : PoE coupable port par port' },
     { id: 'rj45', group: 'Réseau', label: 'Câbles RJ45 Cat6 (calculés)', unit: 3, qty: rj45, source: 'estimation', note: 'caméras PoE + 2 par Pi + backup + lien entre switchs' },
     { id: 'ups', group: 'Réseau', label: 'Onduleur (switchs + Pi5)', unit: 80, qty: 1, source: 'estimation', note: 'optionnel mais conseillé', phases: [2] },
 
     { id: 'pi', group: 'Raspberry Pi', label: 'Raspberry Pi 5 (2 Go)', unit: 76.8, qty: c.pis + backups, source: 'repo', editable: 'pis', note: 'Kubii ; la version 4 Go coûte plus cher' },
-    { id: 'pi-psu', group: 'Raspberry Pi', label: 'Alimentation officielle 27 W USB-C', unit: 12.9, qty: c.pis + (phase === 1 ? 1 : 0), source: 'repo', note: phase === 1 ? undefined : 'le Pi de sauvegarde passe au solaire' },
+    { id: 'pi-psu', group: 'Raspberry Pi', label: 'Alimentation officielle 27 W USB-C', unit: 12.9, qty: c.pis + backups, source: 'repo' },
     { id: 'pi-cooler', group: 'Raspberry Pi', label: 'Active Cooler officiel', unit: 6, qty: c.pis + backups, source: 'repo' },
     { id: 'pi-sd', group: 'Raspberry Pi', label: 'Carte microSD 256 Go', unit: 45, qty: c.pis, source: 'perso', phases: [1, 2] },
-    { id: 'light-sd', group: 'Raspberry Pi', label: 'Carte microSD 32 Go (système)', unit: 10, qty: c.pis, source: 'estimation', phases: [0] },
     { id: 'pi-sd-backup', group: 'Raspberry Pi', label: 'Carte microSD 1 To', unit: 108, qty: 1, source: 'perso', phases: [1, 2] },
-
-    { id: 'bak-conv', group: 'Solaire', label: 'Convertisseur 12 V → USB-C PD 65 W (Konnected)', unit: 25.14, qty: 1, source: 'repo', phases: [2] },
-
-    { id: 'panel', group: 'Solaire', label: 'Panneau solaire 100 W monocristallin', unit: 60.95, qty: 1, source: 'repo', phases: [2] },
-    { id: 'mppt', group: 'Solaire', label: 'Régulateur Victron SmartSolar MPPT 75/10', unit: 55.13, qty: 1, source: 'repo', phases: [2] },
-    { id: 'battery-cells', group: 'Solaire', label: 'Cellules LiFePO4 32700 LiitoKala 7 Ah (4, pack 4S)', unit: 24, qty: 1, source: 'repo', note: '≈ 90 Wh annoncés, 77 Wh retenus (6 Ah)', phases: [2] },
-    { id: 'battery-bms', group: 'Solaire', label: 'BMS Daly Smart 4S 40 A', unit: 59.28, qty: 1, source: 'repo', phases: [2] },
-    { id: 'battery-holder', group: 'Solaire', label: 'Support de cellules 32700 à 4 logements', unit: 6, qty: 1, source: 'estimation', phases: [2] },
-    { id: 'battery-fuse', group: 'Solaire', label: 'Fusible 15 A + porte-fusible', unit: 15, qty: 1, source: 'repo', phases: [2] },
-    { id: 'daly-cable', group: 'Solaire', label: 'Câble USB-UART Daly (réglage du BMS)', unit: 10, qty: 1, source: 'estimation', phases: [2] },
-    { id: 'solar-wire', group: 'Solaire', label: 'Fil souple 2,5 mm² rouge et noir (puissance)', unit: 18.9, qty: 1, source: 'repo', phases: [2] },
-    { id: 'solar-wago', group: 'Solaire', label: 'Bornes Wago 221 du rail 12 V', unit: 8.19, qty: 1, source: 'repo', phases: [2] },
-    { id: 'solar-cable', group: 'Solaire', label: 'Rallonge solaire 4 mm², 2 × 12 m, MC4', unit: 35.05, qty: 1, source: 'repo', phases: [2] },
 
     { id: 'misc', group: 'Divers', label: 'Coffret IP65, visserie, gaines, bornes Wago', unit: 40, qty: 1, source: 'estimation', phases: [1, 2] },
     ...customs.map((n): Line => ({ id: n.id, group: 'Divers', label: n.title, unit: n.price ?? 0, qty: 1, source: 'perso', note: 'composant ajouté au schéma' })),
@@ -97,7 +85,7 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = [], phase: Phase 
   return lines.filter((l) => !l.phases || l.phases.includes(phase))
 }
 
-export const groups: Group[] = ['Caméras', 'Réseau', 'Raspberry Pi', 'Solaire', 'Divers']
+export const groups: Group[] = ['Caméras', 'Réseau', 'Raspberry Pi', 'Divers']
 
 export const euro = (n: number): string =>
   n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -113,6 +101,9 @@ export const warnings = (c: Counts, phase: Phase = 2): Warning[] => {
   const needed = portsNeeded(c, phase)
   if (needed > capacity) {
     out.push({ id: 'ports', text: `${needed} ports nécessaires pour ${capacity} disponibles : ajoute un switch ou retire des éléments.` })
+  }
+  if (c.reolink + c.zeros > c.switches * POE_PORTS_PER_SWITCH) {
+    out.push({ id: 'poe-ports', text: `${c.reolink + c.zeros} caméras PoE pour ${c.switches * POE_PORTS_PER_SWITCH} ports PoE (8 par switch) : ajoute un switch.` })
   }
   if (c.switches < 2 && phase === 2) out.push({ id: 'redundancy', text: 'Un seul switch : plus de redondance réseau.' })
   // Le Pi de sauvegarde est le 3ᵉ nœud control-plane du cluster.

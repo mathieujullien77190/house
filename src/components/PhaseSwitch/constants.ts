@@ -3,9 +3,9 @@ import type { Phase } from '@/nodes'
 export const GROUP_LABEL = 'Phase de déploiement'
 
 export const PHASES: { id: Phase; title: string; summary: string }[] = [
-  { id: 0, title: 'Phase 0 · Version light', summary: '1 Pi5, 1 switch, 2 Reolink 4K, disque dur de 4 To' },
+  { id: 0, title: 'Phase 0 · Version light', summary: '1 Reolink 4K, 1 switch PoE, enregistrement sur ton PC' },
   { id: 1, title: 'Phase 1 · Strict minimum', summary: '3 Pi (2 Pi5 + sauvegarde), 1 switch, 2 mini-caméras Pi Zero' },
-  { id: 2, title: 'Phase 2 · Installation complète', summary: '+ 2ᵉ switch, 2 Reolink au portail, panneau solaire et onduleur' },
+  { id: 2, title: 'Phase 2 · Installation complète', summary: '+ 2ᵉ switch, 2 Reolink au portail et onduleur' },
 ]
 
 export const CARD_CLASS =

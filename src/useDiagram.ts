@@ -16,7 +16,7 @@ import { autoWire, wireInfra } from '@/wiring'
 /** Où apparaît un nouveau composant : jardin au sud pour le rez-de-chaussée, local technique au sous-sol. */
 const SPAWN = { rdc: { x: 420, y: 440 }, basement: { x: 330, y: 300 } }
 
-const KEY = 'house-diagram-v15'
+const KEY = 'house-diagram-v18'
 
 interface State {
   nodes: DiagramNode[]
