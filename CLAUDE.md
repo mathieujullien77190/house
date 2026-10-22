@@ -34,7 +34,7 @@ Pi de sauvegarde (SSD), sur le secteur comme les Pi5
 
 Le Pi de sauvegarde est sur le secteur, avec sa propre alimentation 27 W (ligne `pi-psu`), à toutes les phases : il n'y a pas de solaire.
 
-**Architecture logicielle de la phase 0** (`Phase0Architecture`, deux vues « Matériel » et « Logiciel », données dans `constants.ts`). Ce n'est qu'un schéma : le site n'exécute rien de tout ça. Il décrit trois conteneurs Docker (docker compose) sur le PC :
+**Architecture logicielle de la phase 0** (`Phase0Architecture`, trois vues « Matériel », « Logiciel » et « Code », données dans `constants.ts` ; « Code » est un navigateur de fichiers (`CodeBrowser`) du dossier `code/phase0`, avec le code et une explication par fichier ; l'intro de chaque vue est en paragraphes courts). Ce n'est qu'un schéma : le site n'exécute rien de tout ça. Il décrit trois conteneurs Docker (docker compose) sur le PC :
 - **Frigate** (avec go2rtc) : ouvre une seule connexion RTSP vers la caméra, détecte le mouvement et enregistre les clips.
 - **House Sync**, un script : interroge l'API HTTP de Frigate par polling (sans Mosquitto), copie les clips sur le disque backup (déplaçable plus tard sur le Pi de sauvegarde) et écrit dans SQLite les événements, l'adresse de la dernière image et l'adresse iframe de chaque caméra. Il est le seul à écrire. Les disques backup et SQLite sont dessinés dans son conteneur.
 - **House API + WebApp** : l'API est en lecture seule et n'appelle jamais Frigate, elle lit SQLite et le disque backup (clips). Services : auth (l'utilisateur donne sa clé secrète), direct (lien iframe), image (dernière image), events (le dernier ou tous) ; plus tard poe, qui appelle le contrôleur Omada pour couper ou relancer le PoE d'une caméra (compte aux droits minimaux, jeton en variable d'environnement). Le navigateur de l'utilisateur ouvre la WebApp, puis charge directement le direct et l'image depuis Frigate.
@@ -61,6 +61,10 @@ La mini-cam Pi Zero n'utilise pas le WiFi : un splitter PoE sépare le courant (
 - **Reolink RLC-810A** (fiche officielle reolink.com/fr) : 4K 8 Mpx à 25 images/s, H.265, flux principal 4 à 8 Mb/s (6 par défaut), flux secondaire 64 à 512 kb/s, PoE 802.3af, 12 W max, IP67, 60 × 66 × 192 mm, 485 g, 94,99 € (1 caméra, objectif 4 mm). **Limites** : 12 flux simultanés au plus, dont **2 flux principaux seulement** (ne pas faire lire le flux principal par plus de deux clients) ; RTSP à activer dans les ports de la caméra ; **ONVIF non listé** sur la fiche ; enregistrements envoyables par **FTP** ; pas d'instantané par adresse web documenté.
 - **Switch.** Le modèle retenu est le TP-Link Omada ES208GP (69,99 €) : 8 ports Gigabit **tous PoE+**, budget PoE de 64 W (non garanti, fiche TP-Link), **administrable** via Omada (« Easy Managed ») : le PoE se coupe ou se relance port par port, avec « Remote Camera Reboot » et la reprise automatique du PoE (mode autonome) d'après la fiche. Le schéma garde un seul câble entre les deux switchs et aucune boucle, sans RSTP : le modèle n'a que la détection de boucle (loopback detection), pas de spanning tree. Le bonding active-backup des Pi5 se règle côté Linux, sans configuration du switch. Un avertissement signale plus de 8 caméras par switch (`POE_PORTS_PER_SWITCH`) ; le budget de 64 W limite en pratique à 5 Reolink de 12 W par switch.
 - **Prix.** Le tableau se calcule à partir des composants du schéma ; les 3 Pi (2 Pi5 du cluster et le Pi de sauvegarde) sont regroupés dans un seul groupe « Raspberry Pi ». Les prix « dépôt » viennent de `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`) ; tous les autres sont des **estimations** à confirmer. Des avertissements signalent un manque de ports sur les switchs, l'absence de redondance (un seul switch) et moins de 3 nœuds k3s (Pi5 + Pi de sauvegarde, pas de quorum etcd).
+
+## Code de la phase 0
+
+Le dossier `code/phase0/` (hors du site, ignoré par ESLint) contient la pile de la phase 0 : `docker-compose.yml`, `.env.example` (le vrai `.env` est ignoré par git), `frigate/`, `sync/` (House Sync), `api/` (House API) et `web/` (WebApp). Squelette minimal : l'API répond sur `GET /welcome` et la WebApp l'appelle. TypeScript exécuté directement par Node 24, sans dépendance. Tout fichier ajouté ou modifié apparaît dans la vue « Code » ; ajouter son explication dans `components/CodeBrowser/constants.ts`.
 
 ## Commandes
 
@@ -96,7 +100,8 @@ src/
     ├── InfoPanel/            détail du composant ou de la liaison sélectionnés
     ├── Legend/               légende des liens et du badge secteur
     ├── K3sPanel/             nœuds du cluster k3s, règles et commandes d'installation
-    ├── Phase0Architecture/   schéma d'architecture de la phase 0 : vue matériel et vue logiciel (données dans constants.ts)
+    ├── Phase0Architecture/   architecture de la phase 0 : vues matériel, logiciel et code (données dans constants.ts)
+    ├── CodeBrowser/          navigateur de fichiers de code/phase0 : arbre, explication et code de chaque fichier (lus à la compilation)
     ├── MainsPanel/           liste de ce qui se branche au secteur 230 V (prises, puissance)
     ├── Pricing/              tableau des prix
     ├── CameraDialog/         boîte de dialogue d'une caméra : schéma 2D ou vue 3D (chargée à la demande)

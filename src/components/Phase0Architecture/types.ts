@@ -1,4 +1,7 @@
-export type ViewId = 'hardware' | 'software'
+import type { ReactNode } from 'react'
+
+export type DiagramViewId = 'hardware' | 'software'
+export type ViewId = DiagramViewId | 'code'
 export type BoxTone = 'plain' | 'warm' | 'green' | 'dashed'
 export type PanelTone = 'panel' | 'warm'
 
@@ -57,10 +60,10 @@ export interface ArchDisk {
 }
 
 export interface ArchView {
-  id: ViewId
+  id: DiagramViewId
   label: string
-  /** Phrase qui explique la vue, affichée sous le titre. */
-  intro: string
+  /** Paragraphes qui expliquent la vue, affichés sous le titre. */
+  intro: string[]
   /** Description pour les lecteurs d'écran. */
   ariaLabel: string
   viewBox: string
@@ -72,7 +75,13 @@ export interface ArchView {
 }
 
 export interface Phase0ArchitectureUIProps {
-  view: ArchView
+  viewId: ViewId
+  /** Absent dans la vue code. */
+  view: ArchView | null
+  /** Paragraphes sous le titre, selon la vue. */
+  intro: string[]
   options: { id: ViewId; label: string }[]
   onViewChange: (id: ViewId) => void
+  /** Contenu de la vue code (le navigateur de fichiers). */
+  children?: ReactNode
 }

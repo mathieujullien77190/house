@@ -1,4 +1,4 @@
-import type { ArchView, BoxTone, PanelTone, ViewId } from './types'
+import type { ArchView, BoxTone, DiagramViewId, PanelTone, ViewId } from './types'
 
 export const TITLE = 'Architecture de la phase 0'
 export const VIEW_GROUP_LABEL = 'Vue du schéma'
@@ -36,8 +36,9 @@ export const DISK_SHAPE = { rx: 70, ry: 22, body: 50 }
 const HARDWARE: ArchView = {
   id: 'hardware',
   label: 'Matériel',
-  intro:
+  intro: [
     'Ce qui se branche : le switch alimente la Reolink en PoE et se relie au PC, qui a une seconde carte réseau vers la box.',
+  ],
   ariaLabel:
     'Vue matériel de la phase 0 : la Reolink est alimentée en PoE par le switch, lui-même branché au secteur et au PC ; le PC est relié à la box, que le téléphone rejoint en WiFi',
   viewBox: '0 0 1000 400',
@@ -79,8 +80,13 @@ const HARDWARE: ArchView = {
 const SOFTWARE: ArchView = {
   id: 'software',
   label: 'Logiciel',
-  intro:
-    'Trois conteneurs Docker (docker compose) : Frigate (avec go2rtc), House Sync, et House API qui sert la WebApp ; les disques backup et SQLite sont dans le conteneur House Sync, que l’API monte en lecture seule. go2rtc ouvre une seule connexion RTSP vers la caméra et la partage ; Frigate détecte le mouvement et enregistre les clips. House Sync interroge Frigate à intervalle régulier (polling), copie les nouveaux clips sur le disque backup et écrit tout dans une base SQLite : les événements (caméra, heure, chemin du fichier), l’adresse de la dernière image et l’adresse iframe du direct de chaque caméra. Il est le seul à y écrire. L’utilisateur ouvre la WebApp, qui appelle les services de House API : auth (l’utilisateur donne sa clé secrète), direct, image et events. L’API ne construit rien et n’appelle pas Frigate : elle lit SQLite (adresses et événements, le dernier ou tous) et le disque backup (clips archivés). Plus tard, l’API pourra aussi demander à Omada de couper ou relancer le PoE d’une caméra (poe, en pointillés) : elle s’y connecte avec les identifiants de ses variables d’environnement, d’un compte aux droits minimaux. Le direct et l’image sont ensuite chargés directement par le navigateur de l’utilisateur depuis Frigate (qui relaie go2rtc), accessibles depuis le réseau de la maison. Côté sécurité, House Sync se connecte à Frigate avec un compte viewer sur le port 8971 (comme un navigateur), le port 5000 sans mot de passe n’est jamais publié, et le pare-feu du PC n’accepte que le réseau de la maison.',
+  intro: [
+    'Trois conteneurs Docker sur le PC : Frigate (avec go2rtc), House Sync, et House API qui sert la WebApp.',
+    'Frigate lit le flux de la caméra, détecte le mouvement et enregistre les clips. House Sync les récupère par polling, les copie sur le disque backup et écrit dans SQLite les événements et les adresses du direct et de la dernière image.',
+    'L’utilisateur donne sa clé à House API depuis la WebApp. L’API lit seulement SQLite et le disque backup, sans appeler Frigate. Le direct et l’image sont chargés par le navigateur directement depuis Frigate, avec sa propre connexion (port 8971).',
+    'Sécurité : House Sync se connecte à Frigate avec un compte viewer ; le port 5000 n’est jamais publié et le pare-feu limite l’accès au réseau de la maison.',
+    'Plus tard, l’API pourra couper ou relancer le PoE d’une caméra en passant par Omada (poe, en pointillés).',
+  ],
   ariaLabel:
     'Vue logiciel de la phase 0 : trois conteneurs Docker sur le PC. La Reolink envoie son flux RTSP à go2rtc, qui le partage avec Frigate ; House Sync interroge Frigate, copie les clips sur le disque backup et écrit dans une base SQLite les événements, l’adresse de la dernière image et l’adresse iframe de chaque caméra ; l’utilisateur ouvre la WebApp, qui appelle les services de House API, lesquels lisent seulement SQLite et le disque backup',
   viewBox: '0 0 1340 620',
@@ -150,8 +156,14 @@ const SOFTWARE: ArchView = {
   ],
 }
 
-export const VIEWS: Record<ViewId, ArchView> = { hardware: HARDWARE, software: SOFTWARE }
+export const CODE_INTRO = [
+  'Les fichiers de la phase 0, tels qu’ils sont dans le dépôt (dossier code/phase0). Clique sur un fichier pour voir son code et ce qu’il fait.',
+  'C’est un squelette minimal : chaque bloc démarre et répond, le reste viendra ensuite. Le site n’exécute rien de ce code.',
+]
+
+export const VIEWS: Record<DiagramViewId, ArchView> = { hardware: HARDWARE, software: SOFTWARE }
 export const VIEW_OPTIONS: { id: ViewId; label: string }[] = [
   { id: 'hardware', label: HARDWARE.label },
   { id: 'software', label: SOFTWARE.label },
+  { id: 'code', label: 'Code' },
 ]
