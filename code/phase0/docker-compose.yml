@@ -1,0 +1,54 @@
+# Phase 0 : trois conteneurs sur le PC (Frigate, House Sync, House API + WebApp).
+# Démarrage : voir README.md.
+
+services:
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:stable
+    restart: unless-stopped
+    shm_size: 256mb
+    environment:
+      # Frigate ne lit que les variables qui commencent par FRIGATE_.
+      FRIGATE_REOLINK_PASSWORD: ${REOLINK_PASSWORD}
+    volumes:
+      - ./frigate/config:/config
+      - ./data/frigate:/media/frigate
+    ports:
+      # Seul port publié : le 8971, avec connexion. Le 5000 reste interne.
+      - "8971:8971"
+    networks:
+      - sync_net
+
+  sync:
+    build: ./sync
+    restart: unless-stopped
+    depends_on:
+      - frigate
+    environment:
+      FRIGATE_URL: https://frigate:8971
+      FRIGATE_USER: ${SYNC_FRIGATE_USER}
+      FRIGATE_PASSWORD: ${SYNC_FRIGATE_PASSWORD}
+      DATA_DIR: /data
+      POLL_INTERVAL_SECONDS: "30"
+      # Certificat auto-signé de Frigate, sur le réseau interne de Docker seulement.
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+    volumes:
+      - ./data/backup:/data
+    networks:
+      - sync_net
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Lecture seule : l'API ne modifie jamais les clips ni la base.
+      - ./data/backup:/data:ro
+    networks:
+      - web_net
+
+networks:
+  sync_net:
+  web_net:

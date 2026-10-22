@@ -1,0 +1,35 @@
+# Configuration minimale de Frigate pour la phase 0 (une Reolink).
+# Les clés exactes peuvent changer selon la version de Frigate : à vérifier dans sa documentation.
+
+mqtt:
+  enabled: false
+
+auth:
+  enabled: true
+
+go2rtc:
+  streams:
+    # Adresse IP fixe de la Reolink, sur le réseau des caméras. À adapter.
+    # Chemins RTSP de Reolink : à vérifier selon le modèle (h264 ou h265).
+    portail_main: rtsp://admin:{FRIGATE_REOLINK_PASSWORD}@192.168.50.10:554/h264Preview_01_main
+    portail_sub: rtsp://admin:{FRIGATE_REOLINK_PASSWORD}@192.168.50.10:554/h264Preview_01_sub
+
+cameras:
+  portail:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/portail_main
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+        - path: rtsp://127.0.0.1:8554/portail_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+    detect:
+      enabled: true
+    record:
+      enabled: true
+      retain:
+        days: 3
+        mode: motion
