@@ -10,6 +10,8 @@ Des conteneurs Docker (`docker-compose.yml`) sur le PC de la maison, avec une Re
 | `sync` | House Sync : copie les clips et une image par minute sur le disque backup, écrit SQLite, sert sa page | 8081 |
 | `api` | House API (Express) + la WebApp compilée | 8080 |
 
+**Plusieurs enregistreurs (plusieurs Pi).** Un enregistreur (`motion`) et son go2rtc forment une unité, une par machine. Le compose en a une, et une seconde (`go2rtc2` + `motion2`, caméra `camera2`, dossiers `data/recordings2` et `data/clips2`) dans le profil `second`, pour tester le cas de plusieurs Pi sur un seul PC. On l'active dans `.env` : `COMPOSE_PROFILES=second`, `CAMERA2_IP/USER/PASSWORD`, `RECORDER_URLS` (les enregistreurs que House Sync interroge) et `GO2RTC_URLS` (les go2rtc que l'API relaie) ; le modèle est dans `.env.example`. Chaque enregistreur annonce dans `/api/config` l'adresse de son go2rtc ; House Sync la met dans l'adresse du direct de chaque caméra et sait quel enregistreur gère quelle caméra (clips, images) ; l'API choisit le go2rtc de la caméra d'après cette adresse (parmi `GO2RTC_URLS`). Un enregistreur arrêté ne bloque pas les autres. Sur un vrai second Pi, l'unité y tourne seule et `RECORDER_URLS` / `GO2RTC_URLS` pointent vers son adresse.
+
 Un CLAUDE.md par dossier : `certs/`, `go2rtc/`, `motion/`, `sync/`, `sync/web/`, `api/`, `web/`, `ui/` (le paquet `@house/ui` : les composants dumb des deux apps, avec un Storybook).
 
 ## Règles

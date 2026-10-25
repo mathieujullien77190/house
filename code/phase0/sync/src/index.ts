@@ -13,7 +13,11 @@ import { DatabaseSync } from 'node:sqlite'
 import { listBackup, pageParams, paginate, readTable, summarizeTables, sumSize } from './data.ts'
 
 // L'enregistreur (conteneur motion) : son API est interne, sans mot de passe, jamais publiée.
-const FRIGATE_URL = (process.env.RECORDER_URL ?? 'http://motion:8080').replace(/\/$/, '')
+// Les enregistreurs à interroger (un par machine) : RECORDER_URLS, séparés par des virgules ; RECORDER_URL pour un seul.
+const RECORDERS = (process.env.RECORDER_URLS ?? process.env.RECORDER_URL ?? 'http://motion:8080')
+  .split(',')
+  .map((url) => url.trim().replace(/\/$/, ''))
+  .filter(Boolean)
 // La page de House Sync (une petite app React, dossier web) : sa clé (la même que l'API), son port et le certificat.
 const HOUSE_KEY = process.env.HOUSE_KEY ?? ''
 const PAGE_PORT = Number(process.env.PAGE_PORT ?? 8081)
@@ -32,7 +36,7 @@ const SNAPSHOT_INTERVAL_SECONDS = Number(process.env.SNAPSHOT_INTERVAL_SECONDS ?
 const SNAPSHOT_RETENTION_DAYS = Number(process.env.SNAPSHOT_RETENTION_DAYS ?? 7)
 const SNAPSHOT_HEIGHT = 720
 
-type RecorderConfig = { cameras: Record<string, { live?: { streams?: Record<string, string> } }> }
+type RecorderConfig = { cameras: Record<string, { live?: { go2rtc?: string; streams?: Record<string, string> } }> }
 type RecorderEvent = {
   id: string
   camera: string
@@ -88,9 +92,9 @@ const upsertEvent = db.prepare(
   'INSERT INTO events (id, camera, label, started_at, ended_at, clip_path, clip_started_at) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
     'ON CONFLICT(id) DO UPDATE SET label = excluded.label, ended_at = excluded.ended_at, clip_path = excluded.clip_path, clip_started_at = excluded.clip_started_at',
 )
-const openEvents = db.prepare('SELECT id FROM events WHERE ended_at IS NULL')
+const openEvents = db.prepare('SELECT id, camera FROM events WHERE ended_at IS NULL')
 const deleteEvent = db.prepare('DELETE FROM events WHERE id = ?')
-const lastStart = db.prepare('SELECT MAX(started_at) AS t FROM events')
+const lastStarts = db.prepare('SELECT camera, MAX(started_at) AS t FROM events GROUP BY camera')
 const eventsWithoutClip = db.prepare(
   'SELECT id, camera, label, started_at, ended_at FROM events WHERE clip_path IS NULL AND ended_at IS NOT NULL AND ended_at <= ? AND started_at > ?',
 )
@@ -103,21 +107,43 @@ const CLIP_SETTLE_SECONDS = 20
 
 const log = (message: string) => console.log(`${new Date().toISOString()} ${message}`)
 
-// Requête vers l'enregistreur (le conteneur motion) : réseau Docker interne, sans mot de passe, jamais publié.
-const recorder = (path: string): Promise<Response> => fetch(`${FRIGATE_URL}${path}`)
+// Requête vers un enregistreur (un conteneur motion) : réseau Docker interne, sans mot de passe, jamais publié.
+const recorderAt = (base: string, path: string): Promise<Response> => fetch(`${base}${path}`)
 
-// Pour chaque caméra de l'enregistreur : l'adresse de sa dernière image et celle de la page du direct (go2rtc),
-// avec le premier flux « live » déclaré dans la configuration, ou le nom de la caméra à défaut.
-const syncCameras = async () => {
-  const res = await recorder('/api/config')
-  if (!res.ok) throw new Error(`config : HTTP ${res.status}`)
-  const config = (await res.json()) as RecorderConfig
-  for (const [camera, cam] of Object.entries(config.cameras)) {
-    const stream = Object.values(cam.live?.streams ?? {})[0] ?? camera
-    upsertImage.run(camera, `${FRIGATE_URL}/api/${camera}/latest.jpg`)
-    upsertLive.run(camera, `${FRIGATE_URL}/live?src=${stream}`)
+// Quel enregistreur gère quelle caméra : rempli à chaque tour par syncCameras, lu pour copier un clip ou une image.
+const recorderOf = new Map<string, string>()
+const recorder = (camera: string, path: string): Promise<Response> => {
+  const base = recorderOf.get(camera)
+  if (!base) return Promise.resolve(new Response(null, { status: 503 }))
+  return recorderAt(base, path)
+}
+
+// Pour chaque caméra de chaque enregistreur : l'adresse de sa dernière image et celle de la page du direct (le go2rtc
+// de son enregistreur), avec le premier flux « live » déclaré dans la configuration, ou le nom de la caméra à défaut.
+// Un enregistreur qui ne répond pas est signalé, sans empêcher les autres.
+const syncCameras = async (): Promise<Map<string, string[]>> => {
+  const byRecorder = new Map<string, string[]>()
+  for (const base of RECORDERS) {
+    try {
+      const res = await recorderAt(base, '/api/config')
+      if (!res.ok) throw new Error(`config : HTTP ${res.status}`)
+      const config = (await res.json()) as RecorderConfig
+      const cameras: string[] = []
+      for (const [camera, cam] of Object.entries(config.cameras)) {
+        if (!/^[\w-]+$/.test(camera)) continue
+        const stream = Object.values(cam.live?.streams ?? {})[0] ?? camera
+        const go2rtc = (cam.live?.go2rtc ?? base).replace(/\/$/, '')
+        recorderOf.set(camera, base)
+        upsertImage.run(camera, `${base}/api/${camera}/latest.jpg`)
+        upsertLive.run(camera, `${go2rtc}/live?src=${stream}`)
+        cameras.push(camera)
+      }
+      byRecorder.set(base, cameras)
+    } catch (error) {
+      log(`Enregistreur ${base} : ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
-  return Object.keys(config.cameras).filter((camera) => /^[\w-]+$/.test(camera))
+  return byRecorder
 }
 
 // Une image par caméra toutes les SNAPSHOT_INTERVAL_SECONDS, dans snapshots/<caméra>/<horodatage>.jpg,
@@ -129,7 +155,7 @@ const syncSnapshots = async (cameras: string[]) => {
   lastSnapshotAt = now
   let taken = 0
   for (const camera of cameras) {
-    const res = await recorder(`/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
+    const res = await recorder(camera, `/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
     if (!res.ok) continue
     mkdirSync(`${DATA_DIR}/snapshots/${camera}`, { recursive: true })
     const path = `snapshots/${camera}/${now}.jpg`
@@ -153,7 +179,7 @@ const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
   // L'identifiant sert de nom de fichier : rien d'autre que des caractères sûrs.
   if (!/^[\w.-]+$/.test(event.id) || !/^[\w-]+$/.test(event.camera)) return null
   if (event.end_time !== null && Date.now() / 1000 - event.end_time < CLIP_SETTLE_SECONDS) return null
-  const res = await recorder(`/api/events/${event.id}/clip.mp4`)
+  const res = await recorder(event.camera, `/api/events/${event.id}/clip.mp4`)
   if (!res.ok) {
     log(`Clip ${event.id} indisponible (HTTP ${res.status})`)
     return null
@@ -168,11 +194,11 @@ const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
 // Les événements terminés qui ont un clip depuis un instant, par pages du plus récent au plus ancien :
 // après une coupure, il peut y en avoir plus qu'une page, et aucun ne doit sauter.
 const MAX_PAGES = 20
-const fetchEventsSince = async (after: number): Promise<RecorderEvent[]> => {
+const fetchEventsSince = async (base: string, after: number): Promise<RecorderEvent[]> => {
   const all: RecorderEvent[] = []
   let before = ''
   for (let page = 0; page < MAX_PAGES; page += 1) {
-    const res = await recorder(`/api/events?after=${after}${before}&has_clip=1&in_progress=0&limit=${EVENTS_PER_POLL}`)
+    const res = await recorderAt(base, `/api/events?after=${after}${before}&has_clip=1&in_progress=0&limit=${EVENTS_PER_POLL}`)
     if (!res.ok) throw new Error(`events : HTTP ${res.status}`)
     const events = (await res.json()) as RecorderEvent[]
     all.push(...events)
@@ -184,9 +210,12 @@ const fetchEventsSince = async (after: number): Promise<RecorderEvent[]> => {
 
 // Les événements terminés qui ont un clip, du plus ancien au plus récent, en ignorant ceux déjà complets ;
 // un événement connu « en cours » est complété (fin et clip) quand l'enregistreur le donne terminé.
-const syncEvents = async () => {
-  const after = Math.max(0, Number((lastStart.get() as { t: number | null }).t ?? 0) - LOOK_BACK_SECONDS)
-  const events = (await fetchEventsSince(after)).reverse()
+const syncEvents = async (base: string, cameras: string[]) => {
+  // Le dernier événement connu de CET enregistreur : un enregistreur arrêté un moment rattrape ses événements.
+  const starts = lastStarts.all() as { camera: string; t: number }[]
+  const latest = Math.max(0, ...starts.filter((row) => cameras.includes(row.camera)).map((row) => row.t))
+  const after = Math.max(0, latest - LOOK_BACK_SECONDS)
+  const events = (await fetchEventsSince(base, after)).reverse()
   let copied = 0
   for (const event of events) {
     const known = findEvent.get(event.id) as { ended_at: number | null } | undefined
@@ -208,8 +237,8 @@ const syncEvents = async () => {
 
 // Les événements en cours chez l'enregistreur (quelqu'un est encore dans le champ) : une ligne sans fin ni clip, pour que
 // la frise les montre tout de suite. Une ligne en cours que l'enregistreur ne connaît plus est terminée ou effacée.
-const syncOngoingEvents = async () => {
-  const res = await recorder(`/api/events?in_progress=1&limit=${EVENTS_PER_POLL}`)
+const syncOngoingEvents = async (base: string, cameras: string[]) => {
+  const res = await recorderAt(base, `/api/events?in_progress=1&limit=${EVENTS_PER_POLL}`)
   if (!res.ok) throw new Error(`events in progress : HTTP ${res.status}`)
   const ongoing = (await res.json()) as RecorderEvent[]
   const ongoingIds = new Set(ongoing.map((event) => event.id))
@@ -217,9 +246,9 @@ const syncOngoingEvents = async () => {
     if (findEvent.get(event.id)) continue
     upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), null, null, null)
   }
-  for (const row of openEvents.all() as { id: string }[]) {
-    if (ongoingIds.has(row.id)) continue
-    const detail = await recorder(`/api/events/${row.id}`)
+  for (const row of openEvents.all() as { id: string; camera: string }[]) {
+    if (!cameras.includes(row.camera) || ongoingIds.has(row.id)) continue
+    const detail = await recorderAt(base, `/api/events/${row.id}`)
     if (detail.status === 404) {
       deleteEvent.run(row.id)
       continue
@@ -252,9 +281,19 @@ const poll = async () => {
   if (busy) return
   busy = true
   try {
-    const cameras = await syncCameras()
-    const copied = await syncEvents()
-    const ongoing = await syncOngoingEvents()
+    const byRecorder = await syncCameras()
+    const cameras = [...byRecorder.values()].flat()
+    let copied = 0
+    let ongoing = 0
+    for (const [base, own] of byRecorder) {
+      // Un enregistreur qui échoue ne bloque pas les autres.
+      try {
+        copied += await syncEvents(base, own)
+        ongoing += await syncOngoingEvents(base, own)
+      } catch (error) {
+        log(`Enregistreur ${base} : ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
     const repaired = await retryMissingClips()
     const snapshots = await syncSnapshots(cameras)
     log(

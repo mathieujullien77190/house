@@ -43,6 +43,39 @@ services:
     networks:
       - sync_net
 
+  # Le second enregistreur, pour tester plusieurs machines (un enregistreur et son go2rtc par Pi) : mêmes images,
+  # son propre go2rtc, ses propres dossiers. Il ne démarre que si COMPOSE_PROFILES=second ; pour que House Sync et
+  # l'API le voient, ajouter son adresse dans RECORDER_URLS et GO2RTC_URLS (.env.example).
+  go2rtc2:
+    image: alexxit/go2rtc:latest
+    profiles: [second]
+    restart: unless-stopped
+    environment:
+      CAMERA2_IP: ${CAMERA2_IP:-}
+      CAMERA2_USER: ${CAMERA2_USER:-admin}
+      CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
+    volumes:
+      - ./go2rtc/go2rtc2.yaml:/config/go2rtc.yaml:ro
+    networks:
+      - sync_net
+
+  motion2:
+    build: ./motion
+    profiles: [second]
+    restart: unless-stopped
+    depends_on:
+      - go2rtc2
+    environment:
+      CAMERAS: camera2
+      GO2RTC_RTSP: rtsp://go2rtc2:8554
+      GO2RTC_API: http://go2rtc2:1984
+      RETENTION_HOURS: "6"
+    volumes:
+      - ./data/recordings2:/recordings
+      - ./data/clips2:/data
+    networks:
+      - sync_net
+
   sync:
     build:
       # Le contexte est le dossier phase0 : la page de House Sync consomme le paquet ui.
@@ -55,8 +88,8 @@ services:
       certs:
         condition: service_completed_successfully
     environment:
-      # L'enregistreur : son API est interne, sans mot de passe.
-      RECORDER_URL: http://motion:8080
+      # Les enregistreurs (un par machine), séparés par des virgules : leur API est interne, sans mot de passe.
+      RECORDER_URLS: ${RECORDER_URLS:-http://motion:8080}
       # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
       HOUSE_KEY: ${API_KEY}
       PAGE_PORT: "8081"
@@ -88,13 +121,13 @@ services:
       # La clé que l'utilisateur donne depuis la WebApp ; l'API ne démarre pas sans.
       API_KEY: ${API_KEY}
       # go2rtc : le direct (MJPEG) et l'image à l'instant, relayés par l'API.
-      GO2RTC_URL: http://go2rtc:1984
+      GO2RTC_URLS: ${GO2RTC_URLS:-http://go2rtc:1984}
       # Le switch PoE : l'API coupe ou rend le PoE du port d'une caméra (page web du switch). Sans mot de passe, le service poe répond 503.
       SWITCH_URL: http://192.168.1.33
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: portail:7
+      SWITCH_PORTS: portail:7,camera2:6
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem

@@ -20,9 +20,10 @@ export const startServer = (config: Config, store: EventStore, log: (message: st
     const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost')
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
 
-    // Les caméras et, pour chacune, le flux go2rtc à montrer en direct (celui que l'API de la maison relaie).
+    // Les caméras et, pour chacune, le go2rtc de cet enregistreur (son adresse sur le réseau Docker) et le flux à montrer en
+    // direct : plusieurs enregistreurs, chacun avec son go2rtc, peuvent coexister (un par machine).
     if (pathname === '/api/config') {
-      return json(res, 200, { cameras: Object.fromEntries(config.cameras.map((camera) => [camera, { live: { streams: { Léger: `${camera}_sub` } } }])) })
+      return json(res, 200, { cameras: Object.fromEntries(config.cameras.map((camera) => [camera, { live: { go2rtc: config.go2rtcApi, streams: { Léger: `${camera}_sub` } } }])) })
     }
 
     if (pathname === '/api/events') {

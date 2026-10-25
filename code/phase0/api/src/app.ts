@@ -18,13 +18,14 @@ import { createSnapshotsService } from './services/snapshotsService.ts'
 export const createApp = (config: Config): Express => {
   const db = openDatabase(`${config.dataDir}/events.db`)
   const cameras = createCamerasRepository(db)
+  const live = createLiveService(config.go2rtcUrls, cameras)
   const services = {
     cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db)),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
-    live: createLiveService(config.go2rtcUrl, cameras),
+    live,
     files: createBackupFiles(config.dataDir),
-    poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, config.go2rtcUrl) : null,
+    poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
 
   const app = express()

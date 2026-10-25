@@ -10,8 +10,8 @@ export interface Config {
   dataDir: string
   /** La clé que l'utilisateur donne depuis la WebApp. */
   apiKey: string
-  /** go2rtc, sur le réseau Docker (port interne, jamais publié) : le direct et l'image à l'instant. */
-  go2rtcUrl: string
+  /** Les go2rtc, sur le réseau Docker (ports internes, jamais publiés) : un par enregistreur ; le premier est celui par défaut. */
+  go2rtcUrls: string[]
   /** Le switch PoE (page web, réseau de la maison) et le port de chaque caméra ; null sans mot de passe : poe répond 503. */
   switchPoe: { url: string; user: string; password: string; ports: Record<string, number> } | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
@@ -44,7 +44,10 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     webDir: resolve(env.WEB_DIR ?? './web'),
     dataDir: resolve(env.DATA_DIR ?? './data'),
     apiKey,
-    go2rtcUrl: (env.GO2RTC_URL ?? 'http://go2rtc:1984').replace(/\/$/, ''),
+    go2rtcUrls: (env.GO2RTC_URLS ?? env.GO2RTC_URL ?? 'http://go2rtc:1984')
+      .split(',')
+      .map((url) => url.trim().replace(/\/$/, ''))
+      .filter(Boolean),
     switchPoe: parseSwitch(env),
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
   }

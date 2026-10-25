@@ -35,11 +35,11 @@ interface Go2rtcStreams {
  * donc les octets reçus et le flux est vivant quand ce total a grandi depuis la lecture précédente (le total ne
  * bouge plus quand la caméra est coupée ou démarre). À la première lecture, on suppose que oui. Faux si go2rtc ne répond pas.
  */
-const createStreamWatch = (go2rtcUrl: string) => {
+const createStreamWatch = (go2rtcFor: (camera: string) => string) => {
   const lastBytes = new Map<string, number>()
   return async (camera: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${go2rtcUrl}/api/streams`, { signal: AbortSignal.timeout(2000) })
+      const res = await fetch(`${go2rtcFor(camera)}/api/streams`, { signal: AbortSignal.timeout(2000) })
       if (!res.ok) return false
       const streams = (await res.json()) as Go2rtcStreams
       const bytes = (streams[`${camera}_main`]?.producers ?? []).reduce((sum, producer) => sum + (producer.bytes_recv ?? 0), 0)
@@ -52,9 +52,9 @@ const createStreamWatch = (go2rtcUrl: string) => {
   }
 }
 
-export const createPoeService = (client: SwitchClient, ports: Record<string, number>, go2rtcUrl: string) => {
+export const createPoeService = (client: SwitchClient, ports: Record<string, number>, go2rtcFor: (camera: string) => string) => {
   let cache: { at: number; value: CameraPower[] } | null = null
-  const isStreaming = createStreamWatch(go2rtcUrl)
+  const isStreaming = createStreamWatch(go2rtcFor)
 
   return {
     /** L'état de chaque caméra branchée à un port connu, mis en cache quelques secondes (le switch est lent). */

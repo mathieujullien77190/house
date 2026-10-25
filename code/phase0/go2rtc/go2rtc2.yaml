@@ -1,0 +1,13 @@
+# Le go2rtc du second enregistreur (un par machine, voir docker-compose.yml, profil « second ») : même rôle que
+# go2rtc.yaml pour une autre caméra, nommée camera2. Adresse, compte et mot de passe viennent de .env
+# (CAMERA2_IP, CAMERA2_USER, CAMERA2_PASSWORD), jamais d'ici.
+streams:
+  camera2_main: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_main
+  camera2_sub: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_sub
+  camera2_sub_mjpeg: ffmpeg:camera2_sub#video=mjpeg
+
+rtsp:
+  listen: ":8554"
+
+api:
+  listen: ":1984"
