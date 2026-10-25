@@ -1,4 +1,4 @@
-// Les caméras : ce que la WebApp affiche (direct et dernière image viennent de Frigate, pas de l'API).
+// Les caméras : ce que la WebApp affiche (le direct passe par /stream, relayé de go2rtc).
 import type { CamerasRepository } from '../repositories/camerasRepository.ts'
 import type { CameraRow } from '../types.ts'
 

@@ -10,6 +10,8 @@ import { createSnapshotsRepository } from './repositories/snapshotsRepository.ts
 import { createRoutes } from './routes/index.ts'
 import { createCamerasService } from './services/camerasService.ts'
 import { createEventsService } from './services/eventsService.ts'
+import { createSwitchClient } from './lib/switchClient.ts'
+import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
 
@@ -22,6 +24,7 @@ export const createApp = (config: Config): Express => {
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live: createLiveService(config.go2rtcUrl, cameras),
     files: createBackupFiles(config.dataDir),
+    poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, config.go2rtcUrl) : null,
   }
 
   const app = express()

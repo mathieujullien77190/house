@@ -1,4 +1,4 @@
-// House Sync : se connecte à Frigate avec le compte viewer puis, à intervalle régulier, lit les caméras
+// House Sync : à intervalle régulier, il lit chez l'enregistreur (le conteneur motion) les caméras
 // et les événements terminés, copie chaque clip sur le disque backup et écrit dans SQLite les événements,
 // l'adresse de la dernière image et l'adresse iframe du direct de chaque caméra.
 // Seul House Sync écrit dans cette base ; House API la lit. Il sert aussi sa propre page (port 8081, HTTPS,
@@ -12,7 +12,8 @@ import { extname, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { listBackup, pageParams, paginate, readTable, summarizeTables, sumSize } from './data.ts'
 
-const FRIGATE_URL = process.env.FRIGATE_URL ?? 'https://frigate:8971'
+// L'enregistreur (conteneur motion) : son API est interne, sans mot de passe, jamais publiée.
+const FRIGATE_URL = (process.env.RECORDER_URL ?? 'http://motion:8080').replace(/\/$/, '')
 // La page de House Sync (une petite app React, dossier web) : sa clé (la même que l'API), son port et le certificat.
 const HOUSE_KEY = process.env.HOUSE_KEY ?? ''
 const PAGE_PORT = Number(process.env.PAGE_PORT ?? 8081)
@@ -20,23 +21,19 @@ const WEB_DIR = resolve(process.env.WEB_DIR ?? './web')
 const TLS_CERT = process.env.TLS_CERT ?? ''
 const TLS_KEY = process.env.TLS_KEY ?? ''
 const SESSION_COOKIE = 'house_sync'
-// Adresse de Frigate telle que le navigateur de l'utilisateur la voit : c'est lui qui charge le direct et l'image.
-const FRIGATE_PUBLIC_URL = (process.env.FRIGATE_PUBLIC_URL ?? 'https://localhost:8971').replace(/\/$/, '')
-const FRIGATE_USER = process.env.FRIGATE_USER ?? ''
-const FRIGATE_PASSWORD = process.env.FRIGATE_PASSWORD ?? ''
 const DATA_DIR = process.env.DATA_DIR ?? './data'
 const INTERVAL_MS = Number(process.env.POLL_INTERVAL_SECONDS ?? 30) * 1000
 const EVENTS_PER_POLL = 50
 // Un événement long peut se terminer après des événements plus récents : on relit une heure en arrière.
 const LOOK_BACK_SECONDS = 3600
-// Frigate n'enregistre que sur mouvement : entre deux événements, il ne reste rien. House Sync garde donc
-// une image par minute et par caméra (dernière image de Frigate, 720 px de haut) pendant quelques jours.
+// L'enregistreur n'enregistre que sur mouvement : entre deux événements, il ne reste rien. House Sync garde donc
+// une image par minute et par caméra (image du flux principal, 720 px de haut) pendant quelques jours.
 const SNAPSHOT_INTERVAL_SECONDS = Number(process.env.SNAPSHOT_INTERVAL_SECONDS ?? 60)
 const SNAPSHOT_RETENTION_DAYS = Number(process.env.SNAPSHOT_RETENTION_DAYS ?? 7)
 const SNAPSHOT_HEIGHT = 720
 
-type FrigateConfig = { cameras: Record<string, { live?: { streams?: Record<string, string> } }> }
-type FrigateEvent = {
+type RecorderConfig = { cameras: Record<string, { live?: { streams?: Record<string, string> } }> }
+type RecorderEvent = {
   id: string
   camera: string
   label: string
@@ -54,7 +51,8 @@ db.exec(`
     label TEXT NOT NULL,
     started_at INTEGER NOT NULL,
     ended_at INTEGER,
-    clip_path TEXT
+    clip_path TEXT,
+    clip_started_at INTEGER
   );
   CREATE TABLE IF NOT EXISTS last_images (
     camera TEXT PRIMARY KEY,
@@ -80,11 +78,15 @@ const upsertImage = db.prepare(
 const upsertLive = db.prepare(
   'INSERT INTO live_streams (camera, url) VALUES (?, ?) ON CONFLICT(camera) DO UPDATE SET url = excluded.url',
 )
+// Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
+if (!(db.prepare('PRAGMA table_info(events)').all() as { name: string }[]).some((column) => column.name === 'clip_started_at')) {
+  db.exec('ALTER TABLE events ADD COLUMN clip_started_at INTEGER')
+}
 const findEvent = db.prepare('SELECT ended_at FROM events WHERE id = ?')
 // Un événement en cours est inséré sans fin ni clip ; une fois terminé, la même ligne reçoit sa fin et son clip.
 const upsertEvent = db.prepare(
-  'INSERT INTO events (id, camera, label, started_at, ended_at, clip_path) VALUES (?, ?, ?, ?, ?, ?) ' +
-    'ON CONFLICT(id) DO UPDATE SET label = excluded.label, ended_at = excluded.ended_at, clip_path = excluded.clip_path',
+  'INSERT INTO events (id, camera, label, started_at, ended_at, clip_path, clip_started_at) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
+    'ON CONFLICT(id) DO UPDATE SET label = excluded.label, ended_at = excluded.ended_at, clip_path = excluded.clip_path, clip_started_at = excluded.clip_started_at',
 )
 const openEvents = db.prepare('SELECT id FROM events WHERE ended_at IS NULL')
 const deleteEvent = db.prepare('DELETE FROM events WHERE id = ?')
@@ -92,52 +94,28 @@ const lastStart = db.prepare('SELECT MAX(started_at) AS t FROM events')
 const eventsWithoutClip = db.prepare(
   'SELECT id, camera, label, started_at, ended_at FROM events WHERE clip_path IS NULL AND ended_at IS NOT NULL AND ended_at <= ? AND started_at > ?',
 )
-const updateClip = db.prepare('UPDATE events SET clip_path = ? WHERE id = ?')
-// Un clip peut ne pas être prêt au moment de la copie : on réessaie tant que Frigate garde ses enregistrements.
+const updateClip = db.prepare('UPDATE events SET clip_path = ?, clip_started_at = ? WHERE id = ?')
+// Un clip peut ne pas être prêt au moment de la copie : on réessaie tant que l'enregistreur garde ses enregistrements.
 const CLIP_RETRY_SECONDS = 6 * 3600
-// Frigate écrit ses enregistrements par segments de 10 s : un clip demandé trop tôt après la fin de l'événement
+// L'enregistreur écrit ses enregistrements par segments de 10 s : un clip demandé trop tôt après la fin de l'événement
 // est tronqué. On attend ce délai après la fin avant de copier.
 const CLIP_SETTLE_SECONDS = 20
 
 const log = (message: string) => console.log(`${new Date().toISOString()} ${message}`)
 
-// Cookie de session de Frigate (frigate_token), renvoyé par POST /api/login. Vide tant qu'on n'est pas connecté.
-let cookie = ''
+// Requête vers l'enregistreur (le conteneur motion) : réseau Docker interne, sans mot de passe, jamais publié.
+const recorder = (path: string): Promise<Response> => fetch(`${FRIGATE_URL}${path}`)
 
-const login = async () => {
-  const res = await fetch(`${FRIGATE_URL}/api/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user: FRIGATE_USER, password: FRIGATE_PASSWORD }),
-  })
-  if (!res.ok) throw new Error(`connexion refusée (HTTP ${res.status})`)
-  // On ne garde que la paire nom=valeur du cookie, sans ses attributs (Path, HttpOnly…).
-  const token = res.headers.getSetCookie().find((c) => c.startsWith('frigate_token='))
-  if (!token) throw new Error('pas de cookie frigate_token dans la réponse')
-  cookie = token.split(';')[0]
-  log(`Connecté à Frigate (${FRIGATE_USER})`)
-}
-
-// Requête authentifiée : se connecte si besoin, et une seule fois de plus si la session a expiré (401).
-const frigate = async (path: string): Promise<Response> => {
-  if (!cookie) await login()
-  const res = await fetch(`${FRIGATE_URL}${path}`, { headers: { Cookie: cookie } })
-  if (res.status !== 401) return res
-  cookie = ''
-  await login()
-  return fetch(`${FRIGATE_URL}${path}`, { headers: { Cookie: cookie } })
-}
-
-// Pour chaque caméra de Frigate : l'adresse de sa dernière image et celle de la page du direct (go2rtc),
+// Pour chaque caméra de l'enregistreur : l'adresse de sa dernière image et celle de la page du direct (go2rtc),
 // avec le premier flux « live » déclaré dans la configuration, ou le nom de la caméra à défaut.
 const syncCameras = async () => {
-  const res = await frigate('/api/config')
+  const res = await recorder('/api/config')
   if (!res.ok) throw new Error(`config : HTTP ${res.status}`)
-  const config = (await res.json()) as FrigateConfig
+  const config = (await res.json()) as RecorderConfig
   for (const [camera, cam] of Object.entries(config.cameras)) {
     const stream = Object.values(cam.live?.streams ?? {})[0] ?? camera
-    upsertImage.run(camera, `${FRIGATE_PUBLIC_URL}/api/${camera}/latest.jpg`)
-    upsertLive.run(camera, `${FRIGATE_PUBLIC_URL}/live/webrtc/stream.html?src=${stream}`)
+    upsertImage.run(camera, `${FRIGATE_URL}/api/${camera}/latest.jpg`)
+    upsertLive.run(camera, `${FRIGATE_URL}/live?src=${stream}`)
   }
   return Object.keys(config.cameras).filter((camera) => /^[\w-]+$/.test(camera))
 }
@@ -151,7 +129,7 @@ const syncSnapshots = async (cameras: string[]) => {
   lastSnapshotAt = now
   let taken = 0
   for (const camera of cameras) {
-    const res = await frigate(`/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
+    const res = await recorder(`/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
     if (!res.ok) continue
     mkdirSync(`${DATA_DIR}/snapshots/${camera}`, { recursive: true })
     const path = `snapshots/${camera}/${now}.jpg`
@@ -167,13 +145,15 @@ const syncSnapshots = async (cameras: string[]) => {
   return taken
 }
 
-// Copie le clip d'un événement dans DATA_DIR/clips/<caméra>/<id>.mp4 et renvoie ce chemin relatif.
+type CopiedClip = { path: string; start: number | null }
+
+// Copie le clip d'un événement dans DATA_DIR/clips/<caméra>/<id>.mp4 et renvoie ce chemin relatif et le début réel du clip.
 // Trop tôt après la fin de l'événement (segments pas tous écrits), on ne copie pas : la reprise le fera.
-const copyClip = async (event: FrigateEvent) => {
+const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
   // L'identifiant sert de nom de fichier : rien d'autre que des caractères sûrs.
   if (!/^[\w.-]+$/.test(event.id) || !/^[\w-]+$/.test(event.camera)) return null
   if (event.end_time !== null && Date.now() / 1000 - event.end_time < CLIP_SETTLE_SECONDS) return null
-  const res = await frigate(`/api/events/${event.id}/clip.mp4`)
+  const res = await recorder(`/api/events/${event.id}/clip.mp4`)
   if (!res.ok) {
     log(`Clip ${event.id} indisponible (HTTP ${res.status})`)
     return null
@@ -181,19 +161,20 @@ const copyClip = async (event: FrigateEvent) => {
   mkdirSync(`${DATA_DIR}/clips/${event.camera}`, { recursive: true })
   const path = `clips/${event.camera}/${event.id}.mp4`
   await writeFile(`${DATA_DIR}/${path}`, Buffer.from(await res.arrayBuffer()))
-  return path
+  const start = Number(res.headers.get('X-Clip-Start'))
+  return { path, start: Number.isFinite(start) && start > 0 ? start : null }
 }
 
 // Les événements terminés qui ont un clip depuis un instant, par pages du plus récent au plus ancien :
 // après une coupure, il peut y en avoir plus qu'une page, et aucun ne doit sauter.
 const MAX_PAGES = 20
-const fetchEventsSince = async (after: number): Promise<FrigateEvent[]> => {
-  const all: FrigateEvent[] = []
+const fetchEventsSince = async (after: number): Promise<RecorderEvent[]> => {
+  const all: RecorderEvent[] = []
   let before = ''
   for (let page = 0; page < MAX_PAGES; page += 1) {
-    const res = await frigate(`/api/events?after=${after}${before}&has_clip=1&in_progress=0&limit=${EVENTS_PER_POLL}`)
+    const res = await recorder(`/api/events?after=${after}${before}&has_clip=1&in_progress=0&limit=${EVENTS_PER_POLL}`)
     if (!res.ok) throw new Error(`events : HTTP ${res.status}`)
-    const events = (await res.json()) as FrigateEvent[]
+    const events = (await res.json()) as RecorderEvent[]
     all.push(...events)
     if (events.length < EVENTS_PER_POLL) break
     before = `&before=${events[events.length - 1].start_time}`
@@ -202,7 +183,7 @@ const fetchEventsSince = async (after: number): Promise<FrigateEvent[]> => {
 }
 
 // Les événements terminés qui ont un clip, du plus ancien au plus récent, en ignorant ceux déjà complets ;
-// un événement connu « en cours » est complété (fin et clip) quand Frigate le donne terminé.
+// un événement connu « en cours » est complété (fin et clip) quand l'enregistreur le donne terminé.
 const syncEvents = async () => {
   const after = Math.max(0, Number((lastStart.get() as { t: number | null }).t ?? 0) - LOOK_BACK_SECONDS)
   const events = (await fetchEventsSince(after)).reverse()
@@ -210,55 +191,57 @@ const syncEvents = async () => {
   for (const event of events) {
     const known = findEvent.get(event.id) as { ended_at: number | null } | undefined
     if (known && known.ended_at !== null) continue
-    const clipPath = await copyClip(event)
+    const clip = await copyClip(event)
     upsertEvent.run(
       event.id,
       event.camera,
       event.label,
       Math.floor(event.start_time),
       event.end_time === null ? null : Math.floor(event.end_time),
-      clipPath,
+      clip?.path ?? null,
+      clip?.start ?? null,
     )
     copied += 1
   }
   return copied
 }
 
-// Les événements en cours chez Frigate (quelqu'un est encore dans le champ) : une ligne sans fin ni clip, pour que
-// la frise les montre tout de suite. Une ligne en cours que Frigate ne connaît plus est terminée ou effacée.
+// Les événements en cours chez l'enregistreur (quelqu'un est encore dans le champ) : une ligne sans fin ni clip, pour que
+// la frise les montre tout de suite. Une ligne en cours que l'enregistreur ne connaît plus est terminée ou effacée.
 const syncOngoingEvents = async () => {
-  const res = await frigate(`/api/events?in_progress=1&limit=${EVENTS_PER_POLL}`)
+  const res = await recorder(`/api/events?in_progress=1&limit=${EVENTS_PER_POLL}`)
   if (!res.ok) throw new Error(`events in progress : HTTP ${res.status}`)
-  const ongoing = (await res.json()) as FrigateEvent[]
+  const ongoing = (await res.json()) as RecorderEvent[]
   const ongoingIds = new Set(ongoing.map((event) => event.id))
   for (const event of ongoing) {
     if (findEvent.get(event.id)) continue
-    upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), null, null)
+    upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), null, null, null)
   }
   for (const row of openEvents.all() as { id: string }[]) {
     if (ongoingIds.has(row.id)) continue
-    const detail = await frigate(`/api/events/${row.id}`)
+    const detail = await recorder(`/api/events/${row.id}`)
     if (detail.status === 404) {
       deleteEvent.run(row.id)
       continue
     }
     if (!detail.ok) continue
-    const event = (await detail.json()) as FrigateEvent
+    const event = (await detail.json()) as RecorderEvent
     if (event.end_time === null) continue
-    upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), Math.floor(event.end_time), event.has_clip ? await copyClip(event) : null)
+    const clip = event.has_clip ? await copyClip(event) : null
+    upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), Math.floor(event.end_time), clip?.path ?? null, clip?.start ?? null)
   }
   return ongoing.length
 }
 
-// Les événements enregistrés sans clip (Frigate ne l'avait pas encore fini) : on retente la copie.
+// Les événements enregistrés sans clip (l'enregistreur ne l'avait pas encore fini) : on retente la copie.
 const retryMissingClips = async () => {
   const now = Math.floor(Date.now() / 1000)
   let repaired = 0
-  const rows = eventsWithoutClip.all(now - CLIP_SETTLE_SECONDS, now - CLIP_RETRY_SECONDS) as Omit<FrigateEvent, 'has_clip' | 'start_time' | 'end_time'>[]
+  const rows = eventsWithoutClip.all(now - CLIP_SETTLE_SECONDS, now - CLIP_RETRY_SECONDS) as Omit<RecorderEvent, 'has_clip' | 'start_time' | 'end_time'>[]
   for (const row of rows) {
-    const clipPath = await copyClip({ ...row, has_clip: true, start_time: row.started_at, end_time: row.ended_at })
-    if (!clipPath) continue
-    updateClip.run(clipPath, row.id)
+    const clip = await copyClip({ ...row, has_clip: true, start_time: row.started_at, end_time: row.ended_at })
+    if (!clip) continue
+    updateClip.run(clip.path, clip.start, row.id)
     repaired += 1
   }
   return repaired
@@ -278,7 +261,7 @@ const poll = async () => {
       `${cameras.length} caméra(s), ${copied} nouvel(aux) événement(s)${ongoing ? `, ${ongoing} en cours` : ''}${repaired ? `, ${repaired} clip(s) récupéré(s)` : ''}${snapshots ? `, ${snapshots} image(s)` : ''}`,
     )
   } catch (error) {
-    log(`Frigate : ${error instanceof Error ? error.message : String(error)}`)
+    log(`Enregistreur : ${error instanceof Error ? error.message : String(error)}`)
   } finally {
     busy = false
   }

@@ -118,5 +118,5 @@ src/
 - `typescript` bloqué en **~6.0** (`typescript-eslint` n'accepte pas la 7).
 - Clé `localStorage` `house-diagram-vN` (`src/useDiagram.ts`) : **incrémenter N** quand le modèle ou le schéma par défaut change.
 - Les liens dépendent de `x`, `y`, `w`, `h` des composants (`geometry.ts`). Canevas 900 × 540 (`CANVAS`) pour les deux étages ; plan dans `src/plan.ts`, styles dans `components/HousePlan/constants.ts` ; `toBox` pour dessiner les rectangles.
-- Le glob de `CodeBrowser` ignore `node_modules`, `dist`, `storybook-static`, `package-lock.json` et les fichiers cachés que Frigate écrit dans `frigate/config` (sinon Vite recharge à chaque écriture).
+- Le glob de `CodeBrowser` ignore `node_modules`, `dist`, `storybook-static`, `package-lock.json` (sinon Vite recharge à chaque écriture).
 - Dans le shell Bash de Claude Code, éviter les gros heredocs avec des apostrophes.

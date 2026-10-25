@@ -1,9 +1,9 @@
-# Phase 0 : trois conteneurs sur le PC (Frigate, House Sync, House API + WebApp).
-# Démarrage : voir README.md.
+# Phase 0 : go2rtc (les flux de la caméra), motion (l'enregistreur), House Sync, House API + WebApp, et un
+# conteneur éphémère pour les certificats. Démarrage : voir README.md.
 
 services:
   # Conteneur éphémère : crée la CA de la maison et le certificat du PC dans data/certs, puis s'arrête.
-  # Frigate et l'API attendent qu'il ait fini pour démarrer avec ce certificat.
+  # House Sync et l'API attendent qu'il ait fini pour démarrer avec ce certificat.
   certs:
     build: ./certs
     restart: "no"
@@ -12,24 +12,34 @@ services:
     volumes:
       - ./data/certs:/certs
 
-  frigate:
-    image: ghcr.io/blakeblackshear/frigate:stable
+  # go2rtc : une seule connexion RTSP vers la caméra, qu'il partage (RTSP interne, MJPEG, image à l'instant).
+  # Ni son RTSP (8554) ni son API (1984) ne sont publiés : seuls les autres conteneurs les voient.
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    restart: unless-stopped
+    environment:
+      REOLINK_PASSWORD: ${REOLINK_PASSWORD}
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    networks:
+      - sync_net
+
+  # L'enregistreur (voir motion/CLAUDE.md) : enregistre le flux principal par segments, détecte le mouvement sur
+  # le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
+  motion:
+    build: ./motion
     restart: unless-stopped
     depends_on:
-      certs:
-        condition: service_completed_successfully
-    shm_size: 256mb
+      - go2rtc
     environment:
-      # Frigate ne lit que les variables qui commencent par FRIGATE_.
-      FRIGATE_REOLINK_PASSWORD: ${REOLINK_PASSWORD}
+      CAMERAS: portail
+      GO2RTC_RTSP: rtsp://go2rtc:8554
+      GO2RTC_API: http://go2rtc:1984
+      # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
+      RETENTION_HOURS: "6"
     volumes:
-      - ./frigate/config:/config
-      - ./data/frigate:/media/frigate
-      # Le certificat de la maison (fullchain.pem, privkey.pem) : Frigate le recharge tout seul s'il change.
-      - ./data/certs/frigate:/etc/letsencrypt/live/frigate:ro
-    ports:
-      # Seul port publié : le 8971, avec connexion. Le 5000 reste interne.
-      - "8971:8971"
+      - ./data/recordings:/recordings
+      - ./data/clips:/data
     networks:
       - sync_net
 
@@ -40,28 +50,23 @@ services:
       dockerfile: sync/Dockerfile
     restart: unless-stopped
     depends_on:
-      frigate:
+      motion:
         condition: service_started
       certs:
         condition: service_completed_successfully
     environment:
-      FRIGATE_URL: https://frigate:8971
+      # L'enregistreur : son API est interne, sans mot de passe.
+      RECORDER_URL: http://motion:8080
       # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
       HOUSE_KEY: ${API_KEY}
       PAGE_PORT: "8081"
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem
-      # Adresse de Frigate vue du navigateur : écrite dans SQLite pour le direct et la dernière image.
-      FRIGATE_PUBLIC_URL: ${FRIGATE_PUBLIC_URL}
-      FRIGATE_USER: ${SYNC_FRIGATE_USER}
-      FRIGATE_PASSWORD: ${SYNC_FRIGATE_PASSWORD}
       DATA_DIR: /data
       POLL_INTERVAL_SECONDS: "5"
       # Une image par caméra et par minute, gardée 7 jours (~115 Mo par jour et par caméra).
       SNAPSHOT_INTERVAL_SECONDS: "60"
       SNAPSHOT_RETENTION_DAYS: "7"
-      # Certificat auto-signé de Frigate, sur le réseau interne de Docker seulement.
-      NODE_TLS_REJECT_UNAUTHORIZED: "0"
     ports:
       - "8081:8081"
     volumes:
@@ -82,10 +87,15 @@ services:
       DATA_DIR: /data
       # La clé que l'utilisateur donne depuis la WebApp ; l'API ne démarre pas sans.
       API_KEY: ${API_KEY}
-      # go2rtc, embarqué dans Frigate : le direct (MJPEG) et l'image à l'instant, relayés par l'API.
-      GO2RTC_URL: http://frigate:1984
-      # Le certificat de la maison : HTTPS obligatoire pour que le navigateur envoie le cookie de Frigate
-      # à l'iframe du direct et à l'image (même scheme et même hôte que Frigate).
+      # go2rtc : le direct (MJPEG) et l'image à l'instant, relayés par l'API.
+      GO2RTC_URL: http://go2rtc:1984
+      # Le switch PoE : l'API coupe ou rend le PoE du port d'une caméra (page web du switch). Sans mot de passe, le service poe répond 503.
+      SWITCH_URL: http://192.168.1.33
+      SWITCH_USER: ${SWITCH_USER:-admin}
+      SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
+      # Caméra:port du switch, séparés par des virgules.
+      SWITCH_PORTS: portail:7
+      # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem
     ports:
@@ -96,7 +106,7 @@ services:
       - ./data/certs:/certs:ro
     networks:
       - web_net
-      # Pour joindre go2rtc (frigate:1984), qui n'est jamais publié.
+      # Pour joindre go2rtc (go2rtc:1984), qui n'est jamais publié.
       - sync_net
 
 networks:

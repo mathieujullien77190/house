@@ -12,5 +12,5 @@ export const formatSize = (bytes: number): string => {
 
 export const formatDateMs = (ms: number): string => new Date(ms).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'medium' })
 
-/** Un horodatage Frigate (secondes) en date lisible. */
+/** Un horodatage de l'enregistreur (secondes) en date lisible. */
 export const formatSeconds = (seconds: number): string => formatDateMs(seconds * 1000)

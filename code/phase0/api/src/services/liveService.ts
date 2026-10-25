@@ -1,5 +1,5 @@
-// Le direct et l'image à l'instant, relayés depuis go2rtc (dans Frigate, réseau Docker) : l'API ne parle
-// jamais à l'API de Frigate, seulement à go2rtc, qui n'a pas de mot de passe et n'est jamais publié.
+// Le direct et l'image à l'instant, relayés depuis go2rtc (réseau Docker) : l'API ne parle
+// qu'à go2rtc, qui n'a pas de mot de passe et n'est jamais publié.
 import type { CamerasRepository } from '../repositories/camerasRepository.ts'
 
 const MJPEG_SUFFIX = '_mjpeg'
@@ -34,7 +34,7 @@ export const createLiveService = (go2rtcUrl: string, cameras: CamerasRepository)
     /** Le flux MJPEG d'une caméra (multipart/x-mixed-replace), tant que le client reste connecté. */
     stream: (camera: string, signal: AbortSignal): Promise<Upstream | null> => {
       const src = streamOf(camera)
-      // go2rtc ne sert du MJPEG que pour un flux déclaré en transcodage : <flux>_mjpeg (voir frigate/config/config.yml).
+      // go2rtc ne sert du MJPEG que pour un flux déclaré en transcodage : <flux>_mjpeg (voir go2rtc/go2rtc.yaml).
       return src ? open(`/api/stream.mjpeg?src=${encodeURIComponent(`${src}${MJPEG_SUFFIX}`)}`, signal) : Promise.resolve(null)
     },
     /** Une image JPEG de l'instant. */

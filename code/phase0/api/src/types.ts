@@ -7,6 +7,7 @@ export interface EventRow {
   started_at: number
   ended_at: number | null
   clip_path: string | null
+  clip_started_at: number | null
 }
 
 export interface CameraRow {
@@ -22,4 +23,6 @@ export interface EventDto {
   started_at: number
   ended_at: number | null
   clip: string | null
+  /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null. */
+  clip_started_at: number | null
 }

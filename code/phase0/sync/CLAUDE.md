@@ -4,11 +4,10 @@ Script TypeScript exécuté par Node 24 (`src/index.ts`), sans dépendance, le *
 
 ## Ce qu'il fait, toutes les `POLL_INTERVAL_SECONDS` (5 s)
 
-1. Se connecte à Frigate avec le compte viewer (`POST /api/login`, cookie `frigate_token`, reconnexion si 401).
-2. Lit la configuration de Frigate : pour chaque caméra, écrit l'adresse de la dernière image (`last_images`) et celle de la page du direct (`live_streams`, premier flux `live` déclaré), avec `FRIGATE_PUBLIC_URL`.
-3. Lit les événements terminés qui ont un clip (`after` = dernier connu − 1 h, pages de 50 jusqu'à épuisement), copie chaque clip inconnu, insère ou complète la ligne dans `events`. Un clip n'est copié que **20 s après la fin** de l'événement (Frigate écrit ses enregistrements par segments de 10 s : plus tôt, le clip est tronqué) ; d'ici là, et si Frigate ne l'a pas encore, `clip_path` reste NULL et la copie est retentée à chaque tour pendant 6 h.
-4. Lit les événements **en cours** (`in_progress=1`) : insérés tout de suite sans fin ni clip (`ended_at` et `clip_path` NULL) pour que la frise les montre ; complétés quand Frigate les donne terminés, effacés si Frigate ne les connaît plus (404).
-5. Toutes les `SNAPSHOT_INTERVAL_SECONDS` (60 s) : garde la dernière image de chaque caméra (720 px) dans `snapshots`, et supprime celles de plus de `SNAPSHOT_RETENTION_DAYS` (7) jours.
+1. Lit chez l'enregistreur (`RECORDER_URL`, `http://motion:8080`, interne, sans mot de passe) la liste des caméras : pour chacune, écrit l'adresse de sa dernière image (`last_images`) et celle de son direct (`live_streams`, avec le nom du flux go2rtc dans `?src=`).
+2. Lit les événements terminés qui ont un clip (`after` = dernier connu − 1 h, pages de 50 jusqu'à épuisement), copie chaque clip inconnu, insère ou complète la ligne dans `events` (avec `clip_started_at`, le début réel du clip lu dans l’en-tête `X-Clip-Start`, pour que la WebApp cale la lecture sur la frise). Un clip n'est copié que **20 s après la fin** de l'événement (l'enregistreur le fabrique après la fin du mouvement : plus tôt, il peut manquer ou être tronqué) ; d'ici là, `clip_path` reste NULL et la copie est retentée à chaque tour pendant 6 h.
+3. Lit les événements **en cours** (`in_progress=1`) : insérés tout de suite sans fin ni clip (`ended_at` et `clip_path` NULL) pour que la frise les montre ; complétés quand l'enregistreur les donne terminés, effacés s'il ne les connaît plus (404).
+4. Toutes les `SNAPSHOT_INTERVAL_SECONDS` (60 s) : garde la dernière image de chaque caméra (720 px) dans `snapshots`, et supprime celles de plus de `SNAPSHOT_RETENTION_DAYS` (7) jours.
 
 ## Sa page (port 8081, HTTPS)
 

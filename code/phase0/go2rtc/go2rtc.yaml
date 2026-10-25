@@ -1,0 +1,14 @@
+# go2rtc : une seule connexion RTSP vers chaque caméra, partagée avec l'enregistreur (motion) et la WebApp.
+# Le mot de passe de la caméra vient de la variable d'environnement REOLINK_PASSWORD (.env), jamais d'ici.
+# Par caméra, trois flux : <nom>_main (4K, enregistré en copie), <nom>_sub (léger, détection) et
+# <nom>_sub_mjpeg (le léger transcodé en MJPEG, que House API relaie pour le direct).
+streams:
+  portail_main: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
+  portail_sub: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
+  portail_sub_mjpeg: ffmpeg:portail_sub#video=mjpeg
+
+rtsp:
+  listen: ":8554"
+
+api:
+  listen: ":1984"

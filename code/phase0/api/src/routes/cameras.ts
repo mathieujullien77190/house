@@ -1,4 +1,4 @@
-// direct et image : les adresses de chaque caméra chez Frigate.
+// direct et image : les adresses de chaque caméra (celles que House Sync a écrites).
 import { Router } from 'express'
 import type { CamerasService } from '../services/camerasService.ts'
 

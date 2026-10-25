@@ -4,9 +4,9 @@ export const OPEN_BY_DEFAULT = ['events']
 
 /** Ce que contient chaque table, en une phrase. */
 export const DESCRIPTIONS: Record<string, string> = {
-  events: 'Les événements de Frigate (une personne détectée) copiés ici : identifiant, caméra, étiquette, début, fin et le chemin du clip sur le disque backup.',
-  last_images: 'Pour chaque caméra, l’adresse de sa dernière image chez Frigate ; la WebApp la recharge chaque seconde.',
-  live_streams: 'Pour chaque caméra, l’adresse de la page du direct (go2rtc) chez Frigate.',
+  events: 'Les événements de mouvement de l’enregistreur copiés ici : identifiant, caméra, étiquette, début, fin et le chemin du clip sur le disque backup.',
+  last_images: 'Pour chaque caméra, l’adresse de sa dernière image chez l’enregistreur.',
+  live_streams: 'Pour chaque caméra, le flux go2rtc du direct, que l’API relaie.',
   snapshots: 'Une image par caméra et par minute, gardée quelques jours : ce que la frise de la WebApp montre entre deux événements.',
 }
 

@@ -18,7 +18,7 @@ Tout tourne dans le navigateur : à chaque push sur `main`, GitHub Actions const
 
 Le schéma de la phase 0 est dans l'application, en deux vues (matériel et logiciel).
 
-La caméra n'a pas de prise : le switch lui envoie courant et données par un seul câble. Le PC lit son flux RTSP avec Frigate (détection de mouvement, clips), House API l'interroge et sert la WebApp, qu'ouvre le téléphone ; un script House Sync l'interroge à intervalle régulier (polling, sans Mosquitto) et copie les clips sur le disque de sauvegarde (il pourra passer sur le Pi de sauvegarde). Le contrôleur Omada, pour couper le PoE d'un port, viendra plus tard.
+La caméra n'a pas de prise : le switch lui envoie courant et données par un seul câble. Le PC lit son flux RTSP avec go2rtc, et un enregistreur simple (détection de mouvement, clips), House API l'interroge et sert la WebApp, qu'ouvre le téléphone ; un script House Sync l'interroge à intervalle régulier (polling, sans Mosquitto) et copie les clips sur le disque de sauvegarde (il pourra passer sur le Pi de sauvegarde). Le contrôleur Omada, pour couper le PoE d'un port, viendra plus tard.
 
 ## Démarrer
 

@@ -8,5 +8,5 @@ export const mediaOf = (column: string, value: unknown): Media | null => {
   return null
 }
 
-/** Les colonnes dont la valeur est un horodatage Frigate, en secondes. */
+/** Les colonnes dont la valeur est un horodatage, en secondes. */
 export const isTimestamp = (column: string, value: unknown): value is number => typeof value === 'number' && column.endsWith('_at')

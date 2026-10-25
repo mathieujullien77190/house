@@ -32,12 +32,12 @@ export const ENTRIES: DeployEntry[] = [
     note: `${CAMERA_IP}, alimentée en PoE par le switch. RTSP activé (port 554), HTTP, HTTPS et ONVIF fermés. Flux rtsp://${CAMERA_IP}:554/h264Preview_01_main et _sub.`,
   },
   {
-    id: 'frigate',
-    name: 'Frigate',
-    role: 'détection et enregistrement',
-    url: `https://${PC_IP}:8971`,
-    account: 'admin · sync (viewer, pour House Sync)',
-    note: 'Administration seulement (port 8971, avec connexion). Les ports 5000 et 1984 (go2rtc) ne sont jamais publiés ; la WebApp n’a pas besoin de s’y connecter.',
+    id: 'recorder',
+    name: 'go2rtc et motion',
+    role: 'flux et enregistrement',
+    url: '',
+    account: 'aucun (internes)',
+    note: 'go2rtc (1984, 8554) et l’API de l’enregistreur (8080 interne) n’ont pas de mot de passe : ils ne sont jamais publiés, seuls les autres conteneurs les joignent. Logs : docker compose logs -f motion.',
   },
   {
     id: 'webapp',
@@ -45,7 +45,7 @@ export const ENTRIES: DeployEntry[] = [
     role: 'la page de la maison',
     url: `https://${PC_IP}:8080`,
     account: 'clé secrète de l’API (API_KEY)',
-    note: 'Une seule clé : la même que l’API. Le direct (MJPEG) et les clips passent par l’API ; aucune connexion à Frigate dans le navigateur.',
+    note: 'Une seule clé : la même que l’API. Le direct (MJPEG) et les clips passent par l’API ; le navigateur ne parle qu’à l’API.',
   },
   {
     id: 'api',
@@ -53,12 +53,12 @@ export const ENTRIES: DeployEntry[] = [
     role: 'lecture seule : SQLite et clips',
     url: `https://${PC_IP}:8080/welcome`,
     account: 'en-tête X-House-Key',
-    note: 'Services /auth, /direct, /events (?last=1), /clips/id, /snapshots, /snapshot, /stream et /frame (relais de go2rtc). Jamais d’appel à l’API de Frigate.',
+    note: 'Services /auth, /direct, /events (?last=1), /clips/id, /snapshots, /snapshot, /stream et /frame (relais de go2rtc). Ne parle qu’à go2rtc.',
   },
   {
     id: 'sync',
     name: 'House Sync',
-    role: 'polling de Frigate, base SQLite, clips',
+    role: 'polling de l’enregistreur, base SQLite, clips',
     url: `https://${PC_IP}:8081`,
     account: 'même clé que l’API',
     note: 'Sa propre page : la base table par table et les fichiers du disque backup. Seul programme qui écrit ; l’API n’expose jamais la base brute.',
@@ -69,13 +69,13 @@ export const ENTRIES: DeployEntry[] = [
     role: 'certificat racine',
     url: '',
     account: '',
-    note: 'Fichier data/certs/rootCA.pem, à installer une fois sur chaque appareil (PC, téléphone) pour avoir le cadenas sur Frigate et la WebApp.',
+    note: 'Fichier data/certs/rootCA.pem, à installer une fois sur chaque appareil (PC, téléphone) pour avoir le cadenas sur la WebApp et House Sync.',
   },
 ]
 
 export const REMINDERS = [
   'Les mots de passe sont dans code/phase0/.env (ignoré par git) et nulle part ailleurs.',
-  'Si l’IP du PC change, mettre à jour FRIGATE_PUBLIC_URL et CERT_HOSTS dans .env, puis docker compose up -d.',
+  'Si l’IP du PC change, mettre à jour CERT_HOSTS dans .env et l’adresse de la caméra si besoin, puis docker compose up -d.',
 ]
 
 export const HEADERS = ['Quoi', 'Adresse', 'Compte', 'À savoir']
