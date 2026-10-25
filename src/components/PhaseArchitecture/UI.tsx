@@ -16,11 +16,10 @@ import {
   NOTE_CLASS,
   PANEL_CLASS,
   PANEL_TITLE_CLASS,
-  TITLE,
   VIEW_GROUP_LABEL,
 } from './constants'
 import { diskLineY, diskPath, diskTitleY, lineY, panelTitlePos, titleY } from './helpers'
-import type { ArchView, Phase0ArchitectureUIProps } from './types'
+import type { ArchView, PhaseArchitectureUIProps } from './types'
 
 const DiagramSvg = ({ view }: { view: ArchView }) => {
   const { disks = [] } = view
@@ -92,11 +91,11 @@ const DiagramSvg = ({ view }: { view: ArchView }) => {
   )
 }
 
-const Phase0ArchitectureUI = ({ viewId, view, intro, options, onViewChange, children }: Phase0ArchitectureUIProps) => {
+const PhaseArchitectureUI = ({ title, viewId, view, intro, options, onViewChange, children }: PhaseArchitectureUIProps) => {
   return (
     <Card as="section" className="mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="m-0 text-[1.15rem] font-semibold">{TITLE}</h2>
+        <h2 className="m-0 text-[1.15rem] font-semibold">{title}</h2>
         <SegmentedControl label={VIEW_GROUP_LABEL} options={options} value={viewId} onChange={onViewChange} />
       </div>
       <div className="mb-3 mt-1 space-y-1.5 text-[0.9rem] text-muted">
@@ -111,4 +110,4 @@ const Phase0ArchitectureUI = ({ viewId, view, intro, options, onViewChange, chil
   )
 }
 
-export default Phase0ArchitectureUI
+export default PhaseArchitectureUI

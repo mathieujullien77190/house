@@ -1,4 +1,5 @@
-import type { ArchView, BoxTone, DiagramViewId, PanelTone, ViewId } from './types'
+import { CODE_INTRO_PHASE1, DEPLOY_INTRO_PHASE1, HARDWARE_PHASE1, SOFTWARE_PHASE1, TITLE_PHASE1 } from './constantsPhase1'
+import type { ArchView, BoxTone, PanelTone, PhaseConfig, ViewId } from './types'
 
 export const TITLE = 'Architecture de la phase 0'
 export const VIEW_GROUP_LABEL = 'Vue du schéma'
@@ -37,10 +38,10 @@ const HARDWARE: ArchView = {
   id: 'hardware',
   label: 'Matériel',
   intro: [
-    'Ce qui se branche : le switch alimente la Reolink en PoE et se relie au PC, qui a une seconde carte réseau vers la box.',
+    'Ce qui se branche : le switch alimente les deux Reolink en PoE et se relie au PC, qui a une seconde carte réseau vers la box.',
   ],
   ariaLabel:
-    'Vue matériel de la phase 0 : la Reolink est alimentée en PoE par le switch, lui-même branché au secteur et au PC ; le PC est relié à la box, que le téléphone rejoint en WiFi',
+    'Vue matériel de la phase 0 : les deux Reolink sont alimentées en PoE par le switch, lui-même branché au secteur et au PC ; le PC est relié à la box, que le téléphone rejoint en WiFi',
   viewBox: '0 0 1000 400',
   panels: [
     { id: 'cameras', x: 20, y: 20, w: 380, h: 360, tone: 'panel', title: 'Réseau des caméras (sans box)' },
@@ -48,7 +49,8 @@ const HARDWARE: ArchView = {
     { id: 'home', x: 840, y: 20, w: 140, h: 360, tone: 'panel', title: 'Maison' },
   ],
   boxes: [
-    { id: 'cam', x: 40, y: 110, w: 130, h: 90, tone: 'plain', title: 'Reolink', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
+    { id: 'cam2', x: 40, y: 230, w: 130, h: 80, tone: 'plain', title: 'Reolink · camera2', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
+    { id: 'cam', x: 40, y: 110, w: 130, h: 90, tone: 'plain', title: 'Reolink · portail', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
     { id: 'switch', x: 230, y: 110, w: 150, h: 90, tone: 'plain', title: 'Switch ES208GP', lines: ['8 ports PoE+ · 64 W', 'administrable (Omada)'] },
     { id: 'mains', x: 230, y: 240, w: 150, h: 40, tone: 'warm', title: 'Prise 230 V ⚡', lines: [] },
     { id: 'pc', x: 480, y: 110, w: 280, h: 150, tone: 'plain', title: 'PC', lines: ['carte réseau 1 : switch', 'carte réseau 2 : box', 'disque : clips et images'] },
@@ -57,6 +59,7 @@ const HARDWARE: ArchView = {
   ],
   arrows: [
     { id: 'poe', d: 'M170 155 H228', both: true },
+    { id: 'poe2', d: 'M170 270 H200 V185 H228', both: true },
     { id: 'mains', d: 'M305 238 V202' },
     { id: 'rj45', d: 'M382 155 H478', both: true },
     { id: 'lan', d: 'M762 155 H853', both: true },
@@ -71,9 +74,9 @@ const HARDWARE: ArchView = {
     { id: 'lan', x: 808, y: 146, text: 'RJ45 / WiFi', anchor: 'middle' },
     { id: 'nic2', x: 808, y: 174, text: 'carte 2', anchor: 'middle', note: true },
     { id: 'wifi', x: 918, y: 224, text: 'WiFi' },
-    { id: 'ips1', x: 40, y: 318, text: 'Pas de DHCP : IP fixes pour la caméra,', note: true },
-    { id: 'ips2', x: 40, y: 334, text: 'le switch et la carte réseau 1 du PC.', note: true },
-    { id: 'iso', x: 40, y: 354, text: 'Les caméras ne voient que le PC.', note: true },
+    { id: 'ips1', x: 40, y: 330, text: 'Pas de DHCP : IP fixes pour les caméras,', note: true },
+    { id: 'ips2', x: 40, y: 346, text: 'le switch et la carte réseau 1 du PC.', note: true },
+    { id: 'iso', x: 40, y: 366, text: 'Les caméras ne voient que le PC.', note: true },
   ],
 }
 
@@ -172,8 +175,15 @@ export const DEPLOY_INTRO = [
   'Les comptes sont nommés, jamais les mots de passe : ils sont dans le fichier .env du PC.',
 ]
 
-export const VIEWS: Record<DiagramViewId, ArchView> = { hardware: HARDWARE, software: SOFTWARE }
-export const INTROS: Record<Exclude<ViewId, DiagramViewId>, string[]> = { code: CODE_INTRO, deploy: DEPLOY_INTRO }
+/** La configuration de chaque phase qui a une architecture : 0 (le PC) et 1 (deux Pi). */
+export const PHASE_CONFIGS: Record<0 | 1, PhaseConfig> = {
+  0: { title: TITLE, views: { hardware: HARDWARE, software: SOFTWARE }, intros: { code: CODE_INTRO, deploy: DEPLOY_INTRO } },
+  1: {
+    title: TITLE_PHASE1,
+    views: { hardware: HARDWARE_PHASE1, software: SOFTWARE_PHASE1 },
+    intros: { code: CODE_INTRO_PHASE1, deploy: DEPLOY_INTRO_PHASE1 },
+  },
+}
 export const VIEW_OPTIONS: { id: ViewId; label: string }[] = [
   { id: 'hardware', label: HARDWARE.label },
   { id: 'software', label: SOFTWARE.label },

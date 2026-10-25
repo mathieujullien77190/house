@@ -2,10 +2,10 @@ import Badge from '@/components/UI/Badge'
 import Button from '@/components/UI/Button'
 import Card from '@/components/UI/Card'
 import Stepper from '@/components/UI/Stepper'
-import { NUM_CLASS, REPO_URL, TD_CLASS, TH_CLASS } from './constants'
+import { LINK_CLASS, NUM_CLASS, REPO_URL, TD_CLASS, TH_CLASS } from './constants'
 import type { PricingUIProps } from './types'
 
-const PricingUI = ({ sections, total, estimated, ports, warnings, onQuantityChange, onReset }: PricingUIProps) => {
+const PricingUI = ({ sections, total, breakdown, estimated, ports, warnings, onQuantityChange, onReset }: PricingUIProps) => {
   return (
     <Card as="section" className="mt-4">
       <h2 className="m-0 text-[1.15rem] font-semibold">Estimation des prix</h2>
@@ -22,6 +22,11 @@ const PricingUI = ({ sections, total, estimated, ports, warnings, onQuantityChan
           <span className="text-[0.8rem] text-muted">Total</span>
           <strong className="text-2xl leading-tight">{total}</strong>
           <small className="text-muted">dont {estimated} estimés</small>
+          {breakdown && (
+            <small className="text-muted">
+              sans la phase 0 déjà achetée ({breakdown.owned}) ; avec : {breakdown.withPrevious}
+            </small>
+          )}
         </div>
         <div className="flex flex-col">
           <span className="text-[0.8rem] text-muted">Ports switch</span>
@@ -61,9 +66,15 @@ const PricingUI = ({ sections, total, estimated, ports, warnings, onQuantityChan
                 <th className={`${TD_CLASS} bg-bg`} />
               </tr>
               {s.rows.map((r) => (
-                <tr key={r.id} className={r.dimmed ? 'opacity-45' : undefined}>
+                <tr key={r.id}>
                   <td className={TD_CLASS}>
-                    {r.label}
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                        {r.label}
+                      </a>
+                    ) : (
+                      r.label
+                    )}
                     {r.note && <small className="block text-xs text-muted">{r.note}</small>}
                   </td>
                   <td className={`${TD_CLASS} ${NUM_CLASS}`}>{r.unit}</td>

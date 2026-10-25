@@ -16,7 +16,7 @@ import { autoWire, wireInfra } from '@/wiring'
 /** Où apparaît un nouveau composant : jardin au sud pour le rez-de-chaussée, local technique au sous-sol. */
 const SPAWN = { rdc: { x: 420, y: 440 }, basement: { x: 330, y: 300 } }
 
-const KEY = 'house-diagram-v18'
+const KEY = 'house-diagram-v22'
 
 interface State {
   nodes: DiagramNode[]
@@ -93,6 +93,7 @@ export const useDiagram = () => {
         title: kind === 'pi' ? `Pi5 #${count}` : `${t.title} ${count}`,
         sub: t.sub,
         ...(kind === 'custom' ? { price: 0 } : {}),
+        ...(kind === 'disk' ? { price: 129 } : {}),
       }
       const nodes = [...s.nodes, node]
       if (!isCameraKind(kind)) return { nodes, links: wireInfra(nodes, s.links, node, () => newId('link')), notice: undefined }

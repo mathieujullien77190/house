@@ -1,7 +1,7 @@
 import type { SelectOption } from '@/components/UI/Select'
 
 /** Zones proposées pour les caméras. */
-export const ZONES = ['Portail', 'Nichoir', 'Jardin', 'Garage', 'Terrasse', 'Entrée', 'Façade', 'Cour']
+export const ZONES = ['Portail', 'Jardin', 'Garage', 'Terrasse', 'Entrée', 'Façade', 'Cour']
 
 export const LINKS_TITLE = 'Liens'
 export const LINKS_EMPTY = 'Aucun lien.'

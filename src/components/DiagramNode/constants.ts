@@ -2,12 +2,12 @@ import type { NodeKind } from '@/nodes'
 
 export const KIND_STROKE: Record<NodeKind, string> = {
   camera: 'stroke-camera',
-  zero: 'stroke-camera',
   switch: 'stroke-switch',
   pi: 'stroke-pi',
   backup: 'stroke-backup',
   phone: 'stroke-muted',
   custom: 'stroke-muted',
+  disk: 'stroke-muted',
 }
 
 export const GROUP_CLASS = 'group cursor-grab touch-none outline-none transition-opacity active:cursor-grabbing'

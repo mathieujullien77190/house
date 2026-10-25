@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { countsOf, totalFor } from '@/catalog'
+import { countsOf, creditFor, ownedFor, totalFor } from '@/catalog'
 import CameraDialog from '@/components/CameraDialog'
 import Diagram from '@/components/Diagram'
 import GlossarySheet from '@/components/GlossarySheet'
@@ -7,11 +7,11 @@ import InfoPanel from '@/components/InfoPanel'
 import K3sPanel from '@/components/K3sPanel'
 import Legend from '@/components/Legend'
 import MainsPanel from '@/components/MainsPanel'
-import Phase0Architecture from '@/components/Phase0Architecture'
+import PhaseArchitecture from '@/components/PhaseArchitecture'
 import PhaseSwitch from '@/components/PhaseSwitch'
 import Pricing from '@/components/Pricing'
 import { GlossaryContext } from '@/lib/glossaryContext'
-import { inPhase, isCameraKind, templates, type Floor, type NodeKind, type Phase } from '@/nodes'
+import { inPhase, isCameraKind, isPricedByHand, templates, type Floor, type NodeKind, type Phase } from '@/nodes'
 import { useDiagram } from '@/useDiagram'
 import AppUI from './UI'
 import { HINT, SUBTITLE, TITLE } from './constants'
@@ -109,14 +109,16 @@ const App = () => {
             onSelectLink={selectLink}
           />
         }
-        architecture={phase === 0 ? <Phase0Architecture /> : null}
+        architecture={phase === 2 ? null : <PhaseArchitecture phase={phase} />}
         mains={phase === 0 ? null : <MainsPanel nodes={nodes} phase={phase} />}
-        k3s={phase === 0 ? null : <K3sPanel nodes={nodes} />}
+        k3s={phase === 0 ? null : <K3sPanel nodes={nodes} phase={phase} />}
         pricing={
           <Pricing
             phase={phase}
             counts={countsOf(nodes)}
-            customs={nodes.filter((n) => n.kind === 'custom')}
+            customs={nodes.filter((n) => isPricedByHand(n.kind))}
+            owned={ownedFor(d.nodes, phase)}
+            credit={creditFor(d.nodes, phase)}
             onAdd={add}
             onRemove={(kind) => d.removeLast(kind, phase)}
             onReset={reset}

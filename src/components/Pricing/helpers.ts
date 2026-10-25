@@ -14,13 +14,13 @@ const toRow = (l: Line): PricingRowView => {
     id: l.id,
     label: l.label,
     note: l.note,
+    url: l.url,
     unit: euro(l.unit),
     qty: l.qty,
     total: euro(lineTotal(l)),
     source: l.source,
     sourceLabel: SOURCE_LABEL[l.source],
     editable: l.editable,
-    dimmed: l.qty === 0,
   }
 }
 

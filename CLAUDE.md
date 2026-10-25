@@ -5,7 +5,7 @@
 Site React + TypeScript (Vite, Tailwind) pour **dessiner et chiffrer** un système de vidéosurveillance de maison. Tout s'exécute dans le navigateur, le schéma se sauvegarde dans le `localStorage`. La page montre :
 - un **plan SVG interactif de la maison** sur deux étages (rez-de-chaussée avec le jardin, sous-sol), zoom +/−, composants déplaçables, traits qui suivent ;
 - un **panneau de détail** du composant ou de la liaison sélectionnés ;
-- un **dessin** de la caméra sélectionnée (Reolink, ou câblage de la mini-cam Pi Zero) ;
+- un **dessin** de la caméra sélectionnée (Reolink, en 2D et en 3D) ;
 - ce qui se **branche au secteur** (badge ⚡) ;
 - un **tableau des prix** relié au schéma.
 
@@ -14,7 +14,7 @@ Le dossier `code/phase0/` contient la **vraie pile de la phase 0** (Docker, en s
 ## Le système modélisé
 
 ```
-Caméras : Reolink PoE ou mini-cam Pi Zero (Pi Zero 2 W + Camera Module 3), toutes en PoE
+Caméras : Reolink PoE
    │  un câble RJ45 par caméra (données + alimentation)
    ▼
 2 switchs PoE (A et B) reliés entre eux ; les caméras sont réparties entre les deux
@@ -28,28 +28,28 @@ Pi de sauvegarde (SSD), sur le secteur comme les Pi5
 **La maison** (`src/plan.ts`) : plain-pied avec jardin et sous-sol. Au nord : chambre 1, salle de bain, cuisine, escalier (en haut à droite). Au milieu : couloir à gauche, entrée à droite. Au sud : chambre 2 et le salon en L qui monte jusqu'à la cuisine. Portail à l'ouest, relié par un chemin à la porte au bout du couloir.
 
 **Trois phases** (`Phase = 0 | 1 | 2`, `phases` sur chaque composant et lien, `inPhase` dans `src/nodes.ts`). `PhaseSwitch` filtre le schéma, les panneaux et les prix.
-- **Phase 0, version light** : 1 Reolink 4K vers le portail, 1 switch PoE, le **PC** de la maison qui enregistre (`swA` → `pc` → `box` ← `phone`). `pc` et `box` sont des composants perso à 0 €, `phone` est relié à la box en `wifi`. Reolink comptée 74,50 € (lot de 2). Les panneaux secteur et k3s sont remplacés par `Phase0Architecture`.
-- **Phase 1, strict minimum** : 3 Pi (2 Pi5 + le Pi de sauvegarde), 1 switch, 2 mini-cams Pi Zero.
-- **Phase 2, installation complète** : phase 1 + 2ᵉ switch, 2 Reolink au portail, onduleur. Caméras et Pi répartis sur les deux switchs.
+- **Phase 0, version light** : 2 Reolink 4K vers le portail, 1 switch PoE, le **PC** de la maison qui enregistre (`swA` → `pc` → `box` ← `phone`). `pc` et `box` sont des composants perso à 0 €, `phone` est relié à la box en `wifi`. Reolink comptée 74,50 € (lot de 2). Les panneaux secteur et k3s sont remplacés par `PhaseArchitecture`.
+- **Phase 1, deux Pi** : les conteneurs du PC passent sur 2 Pi 5 qui forment un petit **cluster k3s** (Pi 2 = serveur, Pi 1 = agent, sans haute disponibilité). `rec` (Pi 1) : go2rtc + motion ; `hub` (Pi 2) : House Sync + API + WebApp, avec le **disque dur externe** (`ssd`, kind `disk`, SSD Verbatim Vi550 1 To à 129 € avec un adaptateur USB 3.0 / SATA à 6,95 €, prix Kubii) en USB (lien `usb`). 2 Reolink au portail, 1 switch relié à la `box` ; le `phone` est relié à la box en `wifi`. C'est un scénario à part : pas de Pi de sauvegarde ; k3s y est un cluster à un serveur et un agent (la phase 0 reste en Docker Compose sur le PC).
+- **Phase 2, installation complète** : le cluster k3s (2 Pi5 et le Pi de sauvegarde), 2 switchs (caméras et Pi répartis dessus), 2 Reolink au portail et l'onduleur.
 
-Le Pi de sauvegarde est sur le secteur avec sa propre alimentation 27 W (`pi-psu`), à toutes les phases.
+Le Pi de sauvegarde (phase 2 seulement) est sur le secteur avec sa propre alimentation 27 W (`pi-psu`), comme les Pi5.
 
-**`Phase0Architecture`** : quatre vues, données dans `constants.ts`. « Matériel » et « Logiciel » (schémas SVG), « Code » (`CodeBrowser` : les fichiers de `code/phase0` avec une explication chacun), « Déploiement » (`DeploymentPanel` : les adresses réelles de la maison, comptes nommés, jamais de mot de passe). `DEFAULT_VIEW` reste `'hardware'`.
+**`PhaseArchitecture`** (phases 0 et 1, prop `phase`) : quatre vues, données dans `constants.ts` (phase 0) et `constantsPhase1.ts` (phase 1, `PHASE_CONFIGS`). « Matériel » et « Logiciel » (schémas SVG), « Code » (`CodeBrowser` : les fichiers de `code/phase0` avec une explication chacun), « Déploiement » (`DeploymentPanel`, aussi par phase : les adresses réelles de la maison, comptes nommés, jamais de mot de passe). `DEFAULT_VIEW` reste `'hardware'`.
 
-**Schéma de départ, phase 2** (`defaultNodes`, `src/nodes.ts`) : rez-de-chaussée, 2 Reolink au portail, 2 mini-cams dans le nichoir, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon ; sous-sol, 1 switch et 1 Pi5. La mini-cam Pi Zero est en PoE : splitter PoE (5 V + RJ45) puis adaptateur Ethernet USB-OTG.
+**Schéma de départ, phase 2** (`defaultNodes`, `src/nodes.ts`) : rez-de-chaussée, 2 Reolink au portail, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon ; sous-sol, 1 switch et 1 Pi5.
 
 ## Règles métier
 
 - **Zones.** Une caméra a une zone (`ZONES`, `components/InfoPanel/constants.ts`). Quand elle change, `autoWire` (`src/wiring.ts`) la branche sur l'autre switch si la zone est déjà couverte (redondance), sinon sur le moins chargé.
-- **Cluster k3s.** Le Pi de sauvegarde est le 3ᵉ control-plane (taint `node-role.kubernetes.io/backup=true:NoSchedule`, seulement des jobs de sauvegarde). `isK3sKind` (`src/nodes.ts`), panneau `K3sPanel`. Quorum = Pi5 + Pi de sauvegarde (≥ 3).
+- **Cluster k3s.** Le Pi de sauvegarde est le 3ᵉ control-plane (taint `node-role.kubernetes.io/backup=true:NoSchedule`, seulement des jobs de sauvegarde). `isK3sKind` (`src/nodes.ts`), panneau `K3sPanel`. Quorum = Pi5 + Pi de sauvegarde (≥ 3), en phase 2 ; `K3sPanel` (prop `phase`) existe en phases 1 et 2 : en phase 1 il montre un serveur (`hub`) et un agent (`rec`, `nodeSelector role=recorder`), sans quorum ; l'avertissement de quorum n'existe qu'en phase 2.
 - **Panneau de détail.** Nom, description, zone, position (`locate`, `src/plan.ts`), liens décrits (`src/linkInfo.ts`) et mis en évidence dans le schéma.
 - **Glossaire.** Termes dans `src/glossary.ts` ; `components/UI/RichText` les rend cliquables et ouvre `GlossarySheet` (via `GlossaryContext`, `src/lib/glossaryContext.ts`). Jamais de `RichText` dans un `<button>`.
 - **Étages.** `floor` (`rdc` ou `basement`) sur chaque composant ; un étage affiché à la fois, l'autre en filigrane.
 - **Composants ajoutés** (boutons +/− des prix) : caméra selon les zones ; Pi5 relié à tous les switchs ; switch relié aux Pi5 et au premier autre switch ; Pi de sauvegarde au switch le moins chargé (`wireInfra`). Le type d'une liaison est déduit (`linkTypeFor`) ; une liaison se supprime seulement ; un composant se retire par le bouton −.
-- **Secteur 230 V.** Switchs, Pi5, Pi de sauvegarde et onduleur (`isMainsKind`, `MAINS_WATTS`). Les caméras sont en PoE.
+- **Secteur 230 V.** Switchs, Pi5 (les 2 Pi de la phase 1 aussi), Pi de sauvegarde et onduleur (`isMainsKind`, `MAINS_WATTS`). Les caméras sont en PoE.
 - **Reolink RLC-810A** : 4K 25 i/s H.265, flux principal 4 à 8 Mb/s, flux secondaire 64 à 512 kb/s, PoE 802.3af 12 W, 94,99 € à l'unité. 2 lecteurs du flux principal au plus ; RTSP à activer dans la caméra ; pas d'ONVIF.
 - **Switch TP-Link Omada ES208GP** (69,99 €) : 8 ports PoE+, 64 W, administrable (PoE coupable port par port, reprise automatique). Un seul câble entre les deux switchs, pas de RSTP (détection de boucle seulement). Avertissement au-delà de 8 caméras par switch (`POE_PORTS_PER_SWITCH`) ; 64 W = 5 Reolink en pratique.
-- **Prix.** Calculés depuis le schéma ; les 3 Pi dans un groupe « Raspberry Pi ». Prix « dépôt » depuis `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`), le reste estimé. Avertissements : ports manquants, un seul switch, moins de 3 nœuds k3s.
+- **Prix.** Calculés depuis le schéma ; les 3 Pi dans un groupe « Raspberry Pi ». En phase 1 les Pi sont des Pi 5 de 4 Go (136,80 €) avec le boîtier officiel ventilé (10,68 €), prix relevés sur Kubii ; les câbles de 2 m (4 × 2,97 €) sont des lignes à part en phase 1, avec les câbles des caméras en plus ; la ligne du tableau est un lien vers la fiche (`url` de `Line`, `src/catalog.ts`). Les phases 1 et 2 ne listent que les achats nouveaux : les composants déjà présents dans une phase précédente (Reolink, switch, un câble par caméra) n'y sont pas recomptés (`ownedFor`), et le total est affiché sans, puis avec eux (`creditFor`). Rien n'est grisé : une ligne à zéro disparaît, sauf un compteur réglable qui n'est pas déjà acheté. Phase 1 : une microSD Verbatim de 256 Go (36,95 € chez Kubii) par Pi. Prix « dépôt » depuis `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`), le reste estimé. Le disque dur externe et les composants libres se chiffrent à la main (`isPricedByHand`). Avertissements : ports manquants, moins de 3 nœuds k3s (phase 2 seulement).
 
 ## Commandes
 
@@ -86,15 +86,14 @@ src/
     ├── InfoPanel/            détail du composant ou de la liaison
     ├── Legend/               légende
     ├── K3sPanel/             nœuds k3s, règles, commandes
-    ├── Phase0Architecture/   vues matériel, logiciel, code, déploiement
+    ├── PhaseArchitecture/   vues matériel, logiciel, code, déploiement
     ├── DeploymentPanel/      adresses réelles de la phase 0
     ├── CodeBrowser/          fichiers de code/phase0 : arbre, explication, code coloré
     ├── MainsPanel/           secteur 230 V
     ├── Pricing/              tableau des prix
     ├── CameraDialog/         boîte de dialogue d'une caméra (2D, 3D à la demande)
-    ├── CameraModel3D/        vue 3D three.js
+    ├── CameraModel3D/        vue 3D three.js de la Reolink
     ├── ReolinkDrawing/       dessin de la Reolink
-    ├── PiZeroSchematic/      câblage de la mini-cam Pi Zero
     ├── GlossarySheet/        définition d'un terme
     └── UI/                   Button, Card, Field, Select, Badge, Stepper, SegmentedControl, RichText, BottomSheet, Dialog
 ```

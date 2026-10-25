@@ -1,4 +1,4 @@
-export { BASEMENT_ROOMS, DOOR, GARDEN, GATE, GROUND_ROOMS, HOUSE, NICHOIR, PATH, STAIRS } from '@/plan'
+export { BASEMENT_ROOMS, DOOR, GARDEN, GATE, GROUND_ROOMS, HOUSE, PATH, STAIRS } from '@/plan'
 
 export const STEP_COUNT = 8
 
@@ -18,5 +18,3 @@ export const PATH_CLASS = 'fill-line/40'
 export const GATE_CLASS = 'stroke-fg stroke-[6] [stroke-linecap:round]'
 export const DOOR_CLASS = 'stroke-fg stroke-[5]'
 export const STEP_CLASS = 'stroke-muted stroke-1'
-export const NICHOIR_CLASS = 'fill-card stroke-muted stroke-2'
-export const NICHOIR_LABEL_CLASS = 'fill-muted text-[11px] font-semibold'

@@ -12,6 +12,11 @@ export interface DeployEntry {
   note: string
 }
 
+export interface DeploymentPanelProps {
+  /** La phase affichée : 0 (le PC) ou 1 (deux Pi). */
+  phase: 0 | 1
+}
+
 export interface DeploymentPanelUIProps {
   entries: DeployEntry[]
   /** Rappels en bas du tableau. */

@@ -21,7 +21,7 @@ const InfoPanel = ({ node, link, nodes, links, onUpdateNode, onSetZone, onRemove
       linkItems={buildLinkItems(node, links, nodes)}
       position={node ? locate(node) : ''}
       showZone={node !== null && isCameraKind(node.kind)}
-      showPrice={node?.kind === 'custom'}
+      showPrice={node?.kind === 'custom' || node?.kind === 'disk'}
       zoneOptions={zoneOptions(node?.zone)}
       onZoneChange={(zone) => node && onSetZone(node.id, zone)}
       onPriceChange={(raw) => update({ price: parsePrice(raw) })}

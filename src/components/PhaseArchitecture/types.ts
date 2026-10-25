@@ -74,7 +74,20 @@ export interface ArchView {
   disks?: ArchDisk[]
 }
 
-export interface Phase0ArchitectureUIProps {
+export interface PhaseArchitectureProps {
+  /** La phase affichée : 0 (le PC) ou 1 (deux Pi). */
+  phase: 0 | 1
+}
+
+/** Ce qui change d'une phase à l'autre : le titre, les deux schémas et l'introduction des vues code et déploiement. */
+export interface PhaseConfig {
+  title: string
+  views: Record<DiagramViewId, ArchView>
+  intros: Record<Exclude<ViewId, DiagramViewId>, string[]>
+}
+
+export interface PhaseArchitectureUIProps {
+  title: string
   viewId: ViewId
   /** Absent dans les vues code et déploiement. */
   view: ArchView | null

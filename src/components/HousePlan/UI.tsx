@@ -12,9 +12,6 @@ import {
   GATE_LABEL,
   HOUSE,
   HOUSE_CLASS,
-  NICHOIR,
-  NICHOIR_CLASS,
-  NICHOIR_LABEL_CLASS,
   PATH,
   PATH_CLASS,
   ROOM_CLASS,
@@ -43,12 +40,6 @@ const HousePlanUI = ({ floor, rooms, steps }: HousePlanUIProps) => {
           <line x1={GATE.x} y1={GATE.leaf1[0]} x2={GATE.x} y2={GATE.leaf1[1]} className={GATE_CLASS} />
           <line x1={GATE.x} y1={GATE.leaf2[0]} x2={GATE.x} y2={GATE.leaf2[1]} className={GATE_CLASS} />
           <text x={GATE_LABEL.x} y={GATE_LABEL.y} textAnchor="middle" className={ROOM_LABEL_CLASS}>Portail</text>
-
-          {/* nichoir */}
-          <rect {...toBox(NICHOIR)} rx="4" className={NICHOIR_CLASS} />
-          <text x={NICHOIR.x + NICHOIR.w / 2} y={NICHOIR.y + 18} textAnchor="middle" className={NICHOIR_LABEL_CLASS}>
-            Nichoir
-          </text>
         </>
       )}
 

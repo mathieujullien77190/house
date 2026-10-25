@@ -27,18 +27,6 @@ export const GLOSSARY: GlossaryEntry[] = [
     match: ['RSTP'],
   },
   {
-    id: 'splitter',
-    term: 'Splitter PoE',
-    definition: 'Petit boîtier qui sépare le courant et les données d’un câble PoE : il sort du 5 V pour alimenter un appareil qui n’est pas PoE (comme le Pi Zero) et une prise RJ45 pour les données.',
-    match: ['splitter PoE', 'splitter'],
-  },
-  {
-    id: 'otg',
-    term: 'Adaptateur Ethernet USB-OTG',
-    definition: 'Adaptateur qui ajoute un port Ethernet au Pi Zero 2 W en passant par son port micro-USB de données, puisque ce Pi n’a pas de prise réseau.',
-    match: ['adaptateur Ethernet USB-OTG', 'Ethernet USB-OTG', 'USB-OTG'],
-  },
-  {
     id: 'bonding',
     term: 'Bonding active-backup',
     definition: 'Deux liens réseau regroupés en un seul : un seul est actif, l’autre prend le relais si le premier ou son switch tombe en panne.',

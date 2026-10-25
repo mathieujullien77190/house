@@ -3,7 +3,7 @@ import { VIEW_HEIGHT } from './constants'
 import type { CameraModel3DUIProps } from './types'
 
 const CameraModel3DUI = ({
-  hostRef, supported, showLabels, showExtras, hasExtras, legend, ariaLabel, onToggleLabels, onToggleExtras, onResetView,
+  hostRef, supported, showLabels, legend, ariaLabel, onToggleLabels, onResetView,
 }: CameraModel3DUIProps) => {
   if (!supported) {
     return <p className="text-muted">La vue 3D demande WebGL, que ce navigateur ne propose pas.</p>
@@ -15,11 +15,6 @@ const CameraModel3DUI = ({
         <Button variant={showLabels ? 'active' : 'default'} aria-pressed={showLabels} onClick={onToggleLabels}>
           Noms des pièces
         </Button>
-        {hasExtras && (
-          <Button variant={showExtras ? 'active' : 'default'} aria-pressed={showExtras} onClick={onToggleExtras}>
-            Splitter et adaptateur
-          </Button>
-        )}
         <Button onClick={onResetView}>Réinitialiser la vue</Button>
       </div>
 

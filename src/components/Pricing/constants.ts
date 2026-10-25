@@ -8,6 +8,7 @@ export const SOURCE_LABEL: Record<Source, string> = {
   perso: 'perso',
 }
 
+export const LINK_CLASS = 'underline decoration-dotted underline-offset-2 hover:text-accent'
 export const TH_CLASS = 'border-b border-line px-2.5 py-1.5 text-left text-xs font-semibold text-muted'
 export const TD_CLASS = 'border-b border-line px-2.5 py-1.5 align-middle'
 export const NUM_CLASS = 'whitespace-nowrap text-right tabular-nums'

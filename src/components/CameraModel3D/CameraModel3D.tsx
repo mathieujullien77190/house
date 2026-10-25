@@ -3,23 +3,21 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import CameraModel3DUI from './UI'
-import { MODELS, VIEW_HEIGHT } from './constants'
-import { buildScene, disposeObject, setGroupVisible, supportsWebGL } from './helpers'
-import type { CameraModel3DProps, SceneHandle } from './types'
+import { MODEL, VIEW_HEIGHT } from './constants'
+import { buildScene, disposeObject, supportsWebGL } from './helpers'
+import type { SceneHandle } from './types'
 
-const CameraModel3D = ({ kind }: CameraModel3DProps) => {
+const CameraModel3D = () => {
   const hostRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<SceneHandle | null>(null)
   const [supported] = useState(supportsWebGL)
   const [showLabels, setShowLabels] = useState(true)
-  const [showExtras, setShowExtras] = useState(true)
-  const spec = MODELS[kind]
 
-  // Crée la scène à l'ouverture (ou quand le modèle change) et la détruit ensuite.
+  // Crée la scène à l'ouverture et la détruit ensuite.
   useEffect(() => {
     const host = hostRef.current
     if (!host || !supported) return
-    const { position, target } = MODELS[kind]
+    const { position, target } = MODEL
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -34,8 +32,7 @@ const CameraModel3D = ({ kind }: CameraModel3DProps) => {
     host.appendChild(labels.domElement)
 
     const scene = new THREE.Scene()
-    const { root, extras } = buildScene(kind)
-    scene.add(root)
+    scene.add(buildScene())
     scene.add(new THREE.AmbientLight(0xffffff, 1.1))
     const sun = new THREE.DirectionalLight(0xffffff, 2.2)
     sun.position.set(60, 100, 80)
@@ -94,7 +91,7 @@ const CameraModel3D = ({ kind }: CameraModel3DProps) => {
     }
     loop()
 
-    sceneRef.current = { controls, extras, labels, resetView }
+    sceneRef.current = { controls, labels, resetView }
 
     return () => {
       cancelAnimationFrame(frame)
@@ -111,28 +108,21 @@ const CameraModel3D = ({ kind }: CameraModel3DProps) => {
       labels.domElement.remove()
       sceneRef.current = null
     }
-  }, [supported, kind])
+  }, [supported])
 
   // Applique les réglages des boutons à la scène existante.
   useEffect(() => {
     if (sceneRef.current) sceneRef.current.labels.domElement.style.display = showLabels ? '' : 'none'
-  }, [showLabels, supported, kind])
-
-  useEffect(() => {
-    if (sceneRef.current) setGroupVisible(sceneRef.current.extras, showExtras)
-  }, [showExtras, supported, kind])
+  }, [showLabels, supported])
 
   return (
     <CameraModel3DUI
       hostRef={hostRef}
       supported={supported}
       showLabels={showLabels}
-      showExtras={showExtras}
-      hasExtras={kind === 'zero'}
-      legend={spec.legend}
-      ariaLabel={spec.ariaLabel}
+      legend={MODEL.legend}
+      ariaLabel={MODEL.ariaLabel}
       onToggleLabels={() => setShowLabels((v) => !v)}
-      onToggleExtras={() => setShowExtras((v) => !v)}
       onResetView={() => sceneRef.current?.resetView()}
     />
   )

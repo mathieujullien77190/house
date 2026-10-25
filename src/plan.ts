@@ -60,21 +60,17 @@ export const DOOR = { x: 180, y1: 252, y2: 278 }
 export const PATH: Rect = { x: 0, y: 250, w: 180, h: 30 }
 export const GATE = { x: 0, leaf1: [238, 262], leaf2: [268, 292] }
 
-/** Le nichoir : un simple carré qui contient les 2 mini-caméras. */
-export const NICHOIR: Rect = { x: 740, y: 50, w: 150, h: 140 }
-
 const contains = (r: Rect, x: number, y: number): boolean => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h
 
 /** Nom de la pièce sans les flèches d'étage. */
 const plainName = (name: string): string => name.replace(/\s*[↓↑].*$/, '')
 
-/** Où se trouve un composant : pièce, nichoir ou jardin (rez-de-chaussée) ; local technique (sous-sol). */
+/** Où se trouve un composant : pièce ou jardin (rez-de-chaussée) ; local technique (sous-sol). */
 export const locate = (n: DiagramNode): string => {
   const cx = n.x + n.w / 2
   const cy = n.y + n.h / 2
   const floor = FLOOR_LABEL[n.floor]
   if (n.floor === 'rdc') {
-    if (contains(NICHOIR, cx, cy)) return `Nichoir · ${floor}`
     const found = GROUND_ROOMS.find((r) => r.rects.some((rect) => contains(rect, cx, cy)))
     return `${found ? plainName(found.name) : 'Jardin'} · ${floor}`
   }
