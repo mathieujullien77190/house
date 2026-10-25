@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/* Les couleurs de la page de House Sync : les mêmes jetons que le site et la WebApp, clairs ou sombres selon le système. */
+:root {
+  --bg: #f6f7f9;
+  --card: #fff;
+  --text: #1b1f27;
+  --muted: #5d6675;
+  --line: #c9cfd9;
+  --accent: #2f7de1;
+  --green: #1f9d6b;
+  --orange: #d98a1c;
+  --danger: #d64545;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b;
+    --card: #1a1e26;
+    --text: #e8ebf1;
+    --muted: #98a1b1;
+    --line: #3a4150;
+    --accent: #5b9bf0;
+    --green: #3fc590;
+    --orange: #f0a940;
+    --danger: #f06a6a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-fg: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-green: var(--green);
+  --color-orange: var(--orange);
+  --color-danger: var(--danger);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}

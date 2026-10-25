@@ -1,4 +1,7 @@
 web/node_modules
 web/dist
+sync/web/node_modules
+sync/web/dist
+api/node_modules
 data
 .env

@@ -1,0 +1,13 @@
+export const EMPTY_TEXT = 'vide'
+
+export const CARD_CLASS = 'mt-3 rounded-xl border border-line bg-card px-3.5 py-3'
+export const HEAD_CLASS = 'flex flex-wrap items-baseline gap-x-3 gap-y-1'
+export const TITLE_CLASS = 'm-0 font-mono text-[0.95rem] font-semibold text-orange'
+export const DETAIL_CLASS = 'text-[0.8rem] text-muted'
+export const DESCRIPTION_CLASS = 'mt-1 mb-2 text-[0.85rem] text-muted'
+export const WRAP_CLASS = 'overflow-x-auto'
+export const TABLE_CLASS = 'w-full border-collapse font-mono text-[0.78rem]'
+export const HEAD_CELL_CLASS = 'border-b-2 border-line px-2 py-1.5 text-left font-semibold text-muted'
+export const CELL_CLASS = 'border-b border-line px-2 py-1.5 align-top break-words'
+export const ROW_EVEN_CLASS = 'even:bg-accent/5'
+export const EMPTY_CLASS = 'text-[0.85rem] text-muted'
