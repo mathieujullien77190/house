@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 export type DiagramViewId = 'hardware' | 'software'
-export type ViewId = DiagramViewId | 'code'
+export type ViewId = DiagramViewId | 'code' | 'deploy'
 export type BoxTone = 'plain' | 'warm' | 'green' | 'dashed'
 export type PanelTone = 'panel' | 'warm'
 
@@ -76,12 +76,12 @@ export interface ArchView {
 
 export interface Phase0ArchitectureUIProps {
   viewId: ViewId
-  /** Absent dans la vue code. */
+  /** Absent dans les vues code et déploiement. */
   view: ArchView | null
   /** Paragraphes sous le titre, selon la vue. */
   intro: string[]
   options: { id: ViewId; label: string }[]
   onViewChange: (id: ViewId) => void
-  /** Contenu de la vue code (le navigateur de fichiers). */
+  /** Contenu des vues sans schéma : le navigateur de fichiers (code) ou le tableau des adresses (déploiement). */
   children?: ReactNode
 }

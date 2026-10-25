@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import CodeBrowserUI from './UI'
-import { DEFAULT_FILE, EXPLANATIONS, FILES } from './constants'
-import { buildTree, languageOf, tokenize } from './helpers'
+import { DEFAULT_FILE, FILES } from './constants'
+import { buildTree, explanationOf, languageOf, tokenize } from './helpers'
 
 const CodeBrowser = () => {
   const nodes = useMemo(() => buildTree(Object.keys(FILES)), [])
@@ -13,7 +13,7 @@ const CodeBrowser = () => {
       selected={selected}
       onSelect={setSelected}
       tokens={tokens}
-      explanation={EXPLANATIONS[selected] ?? ''}
+      explanation={explanationOf(selected)}
     />
   )
 }

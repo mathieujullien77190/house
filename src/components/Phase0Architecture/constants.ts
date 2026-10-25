@@ -161,9 +161,16 @@ export const CODE_INTRO = [
   'C’est un squelette minimal : chaque bloc démarre et répond, le reste viendra ensuite. Le site n’exécute rien de ce code.',
 ]
 
+export const DEPLOY_INTRO = [
+  'Où joindre chaque chose une fois la phase 0 installée : la box, le switch, la caméra, Frigate, la WebApp, l’API et House Sync.',
+  'Les comptes sont nommés, jamais les mots de passe : ils sont dans le fichier .env du PC.',
+]
+
 export const VIEWS: Record<DiagramViewId, ArchView> = { hardware: HARDWARE, software: SOFTWARE }
+export const INTROS: Record<Exclude<ViewId, DiagramViewId>, string[]> = { code: CODE_INTRO, deploy: DEPLOY_INTRO }
 export const VIEW_OPTIONS: { id: ViewId; label: string }[] = [
   { id: 'hardware', label: HARDWARE.label },
   { id: 'software', label: SOFTWARE.label },
   { id: 'code', label: 'Code' },
+  { id: 'deploy', label: 'Déploiement' },
 ]

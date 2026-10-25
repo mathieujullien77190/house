@@ -34,7 +34,7 @@ Pi de sauvegarde (SSD), sur le secteur comme les Pi5
 
 Le Pi de sauvegarde est sur le secteur, avec sa propre alimentation 27 W (ligne `pi-psu`), à toutes les phases : il n'y a pas de solaire.
 
-**Architecture logicielle de la phase 0** (`Phase0Architecture`, trois vues « Matériel », « Logiciel » et « Code », données dans `constants.ts` ; « Code » est un navigateur de fichiers (`CodeBrowser`) du dossier `code/phase0`, avec le code et une explication par fichier ; l'intro de chaque vue est en paragraphes courts). Ce n'est qu'un schéma : le site n'exécute rien de tout ça. Il décrit trois conteneurs Docker (docker compose) sur le PC :
+**Architecture logicielle de la phase 0** (`Phase0Architecture`, quatre vues « Matériel », « Logiciel », « Code » et « Déploiement », données dans `constants.ts` ; « Code » est un navigateur de fichiers (`CodeBrowser`) du dossier `code/phase0`, avec le code et une explication par fichier ; « Déploiement » (`DeploymentPanel`) est le tableau des adresses réelles de la maison : box, switch, caméra, Frigate, WebApp, API, House Sync, CA, avec les comptes nommés mais jamais les mots de passe ; l'intro de chaque vue est en paragraphes courts). Ce n'est qu'un schéma : le site n'exécute rien de tout ça. Il décrit trois conteneurs Docker (docker compose) sur le PC :
 - **Frigate** (avec go2rtc) : ouvre une seule connexion RTSP vers la caméra, détecte le mouvement et enregistre les clips.
 - **House Sync**, un script : interroge l'API HTTP de Frigate par polling (sans Mosquitto), copie les clips sur le disque backup (déplaçable plus tard sur le Pi de sauvegarde) et écrit dans SQLite les événements, l'adresse de la dernière image et l'adresse iframe de chaque caméra. Il est le seul à écrire. Les disques backup et SQLite sont dessinés dans son conteneur.
 - **House API + WebApp** : l'API est en lecture seule et n'appelle jamais Frigate, elle lit SQLite et le disque backup (clips). Services : auth (l'utilisateur donne sa clé secrète), direct (lien iframe), image (dernière image), events (le dernier ou tous) ; plus tard poe, qui appelle le contrôleur Omada pour couper ou relancer le PoE d'une caméra (compte aux droits minimaux, jeton en variable d'environnement). Le navigateur de l'utilisateur ouvre la WebApp, puis charge directement le direct et l'image depuis Frigate.
@@ -64,7 +64,7 @@ La mini-cam Pi Zero n'utilise pas le WiFi : un splitter PoE sépare le courant (
 
 ## Code de la phase 0
 
-Le dossier `code/phase0/` (hors du site, ignoré par ESLint) contient la pile de la phase 0 : `docker-compose.yml`, `.env.example` (le vrai `.env` est ignoré par git), `frigate/`, `sync/` (House Sync), `api/` (House API) et `web/` (WebApp). Squelette minimal : l'API répond sur `GET /welcome` et la WebApp l'appelle. TypeScript exécuté directement par Node 24, sans dépendance. Tout fichier ajouté ou modifié apparaît dans la vue « Code » ; ajouter son explication dans `components/CodeBrowser/constants.ts`.
+Le dossier `code/phase0/` (hors du site, ignoré par ESLint) contient la pile de la phase 0 : `docker-compose.yml`, `.env.example` (le vrai `.env` est ignoré par git), `certs/` (CA de la maison), `frigate/`, `sync/` (House Sync), `api/` (House API) et `web/` (WebApp). House Sync et House API : TypeScript exécuté directement par Node 24, sans dépendance. La WebApp est un **projet Vite + React + TypeScript à part** (`web/package.json`, mêmes conventions que le site : un dossier par composant, Tailwind, alias `@/`), compilé dans l'image Docker de l'API qui sert son `dist`. Trois onglets après la clé : Caméras (nom, dernière image, frise `Timeline` des événements sur 1 h à 7 j, clip de l'événement cliqué), API (explorateur des services), Frigate (iframe) ; pas d'onglet de plus. House Sync sert **sa propre page** sur le port 8081 (HTTPS, même clé, rendu HTML côté serveur dans `sync/src/page.ts`) : sa base SQLite table par table et les fichiers du disque backup, pour contrôler ce qu'il fait. L'API lit SQLite et le disque backup pour ses services mais n'expose jamais la base brute : c'est House Sync, seul écrivain, qui la montre. Tout fichier ajouté ou modifié apparaît dans la vue « Code » ; ajouter son explication dans `components/CodeBrowser/constants.ts` (`EXPLANATIONS` ; les fichiers de rôle `UI.tsx`, `types.ts`, `constants.ts`, `helpers.ts`, `index.ts` ont une explication générique dans `ROLE_EXPLANATIONS`).
 
 ## Commandes
 
@@ -100,7 +100,8 @@ src/
     ├── InfoPanel/            détail du composant ou de la liaison sélectionnés
     ├── Legend/               légende des liens et du badge secteur
     ├── K3sPanel/             nœuds du cluster k3s, règles et commandes d'installation
-    ├── Phase0Architecture/   architecture de la phase 0 : vues matériel, logiciel et code (données dans constants.ts)
+    ├── Phase0Architecture/   architecture de la phase 0 : vues matériel, logiciel, code et déploiement (données dans constants.ts)
+    ├── DeploymentPanel/      adresses réelles de la phase 0 (box, switch, caméra, Frigate, WebApp, API, House Sync, CA), comptes sans mot de passe
     ├── CodeBrowser/          navigateur de fichiers de code/phase0 : arbre, explication et code de chaque fichier (lus à la compilation)
     ├── MainsPanel/           liste de ce qui se branche au secteur 230 V (prises, puissance)
     ├── Pricing/              tableau des prix

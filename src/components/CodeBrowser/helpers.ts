@@ -1,4 +1,4 @@
-import { ORDER, RULES } from './constants'
+import { EXPLANATIONS, ORDER, ROLE_EXPLANATIONS, RULES } from './constants'
 import type { Language, Token, TreeNode } from './types'
 
 interface Dir {
@@ -13,15 +13,20 @@ const rank = (name: string): number => {
 
 const byRank = (a: string, b: string): number => rank(a) - rank(b) || a.localeCompare(b)
 
+/** Explication d'un fichier : la sienne, sinon celle de son rôle dans un dossier de composant (UI.tsx, types.ts…). */
+export const explanationOf = (path: string): string => EXPLANATIONS[path] ?? ROLE_EXPLANATIONS[path.split('/').pop() ?? ''] ?? ''
+
 /** Langage d'un fichier, déduit de son nom. */
 export const languageOf = (path: string): Language => {
   const name = path.split('/').pop() ?? path
   if (name === 'Dockerfile') return 'dockerfile'
-  if (name === '.env.example') return 'env'
-  if (/\.(ts|js)$/.test(name)) return 'ts'
+  if (name === '.env.example' || name === '.dockerignore') return 'env'
+  if (/\.(tsx?|js)$/.test(name)) return 'ts'
   if (/\.ya?ml$/.test(name)) return 'yaml'
   if (name.endsWith('.json')) return 'json'
   if (name.endsWith('.html')) return 'html'
+  if (name.endsWith('.css')) return 'css'
+  if (name.endsWith('.sh')) return 'sh'
   if (name.endsWith('.md')) return 'md'
   return 'plain'
 }

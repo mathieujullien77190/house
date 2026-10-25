@@ -6,7 +6,7 @@ export interface TreeNode {
   isFolder: boolean
 }
 
-export type Language = 'ts' | 'yaml' | 'json' | 'html' | 'md' | 'dockerfile' | 'env' | 'plain'
+export type Language = 'ts' | 'yaml' | 'json' | 'html' | 'css' | 'md' | 'dockerfile' | 'env' | 'sh' | 'plain'
 export type TokenKind = 'plain' | 'comment' | 'string' | 'keyword' | 'number' | 'key' | 'variable' | 'tag' | 'attr'
 
 /** Un morceau de code, avec sa nature pour la coloration. */
