@@ -1,6 +1,6 @@
 export const SECTION_CLASS = 'mt-6'
+export const HEAD_CLASS = 'flex flex-wrap items-center gap-x-4 gap-y-1'
 export const NAME_CLASS = 'm-0 text-[1.15rem] font-semibold'
 export const FIGURE_CLASS = 'mt-2 max-w-[720px]'
 export const CAPTION_CLASS = 'mb-1 text-[0.85rem] text-muted'
 export const WARNING_CLASS = 'my-2 text-[0.85rem] text-danger'
-export const LAST_CLASS = 'my-2'

@@ -1,7 +1,7 @@
 import type { TimelineSegment, TimelineTick } from '@house/ui'
 import { describeEvent, formatTime } from '@/lib/format'
 import type { EventRow } from '@/types'
-import { COVERAGE_GAP, MAX_TICKS, MAX_WINDOW, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_STEPS } from './constants'
+import { COVERAGE_GAP, FUTURE_SHARE, MAX_REFRESH_MS, MAX_TICKS, MAX_WINDOW, MIN_REFETCH_SECONDS, MIN_REFRESH_MS, REFETCH_DIVISOR, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_STEPS } from './constants'
 import type { Marker, RangeId } from './types'
 
 export const secondsOf = (id: RangeId): number => (RANGES.find((r) => r.id === id) ?? RANGES[0]).seconds
@@ -11,11 +11,27 @@ export const presetOf = (seconds: number): RangeId | '' => RANGES.find((r) => r.
 
 export const clampWindow = (seconds: number): number => Math.min(MAX_WINDOW, Math.max(MIN_WINDOW, Math.round(seconds)))
 
+/** Le rythme (ms) auquel la fenêtre en direct avance : environ 120 pas par fenêtre, entre 1 s et 1 min. */
+export const refreshEvery = (seconds: number): number => Math.min(MAX_REFRESH_MS, Math.max(MIN_REFRESH_MS, (seconds * 1000) / 120))
+
+/** Le bord droit de la fenêtre en direct : maintenant, plus la part de futur. */
+export const liveEnd = (now: number, seconds: number): number => now + Math.round(seconds * FUTURE_SHARE)
+
 /** Position d'un instant sur l'axe, en % de la fenêtre [end - seconds, end]. */
 export const positionOf = (time: number, end: number, seconds: number): number => ((time - (end - seconds)) / seconds) * 100
 
 /** L'instant à une position de l'axe (0 à 1). */
 export const timeAt = (fraction: number, end: number, seconds: number): number => end - seconds + fraction * seconds
+
+/**
+ * Un numéro qui change quand la fenêtre a assez avancé pour justifier de redemander images gardées et événements :
+ * le bord droit d'une fenêtre en direct bouge à chaque seconde, les requêtes n'ont pas à suivre.
+ */
+export const fetchBucket = (end: number, seconds: number): number => Math.floor(end / Math.max(MIN_REFETCH_SECONDS, seconds / REFETCH_DIVISOR))
+
+/** L'image gardée la plus proche d'un instant (secondes), ou null s'il n'y en a aucune. */
+export const nearestTime = (times: number[], at: number): number | null =>
+  times.reduce<number | null>((best, time) => (best === null || Math.abs(time - at) < Math.abs(best - at) ? time : best), null)
 
 /** Le pas de graduation adapté à la fenêtre : le plus petit qui donne au plus MAX_TICKS graduations. */
 export const tickStep = (seconds: number): number => TICK_STEPS.find((step) => seconds / step <= MAX_TICKS) ?? TICK_STEPS[TICK_STEPS.length - 1]
@@ -41,13 +57,23 @@ export const buildTicks = (seconds: number, end: number): TimelineTick[] => {
   return ticks
 }
 
+/** Réunit les événements récents (à jour : en cours, fraîchement finis) et ceux demandés pour la fenêtre, plus récents d'abord. */
+export const mergeEvents = (recent: EventRow[], history: EventRow[]): EventRow[] => {
+  const byId = new Map<string, EventRow>()
+  for (const event of history) byId.set(event.id, event)
+  for (const event of recent) byId.set(event.id, event)
+  return [...byId.values()].sort((a, b) => b.started_at - a.started_at)
+}
+
 /** Les événements qui touchent la fenêtre, posés sur l'axe, et le nombre de ceux qui sont plus anciens. */
-export const buildMarkers = (events: EventRow[], seconds: number, end: number, selectedId: string): { markers: Marker[]; older: number } => {
+export const buildMarkers = (events: EventRow[], seconds: number, end: number, selectedId: string, now: number): { markers: Marker[]; older: number } => {
   const start = end - seconds
-  const visible = events.filter((event) => (event.ended_at ?? end) >= start && event.started_at <= end)
+  // Un événement en cours s'arrête à maintenant, jamais dans le futur.
+  const until = Math.min(end, now)
+  const visible = events.filter((event) => (event.ended_at ?? until) >= start && event.started_at <= end)
   const markers = [...visible].reverse().map((event) => {
     const x = Math.max(0, positionOf(event.started_at, end, seconds))
-    const right = Math.min(100, positionOf(event.ended_at ?? end, end, seconds))
+    const right = Math.min(100, positionOf(event.ended_at ?? until, end, seconds))
     const real = Math.max(0.01, right - x)
     const width = Math.max(MIN_WIDTH, real)
     return {

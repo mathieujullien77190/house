@@ -8,8 +8,8 @@ export interface CameraCardProps {
   warning?: string
   /** Ce qui est montré en haut : l'image, le lecteur du clip, l'image d'un instant… */
   media: ReactNode
-  /** La ligne sous le média : le dernier événement. */
-  lastEventText: string
+  /** Les actions à côté du nom (allumer, éteindre…), rendues par le parent ; rien par défaut. */
+  actions?: ReactNode
   /** La frise, rendue par le parent. */
   timeline: ReactNode
 }

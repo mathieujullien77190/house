@@ -9,12 +9,11 @@ import { Timeline } from '@house/ui'
   ticks={ticks}
   markers={markers}
   coverage={coverage}
+  nowX={nowX}
   cursorX={cursorX}
   older={4}
   axisRef={axisRef}
   onRange={setRange}
-  onEarlier={earlier}
-  onLater={later}
   onNow={now}
   onSelect={(id, fraction) => openEvent(id, fraction)}
   onPointerDown={startDrag}

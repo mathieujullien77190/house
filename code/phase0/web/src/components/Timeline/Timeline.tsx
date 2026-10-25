@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Timeline as TimelineUI } from '@house/ui'
-import { fetchSnapshotTimes } from '@/lib/api'
-import { DEFAULT_RANGE, DRAG_THRESHOLD, EVENT_FOCUS_SHARE, NOW_REFRESH_MS, RANGES, WHEEL_FACTOR } from './constants'
-import { buildCoverage, buildMarkers, buildTicks, clampWindow, focusOn, positionOf, presetOf, secondsOf, timeAt, windowText } from './helpers'
+import { fetchEvents, fetchSnapshotTimes } from '@/lib/api'
+import type { EventRow } from '@/types'
+import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
+import { buildCoverage, buildMarkers, buildTicks, clampWindow, fetchBucket, focusOn, liveEnd, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, timeAt, windowText } from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
@@ -13,14 +14,21 @@ const nowSeconds = () => Math.floor(Date.now() / 1000)
  * l'image d'un instant. Ce qu'on choisit (instant ou événement) remonte à la carte de la caméra.
  * Le dessin est celui de @house/ui ; ici, les calculs et les gestes.
  */
-const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: TimelineProps) => {
-  const [seconds, setSeconds] = useState(() => secondsOf(DEFAULT_RANGE))
-  const [end, setEnd] = useState(nowSeconds)
+const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange }: TimelineProps) => {
+  const [seconds, setSeconds] = useState(NOW_ZOOM_SECONDS)
+  const [end, setEnd] = useState(() => liveEnd(nowSeconds(), NOW_ZOOM_SECONDS))
   const [live, setLive] = useState(true)
   const [selectedId, setSelectedId] = useState('')
   const [cursor, setCursor] = useState<number | null>(null)
   const [times, setTimes] = useState<number[]>([])
+  const bucket = fetchBucket(end, seconds)
+  // L'instant de la dernière image demandée au parent et l'heure du dernier pas : le curseur avance en temps réel.
+  const reported = useRef<number | null>(null)
+  const lastStep = useRef(0)
   const [dragging, setDragging] = useState(false)
+  // Les événements de la fenêtre (demandés avec from et to : l'historique, pas seulement les 200 derniers) et le nombre de plus anciens.
+  const [history, setHistory] = useState<EventRow[]>([])
+  const [olderCount, setOlderCount] = useState<number | null>(null)
   const axisRef = useRef<HTMLDivElement>(null)
   // Le glisser en cours : position de départ du pointeur et bord droit au départ.
   const drag = useRef<{ x: number; end: number; moved: boolean } | null>(null)
@@ -30,12 +38,12 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
     view.current = { seconds, end }
   }, [seconds, end])
 
-  // En direct, le bord droit suit l'heure courante (place l'a déjà posé sur « maintenant »).
+  // En direct, le bord droit suit l'heure courante, plus la part de futur.
   useEffect(() => {
     if (!live) return
-    const timer = setInterval(() => setEnd(nowSeconds()), NOW_REFRESH_MS)
+    const timer = setInterval(() => setEnd(liveEnd(nowSeconds(), seconds)), refreshEvery(seconds))
     return () => clearInterval(timer)
-  }, [live])
+  }, [live, seconds])
 
   // Les instants couverts par une image, pour la fenêtre affichée (pas pendant un glisser).
   useEffect(() => {
@@ -49,20 +57,74 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
     return () => {
       cancelled = true
     }
-  }, [apiKey, camera, end, seconds, dragging])
+    // end change à chaque seconde en direct : seul bucket (la fenêtre a assez avancé) relance la requête.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, camera, bucket, seconds, dragging])
 
-  // Place la fenêtre [nextEnd - nextSeconds, nextEnd] sans jamais dépasser maintenant.
+  // Les événements de la fenêtre affichée, demandés à l'API une fois la fenêtre posée (glisser et zoom changent vite).
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(() => {
+      const start = end - seconds
+      Promise.all([fetchEvents(apiKey, { camera, from: start, to: end }), fetchEvents(apiKey, { camera, to: start })])
+        .then(([inWindow, before]) => {
+          if (cancelled) return
+          setHistory(inWindow)
+          setOlderCount(before.filter((event) => (event.ended_at ?? event.started_at) < start).length)
+        })
+        .catch(() => undefined)
+    }, EVENTS_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, camera, bucket, seconds])
+  const events = mergeEvents(recent, history)
+
+  // Place la fenêtre [nextEnd - nextSeconds, nextEnd]. Le futur se découvre en glissant, jusqu'à centrer « maintenant » ;
+  // près du bord en direct la fenêtre s'y accroche et se remet à suivre l'heure (Infinity y va directement).
   const place = (nextEnd: number, nextSeconds = view.current.seconds) => {
     const now = nowSeconds()
+    const home = liveEnd(now, nextSeconds)
+    const farthest = now + Math.round(nextSeconds * MAX_FUTURE_SHARE)
     setSeconds(nextSeconds)
-    if (nextEnd >= now) {
+    if (Math.abs(nextEnd - home) <= nextSeconds * SNAP_SHARE || nextEnd === Infinity) {
       setLive(true)
-      setEnd(now)
+      setEnd(home)
     } else {
       setLive(false)
-      setEnd(Math.round(nextEnd))
+      setEnd(Math.round(Math.min(nextEnd, farthest)))
     }
   }
+
+  // Le curseur posé sur l'axe avance tout seul, en temps réel (une minute dure une minute), jusqu'à maintenant, où
+  // l'on retrouve le direct. L'image ne change qu'à chaque image gardée (une par minute). Il s'arrête pendant un
+  // glisser et quand un événement est ouvert.
+  useEffect(() => {
+    if (cursor === null || selectedId || dragging) return
+    const timer = setTimeout(() => {
+      // Le pas se mesure à l'horloge : les temporisations dérivent, le curseur ne doit pas prendre de retard.
+      const now = Date.now()
+      const next = cursor + Math.max(1, Math.round((now - lastStep.current) / 1000))
+      lastStep.current = now
+      if (next >= nowSeconds()) {
+        setCursor(null)
+        onCursor(null)
+        return
+      }
+      setCursor(next)
+      const shot = nearestTime(times, next)
+      const wanted = shot ?? (reported.current === null || next - reported.current >= FALLBACK_IMAGE_SECONDS ? next : reported.current)
+      if (wanted !== reported.current) {
+        reported.current = wanted
+        onCursor(wanted)
+      }
+      const { seconds: current, end: currentEnd } = view.current
+      if (positionOf(next, currentEnd, current) > FOLLOW_EDGE * 100) place(next + current * 0.5, current)
+    }, PLAY_INTERVAL_MS)
+    return () => clearTimeout(timer)
+  }, [cursor, selectedId, dragging, onCursor, times])
 
   // La molette zoome autour de l'instant sous le pointeur. Écouteur non passif : la page ne doit pas défiler.
   useEffect(() => {
@@ -84,6 +146,8 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
   // Un clic sur l'axe : le curseur s'y pose, l'image de cet instant est demandée, l'événement ouvert se ferme.
   const chooseCursor = (time: number | null) => {
     setCursor(time)
+    reported.current = time
+    lastStep.current = Date.now()
     onCursor(time)
     if (selectedId) {
       setSelectedId('')
@@ -129,12 +193,20 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
     // Un simple clic : le curseur se pose à cet instant, l'image correspondante est demandée.
     const rect = event.currentTarget.getBoundingClientRect()
     const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / (rect.width || 1)))
-    chooseCursor(Math.round(timeAt(fraction, end, seconds)))
+    // Pas d'image dans le futur : le curseur s'arrête à maintenant.
+    chooseCursor(Math.min(nowSeconds(), Math.round(timeAt(fraction, end, seconds))))
   }
 
-  const { markers, older } = buildMarkers(events, seconds, end, selectedId)
+  const { markers, older: olderKnown } = buildMarkers(events, seconds, end, selectedId, nowSeconds())
+  const older = olderCount ?? olderKnown
   // Pendant la lecture d'un clip, le curseur suit la vidéo.
   const shownCursor = selectedId && playhead !== null ? playhead : cursor
+  const nowPosition = positionOf(nowSeconds(), end, seconds)
+  const nowX = nowPosition > 0 && nowPosition < 100 ? nowPosition : null
+  // L'étendue de la vidéo, bornée à la fenêtre : le clip déborde de l'événement, le curseur la suit jusqu'au bout.
+  const spanStart = clipRange ? Math.max(0, positionOf(clipRange.start, end, seconds)) : 0
+  const spanEnd = clipRange ? Math.min(100, positionOf(clipRange.end, end, seconds)) : 0
+  const clipSpan = selectedId && clipRange && spanEnd > spanStart ? { x: spanStart, width: spanEnd - spanStart } : null
   const cursorX = shownCursor === null ? null : positionOf(shownCursor, end, seconds)
 
   return (
@@ -146,14 +218,16 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
       ticks={buildTicks(seconds, end)}
       markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
+      nowX={nowX}
+      clipSpan={clipSpan}
       cursorX={cursorX !== null && cursorX >= 0 && cursorX <= 100 ? cursorX : null}
       older={older}
       axisRef={axisRef}
-      onRange={(id) => place(live ? nowSeconds() : end, secondsOf(id))}
-      onEarlier={() => place(end - seconds / 2)}
-      onLater={() => place(end + seconds / 2)}
+      onRange={(id) => {
+        place(live ? Infinity : end, secondsOf(id))
+      }}
       onNow={() => {
-        place(nowSeconds())
+        place(Infinity, NOW_ZOOM_SECONDS)
         chooseCursor(null)
         chooseEvent('')
       }}

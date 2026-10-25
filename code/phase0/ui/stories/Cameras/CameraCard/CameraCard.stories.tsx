@@ -25,7 +25,6 @@ export const Portail: StoryObj<typeof CameraCard> = {
       name="portail"
       caption="Image à 25/10/2026 15:43"
       media={<SnapshotImage src="" message="Pas d’image gardée à cet instant." />}
-      lastEventText="Dernier événement : person · 25/10/2026 16:09 · 4 s"
       timeline={
         <Timeline
           ranges={[{ id: '1h', label: '1 h' }]}
@@ -38,8 +37,6 @@ export const Portail: StoryObj<typeof CameraCard> = {
           cursorX={70}
           older={0}
           onRange={noop}
-          onEarlier={noop}
-          onLater={noop}
           onNow={noop}
           onSelect={noop}
         />

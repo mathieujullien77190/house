@@ -7,7 +7,7 @@ const noop = () => undefined
 
 // Le clip passe par l'API avec la clé : une balise <video src> ne peut pas envoyer l'en-tête,
 // on télécharge donc le fichier puis on le donne au lecteur. L'adresse locale est libérée au démontage.
-const ClipPlayer = ({ apiKey, path, onClose, onTime = noop, onDuration = noop, startAt = 0 }: ClipPlayerProps) => {
+const ClipPlayer = ({ apiKey, path, onClose, onReady = noop, onTime = noop, onDuration = noop, startAt = 0 }: ClipPlayerProps) => {
   const [src, setSrc] = useState('')
   const [error, setError] = useState('')
 
@@ -19,6 +19,7 @@ const ClipPlayer = ({ apiKey, path, onClose, onTime = noop, onDuration = noop, s
         if (cancelled) return
         url = URL.createObjectURL(blob)
         setSrc(url)
+        onReady()
       })
       .catch((reason: unknown) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason))
@@ -27,6 +28,8 @@ const ClipPlayer = ({ apiKey, path, onClose, onTime = noop, onDuration = noop, s
       cancelled = true
       if (url) URL.revokeObjectURL(url)
     }
+    // onReady ne sert qu'à signaler la fin du téléchargement : le relancer ne doit pas retélécharger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, path])
 
   return <ClipPlayerUI src={src} error={error} startAt={startAt} onClose={onClose} onTime={onTime} onDuration={onDuration} />

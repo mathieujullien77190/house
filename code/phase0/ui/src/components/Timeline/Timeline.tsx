@@ -2,19 +2,19 @@ import Button from '../Button'
 import Tabs from '../Tabs'
 import {
   AXIS_CLASS,
-  AXIS_LIVE_CLASS,
+  CLIP_SPAN_CLASS,
+  CLIP_SPAN_TITLE,
   CONTROLS_CLASS,
   COVERAGE_CLASS,
   CURSOR_CLASS,
-  EARLIER_ARIA,
-  EARLIER_LABEL,
-  EMPTY_CLASS,
-  EMPTY_TEXT,
+  FUTURE_CLASS,
   HEAD_CLASS,
   HINT,
-  LATER_ARIA,
-  LATER_LABEL,
+  NOW_BUTTON_CLASS,
   NOW_LABEL,
+  NOW_LINE_CLASS,
+  NOW_MARK,
+  NOW_MARK_CLASS,
   OLDER_PREFIX,
   OLDER_SUFFIX,
   RANGE_LABEL,
@@ -38,12 +38,12 @@ const Timeline = <T extends string>({
   ticks,
   markers,
   coverage,
+  nowX = null,
+  clipSpan = null,
   cursorX,
   older,
   axisRef,
   onRange,
-  onEarlier,
-  onLater,
   onNow,
   onSelect,
   onPointerDown,
@@ -55,13 +55,7 @@ const Timeline = <T extends string>({
       <div className={HEAD_CLASS}>
         <span>{HINT}</span>
         <div className={CONTROLS_CLASS}>
-          <Button onClick={onEarlier} aria-label={EARLIER_ARIA}>
-            {EARLIER_LABEL}
-          </Button>
-          <Button onClick={onLater} aria-label={LATER_ARIA} disabled={live}>
-            {LATER_LABEL}
-          </Button>
-          <Button variant={live ? 'active' : 'default'} onClick={onNow}>
+          <Button variant={live ? 'active' : 'default'} className={NOW_BUTTON_CLASS} onClick={onNow}>
             {NOW_LABEL}
           </Button>
           <Tabs label={RANGE_LABEL} options={ranges} value={range} onChange={onRange} />
@@ -73,12 +67,13 @@ const Timeline = <T extends string>({
       </div>
       <div
         ref={axisRef}
-        className={`${AXIS_CLASS} ${live ? AXIS_LIVE_CLASS : ''}`}
+        className={AXIS_CLASS}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
+        {nowX !== null ? <div className={FUTURE_CLASS} style={{ left: `${nowX}%` }} /> : null}
         {coverage.map((segment) => (
           <div key={segment.x} className={COVERAGE_CLASS} style={{ left: `${segment.x}%`, width: `${segment.width}%` }} />
         ))}
@@ -87,7 +82,7 @@ const Timeline = <T extends string>({
             <span className={TICK_LABEL_CLASS}>{tick.label}</span>
           </div>
         ))}
-        {markers.length === 0 ? <span className={EMPTY_CLASS}>{EMPTY_TEXT}</span> : null}
+        {clipSpan ? <div title={CLIP_SPAN_TITLE} className={CLIP_SPAN_CLASS} style={{ left: `${clipSpan.x}%`, width: `${clipSpan.width}%` }} /> : null}
         {markers.map((marker) => (
           <button
             key={marker.id}
@@ -101,6 +96,11 @@ const Timeline = <T extends string>({
             onClick={(event) => onSelect(marker.id, clickFraction(event.clientX, event.currentTarget.getBoundingClientRect(), marker.scale))}
           />
         ))}
+        {nowX !== null ? (
+          <div className={NOW_LINE_CLASS} style={{ left: `${nowX}%` }}>
+            <span className={NOW_MARK_CLASS}>{NOW_MARK}</span>
+          </div>
+        ) : null}
         {cursorX !== null ? <div className={CURSOR_CLASS} style={{ left: `${cursorX}%` }} /> : null}
       </div>
     </div>

@@ -36,13 +36,17 @@ export interface TimelineProps<T extends string> {
   ranges: TimelineRange<T>[]
   /** Le raccourci qui correspond à la fenêtre courante, ou vide. */
   range: T | ''
-  /** Vrai quand le bord droit suit l'heure courante. */
+  /** Vrai quand la fenêtre suit l'heure courante (le futur reste à droite de « maintenant »). */
   live: boolean
   /** Libellé de la fenêtre affichée (du … au …, durée). */
   windowText: string
   ticks: TimelineTick[]
   markers: TimelineMarker[]
   coverage: TimelineSegment[]
+  /** Position de « maintenant » en %, ou null quand le futur n'est pas dans la fenêtre : ce qui est à droite est le futur, vide. */
+  nowX?: number | null
+  /** L'étendue de la vidéo de l'événement ouvert (le clip déborde de l'événement : marges et segments), en %, ou null. */
+  clipSpan?: TimelineSegment | null
   /** Position du curseur en %, ou null. */
   cursorX: number | null
   /** Nombre d'événements plus anciens que la fenêtre affichée. */
@@ -50,8 +54,6 @@ export interface TimelineProps<T extends string> {
   /** L'axe, pour y brancher la molette (écouteur non passif, au parent). */
   axisRef?: RefObject<HTMLDivElement | null>
   onRange: (id: T) => void
-  onEarlier: () => void
-  onLater: () => void
   onNow: () => void
   /** Clic dans un bloc : son identifiant et la position du clic dans le bloc (0 à 1, sur la durée réelle). */
   onSelect: (id: string, fraction: number) => void
