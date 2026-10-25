@@ -5,3 +5,6 @@ dist
 !.env.example
 code/phase0/data/
 .DS_Store
+# Fichiers que Frigate écrit dans son dossier de configuration (base, secret JWT, caches)
+code/phase0/frigate/config/*
+!code/phase0/frigate/config/config.yml
