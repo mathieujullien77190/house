@@ -5,7 +5,7 @@ import type { ClipPlayerProps } from './types'
 
 // Le clip passe par l'API avec la clé : une balise <video src> ne peut pas envoyer l'en-tête,
 // on télécharge donc le fichier puis on le donne au lecteur. L'adresse locale est libérée au démontage.
-const ClipPlayer = ({ apiKey, path, onClose }: ClipPlayerProps) => {
+const ClipPlayer = ({ apiKey, path, onClose, onTime = () => undefined, onDuration = () => undefined, startAt = 0 }: ClipPlayerProps) => {
   const [src, setSrc] = useState('')
   const [error, setError] = useState('')
 
@@ -27,7 +27,7 @@ const ClipPlayer = ({ apiKey, path, onClose }: ClipPlayerProps) => {
     }
   }, [apiKey, path])
 
-  return <ClipPlayerUI src={src} error={error} onClose={onClose} />
+  return <ClipPlayerUI src={src} error={error} startAt={startAt} onClose={onClose} onTime={onTime} onDuration={onDuration} />
 }
 
 export default ClipPlayer

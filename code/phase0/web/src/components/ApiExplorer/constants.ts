@@ -7,10 +7,11 @@ export const SERVICES: ApiService[] = [
   { path: '/image', description: 'L’adresse de la dernière image de chaque caméra (Frigate).', secured: true },
   { path: '/events?last=1', description: 'Le dernier événement de chaque caméra.', secured: true },
   { path: '/events', description: 'Les 200 derniers événements, du plus récent au plus ancien.', secured: true },
+  { path: '/snapshots?camera=portail', description: 'Les instants où House Sync a gardé une image de la caméra (une par minute).', secured: true },
 ]
 
 export const INTRO = 'Chaque service est un GET. Clique pour l’appeler avec ta clé (en-tête X-House-Key) et voir sa réponse.'
-export const CLIPS_NOTE = '/clips/<id> renvoie la vidéo d’un événement (mp4) : pas de JSON, voir l’onglet Caméras.'
+export const CLIPS_NOTE = '/clips/<id> renvoie la vidéo d’un événement (mp4) et /snapshot?camera=…&at=… l’image la plus proche d’un instant (jpeg) : pas de JSON, voir l’onglet Caméras.'
 export const RESULT_TITLE = 'Réponse'
 export const KEY_BADGE = 'clé'
 

@@ -28,16 +28,33 @@ cameras:
             - detect
     detect:
       enabled: true
+    # Plus sensible que les réglages d'usine (score minimal 0,5, confirmation à 0,7) : la caméra voit de près,
+    # une personne à moitié dans le champ n'atteignait pas 70 %.
+    objects:
+      track:
+        - person
+      filters:
+        person:
+          min_score: 0.4
+          threshold: 0.6
     # Flux proposés dans la vue direct de Frigate ; House Sync prend le premier pour l'iframe de la WebApp
     # (le flux léger, en H264, que tous les navigateurs décodent).
     live:
       streams:
         Léger: portail_sub
         Principal: portail_main
+    # House Sync copie les clips et garde une image par minute : Frigate n'a besoin de garder que quelques heures
+    # (0.25 jour = 6 h, le ménage passe toutes les heures), une marge si House Sync est arrêté un moment.
     record:
       enabled: true
       continuous:
         days: 0
       motion:
-        days: 3
+        days: 0.25
+      alerts:
+        retain:
+          days: 0.25
+      detections:
+        retain:
+          days: 0.25
 version: 0.18-0

@@ -27,6 +27,14 @@ export const fetchLive = async (key: string): Promise<CameraRow[]> => (await req
 export const fetchImages = async (key: string): Promise<CameraRow[]> => (await request(key, '/image')).json()
 export const fetchEvents = async (key: string): Promise<EventRow[]> => (await request(key, '/events')).json()
 export const fetchClip = async (key: string, path: string): Promise<Blob> => (await request(key, path)).blob()
+
+/** Les instants (secondes) où House Sync a gardé une image de cette caméra, entre from et to. */
+export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>
+  (await request(key, `/snapshots?camera=${encodeURIComponent(camera)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
+
+/** L'image la plus proche d'un instant (404 s'il n'y en a pas à deux minutes près). */
+export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<Blob> =>
+  (await request(key, `/snapshot?camera=${encodeURIComponent(camera)}&at=${Math.floor(at)}`)).blob()
 /** Un service quelconque, pour l'explorateur de l'API : le statut et le corps tel quel. */
 export const callService = async (key: string, path: string): Promise<{ status: number; body: string }> => {
   const res = await fetch(path, { headers: { [KEY_HEADER]: key } })

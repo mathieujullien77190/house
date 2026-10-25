@@ -53,7 +53,10 @@ services:
       FRIGATE_USER: ${SYNC_FRIGATE_USER}
       FRIGATE_PASSWORD: ${SYNC_FRIGATE_PASSWORD}
       DATA_DIR: /data
-      POLL_INTERVAL_SECONDS: "15"
+      POLL_INTERVAL_SECONDS: "5"
+      # Une image par caméra et par minute, gardée 7 jours (~115 Mo par jour et par caméra).
+      SNAPSHOT_INTERVAL_SECONDS: "60"
+      SNAPSHOT_RETENTION_DAYS: "7"
       # Certificat auto-signé de Frigate, sur le réseau interne de Docker seulement.
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
     ports:

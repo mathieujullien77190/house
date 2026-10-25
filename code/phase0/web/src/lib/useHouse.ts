@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { checkKey, fetchEvents, fetchImages, fetchLive, isKeyRefused, loadStoredKey, storeKey } from './api'
 import type { Camera, EventRow } from '@/types'
 
-export const EVENTS_REFRESH_MS = 10_000
+export const EVENTS_REFRESH_MS = 1_000
 
 export type Status = 'locked' | 'checking' | 'ready'
 
