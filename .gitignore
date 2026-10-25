@@ -8,3 +8,5 @@ code/phase0/data/
 # Fichiers que Frigate écrit dans son dossier de configuration (base, secret JWT, caches)
 code/phase0/frigate/config/*
 !code/phase0/frigate/config/config.yml
+code/phase0/web/node_modules/
+code/phase0/web/dist/

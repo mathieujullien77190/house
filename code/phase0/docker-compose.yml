@@ -2,9 +2,22 @@
 # Démarrage : voir README.md.
 
 services:
+  # Conteneur éphémère : crée la CA de la maison et le certificat du PC dans data/certs, puis s'arrête.
+  # Frigate et l'API attendent qu'il ait fini pour démarrer avec ce certificat.
+  certs:
+    build: ./certs
+    restart: "no"
+    environment:
+      CERT_HOSTS: ${CERT_HOSTS}
+    volumes:
+      - ./data/certs:/certs
+
   frigate:
     image: ghcr.io/blakeblackshear/frigate:stable
     restart: unless-stopped
+    depends_on:
+      certs:
+        condition: service_completed_successfully
     shm_size: 256mb
     environment:
       # Frigate ne lit que les variables qui commencent par FRIGATE_.
@@ -12,6 +25,8 @@ services:
     volumes:
       - ./frigate/config:/config
       - ./data/frigate:/media/frigate
+      # Le certificat de la maison (fullchain.pem, privkey.pem) : Frigate le recharge tout seul s'il change.
+      - ./data/certs/frigate:/etc/letsencrypt/live/frigate:ro
     ports:
       # Seul port publié : le 8971, avec connexion. Le 5000 reste interne.
       - "8971:8971"
@@ -22,17 +37,30 @@ services:
     build: ./sync
     restart: unless-stopped
     depends_on:
-      - frigate
+      frigate:
+        condition: service_started
+      certs:
+        condition: service_completed_successfully
     environment:
       FRIGATE_URL: https://frigate:8971
+      # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
+      HOUSE_KEY: ${API_KEY}
+      PAGE_PORT: "8081"
+      TLS_CERT: /certs/cert.pem
+      TLS_KEY: /certs/key.pem
+      # Adresse de Frigate vue du navigateur : écrite dans SQLite pour le direct et la dernière image.
+      FRIGATE_PUBLIC_URL: ${FRIGATE_PUBLIC_URL}
       FRIGATE_USER: ${SYNC_FRIGATE_USER}
       FRIGATE_PASSWORD: ${SYNC_FRIGATE_PASSWORD}
       DATA_DIR: /data
-      POLL_INTERVAL_SECONDS: "30"
+      POLL_INTERVAL_SECONDS: "15"
       # Certificat auto-signé de Frigate, sur le réseau interne de Docker seulement.
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
+    ports:
+      - "8081:8081"
     volumes:
       - ./data/backup:/data
+      - ./data/certs:/certs:ro
     networks:
       - sync_net
 
@@ -41,11 +69,23 @@ services:
       context: .
       dockerfile: api/Dockerfile
     restart: unless-stopped
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+    environment:
+      DATA_DIR: /data
+      # La clé que l'utilisateur donne depuis la WebApp ; l'API ne démarre pas sans.
+      API_KEY: ${API_KEY}
+      # Le certificat de la maison : HTTPS obligatoire pour que le navigateur envoie le cookie de Frigate
+      # à l'iframe du direct et à l'image (même scheme et même hôte que Frigate).
+      TLS_CERT: /certs/cert.pem
+      TLS_KEY: /certs/key.pem
     ports:
       - "8080:8080"
     volumes:
-      # Lecture seule : l'API ne modifie jamais les clips ni la base.
+      # Lecture seule : l'API ne modifie jamais les clips, la base ni les certificats.
       - ./data/backup:/data:ro
+      - ./data/certs:/certs:ro
     networks:
       - web_net
 

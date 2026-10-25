@@ -28,6 +28,12 @@ cameras:
             - detect
     detect:
       enabled: true
+    # Flux proposés dans la vue direct de Frigate ; House Sync prend le premier pour l'iframe de la WebApp
+    # (le flux léger, en H264, que tous les navigateurs décodent).
+    live:
+      streams:
+        Léger: portail_sub
+        Principal: portail_main
     record:
       enabled: true
       continuous:
