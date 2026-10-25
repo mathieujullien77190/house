@@ -8,22 +8,34 @@ phase0/
 ├── .env.example         les variables à copier dans .env
 ├── certs/               la CA de la maison et le certificat du PC (make-certs.sh)
 ├── frigate/             configuration de Frigate
-├── sync/                House Sync (polling de Frigate, copie des clips, écriture de SQLite)
-├── api/                 House API (lecture seule : auth, direct, image, events, clips)
+├── sync/                House Sync (polling de Frigate, copie des clips, images par minute, SQLite)
+│   └── web/             sa page : projet Vite + React + TypeScript (tables paginées, clips)
+├── api/                 House API : Express (config, middlewares, routes, services, dépôts), lecture seule
 └── web/                 WebApp : projet Vite + React + TypeScript (la clé, puis trois onglets)
 ```
 
 ## WebApp
 
-Trois onglets après la clé : **Caméras** (nom, dernière image, frise des événements sur 1 h à 7 jours, clip
-de l'événement cliqué),
+Trois onglets après la clé : **Caméras** (nom, dernière image, frise des événements sur 10 min à 7 jours qu'on
+fait glisser, clip de l'événement cliqué, image gardée à l'instant cliqué),
 **API** (chaque service, un clic montre sa réponse JSON) et **Frigate** (son interface dans la page).
 
 ## Page de House Sync
 
 Pour contrôler ce que fait House Sync : `https://<adresse du PC>:8081`, la même clé que la WebApp. House Sync
-sert cette page lui-même (HTML côté serveur, rechargée toutes les 15 s) : sa base SQLite table par table et
-les fichiers du disque backup. L'API n'expose jamais la base brute.
+sert cette page lui-même (React, dossier `sync/web`, rechargée toutes les 15 s sauf média ouvert) : les totaux,
+sa base SQLite table par table (paginée, une description par table), les clips du disque backup, et un panneau
+fixe où un clip ou une image s'ouvre au clic (lecture directe, Fermer l'arrête). L'API n'expose jamais la base
+brute. Développement : `cd sync/web && npm install && npm run dev` (HTTPS sur 5181 avec le certificat de la
+maison, services relayés vers House Sync).
+
+## House API
+
+Express 5, en TypeScript exécuté par Node 24 (`npm run typecheck` pour vérifier) : `config.ts` (environnement
+validé), `app.ts` (assemblage), `middleware/` (clé, erreurs), `routes/` (un fichier par service), `services/`
+(règles), `repositories/` (SQL), `db/` (SQLite en lecture seule), `lib/backupFiles.ts` (envoi des fichiers du
+disque backup, avec la reprise partielle pour la vidéo). Les routes derrière la clé sont listées dans
+`routes/index.ts` ; welcome et les fichiers de la WebApp restent publics.
 Mêmes conventions que le site : un dossier par composant (`Nom.tsx`, `UI.tsx`, `helpers.ts`, `constants.ts`,
 `types.ts`, `index.ts`), Tailwind, TypeScript strict.
 
@@ -48,8 +60,8 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
    (`docker compose logs frigate`). Le changer, puis créer un compte `sync` de rôle viewer et mettre son mot
    de passe dans `.env` (`SYNC_FRIGATE_PASSWORD`), puis `docker compose up -d sync`.
 5. House Sync : `docker compose logs sync` doit afficher « Connecté à Frigate (sync) » puis, toutes les
-   15 secondes, le nombre de caméras et de nouveaux événements. Un événement n'arrive qu'une fois terminé
-   (la personne est sortie du champ) et son clip prêt : compter jusqu'à 30 secondes avant de le voir.
+   5 secondes, le nombre de caméras et de nouveaux événements. Un événement n'arrive qu'une fois terminé
+   (la personne est sortie du champ) et son clip prêt : compter quelques secondes avant de le voir.
 6. Installer la CA de la maison sur chaque appareil, une fois : le fichier `data/certs/rootCA.pem`.
    Windows : double-clic, « Installer un certificat », utilisateur actuel, magasin « Autorités de
    certification racines de confiance ». Android : Paramètres > Sécurité > Chiffrement et identifiants >
@@ -73,5 +85,11 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
   installée, le navigateur affiche un avertissement ; avec, le cadenas est vert. Le certificat est refait
   automatiquement si `CERT_HOSTS` change ou à moins de 30 jours de son expiration (`docker compose up -d`).
 - Les données sont dans `data/` (ignoré par git) : `data/frigate` pour Frigate, `data/backup` pour la base
-  `events.db` et les clips (`clips/<caméra>/<id>.mp4`). Si le schéma de la base change, supprimer `events.db`.
+  `events.db`, les clips (`clips/<caméra>/<id>.mp4`) et les images par minute (`snapshots/<caméra>/<t>.jpg`).
+  Si le schéma de la base change, supprimer `events.db`.
+- Frigate n'enregistre que sur mouvement (`record.continuous: 0 jour` ; le 4K en continu ferait ~65 Go par
+  jour) et ne garde que 6 h (`0.25` jour), le temps que House Sync copie les clips : si House Sync est arrêté,
+  il rattrape tout au redémarrage tant que Frigate a encore les clips. Entre deux événements, c'est l'image par
+  minute de House Sync qu'on voit (~60 Mo par jour et par caméra, 7 jours gardés : `SNAPSHOT_INTERVAL_SECONDS`,
+  `SNAPSHOT_RETENTION_DAYS` dans docker-compose.yml). Les images de la période d'arrêt, elles, sont perdues.
 - Frigate écrit sa base et ses secrets à côté de `config.yml` : tout y est ignoré par git sauf la config.
