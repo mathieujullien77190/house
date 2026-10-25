@@ -1,0 +1,1 @@
+A paginated table in a card: title, description, detail, columns, rows already rendered (text or any element) and the `Pager` at the bottom. With `onToggle`, the title collapses or expands the table (`collapsed`). The parent holds the page and the collapsed state, and loads the rows; the table only draws.

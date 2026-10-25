@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import Button from '@/components/UI/Button'
+import { Button } from '@house/ui'
 import { formatSeconds } from '@/lib/format'
 import type { Cell, Media } from '@/types'
 import { BADGE_CLASS, CAMERA_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, NUM_CLASS, OPEN_LABEL } from './constants'

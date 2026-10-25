@@ -3,10 +3,3 @@ export interface KeyFormProps {
   busy: boolean
   onSubmit: (key: string) => void
 }
-
-export interface KeyFormUIProps {
-  value: string
-  busy: boolean
-  onChange: (value: string) => void
-  onSubmit: () => void
-}

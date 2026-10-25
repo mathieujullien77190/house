@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "@house/ui": "file:../ui"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

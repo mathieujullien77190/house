@@ -1,5 +1,13 @@
+import type { TabId } from './types'
+
 export const REFRESH_MS = 15_000
 export const TITLE = 'House Sync'
+export const TABS_LABEL = 'Pages'
+export const DEFAULT_TAB: TabId = 'db'
+export const TABS: { id: TabId; label: string }[] = [
+  { id: 'db', label: 'Base' },
+  { id: 'disk', label: 'Disque' },
+]
 export const INTRO = 'Le seul programme qui écrit ici. L’API et la WebApp ne lisent jamais cette page.'
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification…'
@@ -10,12 +18,4 @@ export const BACKUP_TITLE = 'Disque backup'
 export const REFRESH_NOTE = 'rechargée toutes les 15 s, sauf média ouvert'
 export const LOADING_TEXT = 'Chargement…'
 
-export const PAGE_CLASS = 'mx-auto max-w-[1100px] px-4 py-4'
-export const HEADER_CLASS = 'flex flex-wrap items-baseline justify-between gap-3'
-export const TITLE_CLASS = 'm-0 text-2xl font-bold'
-export const META_CLASS = 'flex flex-wrap items-center gap-2 text-[0.85rem] text-muted'
-export const INTRO_CLASS = 'mt-1 text-[0.9rem] text-muted'
-export const ERROR_CLASS = 'mt-2 text-[0.9rem] text-danger'
-export const SECTION_TITLE_CLASS = 'mt-7 mb-1 text-[1.1rem] font-semibold text-accent'
-export const PATH_CLASS = 'ml-2 font-mono text-[0.8rem] font-normal text-muted'
-export const MUTED_CLASS = 'text-[0.9rem] text-muted'
+export const TABS_CLASS = 'mt-4'

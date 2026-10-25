@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import DataTable from '@/components/DataTable'
-import Button from '@/components/UI/Button'
+import { Button, DataTable } from '@house/ui'
 import { fetchClips } from '@/lib/api'
 import { formatDateMs, formatSize } from '@/lib/format'
 import type { BackupFile, Page } from '@/types'
@@ -32,8 +31,9 @@ const ClipsSection = ({ refreshTick, onOpen }: ClipsSectionProps) => {
       detail={`${data?.total ?? 0} fichier(s)`}
       columns={COLUMNS}
       rows={files.map((file) => [
-        <span key="path">
-          {file.path} <Button onClick={() => onOpen({ path: file.path, kind: 'video' })}>{OPEN_LABEL}</Button>
+        <span key="path" className="inline-flex flex-wrap items-center gap-2">
+          <span>{file.path}</span>
+          <Button onClick={() => onOpen({ path: file.path, kind: 'video' })}>{OPEN_LABEL}</Button>
         </span>,
         <span key="size" className={NUM_CLASS}>
           {formatSize(file.size)}

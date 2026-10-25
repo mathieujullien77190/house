@@ -1,0 +1,1 @@
+Le lecteur d'un clip de la WebApp. Le téléchargement (avec la clé, en blob) est au parent : le lecteur reçoit une adresse, démarre à `startAt` (et y saute à chaque changement), remonte sa durée et sa position pour que le curseur de la frise suive. Sans adresse, un cadre « Téléchargement du clip… ».

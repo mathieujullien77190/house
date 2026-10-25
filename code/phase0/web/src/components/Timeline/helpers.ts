@@ -1,7 +1,8 @@
+import type { TimelineSegment, TimelineTick } from '@house/ui'
 import { describeEvent, formatTime } from '@/lib/format'
 import type { EventRow } from '@/types'
 import { COVERAGE_GAP, MAX_TICKS, MAX_WINDOW, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_STEPS } from './constants'
-import type { Marker, RangeId, Segment, Tick } from './types'
+import type { Marker, RangeId } from './types'
 
 export const secondsOf = (id: RangeId): number => (RANGES.find((r) => r.id === id) ?? RANGES[0]).seconds
 
@@ -27,12 +28,12 @@ const tickLabel = (time: number, step: number): string => {
 }
 
 /** Les graduations, alignées sur l'heure locale (heures rondes, ou minuit pour les grands pas). */
-export const buildTicks = (seconds: number, end: number): Tick[] => {
+export const buildTicks = (seconds: number, end: number): TimelineTick[] => {
   const step = tickStep(seconds)
   const start = end - seconds
   const offset = new Date(end * 1000).getTimezoneOffset() * 60
   const first = Math.ceil((start - offset) / step) * step + offset
-  const ticks: Tick[] = []
+  const ticks: TimelineTick[] = []
   for (let time = first; time < end; time += step) {
     const x = positionOf(time, end, seconds)
     if (x > 1 && x < 99) ticks.push({ x, label: tickLabel(time, step) })
@@ -49,14 +50,22 @@ export const buildMarkers = (events: EventRow[], seconds: number, end: number, s
     const right = Math.min(100, positionOf(event.ended_at ?? end, end, seconds))
     const real = Math.max(0.01, right - x)
     const width = Math.max(MIN_WIDTH, real)
-    return { event, x: Math.min(x, 100 - width), width, scale: width / real, text: describeEvent(event), selected: event.id === selectedId }
+    return {
+      event,
+      x: Math.min(x, 100 - width),
+      width,
+      scale: width / real,
+      text: describeEvent(event),
+      selected: event.id === selectedId,
+      ongoing: event.ended_at === null,
+    }
   })
   return { markers, older: events.filter((event) => (event.ended_at ?? event.started_at) < start).length }
 }
 
 /** Les plages couvertes par des images (instants rapprochés), en % de la fenêtre. */
-export const buildCoverage = (times: number[], seconds: number, end: number): Segment[] => {
-  const segments: Segment[] = []
+export const buildCoverage = (times: number[], seconds: number, end: number): TimelineSegment[] => {
+  const segments: TimelineSegment[] = []
   let from = -1
   let to = -1
   const push = () => {

@@ -1,0 +1,1 @@
+The secret key form, the same in both apps. The field is a password, the button is only enabled with a value, and everything is disabled while checking (`busy`). The sentence under the field (`hint`) says where the key comes from.

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
+import { ClipPlayer as ClipPlayerUI } from '@house/ui'
 import { fetchClip } from '@/lib/api'
-import ClipPlayerUI from './UI'
 import type { ClipPlayerProps } from './types'
+
+const noop = () => undefined
 
 // Le clip passe par l'API avec la clé : une balise <video src> ne peut pas envoyer l'en-tête,
 // on télécharge donc le fichier puis on le donne au lecteur. L'adresse locale est libérée au démontage.
-const ClipPlayer = ({ apiKey, path, onClose, onTime = () => undefined, onDuration = () => undefined, startAt = 0 }: ClipPlayerProps) => {
+const ClipPlayer = ({ apiKey, path, onClose, onTime = noop, onDuration = noop, startAt = 0 }: ClipPlayerProps) => {
   const [src, setSrc] = useState('')
   const [error, setError] = useState('')
 

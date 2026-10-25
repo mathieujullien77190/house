@@ -1,0 +1,1 @@
+The card of a camera in the WebApp: its name, a captioned media on top (the latest image, the image of an instant or the clip of an event, as the parent decides), an optional warning, the last event and the timeline. Two slots (`media`, `timeline`): the card knows nothing about what it frames.

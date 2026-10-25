@@ -1,0 +1,6 @@
+export const PAGE_CLASS = 'mx-auto max-w-[1100px] px-4 py-4'
+export const HEADER_CLASS = 'flex flex-wrap items-baseline gap-4'
+export const TITLE_CLASS = 'm-0 text-2xl font-bold'
+export const STATUS_CLASS = 'm-0 flex-1 text-[0.9rem] text-muted'
+export const ERROR_CLASS = 'm-0 flex-1 text-[0.9rem] text-danger'
+export const ACTIONS_CLASS = 'flex flex-wrap items-center gap-2'

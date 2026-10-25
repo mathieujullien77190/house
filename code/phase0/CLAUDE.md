@@ -9,7 +9,7 @@ Quatre conteneurs Docker (`docker-compose.yml`), sur le PC de la maison, avec un
 | `sync` | House Sync : copie les clips et une image par minute sur le disque backup, écrit SQLite, sert sa page | 8081 |
 | `api` | House API (Express) + la WebApp compilée | 8080 |
 
-Un CLAUDE.md par dossier : `certs/`, `frigate/`, `sync/`, `sync/web/`, `api/`, `web/`.
+Un CLAUDE.md par dossier : `certs/`, `frigate/`, `sync/`, `sync/web/`, `api/`, `web/`, `ui/` (le paquet `@house/ui` : les composants dumb des deux apps, avec un Storybook).
 
 ## Règles
 
@@ -30,7 +30,7 @@ docker compose restart frigate        # après un changement de frigate/config/c
 docker compose logs -f sync           # ce que fait House Sync
 ```
 
-Vérifications : `npm run typecheck` dans `api/`, `npm run typecheck && npm run lint && npm run build` dans `web/` et `sync/web/`. Docker Desktop doit tourner (il est dans `%LOCALAPPDATA%\Programs\DockerDesktop`).
+Vérifications : `npm run typecheck` dans `api/`, `npm run typecheck && npm run lint && npm run build` dans `web/` et `sync/web/`, `npm run typecheck && npm run lint && npm run build-storybook` dans `ui/`. Les deux apps ont le même style : même `PageHeader`, mêmes `Tabs`, mêmes composants de `@house/ui`. Docker Desktop doit tourner (il est dans `%LOCALAPPDATA%\Programs\DockerDesktop`).
 
 ## Réglages (docker-compose.yml et .env)
 

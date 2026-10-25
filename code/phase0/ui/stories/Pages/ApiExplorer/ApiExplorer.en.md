@@ -1,0 +1,1 @@
+The API tab of the WebApp: the list of services with their description and a "clé" badge, and on the right the answer (coloured HTTP status, formatted body). The real call belongs to the parent; the component only draws the list and the answer.

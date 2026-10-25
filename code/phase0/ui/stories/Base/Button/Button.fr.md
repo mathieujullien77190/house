@@ -1,0 +1,1 @@
+Le bouton des deux apps. Trois apparences : par défaut, `active` pour un état choisi (l'onglet courant, « Maintenant » en direct), `danger` pour ce qui retire. Il est `type="button"` sauf si on dit `submit`.

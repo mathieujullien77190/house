@@ -1,0 +1,1 @@
+The page tabs (WebApp: Caméras, API, Frigate; House Sync: Base, Disque) and the window shortcuts of the timeline. The active tab is a prop: an empty value activates none, handy once the wheel has left the shortcuts.

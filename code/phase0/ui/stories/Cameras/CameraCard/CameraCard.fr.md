@@ -1,0 +1,1 @@
+La carte d'une caméra dans la WebApp : son nom, un média légendé en haut (la dernière image, l'image d'un instant ou le clip d'un événement, au choix du parent), un avertissement éventuel, le dernier événement et la frise. Deux emplacements (`media`, `timeline`) : la carte ne sait rien de ce qu'elle encadre.

@@ -1,0 +1,1 @@
+Le panneau de la page de House Sync : un clip ou une image, collé en haut pendant qu'on fait défiler les tableaux, sans les déplacer. La vidéo démarre à l'ouverture ; Fermer retire le panneau, donc arrête la lecture.

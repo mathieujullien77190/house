@@ -1,3 +1,5 @@
+ui/node_modules
+ui/storybook-static
 web/node_modules
 web/dist
 sync/web/node_modules

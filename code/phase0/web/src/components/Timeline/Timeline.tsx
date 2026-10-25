@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { Timeline as TimelineUI } from '@house/ui'
 import { fetchSnapshotTimes } from '@/lib/api'
-import TimelineUI from './UI'
 import { DEFAULT_RANGE, DRAG_THRESHOLD, EVENT_FOCUS_SHARE, NOW_REFRESH_MS, RANGES, WHEEL_FACTOR } from './constants'
 import { buildCoverage, buildMarkers, buildTicks, clampWindow, focusOn, positionOf, presetOf, secondsOf, timeAt, windowText } from './helpers'
 import type { RangeId, TimelineProps } from './types'
@@ -11,6 +11,7 @@ const nowSeconds = () => Math.floor(Date.now() / 1000)
  * La frise des événements d'une caméra : une fenêtre de temps qu'on fait glisser et qu'on zoome (molette,
  * raccourcis, clic sur un événement), un bloc par événement, la couverture en images, un curseur pour voir
  * l'image d'un instant. Ce qu'on choisit (instant ou événement) remonte à la carte de la caméra.
+ * Le dessin est celui de @house/ui ; ici, les calculs et les gestes.
  */
 const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: TimelineProps) => {
   const [seconds, setSeconds] = useState(() => secondsOf(DEFAULT_RANGE))
@@ -29,7 +30,7 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
     view.current = { seconds, end }
   }, [seconds, end])
 
-  // En direct, le bord droit suit l'heure courante (moveTo l'a déjà posé sur « maintenant »).
+  // En direct, le bord droit suit l'heure courante (place l'a déjà posé sur « maintenant »).
   useEffect(() => {
     if (!live) return
     const timer = setInterval(() => setEnd(nowSeconds()), NOW_REFRESH_MS)
@@ -137,20 +138,18 @@ const Timeline = ({ apiKey, camera, events, onCursor, onEvent, playhead }: Timel
   const cursorX = shownCursor === null ? null : positionOf(shownCursor, end, seconds)
 
   return (
-    <TimelineUI
+    <TimelineUI<RangeId>
       ranges={RANGES}
       range={presetOf(seconds)}
       live={live}
       windowText={windowText(seconds, end)}
       ticks={buildTicks(seconds, end)}
-      markers={markers}
+      markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
       cursorX={cursorX !== null && cursorX >= 0 && cursorX <= 100 ? cursorX : null}
       older={older}
       axisRef={axisRef}
-      onRange={(id: RangeId | '') => {
-        if (id) place(live ? nowSeconds() : end, secondsOf(id))
-      }}
+      onRange={(id) => place(live ? nowSeconds() : end, secondsOf(id))}
       onEarlier={() => place(end - seconds / 2)}
       onLater={() => place(end + seconds / 2)}
       onNow={() => {

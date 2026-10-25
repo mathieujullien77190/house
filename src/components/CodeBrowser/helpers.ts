@@ -13,8 +13,13 @@ const rank = (name: string): number => {
 
 const byRank = (a: string, b: string): number => rank(a) - rank(b) || a.localeCompare(b)
 
-/** Explication d'un fichier : la sienne, sinon celle de son rôle dans un dossier de composant (UI.tsx, types.ts…). */
-export const explanationOf = (path: string): string => EXPLANATIONS[path] ?? ROLE_EXPLANATIONS[path.split('/').pop() ?? ''] ?? ''
+/** Explication d'un fichier : la sienne, sinon celle de son rôle (UI.tsx, types.ts, CLAUDE.md, .stories.tsx, .source.md…). */
+export const explanationOf = (path: string): string => {
+  if (EXPLANATIONS[path]) return EXPLANATIONS[path]
+  const name = path.split('/').pop() ?? ''
+  const role = Object.keys(ROLE_EXPLANATIONS).find((key) => name === key || (key.startsWith('.') && name.endsWith(key) && name !== key))
+  return role ? ROLE_EXPLANATIONS[role] : ''
+}
 
 /** Langage d'un fichier, déduit de son nom. */
 export const languageOf = (path: string): Language => {

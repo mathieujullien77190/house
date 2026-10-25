@@ -1,0 +1,1 @@
+Another page of the house (Frigate) in an iframe, with a sentence above and a link to open it on its own. Without an address, `emptyText` takes the place. The story shows that case: Frigate is not reachable from Storybook.

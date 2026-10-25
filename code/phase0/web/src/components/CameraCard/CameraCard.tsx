@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
+import { CameraCard as CameraCardUI, SnapshotImage as ImageBox } from '@house/ui'
+import ClipPlayer from '@/components/ClipPlayer'
+import SnapshotImage from '@/components/SnapshotImage'
+import Timeline from '@/components/Timeline'
 import type { EventRow } from '@/types'
-import CameraCardUI from './UI'
-import { IMAGE_ERROR_TEXT, IMAGE_REFRESH_MS } from './constants'
+import { IMAGE_REFRESH_MS, NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT } from './constants'
 import { captionOf, clipLead, imageSrc, lastEventText } from './helpers'
 import type { CameraCardProps } from './types'
 
 /**
- * Une caméra : en haut sa dernière image (rechargée à intervalle régulier depuis Frigate), remplacée par
- * l'image gardée à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis le dernier
- * événement et la frise.
+ * Une caméra : en haut sa dernière image (rechargée chaque seconde depuis Frigate), remplacée par l'image gardée
+ * à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis le dernier événement et la frise.
+ * La carte elle-même (@house/ui) ne sait rien de tout ça : elle reçoit le média et la frise déjà rendus.
  */
 const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const [tick, setTick] = useState(() => Date.now())
@@ -27,39 +30,57 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const lead = selected ? clipLead(selected, videoDuration) : 0
   // Le clip commence `lead` secondes avant l'événement : l'instant voulu se traduit en secondes de vidéo.
   const clipStart = selected && wanted !== null ? Math.max(0, wanted - selected.started_at + lead) : 0
-
   const onDuration = useCallback((seconds: number) => setVideoDuration(seconds), [])
+  const latest = imageSrc(camera.imageUrl, tick)
+
+  const back = () => {
+    setCursor(null)
+    setSelected(null)
+    setPlayhead(null)
+    setWanted(null)
+  }
+
+  // Ce qui est montré en haut, dans l'ordre de priorité : le clip, l'événement en cours, l'image d'un instant, la dernière image.
+  const ongoing = selected !== null && selected.ended_at === null
+  const media = selected?.clip ? (
+    <ClipPlayer
+      apiKey={apiKey}
+      path={selected.clip}
+      startAt={clipStart}
+      onClose={back}
+      onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
+      onDuration={onDuration}
+    />
+  ) : selected && !ongoing ? (
+    <ImageBox src="" message={NO_CLIP_TEXT} />
+  ) : cursor !== null && !ongoing ? (
+    <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} />
+  ) : (
+    <ImageBox src={latest} message={NO_IMAGE_TEXT} />
+  )
 
   return (
     <CameraCardUI
-      apiKey={apiKey}
       name={camera.name}
-      imageSrc={imageSrc(camera.imageUrl, tick)}
-      cursor={cursor}
-      selected={selected}
       caption={captionOf(cursor, selected)}
+      warning={ongoing ? ONGOING_CLIP_TEXT : ''}
+      media={media}
       lastEventText={lastEventText(events)}
-      events={events}
-      playhead={playhead}
-      clipStart={clipStart}
-      onCursor={setCursor}
-      onEvent={(event, at) => {
-        setSelected(event)
-        setWanted(at)
-        setPlayhead(at)
-        setVideoDuration(null)
-      }}
-      onClipTime={(seconds) => {
-        if (selected) setPlayhead(selected.started_at - lead + seconds)
-      }}
-      onClipDuration={onDuration}
-      onBack={() => {
-        setCursor(null)
-        setSelected(null)
-        setPlayhead(null)
-        setWanted(null)
-      }}
-      onImageError={() => console.warn(IMAGE_ERROR_TEXT)}
+      timeline={
+        <Timeline
+          apiKey={apiKey}
+          camera={camera.name}
+          events={events}
+          playhead={playhead}
+          onCursor={setCursor}
+          onEvent={(event, at) => {
+            setSelected(event)
+            setWanted(at)
+            setPlayhead(at)
+            setVideoDuration(null)
+          }}
+        />
+      }
     />
   )
 }

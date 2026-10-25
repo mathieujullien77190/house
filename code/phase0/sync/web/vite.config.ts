@@ -13,7 +13,13 @@ const KEY = fileURLToPath(new URL('../../data/certs/key.pem', import.meta.url))
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    // @house/ui est un lien vers ../../ui, consommé en source : React doit venir d'ici, une seule fois.
+    preserveSymlinks: true,
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: { exclude: ['@house/ui'] },
   server: {
     port: 5181,
     https: existsSync(CERT) && existsSync(KEY) ? { cert: readFileSync(CERT), key: readFileSync(KEY) } : undefined,

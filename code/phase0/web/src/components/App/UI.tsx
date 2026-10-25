@@ -1,27 +1,8 @@
+import { Button, Notice, Page, PageFrame, PageHeader, Tabs } from '@house/ui'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import KeyForm from '@/components/KeyForm'
-import PageFrame from '@/components/PageFrame'
-import Tabs from '@/components/Tabs'
-import Button from '@/components/UI/Button'
-import {
-  CAMERAS_SUFFIX,
-  CHECKING_TEXT,
-  ERROR_CLASS,
-  FORGET_LABEL,
-  FRIGATE_EMPTY,
-  FRIGATE_INTRO,
-  HEADER_CLASS,
-  LOCKED_TEXT,
-  MUTED_CLASS,
-  NO_CAMERA_TEXT,
-  PAGE_CLASS,
-  STATUS_CLASS,
-  TABS_CLASS,
-  TABS_LABEL,
-  TITLE,
-  TITLE_CLASS,
-} from './constants'
+import { CAMERAS_SUFFIX, CHECKING_TEXT, FORGET_LABEL, FRIGATE_EMPTY, FRIGATE_INTRO, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
 import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
@@ -29,12 +10,8 @@ const AppUI = ({ status, message, apiKey, cameras, events, frigateOrigin, tab, t
   const ready = status === 'ready'
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : `${cameras.length}${CAMERAS_SUFFIX}`
   return (
-    <div className={PAGE_CLASS}>
-      <header className={HEADER_CLASS}>
-        <h1 className={TITLE_CLASS}>{TITLE}</h1>
-        <p className={message ? ERROR_CLASS : STATUS_CLASS}>{message || statusText}</p>
-        {ready ? <Button onClick={onForget}>{FORGET_LABEL}</Button> : null}
-      </header>
+    <Page>
+      <PageHeader title={TITLE} status={message || statusText} tone={message ? 'error' : 'muted'} actions={ready ? <Button onClick={onForget}>{FORGET_LABEL}</Button> : null} />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
 
@@ -45,7 +22,7 @@ const AppUI = ({ status, message, apiKey, cameras, events, frigateOrigin, tab, t
           </div>
           {tab === 'cameras' ? (
             cameras.length === 0 ? (
-              <p className={MUTED_CLASS}>{NO_CAMERA_TEXT}</p>
+              <Notice text={NO_CAMERA_TEXT} />
             ) : (
               cameras.map((camera) => <CameraCard key={camera.name} apiKey={apiKey} camera={camera} events={eventsOf(events, camera.name)} />)
             )
@@ -54,7 +31,7 @@ const AppUI = ({ status, message, apiKey, cameras, events, frigateOrigin, tab, t
           {tab === 'frigate' ? <PageFrame src={frigateOrigin} title="Frigate" intro={FRIGATE_INTRO} emptyText={FRIGATE_EMPTY} /> : null}
         </>
       ) : null}
-    </div>
+    </Page>
   )
 }
 

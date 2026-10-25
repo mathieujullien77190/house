@@ -1,0 +1,1 @@
+Un tableau paginé dans une carte : titre, description, détail, colonnes, lignes déjà rendues (du texte ou n'importe quel élément) et le `Pager` en bas. Avec `onToggle`, le titre replie ou déplie la table (`collapsed`). Le parent tient la page et l'état replié, et charge les lignes ; la table ne fait que dessiner.

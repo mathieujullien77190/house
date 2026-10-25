@@ -1,0 +1,1 @@
+The event timeline of a camera, drawn entirely from positions in %: ticks, coverage band (the minute snapshots), one block per event (widened to a minimum to stay clickable, red stripes while ongoing), the cursor. The parent computes everything (window, zoom, drag, wheel) and receives the gestures; here the story only selects a block.

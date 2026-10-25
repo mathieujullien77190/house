@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { ApiExplorer as ApiExplorerUI, type ApiResult } from '@house/ui'
 import { callService } from '@/lib/api'
-import ApiExplorerUI from './UI'
-import { SERVICES } from './constants'
+import { CLIPS_NOTE, SERVICES } from './constants'
 import { prettify } from './helpers'
-import type { ApiExplorerProps, ApiResult } from './types'
+import type { ApiExplorerProps } from './types'
 
 /** L'explorateur de House API : la liste des services, et la réponse de celui qu'on appelle. */
 const ApiExplorer = ({ apiKey }: ApiExplorerProps) => {
@@ -25,7 +25,7 @@ const ApiExplorer = ({ apiKey }: ApiExplorerProps) => {
     }
   }
 
-  return <ApiExplorerUI services={SERVICES} selected={selected} busy={busy} result={result} onCall={call} />
+  return <ApiExplorerUI services={SERVICES} selected={selected} busy={busy} result={result} note={CLIPS_NOTE} onCall={call} />
 }
 
 export default ApiExplorer

@@ -30,27 +30,3 @@ export const COVERAGE_GAP = 150
 export const DRAG_THRESHOLD = 4
 /** « Maintenant » avance d'une minute à la fois, assez pour rester juste. */
 export const NOW_REFRESH_MS = 60_000
-
-export const RANGE_LABEL = 'Fenêtre'
-export const EARLIER_LABEL = '◀'
-export const LATER_LABEL = '▶'
-export const NOW_LABEL = 'Maintenant'
-export const EMPTY_TEXT = 'Aucun événement dans cette fenêtre.'
-export const OLDER_PREFIX = '+ '
-export const OLDER_SUFFIX = ' plus ancien(s) avant'
-export const HINT = 'Glisse l’axe pour te déplacer, molette pour zoomer. Clique un instant pour voir l’image, un événement pour voir son clip (en haut).'
-
-export const WRAP_CLASS = 'mt-3'
-export const HEAD_CLASS = 'flex flex-wrap items-center justify-between gap-2 text-[0.85rem] text-muted'
-export const CONTROLS_CLASS = 'flex flex-wrap items-center gap-2'
-export const WINDOW_CLASS = 'mt-1 text-[0.8rem] text-muted'
-export const AXIS_CLASS = 'relative mt-2 h-16 cursor-grab touch-none select-none overflow-hidden rounded-lg border border-line bg-card active:cursor-grabbing'
-export const AXIS_LIVE_CLASS = 'border-r-2 border-r-accent'
-export const COVERAGE_CLASS = 'pointer-events-none absolute bottom-5 h-1.5 rounded-sm bg-accent/30'
-export const TICK_CLASS = 'pointer-events-none absolute top-0 h-full border-l border-line'
-export const TICK_LABEL_CLASS = 'absolute bottom-0.5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] text-muted'
-export const MARKER_CLASS = 'absolute top-2 h-7 cursor-pointer rounded border p-0 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-accent'
-export const MARKER_IDLE_CLASS = 'border-accent bg-accent/60'
-export const MARKER_SELECTED_CLASS = 'border-accent bg-accent'
-export const CURSOR_CLASS = 'pointer-events-none absolute top-0 h-full w-0.5 -translate-x-1/2 bg-danger'
-export const EMPTY_CLASS = 'pointer-events-none absolute inset-0 flex items-center justify-center text-[0.85rem] text-muted'

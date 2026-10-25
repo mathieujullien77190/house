@@ -19,7 +19,7 @@ export const lastEventText = (events: EventRow[]): string =>
   events.length === 0 ? NO_EVENT_TEXT : `${LAST_EVENT_PREFIX}${describeEvent(events[0])}`
 
 export const captionOf = (cursor: number | null, selected: EventRow | null): string => {
-  if (selected) return `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`
+  if (selected) return selected.ended_at === null ? describeEvent(selected) : `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`
   if (cursor !== null) return `${AT_CAPTION_PREFIX}${formatTime(cursor)}`
   return IMAGE_CAPTION
 }

@@ -101,7 +101,7 @@ src/
 
 ## Conventions de code
 
-- **Un dossier par composant** : `Nom.tsx` (conteneur : état, hooks, handlers), `UI.tsx` (rendu pur), `helpers.ts` (fonctions pures), `constants.ts` (valeurs et classes Tailwind), `types.ts`, `index.ts` (export par défaut + types). Les mêmes conventions dans `code/phase0/web` et `code/phase0/sync/web`.
+- **Un dossier par composant** : `Nom.tsx` (conteneur : état, hooks, handlers), `UI.tsx` (rendu pur), `helpers.ts` (fonctions pures), `constants.ts` (valeurs et classes Tailwind), `types.ts`, `index.ts` (export par défaut + types). Les mêmes conventions dans `code/phase0/web`, `code/phase0/sync/web` et le paquet `code/phase0/ui` (les composants dumb des deux apps, avec un Storybook ; les apps n'y gardent que les conteneurs).
 - **Logique séparée du rendu** : `UI.tsx` n'a ni état métier ni calcul.
 - **Fonctions fléchées partout**, jamais de `function`. `export default` en fin de fichier de composant.
 - **Alias `@/` = `src/`** hors du dossier courant ; `./` dans le dossier ; jamais de `../`. On importe le dossier d'un composant.
@@ -118,5 +118,5 @@ src/
 - `typescript` bloqué en **~6.0** (`typescript-eslint` n'accepte pas la 7).
 - Clé `localStorage` `house-diagram-vN` (`src/useDiagram.ts`) : **incrémenter N** quand le modèle ou le schéma par défaut change.
 - Les liens dépendent de `x`, `y`, `w`, `h` des composants (`geometry.ts`). Canevas 900 × 540 (`CANVAS`) pour les deux étages ; plan dans `src/plan.ts`, styles dans `components/HousePlan/constants.ts` ; `toBox` pour dessiner les rectangles.
-- Le glob de `CodeBrowser` ignore `node_modules`, `dist`, `package-lock.json` et les fichiers cachés que Frigate écrit dans `frigate/config` (sinon Vite recharge à chaque écriture).
+- Le glob de `CodeBrowser` ignore `node_modules`, `dist`, `storybook-static`, `package-lock.json` et les fichiers cachés que Frigate écrit dans `frigate/config` (sinon Vite recharge à chaque écriture).
 - Dans le shell Bash de Claude Code, éviter les gros heredocs avec des apostrophes.

@@ -1,0 +1,1 @@
+Le formulaire de la clé secrète, le même dans les deux apps. Le champ est un mot de passe, le bouton n'est actif qu'avec une valeur, et tout est désactivé pendant la vérification (`busy`). La phrase sous le champ (`hint`) dit où trouver la clé.

@@ -1,13 +1,10 @@
+import { MediaPanel as MediaPanelUI } from '@house/ui'
 import { fileUrl } from '@/lib/api'
-import MediaPanelUI from './UI'
 import type { MediaPanelProps } from './types'
 
-/**
- * Le clip ou l'image qu'on regarde, dans un panneau fixe au-dessus des tableaux : la vidéo démarre à l'ouverture,
- * et Fermer retire le panneau (donc arrête la lecture) sans toucher à la taille des tableaux.
- */
+/** Le clip ou l'image qu'on regarde : le fichier est servi par House Sync derrière la session. */
 const MediaPanel = ({ media, onClose }: MediaPanelProps) => {
-  return <MediaPanelUI media={media} src={fileUrl(media.path)} onClose={onClose} />
+  return <MediaPanelUI kind={media.kind} title={media.path} src={fileUrl(media.path)} onClose={onClose} />
 }
 
 export default MediaPanel

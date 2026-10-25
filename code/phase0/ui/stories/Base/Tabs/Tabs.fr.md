@@ -1,0 +1,1 @@
+Les onglets des pages (WebApp : Caméras, API, Frigate ; House Sync : Base, Disque) et les raccourcis de fenêtre de la frise. L'onglet actif est une prop : une valeur vide n'en active aucun, utile quand la molette a quitté les raccourcis.

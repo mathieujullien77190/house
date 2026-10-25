@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
+import { SnapshotImage as SnapshotImageUI } from '@house/ui'
 import { fetchSnapshot } from '@/lib/api'
-import SnapshotImageUI from './UI'
 import { LOADING_TEXT, MISSING_TEXT } from './constants'
 import type { SnapshotImageProps } from './types'
 

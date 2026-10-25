@@ -34,7 +34,10 @@ services:
       - sync_net
 
   sync:
-    build: ./sync
+    build:
+      # Le contexte est le dossier phase0 : la page de House Sync consomme le paquet ui.
+      context: .
+      dockerfile: sync/Dockerfile
     restart: unless-stopped
     depends_on:
       frigate:

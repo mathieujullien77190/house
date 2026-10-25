@@ -4,9 +4,11 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle:
 
 export const formatTime = (seconds: number): string => new Date(seconds * 1000).toLocaleString('fr-FR', DATE_FORMAT)
 
-/** Durée d'un événement, en secondes entières ; vide s'il n'est pas terminé. */
+export const ONGOING_TEXT = 'en cours'
+
+/** Durée d'un événement, en secondes entières ; « en cours » s'il n'est pas terminé. */
 export const formatDuration = (event: EventRow): string =>
-  event.ended_at === null ? '' : `${Math.max(1, event.ended_at - event.started_at)} s`
+  event.ended_at === null ? ONGOING_TEXT : `${Math.max(1, event.ended_at - event.started_at)} s`
 
 /** Libellé lisible : « person · 25/10/2026 14:51 · 15 s ». */
 export const describeEvent = (event: EventRow): string =>

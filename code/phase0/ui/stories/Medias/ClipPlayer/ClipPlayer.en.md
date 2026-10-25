@@ -1,0 +1,1 @@
+The clip player of the WebApp. Downloading (with the key, as a blob) belongs to the parent: the player gets an address, starts at `startAt` (and seeks there on each change), reports its duration and position so the timeline cursor can follow. Without an address, a "Téléchargement du clip…" box.

@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { fetchOverview, isLoginRequired, login, logout } from '@/lib/api'
 import type { Media, Overview } from '@/types'
 import AppUI from './UI'
-import { REFRESH_MS } from './constants'
-import type { Status } from './types'
+import { DEFAULT_TAB, REFRESH_MS } from './constants'
+import type { Status, TabId } from './types'
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 /**
- * La page de House Sync : la clé (une session par cookie), puis la vue d'ensemble, les tables paginées et les clips.
- * Tout se recharge toutes les 15 s, sauf quand un média est ouvert dans le panneau.
+ * La page de House Sync : la clé (une session par cookie), puis deux onglets, la base (tables paginées) et le
+ * disque (les clips). Tout se recharge toutes les 15 s, sauf quand un média est ouvert dans le panneau.
  */
 const App = () => {
   const [status, setStatus] = useState<Status>('checking')
@@ -18,6 +18,7 @@ const App = () => {
   const [loadedAt, setLoadedAt] = useState('')
   const [media, setMedia] = useState<Media | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  const [tab, setTab] = useState<TabId>(DEFAULT_TAB)
 
   // Charge la vue d'ensemble ; une session absente ou expirée ramène au formulaire.
   const refresh = useCallback(async () => {
@@ -76,6 +77,8 @@ const App = () => {
       loadedAt={loadedAt}
       media={media}
       refreshTick={refreshTick}
+      tab={tab}
+      onTab={setTab}
       onConnect={connect}
       onLogout={quit}
       onRefresh={refresh}
