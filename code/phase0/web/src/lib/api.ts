@@ -24,7 +24,6 @@ const request = async (key: string, path: string): Promise<Response> => {
 
 export const checkKey = (key: string): Promise<Response> => request(key, '/auth')
 export const fetchLive = async (key: string): Promise<CameraRow[]> => (await request(key, '/direct')).json()
-export const fetchImages = async (key: string): Promise<CameraRow[]> => (await request(key, '/image')).json()
 export const fetchEvents = async (key: string): Promise<EventRow[]> => (await request(key, '/events')).json()
 export const fetchClip = async (key: string, path: string): Promise<Blob> => (await request(key, path)).blob()
 

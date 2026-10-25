@@ -13,6 +13,9 @@ go2rtc:
     # Chemins RTSP de Reolink : à vérifier selon le modèle (h264 ou h265).
     portail_main: rtsp://admin:{FRIGATE_REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
     portail_sub: rtsp://admin:{FRIGATE_REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
+    # Le direct de la WebApp : le flux léger transcodé en MJPEG (un ffmpeg, seulement tant qu'un onglet le regarde).
+    # Nom = celui du flux + _mjpeg : House API le déduit de l'adresse que House Sync a écrite.
+    portail_sub_mjpeg: ffmpeg:portail_sub#video=mjpeg
 
 cameras:
   portail:

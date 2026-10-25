@@ -11,14 +11,14 @@ phase0/
 ├── sync/                House Sync (polling de Frigate, copie des clips, images par minute, SQLite)
 │   └── web/             sa page : projet Vite + React + TypeScript (tables paginées, clips)
 ├── api/                 House API : Express (config, middlewares, routes, services, dépôts), lecture seule
-└── web/                 WebApp : projet Vite + React + TypeScript (la clé, puis trois onglets)
+└── web/                 WebApp : projet Vite + React + TypeScript (la clé, puis deux onglets)
 ```
 
 ## WebApp
 
-Trois onglets après la clé : **Caméras** (nom, dernière image, frise des événements sur 10 min à 7 jours qu'on
+Deux onglets après la clé : **Caméras** (nom, direct MJPEG, frise des événements sur 10 min à 7 jours qu'on
 fait glisser, clip de l'événement cliqué, image gardée à l'instant cliqué),
-**API** (chaque service, un clic montre sa réponse JSON) et **Frigate** (son interface dans la page).
+**API** (chaque service, un clic montre sa réponse JSON).
 
 ## Page de House Sync
 
@@ -66,20 +66,19 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
    Windows : double-clic, « Installer un certificat », utilisateur actuel, magasin « Autorités de
    certification racines de confiance ». Android : Paramètres > Sécurité > Chiffrement et identifiants >
    Installer un certificat > Certificat CA. Puis fermer et rouvrir le navigateur.
-7. WebApp : `https://<adresse du PC>:8080` (le même hôte que `FRIGATE_PUBLIC_URL`, en HTTPS), entrer la clé
-   de l'API. Le direct et la dernière image viennent de Frigate : il faut s'être connecté à Frigate dans le
-   navigateur (lien « Ouvrir Frigate »).
+7. WebApp : `https://<adresse du PC>:8080` (ou `localhost`), entrer la clé de l'API. Le direct vient de go2rtc,
+   relayé par l'API : aucune connexion à Frigate dans le navigateur.
 
 ## À savoir
 
 - Ports publiés : 8971 (Frigate), 8080 (API et WebApp), 8081 (page de House Sync). Le port 5000 de Frigate
   reste interne.
-- Deux connexions, par choix : celle de Frigate (cookie, pour le direct et l'image que le navigateur charge
-  sans passer par l'API) et la clé de l'API (en-tête `X-House-Key`, pour les événements et les clips).
+- Une seule clé : celle de l'API (en-tête `X-House-Key`, puis un cookie de session pour le direct, que
+  l'API relaie depuis go2rtc). Frigate (8971) ne sert plus qu'à l'administration.
 - L'API ne lit que SQLite et le disque backup. Les identifiants de Frigate ne sont que dans House Sync.
-- Pourquoi HTTPS et le même hôte : le cookie de Frigate est `SameSite=Lax`, le navigateur ne l'envoie à
-  l'iframe et à l'image que si la WebApp est sur le même site (même scheme, même hôte ; le port ne compte
-  pas). Avec `http://localhost:8080`, le direct et l'image restent noirs.
+- Le direct : `/stream?camera=` est un flux MJPEG (une requête qui ne se termine pas, les images arrivent
+  toutes seules, ~5 par seconde, flux léger), relayé par l'API depuis go2rtc (`frigate:1984`, interne). Le
+  flux `<flux>_mjpeg` est déclaré dans `frigate/config/config.yml`.
 - Les certificats : `data/certs` contient la CA (`rootCA.pem`, sa clé `rootCA-key.pem` qui ne sort jamais du
   PC) et le certificat du PC, signé par elle, que l'API et Frigate servent tous les deux. Sans la CA
   installée, le navigateur affiche un avertissement ; avec, le cadenas est vert. Le certificat est refait

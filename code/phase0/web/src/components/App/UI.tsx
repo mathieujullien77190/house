@@ -1,12 +1,12 @@
-import { Button, Notice, Page, PageFrame, PageHeader, Tabs } from '@house/ui'
+import { Button, Notice, Page, PageHeader, Tabs } from '@house/ui'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import KeyForm from '@/components/KeyForm'
-import { CAMERAS_SUFFIX, CHECKING_TEXT, FORGET_LABEL, FRIGATE_EMPTY, FRIGATE_INTRO, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
+import { CAMERAS_SUFFIX, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
 import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, apiKey, cameras, events, frigateOrigin, tab, tabs, onTab, onConnect, onForget }: AppUIProps) => {
+const AppUI = ({ status, message, apiKey, cameras, events, tab, tabs, onTab, onConnect, onForget }: AppUIProps) => {
   const ready = status === 'ready'
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : `${cameras.length}${CAMERAS_SUFFIX}`
   return (
@@ -28,7 +28,6 @@ const AppUI = ({ status, message, apiKey, cameras, events, frigateOrigin, tab, t
             )
           ) : null}
           {tab === 'api' ? <ApiExplorer apiKey={apiKey} /> : null}
-          {tab === 'frigate' ? <PageFrame src={frigateOrigin} title="Frigate" intro={FRIGATE_INTRO} emptyText={FRIGATE_EMPTY} /> : null}
         </>
       ) : null}
     </Page>

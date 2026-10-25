@@ -1,15 +1,23 @@
-// La clé secrète de l'utilisateur, dans l'en-tête X-House-Key, comparée en temps constant.
+// La clé secrète de l'utilisateur : dans l'en-tête X-House-Key (comparée en temps constant), ou la session
+// ouverte avec elle (cookie), pour ce qu'une balise <img> ou <video> charge sans en-tête.
 import { timingSafeEqual } from 'node:crypto'
-import type { RequestHandler } from 'express'
+import type { Request, RequestHandler } from 'express'
+import { hasSession } from './session.ts'
 
 export const KEY_HEADER = 'x-house-key'
 
-export const createRequireKey = (apiKey: string): RequestHandler => {
+export const createKeyCheck = (apiKey: string) => {
   const expected = Buffer.from(apiKey)
+  return (req: Request): boolean => {
+    const given = Buffer.from(req.header(KEY_HEADER) ?? '')
+    return given.length === expected.length && timingSafeEqual(given, expected)
+  }
+}
+
+export const createRequireKey = (apiKey: string): RequestHandler => {
+  const hasKey = createKeyCheck(apiKey)
   return (req, res, next) => {
-    const given = req.header(KEY_HEADER) ?? ''
-    const buffer = Buffer.from(given)
-    if (buffer.length === expected.length && timingSafeEqual(buffer, expected)) {
+    if (hasKey(req) || hasSession(req)) {
       next()
       return
     }

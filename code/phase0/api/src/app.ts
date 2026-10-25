@@ -10,14 +10,17 @@ import { createSnapshotsRepository } from './repositories/snapshotsRepository.ts
 import { createRoutes } from './routes/index.ts'
 import { createCamerasService } from './services/camerasService.ts'
 import { createEventsService } from './services/eventsService.ts'
+import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
 
 export const createApp = (config: Config): Express => {
   const db = openDatabase(`${config.dataDir}/events.db`)
+  const cameras = createCamerasRepository(db)
   const services = {
-    cameras: createCamerasService(createCamerasRepository(db)),
+    cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db)),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
+    live: createLiveService(config.go2rtcUrl, cameras),
     files: createBackupFiles(config.dataDir),
   }
 

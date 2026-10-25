@@ -82,6 +82,8 @@ services:
       DATA_DIR: /data
       # La clé que l'utilisateur donne depuis la WebApp ; l'API ne démarre pas sans.
       API_KEY: ${API_KEY}
+      # go2rtc, embarqué dans Frigate : le direct (MJPEG) et l'image à l'instant, relayés par l'API.
+      GO2RTC_URL: http://frigate:1984
       # Le certificat de la maison : HTTPS obligatoire pour que le navigateur envoie le cookie de Frigate
       # à l'iframe du direct et à l'image (même scheme et même hôte que Frigate).
       TLS_CERT: /certs/cert.pem
@@ -94,6 +96,8 @@ services:
       - ./data/certs:/certs:ro
     networks:
       - web_net
+      # Pour joindre go2rtc (frigate:1984), qui n'est jamais publié.
+      - sync_net
 
 networks:
   sync_net:

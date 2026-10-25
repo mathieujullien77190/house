@@ -1,6 +1,6 @@
 // L'état de la WebApp : la clé, sa vérification, puis les caméras et les événements, rafraîchis à intervalle régulier.
 import { useCallback, useEffect, useState } from 'react'
-import { checkKey, fetchEvents, fetchImages, fetchLive, isKeyRefused, loadStoredKey, storeKey } from './api'
+import { checkKey, fetchEvents, fetchLive, isKeyRefused, loadStoredKey, storeKey } from './api'
 import type { Camera, EventRow } from '@/types'
 
 export const EVENTS_REFRESH_MS = 1_000
@@ -20,12 +20,7 @@ export interface HouseState {
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-const mergeCameras = (live: { camera: string; url: string }[], images: { camera: string; url: string }[]): Camera[] =>
-  live.map(({ camera, url }) => ({
-    name: camera,
-    liveUrl: url,
-    imageUrl: images.find((row) => row.camera === camera)?.url ?? null,
-  }))
+const toCameras = (live: { camera: string }[]): Camera[] => live.map(({ camera }) => ({ name: camera }))
 
 export const useHouse = (): HouseState => {
   const [key, setKey] = useState(loadStoredKey)
@@ -35,6 +30,8 @@ export const useHouse = (): HouseState => {
   const [events, setEvents] = useState<EventRow[]>([])
 
   const forget = useCallback(() => {
+    // Ferme aussi la session (cookie) qui autorise le direct.
+    fetch('/logout').catch(() => undefined)
     storeKey('')
     setKey('')
     setCameras([])
@@ -56,10 +53,10 @@ export const useHouse = (): HouseState => {
     const run = async () => {
       try {
         await checkKey(key)
-        const [live, images, rows] = await Promise.all([fetchLive(key), fetchImages(key), fetchEvents(key)])
+        const [live, rows] = await Promise.all([fetchLive(key), fetchEvents(key)])
         if (cancelled) return
         storeKey(key)
-        setCameras(mergeCameras(live, images))
+        setCameras(toCameras(live))
         setEvents(rows)
         setStatus('ready')
       } catch (error) {

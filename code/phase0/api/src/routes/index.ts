@@ -1,13 +1,15 @@
-// Toutes les routes : welcome sans clé, le reste derrière requireKey.
+// Toutes les routes : welcome et logout sans clé, le reste derrière requireKey (clé ou session).
 import { Router } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import { createRequireKey } from '../middleware/requireKey.ts'
 import type { CamerasService } from '../services/camerasService.ts'
 import type { EventsService } from '../services/eventsService.ts'
+import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
 import { authRouter } from './auth.ts'
 import { camerasRouter } from './cameras.ts'
 import { eventsRouter } from './events.ts'
+import { liveRouter } from './live.ts'
 import { snapshotsRouter } from './snapshots.ts'
 import { welcomeRouter } from './welcome.ts'
 
@@ -15,11 +17,12 @@ export interface Services {
   cameras: CamerasService
   events: EventsService
   snapshots: SnapshotsService
+  live: LiveService
   files: BackupFiles
 }
 
-/** Les chemins derrière la clé ; tout le reste (welcome, les fichiers de la WebApp) est public. */
-export const SECURED_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot']
+/** Les chemins derrière la clé ; tout le reste (welcome, logout, les fichiers de la WebApp) est public. */
+export const SECURED_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/stream', '/frame']
 
 export const createRoutes = (apiKey: string, services: Services): Router => {
   const router = Router()
@@ -29,5 +32,6 @@ export const createRoutes = (apiKey: string, services: Services): Router => {
   router.use(camerasRouter(services.cameras))
   router.use(eventsRouter(services.events, services.files))
   router.use(snapshotsRouter(services.snapshots, services.files))
+  router.use(liveRouter(services.live))
   return router
 }

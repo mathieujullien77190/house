@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { CameraCard as CameraCardUI, SnapshotImage as ImageBox } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
 import type { EventRow } from '@/types'
-import { IMAGE_REFRESH_MS, NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT } from './constants'
-import { captionOf, clipLead, imageSrc, lastEventText } from './helpers'
+import { NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT } from './constants'
+import { captionOf, clipLead, lastEventText, liveSrc } from './helpers'
 import type { CameraCardProps } from './types'
 
 /**
- * Une caméra : en haut sa dernière image (rechargée chaque seconde depuis Frigate), remplacée par l'image gardée
+ * Une caméra : en haut le direct (flux MJPEG relayé par l'API depuis go2rtc), remplacée par l'image gardée
  * à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis le dernier événement et la frise.
  * La carte elle-même (@house/ui) ne sait rien de tout ça : elle reçoit le média et la frise déjà rendus.
  */
 const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
-  const [tick, setTick] = useState(() => Date.now())
   const [cursor, setCursor] = useState<number | null>(null)
   const [selected, setSelected] = useState<EventRow | null>(null)
   const [playhead, setPlayhead] = useState<number | null>(null)
@@ -22,16 +21,12 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const [wanted, setWanted] = useState<number | null>(null)
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
 
-  useEffect(() => {
-    const timer = setInterval(() => setTick(Date.now()), IMAGE_REFRESH_MS)
-    return () => clearInterval(timer)
-  }, [])
-
   const lead = selected ? clipLead(selected, videoDuration) : 0
   // Le clip commence `lead` secondes avant l'événement : l'instant voulu se traduit en secondes de vidéo.
   const clipStart = selected && wanted !== null ? Math.max(0, wanted - selected.started_at + lead) : 0
   const onDuration = useCallback((seconds: number) => setVideoDuration(seconds), [])
-  const latest = imageSrc(camera.imageUrl, tick)
+  // Le direct : un flux MJPEG que l'API relaie depuis go2rtc ; une seule requête, les images arrivent toutes seules.
+  const live = liveSrc(camera.name)
 
   const back = () => {
     setCursor(null)
@@ -56,7 +51,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   ) : cursor !== null && !ongoing ? (
     <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} />
   ) : (
-    <ImageBox src={latest} message={NO_IMAGE_TEXT} />
+    <ImageBox src={live} message={NO_IMAGE_TEXT} />
   )
 
   return (

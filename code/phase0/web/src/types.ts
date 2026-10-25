@@ -16,11 +16,9 @@ export interface EventRow {
   clip: string | null
 }
 
-export type TabId = 'cameras' | 'api' | 'frigate'
+export type TabId = 'cameras' | 'api'
 
 /** Une caméra avec tout ce que la page sait d'elle. */
 export interface Camera {
   name: string
-  imageUrl: string | null
-  liveUrl: string | null
 }

@@ -5,7 +5,7 @@ Quatre conteneurs Docker (`docker-compose.yml`), sur le PC de la maison, avec un
 | Conteneur | Rôle | Port |
 |---|---|---|
 | `certs` | éphémère : crée la CA de la maison et le certificat du PC, puis s'arrête | – |
-| `frigate` | lit la caméra (RTSP via go2rtc), détecte les personnes, enregistre sur mouvement | 8971 |
+| `frigate` | lit la caméra (RTSP via go2rtc), détecte les personnes, enregistre sur mouvement ; son go2rtc (1984, interne) fournit le direct | 8971 |
 | `sync` | House Sync : copie les clips et une image par minute sur le disque backup, écrit SQLite, sert sa page | 8081 |
 | `api` | House API (Express) + la WebApp compilée | 8080 |
 
@@ -13,9 +13,10 @@ Un CLAUDE.md par dossier : `certs/`, `frigate/`, `sync/`, `sync/web/`, `api/`, `
 
 ## Règles
 
-- **Seul House Sync écrit** (SQLite `data/backup/events.db`, clips, images). L'API lit en lecture seule et n'appelle jamais Frigate. L'API n'expose jamais la base brute : c'est la page de House Sync qui la montre.
-- **Deux connexions** : Frigate (cookie, port 8971) pour le direct et la dernière image, chargés par le navigateur ; la clé `API_KEY` (en-tête `X-House-Key`) pour l'API et la page de House Sync. Les identifiants de Frigate (compte viewer `sync`) ne sont que dans l'environnement de House Sync.
-- **HTTPS partout, même hôte** : le cookie de Frigate est `SameSite=Lax`, la WebApp doit être ouverte sur le même scheme et le même hôte que `FRIGATE_PUBLIC_URL` (l'IP du PC, pas `localhost`). Le certificat vient de la CA de la maison (`data/certs/rootCA.pem`, à installer une fois par appareil).
+- **Seul House Sync écrit** (SQLite `data/backup/events.db`, clips, images). L'API lit en lecture seule et n'appelle jamais l'API de Frigate (elle relaie seulement go2rtc pour le direct). L'API n'expose jamais la base brute : c'est la page de House Sync qui la montre.
+- **Une seule clé** : `API_KEY` (en-tête `X-House-Key`) pour l'API et la page de House Sync. L'API ouvre une session (cookie, `GET /auth`) pour ce qu'une balise `<img>` ou `<video>` charge sans en-tête, dont le direct. Le navigateur n'a **jamais** besoin de se connecter à Frigate (réservé à l'administration, port 8971). Les identifiants de Frigate (compte viewer `sync`) ne sont que dans l'environnement de House Sync.
+- **Le direct** : House API relaie go2rtc (dans Frigate, `frigate:1984`, jamais publié) : `/stream` (MJPEG, un seul ffmpeg tant qu'un onglet regarde) et `/frame`. Le flux go2rtc `<flux>_mjpeg` est déclaré dans `frigate/config/config.yml`. L'API ne parle jamais à l'API de Frigate. Pour cela elle rejoint le réseau `sync_net`.
+- **HTTPS** avec le certificat de la CA de la maison (`data/certs/rootCA.pem`, à installer une fois par appareil). La WebApp marche sur n'importe quel hôte du certificat (IP du PC ou `localhost`).
 - **Secrets** dans `.env` (ignoré par git), modèle dans `.env.example`. Jamais de mot de passe dans le code, la doc ou les commits.
 - **Données** dans `data/` (ignoré) : `data/frigate`, `data/backup`, `data/certs`. Tout ce que Frigate écrit à côté de `frigate/config/config.yml` est ignoré par git.
 - Les fichiers de ce dossier apparaissent dans la vue « Code » du site : chaque fichier ajouté a une explication dans `src/components/CodeBrowser/constants.ts`.

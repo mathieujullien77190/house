@@ -37,7 +37,7 @@ export const ENTRIES: DeployEntry[] = [
     role: 'détection et enregistrement',
     url: `https://${PC_IP}:8971`,
     account: 'admin · sync (viewer, pour House Sync)',
-    note: 'Port 8971 avec connexion ; le port 5000 sans mot de passe n’est jamais publié. Le direct et la dernière image de la WebApp viennent d’ici.',
+    note: 'Administration seulement (port 8971, avec connexion). Les ports 5000 et 1984 (go2rtc) ne sont jamais publiés ; la WebApp n’a pas besoin de s’y connecter.',
   },
   {
     id: 'webapp',
@@ -45,7 +45,7 @@ export const ENTRIES: DeployEntry[] = [
     role: 'la page de la maison',
     url: `https://${PC_IP}:8080`,
     account: 'clé secrète de l’API (API_KEY)',
-    note: 'Même hôte et même scheme que Frigate, sinon le cookie de Frigate ne passe pas dans l’iframe. Ouvrir Frigate une fois dans le même navigateur.',
+    note: 'Une seule clé : la même que l’API. Le direct (MJPEG) et les clips passent par l’API ; aucune connexion à Frigate dans le navigateur.',
   },
   {
     id: 'api',
@@ -53,7 +53,7 @@ export const ENTRIES: DeployEntry[] = [
     role: 'lecture seule : SQLite et clips',
     url: `https://${PC_IP}:8080/welcome`,
     account: 'en-tête X-House-Key',
-    note: 'Services /auth, /direct, /image, /events (?last=1), /clips/id. Jamais d’appel à Frigate.',
+    note: 'Services /auth, /direct, /events (?last=1), /clips/id, /snapshots, /snapshot, /stream et /frame (relais de go2rtc). Jamais d’appel à l’API de Frigate.',
   },
   {
     id: 'sync',

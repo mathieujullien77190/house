@@ -7,8 +7,6 @@ export interface AppUIProps {
   apiKey: string
   cameras: Camera[]
   events: EventRow[]
-  /** L'origine de Frigate (lien et iframe), vide si inconnue. */
-  frigateOrigin: string
   tab: TabId
   tabs: { id: TabId; label: string }[]
   onTab: (tab: TabId) => void

@@ -10,6 +10,8 @@ export interface Config {
   dataDir: string
   /** La clé que l'utilisateur donne depuis la WebApp. */
   apiKey: string
+  /** go2rtc, embarqué dans Frigate, sur le réseau Docker (port interne, jamais publié) : le direct et l'image à l'instant. */
+  go2rtcUrl: string
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
   tls: { cert: string; key: string } | null
 }
@@ -28,6 +30,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     webDir: resolve(env.WEB_DIR ?? './web'),
     dataDir: resolve(env.DATA_DIR ?? './data'),
     apiKey,
+    go2rtcUrl: (env.GO2RTC_URL ?? 'http://frigate:1984').replace(/\/$/, ''),
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
   }
 }

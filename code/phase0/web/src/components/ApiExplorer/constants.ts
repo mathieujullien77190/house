@@ -11,4 +11,4 @@ export const SERVICES: ApiService[] = [
 ]
 
 export const CLIPS_NOTE =
-  '/clips/<id> renvoie la vidéo d’un événement (mp4) et /snapshot?camera=…&at=… l’image la plus proche d’un instant (jpeg) : pas de JSON, voir l’onglet Caméras.'
+  'Pas de JSON, voir l’onglet Caméras : /clips/<id> (la vidéo d’un événement, mp4), /snapshot?camera=…&at=… (l’image la plus proche d’un instant, jpeg), /stream?camera=… (le direct, MJPEG relayé depuis go2rtc, accepte la session) et /frame?camera=… (l’image à l’instant).'
