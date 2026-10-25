@@ -8,6 +8,9 @@ export interface AppUIProps {
   cameras: Camera[]
   events: EventRow[]
   tab: TabId
+  /** Le nom de la caméra ouverte en détail, ou null pour la mosaïque. */
+  openCamera: string | null
+  onOpenCamera: (camera: string | null) => void
   tabs: { id: TabId; label: string }[]
   onTab: (tab: TabId) => void
   onConnect: (key: string) => void

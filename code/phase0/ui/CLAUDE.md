@@ -4,7 +4,7 @@ Les composants **dumb** des deux apps (WebApp `web/` et page de House Sync `sync
 
 - `src/index.ts` : le barrel public. `src/tokens.css` : les couleurs de la maison (`@theme` Tailwind), importées par chaque app après Tailwind, avec `@source` vers `ui/src` pour que Tailwind lise les classes du paquet.
 - `src/components/<Nom>/` : `Nom.tsx`, `constants.ts` (textes et classes Tailwind), `types.ts`, `helpers.ts` (fonctions pures de présentation), `index.ts`. **Imports relatifs entre composants** (`../Button`) : c'est la seule exception à la règle « jamais de `../` », parce que le paquet n'a pas d'alias résolu par ses consommateurs.
-- Composants : `Button`, `Tabs`, `Page` + `PageHeader`, `Notice`, `SectionTitle`, `KeyForm`, `Pager`, `DataTable`, `Totals`, `MediaPanel`, `ClipPlayer`, `SnapshotImage`, `Timeline`, `CameraCard`, `ApiExplorer`, `PageFrame`.
+- Composants : `Button`, `Tabs`, `Page` + `PageHeader`, `Notice`, `SectionTitle`, `KeyForm`, `Pager`, `DataTable`, `Totals`, `MediaPanel`, `ClipPlayer`, `SnapshotImage`, `Timeline`, `CameraCard`, `CameraTile` (une vignette de la mosaïque : média, nom, légende, un bouton transparent qui couvre tout), `ApiExplorer`, `PageFrame`.
 - Un composant qui a besoin d'un ref ou d'un effet de présentation (`ClipPlayer` qui saute à une position) reste dumb : il ne tient aucune donnée.
 
 ## Storybook

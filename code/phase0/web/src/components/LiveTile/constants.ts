@@ -1,0 +1,6 @@
+export const NAME_PREFIX = 'Caméra : '
+export const OFF_TEXT = 'Caméra éteinte'
+export const STARTING_TEXT = 'Caméra en démarrage…'
+export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'
+export const CAPTION_OFF = 'Éteinte'
+export const CAPTION_STARTING = 'Démarrage…'

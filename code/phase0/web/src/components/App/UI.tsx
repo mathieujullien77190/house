@@ -1,13 +1,16 @@
 import { Button, Notice, Page, PageHeader, Tabs } from '@house/ui'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
+import CameraMosaic from '@/components/CameraMosaic'
 import KeyForm from '@/components/KeyForm'
-import { CAMERAS_SUFFIX, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
+import { BACK_CLASS, BACK_LABEL, CAMERAS_SUFFIX, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
 import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, apiKey, cameras, events, tab, tabs, onTab, onConnect, onForget }: AppUIProps) => {
+const AppUI = ({ status, message, apiKey, cameras, events, tab, openCamera, onOpenCamera, tabs, onTab, onConnect, onForget }: AppUIProps) => {
   const ready = status === 'ready'
+  // La caméra ouverte en détail, si elle existe encore ; sinon la mosaïque.
+  const current = cameras.find((camera) => camera.name === openCamera)
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : `${cameras.length}${CAMERAS_SUFFIX}`
   return (
     <Page>
@@ -23,8 +26,15 @@ const AppUI = ({ status, message, apiKey, cameras, events, tab, tabs, onTab, onC
           {tab === 'cameras' ? (
             cameras.length === 0 ? (
               <Notice text={NO_CAMERA_TEXT} />
+            ) : current ? (
+              <>
+                <div className={BACK_CLASS}>
+                  <Button onClick={() => onOpenCamera(null)}>{BACK_LABEL}</Button>
+                </div>
+                <CameraCard apiKey={apiKey} camera={current} events={eventsOf(events, current.name)} />
+              </>
             ) : (
-              cameras.map((camera) => <CameraCard key={camera.name} apiKey={apiKey} camera={camera} events={eventsOf(events, camera.name)} />)
+              <CameraMosaic apiKey={apiKey} cameras={cameras} onOpen={onOpenCamera} />
             )
           ) : null}
           {tab === 'api' ? <ApiExplorer apiKey={apiKey} /> : null}

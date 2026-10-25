@@ -14,8 +14,6 @@ export const clipLead = (event: EventRow, videoDuration: number | null): number 
   return Math.min(CLIP_MAX_LEAD_SECONDS, Math.max(0, (videoDuration - eventDuration) / 2))
 }
 
-/** L'adresse du direct d'une caméra : le cookie de session ouvert par /auth autorise la balise <img>. */
-export const liveSrc = (camera: string): string => `/stream?camera=${encodeURIComponent(camera)}`
 
 export const captionOf = (cursor: number | null, selected: EventRow | null): string => {
   if (selected) return selected.ended_at === null ? describeEvent(selected) : `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`

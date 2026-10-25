@@ -1,0 +1,1 @@
+A tile of the camera mosaic: the media (the live view, or a black frame with a message), the name and a caption. A transparent button covers the whole tile: a click opens the camera detail, with its timeline. The grid that lays tiles out belongs to the parent.

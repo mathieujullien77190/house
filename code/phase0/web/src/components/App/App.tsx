@@ -8,6 +8,8 @@ import { DEFAULT_TAB, TABS } from './constants'
 const App = () => {
   const house = useHouse()
   const [tab, setTab] = useState<TabId>(DEFAULT_TAB)
+  // La caméra dont on voit le détail (avec sa frise) ; null : la mosaïque du direct de toutes les caméras.
+  const [openCamera, setOpenCamera] = useState<string | null>(null)
   return (
     <AppUI
       status={house.status}
@@ -16,6 +18,8 @@ const App = () => {
       cameras={house.cameras}
       events={house.events}
       tab={tab}
+      openCamera={openCamera}
+      onOpenCamera={setOpenCamera}
       tabs={TABS}
       onTab={setTab}
       onConnect={house.connect}

@@ -1,0 +1,1 @@
+Une vignette de la mosaïque des caméras : le média (le direct, ou un cadre noir avec un message), le nom et une légende. Un bouton transparent couvre toute la vignette : un clic ouvre le détail de la caméra, avec sa frise. La grille qui range les vignettes est au parent.
