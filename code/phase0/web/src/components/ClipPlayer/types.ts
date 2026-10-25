@@ -12,4 +12,6 @@ export interface ClipPlayerProps {
   onDuration?: (seconds: number) => void
   /** Où démarrer (ou reprendre) la lecture, en secondes depuis le début du clip ; change à chaque nouveau clic. */
   startAt?: number
+  /** Change à chaque nouveau clic : le clip repart de `startAt`, même s'il n'a pas changé. */
+  restart?: number
 }

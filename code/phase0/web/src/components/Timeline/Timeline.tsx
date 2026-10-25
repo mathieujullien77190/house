@@ -155,11 +155,12 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     }
   }
 
-  // Un clic dans un événement : son clip remplace l'image et démarre à l'instant cliqué (fraction du bloc) ;
+  // Un clic dans un événement : son clip remplace l'image et repart du début de la vidéo, où qu'on clique ;
   // le curseur s'y place puis suit la lecture, et la fenêtre se recale pour que l'événement occupe la moitié de l'axe.
-  const chooseEvent = (id: string, fraction = 0) => {
+  const chooseEvent = (id: string) => {
     const event = events.find((e) => e.id === id) ?? null
-    const at = event ? Math.round(event.started_at + fraction * ((event.ended_at ?? event.started_at) - event.started_at)) : null
+    // Un clic sur un événement lit son clip depuis le début de la vidéo : le curseur se place là, pas à l'endroit cliqué.
+    const at = event ? (event.clip_started_at ?? event.started_at) : null
     setSelectedId(event ? id : '')
     onEvent(event, at)
     setCursor(at)
@@ -231,7 +232,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
         chooseCursor(null)
         chooseEvent('')
       }}
-      onSelect={chooseEvent}
+      onSelect={(id) => chooseEvent(id)}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

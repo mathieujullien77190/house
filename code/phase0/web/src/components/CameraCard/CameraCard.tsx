@@ -21,8 +21,9 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const [picked, setSelected] = useState<EventRow | null>(null)
   const selected = picked ? (events.find((event) => event.id === picked.id) ?? picked) : null
   const [playhead, setPlayhead] = useState<number | null>(null)
-  // L'instant cliqué dans l'événement (secondes absolues) et la durée réelle de sa vidéo, une fois connue.
-  const [wanted, setWanted] = useState<number | null>(null)
+  // La durée réelle de la vidéo, une fois connue.
+  // Compte les clics sur un événement : chaque clic relance le clip depuis son début.
+  const [plays, setPlays] = useState(0)
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
   const [readyClip, setReadyClip] = useState('')
@@ -34,8 +35,6 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const placeholder = off ? CAMERA_OFF_TEXT : starting ? CAMERA_STARTING_TEXT : ''
 
   const lead = selected ? clipLead(selected, videoDuration) : 0
-  // Le clip commence `lead` secondes avant l'événement : l'instant voulu se traduit en secondes de vidéo.
-  const clipStart = selected && wanted !== null ? Math.max(0, wanted - selected.started_at + lead) : 0
   // Ce que la vidéo couvre sur la frise : elle commence `lead` avant l'événement et dure `videoDuration`.
   const clipRange = selected?.clip && videoDuration !== null ? { start: selected.started_at - lead, end: selected.started_at - lead + videoDuration } : null
   const onReady = useCallback(() => setReadyClip(selected?.clip ?? ''), [selected])
@@ -47,7 +46,6 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
     setCursor(null)
     setSelected(null)
     setPlayhead(null)
-    setWanted(null)
   }
 
   // Ce qui est montré en haut, dans l'ordre de priorité : le clip, l'événement en cours, l'image d'un instant, la dernière image.
@@ -71,7 +69,8 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
             key={selected.clip}
             apiKey={apiKey}
             path={selected.clip}
-            startAt={clipStart}
+            startAt={0}
+            restart={plays}
             onClose={back}
             onReady={onReady}
             onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
@@ -99,7 +98,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
           onCursor={setCursor}
           onEvent={(event, at) => {
             setSelected(event)
-            setWanted(at)
+            setPlays((count) => count + 1)
             setPlayhead(at)
             setVideoDuration(null)
           }}

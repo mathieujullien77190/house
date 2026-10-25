@@ -9,7 +9,7 @@ export interface TimelineProps {
   events: EventRow[]
   /** L'instant choisi sur l'axe (image à montrer), ou null pour revenir au direct. */
   onCursor: (time: number | null) => void
-  /** L'événement choisi (clip à montrer à la place de l'image) et l'instant cliqué dedans ; null quand on le ferme. */
+  /** L'événement choisi (clip à montrer à la place de l'image) et le début de sa vidéo ; null quand on le ferme. */
   onEvent: (event: EventRow | null, at: number | null) => void
   /** Les instants (secondes absolues) où commence et finit la vidéo de l'événement ouvert, quand on les connaît ; null sinon. */
   clipRange: { start: number; end: number } | null
@@ -22,7 +22,6 @@ export interface Marker {
   event: EventRow
   x: number
   width: number
-  scale: number
   text: string
   selected: boolean
   ongoing: boolean

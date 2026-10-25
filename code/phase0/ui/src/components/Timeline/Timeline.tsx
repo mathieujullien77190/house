@@ -23,7 +23,7 @@ import {
   WINDOW_CLASS,
   WRAP_CLASS,
 } from './constants'
-import { clickFraction, markerClass } from './helpers'
+import { markerClass } from './helpers'
 import type { TimelineProps } from './types'
 
 /**
@@ -93,7 +93,7 @@ const Timeline = <T extends string>({
             className={markerClass(marker)}
             style={{ left: `${marker.x}%`, width: `${marker.width}%` }}
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => onSelect(marker.id, clickFraction(event.clientX, event.currentTarget.getBoundingClientRect(), marker.scale))}
+            onClick={() => onSelect(marker.id)}
           />
         ))}
         {nowX !== null ? (

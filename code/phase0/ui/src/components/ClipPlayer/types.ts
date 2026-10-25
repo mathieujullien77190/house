@@ -5,6 +5,8 @@ export interface ClipPlayerProps {
   error: string
   /** Où démarrer (ou reprendre) la lecture, en secondes ; à chaque changement la lecture saute là. */
   startAt: number
+  /** Change à chaque nouveau clic sur le même clip : la lecture repart de `startAt` même si cette position n'a pas changé. */
+  restart?: number
   onClose: () => void
   /** Position de lecture, en secondes, à chaque avancée de la vidéo. */
   onTime: (seconds: number) => void

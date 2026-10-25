@@ -4,10 +4,10 @@ import { BOX_CLASS, CLOSE_CLASS, CLOSE_LABEL, ERROR_CLASS, LOADING_TEXT, PLAYER_
 import type { ClipPlayerProps } from './types'
 
 /** Le lecteur d'un clip : démarre à `startAt`, remonte sa durée et sa position. Le téléchargement est au parent. */
-const ClipPlayer = ({ src, error, startAt, onClose, onTime, onDuration }: ClipPlayerProps) => {
+const ClipPlayer = ({ src, error, startAt, restart = 0, onClose, onTime, onDuration }: ClipPlayerProps) => {
   const video = useRef<HTMLVideoElement>(null)
 
-  // À chaque nouvelle position demandée, la lecture saute là, une fois la vidéo prête.
+  // À chaque nouvelle position demandée (ou nouveau clic : restart change), la lecture saute là, une fois la vidéo prête.
   useEffect(() => {
     const element = video.current
     if (!element || !src) return
@@ -18,7 +18,7 @@ const ClipPlayer = ({ src, error, startAt, onClose, onTime, onDuration }: ClipPl
     if (element.readyState >= 1) seek()
     else element.addEventListener('loadedmetadata', seek, { once: true })
     return () => element.removeEventListener('loadedmetadata', seek)
-  }, [src, startAt])
+  }, [src, startAt, restart])
 
   useEffect(() => {
     const element = video.current

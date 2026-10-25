@@ -7,7 +7,7 @@ const noop = () => undefined
 
 // Le clip passe par l'API avec la clé : une balise <video src> ne peut pas envoyer l'en-tête,
 // on télécharge donc le fichier puis on le donne au lecteur. L'adresse locale est libérée au démontage.
-const ClipPlayer = ({ apiKey, path, onClose, onReady = noop, onTime = noop, onDuration = noop, startAt = 0 }: ClipPlayerProps) => {
+const ClipPlayer = ({ apiKey, path, onClose, onReady = noop, onTime = noop, onDuration = noop, startAt = 0, restart = 0 }: ClipPlayerProps) => {
   const [src, setSrc] = useState('')
   const [error, setError] = useState('')
 
@@ -32,7 +32,7 @@ const ClipPlayer = ({ apiKey, path, onClose, onReady = noop, onTime = noop, onDu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, path])
 
-  return <ClipPlayerUI src={src} error={error} startAt={startAt} onClose={onClose} onTime={onTime} onDuration={onDuration} />
+  return <ClipPlayerUI src={src} error={error} startAt={startAt} restart={restart} onClose={onClose} onTime={onTime} onDuration={onDuration} />
 }
 
 export default ClipPlayer

@@ -20,9 +20,9 @@ const RANGES: { id: RangeId; label: string }[] = [
 const TICKS = ['18:00', '21:00', '00:00', '03:00', '06:00', '09:00', '12:00', '15:00'].map((label, i) => ({ x: 6 + i * 12.5, label }))
 
 const MARKERS: TimelineMarker[] = [
-  { id: 'a', x: 22, width: 1.2, scale: 3, text: 'person · 25/10/2026 22:10 · 15 s', selected: false, ongoing: false },
-  { id: 'b', x: 61, width: 2.4, scale: 1, text: 'person · 25/10/2026 07:30 · 21 s', selected: true, ongoing: false },
-  { id: 'c', x: 84.5, width: 2.5, scale: 1, text: 'person · 25/10/2026 15:58 · en cours', selected: false, ongoing: true },
+  { id: 'a', x: 22, width: 1.2, text: 'person · 25/10/2026 22:10 · 15 s', selected: false, ongoing: false },
+  { id: 'b', x: 61, width: 2.4, text: 'person · 25/10/2026 07:30 · 21 s', selected: true, ongoing: false },
+  { id: 'c', x: 84.5, width: 2.5, text: 'person · 25/10/2026 15:58 · en cours', selected: false, ongoing: true },
 ]
 
 const COVERAGE = [
@@ -52,10 +52,10 @@ const Day = () => {
         setSelected('')
         setCursorX(null)
       }}
-      onSelect={(id, fraction) => {
+      onSelect={(id) => {
         const marker = MARKERS.find((m) => m.id === id)
         setSelected(id)
-        if (marker) setCursorX(marker.x + (fraction * marker.width) / marker.scale)
+        if (marker) setCursorX(marker.x)
       }}
     />
   )

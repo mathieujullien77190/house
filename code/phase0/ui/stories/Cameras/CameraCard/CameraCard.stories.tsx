@@ -32,7 +32,7 @@ export const Portail: StoryObj<typeof CameraCard> = {
           live
           windowText="25/10/2026 15:00 → 25/10/2026 16:00 · 1 h"
           ticks={[{ x: 25, label: '15:15' }, { x: 50, label: '15:30' }, { x: 75, label: '15:45' }]}
-          markers={[{ id: 'a', x: 70, width: 1.2, scale: 2, text: 'person · 15:43 · 15 s', selected: false, ongoing: false }]}
+          markers={[{ id: 'a', x: 70, width: 1.2, text: 'person · 15:43 · 15 s', selected: false, ongoing: false }]}
           coverage={[{ x: 0, width: 100 }]}
           cursorX={70}
           older={0}

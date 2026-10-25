@@ -15,7 +15,7 @@ import { Timeline } from '@house/ui'
   axisRef={axisRef}
   onRange={setRange}
   onNow={now}
-  onSelect={(id, fraction) => openEvent(id, fraction)}
+  onSelect={(id) => openEvent(id)}
   onPointerDown={startDrag}
   onPointerMove={drag}
   onPointerUp={endDrag}

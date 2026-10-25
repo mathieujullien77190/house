@@ -12,8 +12,6 @@ export interface TimelineMarker {
   x: number
   /** Largeur dessinée, jamais sous la largeur minimale (pour rester cliquable). */
   width: number
-  /** Rapport largeur dessinée / largeur réelle : un clic se lit sur la durée réelle. */
-  scale: number
   /** Libellé (infobulle et lecteur d'écran). */
   text: string
   selected: boolean
@@ -56,7 +54,7 @@ export interface TimelineProps<T extends string> {
   onRange: (id: T) => void
   onNow: () => void
   /** Clic dans un bloc : son identifiant et la position du clic dans le bloc (0 à 1, sur la durée réelle). */
-  onSelect: (id: string, fraction: number) => void
+  onSelect: (id: string) => void
   onPointerDown?: (event: PointerEvent<HTMLDivElement>) => void
   onPointerMove?: (event: PointerEvent<HTMLDivElement>) => void
   onPointerUp?: (event: PointerEvent<HTMLDivElement>) => void

@@ -80,7 +80,6 @@ export const buildMarkers = (events: EventRow[], seconds: number, end: number, s
       event,
       x: Math.min(x, 100 - width),
       width,
-      scale: width / real,
       text: describeEvent(event),
       selected: event.id === selectedId,
       ongoing: event.ended_at === null,
