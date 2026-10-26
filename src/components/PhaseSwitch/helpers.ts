@@ -1,10 +1,10 @@
 import { euro } from '@/catalog'
 import type { Phase } from '@/nodes'
-import { ACTIVE_CLASS, CARD_CLASS, IDLE_CLASS, PHASES } from './constants'
+import { ACTIVE_CLASS, CARD_CLASS, HIDDEN_PHASES, IDLE_CLASS, PHASES } from './constants'
 import type { PhaseCard } from './types'
 
 export const buildCards = (phase: Phase, totals: Record<Phase, number>): PhaseCard[] => {
-  return PHASES.map((p) => ({
+  return PHASES.filter((p) => !HIDDEN_PHASES.includes(p.id)).map((p) => ({
     ...p,
     total: euro(totals[p.id]),
     extra: p.id === 2 ? `+ ${euro(totals[2] - totals[1])} par rapport à la phase 1` : undefined,

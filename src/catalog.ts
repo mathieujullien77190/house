@@ -54,11 +54,11 @@ const backupCount = (phase: Phase): number => (phase === 2 ? 1 : 0)
 
 /**
  * Ports nécessaires : caméras PoE, liens des Pi (un seul par Pi avec un switch, deux — A et B — avec deux),
- * 1 pour le Pi de sauvegarde, 2 pour le lien entre les deux switchs, 1 pour le lien vers la box (phase 1).
+ * 1 pour le Pi de sauvegarde, 2 pour le lien entre les deux switchs, et en phase 1 2 pour le mini PC et le lien vers la box.
  */
 export const portsNeeded = (c: Counts, phase: Phase = 2): number => {
   const two = c.switches >= 2
-  return c.reolink + (two ? 2 : 1) * c.pis + backupCount(phase) + (two ? 2 : 0) + (phase === 1 ? 1 : 0)
+  return c.reolink + (two ? 2 : 1) * c.pis + backupCount(phase) + (two ? 2 : 0) + (phase === 1 ? 2 : 0)
 }
 
 /**
@@ -75,20 +75,18 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = [], phase: Phase 
 
     { id: 'switch', group: 'Réseau', label: 'Switch PoE Gigabit 8 ports TP-Link Omada ES208GP', unit: SWITCH_PRICE, qty: Math.max(0, c.switches - have.switches), source: 'perso', editable: 'switches', note: '8 ports PoE+, budget PoE 64 W, administrable (Omada) : PoE coupable port par port' },
     { id: 'rj45', group: 'Réseau', label: 'Câbles RJ45 Cat6 (calculés)', unit: CABLE_PRICE, qty: rj45, source: 'estimation', note: 'caméras PoE + Pi + backup + lien entre switchs ou vers la box', phases: [0, 2] },
-    // Phase 1 : quatre câbles de 2 m pour les Pi et la box, plus les câbles des caméras (plus longs, calculés).
-    { id: 'rj45-2m', group: 'Réseau', label: 'Câble Ethernet Cat6 Gigabit RJ45 Vention, 2 m', unit: 2.97, qty: 4, source: 'perso', note: 'Kubii : 2 Pi, lien vers la box, 1 de plus', url: 'https://www.kubii.com/fr/hub-cables-adaptateurs/4253-cable-reseau-ethernet-cat6-gigabit-rj45-vention-3272496317505.html', phases: [1] },
+    // Phase 1 : trois câbles de 2 m (mini PC, box, un de plus), plus les câbles des caméras (plus longs, calculés).
+    { id: 'rj45-2m', group: 'Réseau', label: 'Câble Ethernet Cat6 Gigabit RJ45 Vention, 2 m', unit: 2.97, qty: 3, source: 'perso', note: 'Kubii : mini PC, lien vers la box, 1 de plus', url: 'https://www.kubii.com/fr/hub-cables-adaptateurs/4253-cable-reseau-ethernet-cat6-gigabit-rj45-vention-3272496317505.html', phases: [1] },
     { id: 'rj45-cam', group: 'Réseau', label: 'Câbles RJ45 Cat6 vers les caméras (calculés)', unit: CABLE_PRICE, qty: Math.max(0, c.reolink - have.reolink), source: 'estimation', note: 'un par caméra PoE de plus, longueur selon le trajet', phases: [1] },
     { id: 'ups', group: 'Réseau', label: 'Onduleur (switchs + Pi5)', unit: 80, qty: 1, source: 'estimation', note: 'optionnel mais conseillé', phases: [2] },
 
     { id: 'pi', group: 'Raspberry Pi', label: 'Raspberry Pi 5 (2 Go)', unit: 76.8, qty: c.pis + backups, source: 'repo', editable: 'pis', note: 'Kubii', phases: [0, 2] },
-    { id: 'pi-4g', group: 'Raspberry Pi', label: 'Raspberry Pi 5 (4 Go)', unit: 136.8, qty: c.pis + backups, source: 'perso', editable: 'pis', note: 'Kubii, 4 Go : Pi 1 et Pi 2 de la phase 1', url: 'https://www.kubii.com/fr/cartes-nano-ordinateurs/4106-1831-raspberry-pi-5-3272496315938.html', phases: [1] },
     { id: 'pi-psu', group: 'Raspberry Pi', label: 'Alimentation officielle 27 W USB-C', unit: 12.9, qty: c.pis + backups, source: 'repo', url: 'https://www.kubii.com/fr/alimentations/4107-1890-alimentation-raspberry-pi-27w-usb-c-3272496315761.html' },
     { id: 'pi-cooler', group: 'Raspberry Pi', label: 'Active Cooler officiel', unit: 6, qty: c.pis + backups, source: 'repo', phases: [0, 2] },
-    { id: 'pi-case', group: 'Raspberry Pi', label: 'Boîtier officiel avec ventilateur intégré', unit: 10.68, qty: c.pis + backups, source: 'perso', note: 'Kubii : remplace l’Active Cooler', url: 'https://www.kubii.com/fr/boitiers-ventiles-intelligents/4108-boitier-officiel-pour-raspberry-pi-5-avec-ventilateur.html', phases: [1] },
-    { id: 'pi-sd', group: 'Raspberry Pi', label: 'Carte microSD Verbatim 256 Go (classe 10)', unit: 36.95, qty: c.pis, source: 'perso', note: 'Kubii', url: 'https://www.kubii.com/fr/support-de-stockage/3061-1475-carte-micro-sdhc-verbatim-classe-10-3272496311527.html', phases: [1, 2] },
+    { id: 'pi-sd', group: 'Raspberry Pi', label: 'Carte microSD Verbatim 256 Go (classe 10)', unit: 36.95, qty: c.pis, source: 'perso', note: 'Kubii', url: 'https://www.kubii.com/fr/support-de-stockage/3061-1475-carte-micro-sdhc-verbatim-classe-10-3272496311527.html', phases: [2] },
     { id: 'pi-sd-backup', group: 'Raspberry Pi', label: 'Carte microSD 1 To', unit: 108, qty: 1, source: 'perso', phases: [2] },
 
-    // Le disque externe : le SSD du Pi 2 (clips et base) se branche en USB 3 avec un adaptateur SATA.
+    // Phase 1 : le mini PC (299 €) et le SSD externe (clips et base), branché en USB 3 avec un adaptateur SATA.
     ...customs.filter((n) => (n.price ?? 0) > 0).map((n): Line => ({
       id: n.id,
       group: 'Divers',
@@ -96,10 +94,10 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = [], phase: Phase 
       unit: n.price ?? 0,
       qty: 1,
       source: 'perso',
-      note: n.kind === 'disk' ? 'Kubii, SATA III 2,5" : clips et base du Pi 2 ; 480 To d’endurance annoncée' : 'composant ajouté au schéma',
+      note: n.kind === 'disk' ? 'Kubii, SATA III 2,5" : clips et base du mini PC ; 480 To d’endurance annoncée' : n.id === 'mini' ? 'BOSGAME E5 : Ryzen 3 5300U, 16 Go, SSD NVMe 512 Go, 2 ports 2,5 Gb/s ; Docker Compose' : 'composant ajouté au schéma',
       url: n.kind === 'disk' ? SSD_URL : undefined,
     })),
-    { id: 'disk-adapter', group: 'Divers', label: 'Adaptateur USB 3.0 / SATA 2,5"', unit: 6.95, qty: customs.filter((n) => n.kind === 'disk').length, source: 'perso', note: 'Kubii : branche le SSD sur un port USB 3 du Pi 2', url: ADAPTER_URL, phases: [1] },
+    { id: 'disk-adapter', group: 'Divers', label: 'Adaptateur USB 3.0 / SATA 2,5"', unit: 6.95, qty: customs.filter((n) => n.kind === 'disk').length, source: 'perso', note: 'Kubii : branche le SSD sur un port USB 3 du mini PC', url: ADAPTER_URL, phases: [1] },
   ]
   // Rien n'est grisé : une ligne à zéro disparaît, sauf un compteur réglable qui n'est pas déjà acheté (pour pouvoir l'ajouter).
   const alreadyOwned = (l: Line) => !!l.editable && !!owned && have[l.editable] > 0

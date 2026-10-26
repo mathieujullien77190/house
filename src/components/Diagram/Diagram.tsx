@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { clusterBox, computeLinkPaths } from '@/geometry'
 import { linkClass, type LinkLevel } from '@/lib/linkStyles'
-import { isMainsKind, type DiagramNode } from '@/nodes'
+import { isMainsNode, type DiagramNode } from '@/nodes'
 import UI from './UI'
 import { DRAG_THRESHOLD, FLOORS, LINK_DIM_CLASS, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './constants'
 import { clampZoom, keyDelta, svgWidth, toSvgPoint, zoomLabel } from './helpers'
@@ -89,7 +89,7 @@ const Diagram = ({
       nodes={nodes.map((n) => ({
         n,
         selected: selectedNode === n.id,
-        mains: isMainsKind(n.kind),
+        mains: isMainsNode(n),
         ghost: n.floor !== floor,
         onPointerDown: handleDown,
         onPointerMove: handleMove,

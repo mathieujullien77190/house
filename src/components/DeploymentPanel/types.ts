@@ -13,7 +13,7 @@ export interface DeployEntry {
 }
 
 export interface DeploymentPanelProps {
-  /** La phase affichée : 0 (le PC) ou 1 (deux Pi). */
+  /** La phase affichée : 0 (le PC) ou 1 (le mini PC). */
   phase: 0 | 1
 }
 

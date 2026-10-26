@@ -3,7 +3,7 @@ import type { PhaseSwitchUIProps } from './types'
 
 const PhaseSwitchUI = ({ cards, onSelect }: PhaseSwitchUIProps) => {
   return (
-    <div className="grid gap-3 min-[900px]:grid-cols-3" role="radiogroup" aria-label={GROUP_LABEL}>
+    <div className="grid gap-3 min-[900px]:grid-cols-2" role="radiogroup" aria-label={GROUP_LABEL}>
       {cards.map((c) => (
         <button key={c.id} type="button" role="radio" aria-checked={c.active} className={c.className} onClick={() => onSelect(c.id)}>
           <span className="flex items-baseline justify-between gap-3">

@@ -1,4 +1,4 @@
-import { CODE_INTRO_PHASE1, DEPLOY_INTRO_PHASE1, HARDWARE_PHASE1, SOFTWARE_PHASE1, TITLE_PHASE1 } from './constantsPhase1'
+import { CODE_INTRO_PHASE1, DEPLOY_INTRO_PHASE1, HARDWARE_PHASE1, TITLE_PHASE1 } from './constantsPhase1'
 import type { ArchView, BoxTone, PanelTone, PhaseConfig, ViewId } from './types'
 
 export const TITLE = 'Architecture de la phase 0'
@@ -165,6 +165,19 @@ const SOFTWARE: ArchView = {
   ],
 }
 
+/** Phase 1 : la même pile logicielle que la phase 0, sur le mini PC ; seul le texte change (une machine, un SSD externe). */
+const SOFTWARE_PHASE1: ArchView = {
+  ...SOFTWARE,
+  ariaLabel: SOFTWARE.ariaLabel.replace('phase 0', 'phase 1').replace('sur le PC', 'sur le mini PC').replaceAll('le disque backup', 'le SSD externe').replaceAll('disque backup', 'SSD externe'),
+  panels: SOFTWARE.panels.map((panel) => (panel.id === 'pc' ? { ...panel, title: 'Mini PC' } : panel)),
+  disks: SOFTWARE.disks?.map((disk) => (disk.id === 'backup' ? { ...disk, title: 'SSD externe' } : disk)),
+  intro: [
+    'Six conteneurs Docker sur le mini PC : deux unités « go2rtc + motion » (une par caméra), House Sync, et House API qui sert la WebApp.',
+    'Une unité est un go2rtc et son enregistreur motion : go2rtc ouvre une seule connexion vers sa caméra ; motion enregistre le flux principal par segments, détecte le mouvement sur le flux léger et fabrique les clips. House Sync interroge chaque enregistreur par polling, copie les clips et une image par minute sur le SSD externe, et écrit dans SQLite les événements et l’adresse du go2rtc de chaque caméra.',
+    ...SOFTWARE.intro.slice(2).map((text) => text.replaceAll('le disque backup', 'le SSD externe')),
+  ],
+}
+
 /** Les interfaces ne changent pas d'une phase à l'autre : la même introduction pour toutes. */
 export const INTERFACES_INTRO = [
   'Les deux interfaces web (la WebApp et la page de House Sync), le paquet @house/ui qu’elles partagent avec son Storybook, et House API qui sert la WebApp.',
@@ -181,7 +194,7 @@ export const DEPLOY_INTRO = [
   'Les comptes sont nommés, jamais les mots de passe : ils sont dans le fichier .env du PC.',
 ]
 
-/** La configuration de chaque phase qui a une architecture : 0 (le PC) et 1 (deux Pi). */
+/** La configuration de chaque phase qui a une architecture : 0 (le PC) et 1 (le mini PC). */
 export const PHASE_CONFIGS: Record<0 | 1, PhaseConfig> = {
   0: { title: TITLE, views: { hardware: HARDWARE, software: SOFTWARE }, intros: { interfaces: INTERFACES_INTRO, code: CODE_INTRO, deploy: DEPLOY_INTRO } },
   1: {

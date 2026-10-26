@@ -36,8 +36,7 @@ const detail = (a: NodeKind, b: NodeKind): string => {
 
 export const describeLink = (a: DiagramNode, b: DiagramNode, type: LinkType): string => {
   const ids = [a.id, b.id]
-  if (ids.includes('rec') && ids.includes('swA')) return 'Câble RJ45 : le Pi 1 reçoit les flux RTSP des caméras (go2rtc) et les enregistre (motion) ; House Sync, sur le Pi 2, vient chercher les clips.'
-  if (ids.includes('hub') && ids.includes('swA')) return 'Câble RJ45 : le Pi 2 interroge l’enregistreur du Pi 1 (House Sync) et relaie son direct (API).'
+  if (ids.includes('mini') && ids.includes('swA')) return 'Câble RJ45 : le mini PC reçoit les flux RTSP des caméras (go2rtc), les enregistre (motion), puis sert la WebApp, l’API et House Sync.'
   if (ids.includes('pc') && ids.includes('box')) return 'Câble RJ45 ou WiFi : seconde carte réseau du PC vers la box (internet, et accès depuis le téléphone).'
   if (ids.includes('pc') && ids.includes('swA')) return 'Câble RJ45 : carte réseau 1 du PC, réseau des caméras (IP fixes). Le PC lit les flux RTSP.'
   return `${BASE[type]} ${detail(a.kind, b.kind)}`.trim()

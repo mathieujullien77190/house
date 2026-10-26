@@ -4,9 +4,9 @@ export type LinkType = 'poe' | 'eth' | 'wifi' | 'usb'
 /** Étage où se trouve un composant : rez-de-chaussée (maison et jardin) ou sous-sol. */
 export type Floor = 'rdc' | 'basement'
 /**
- * Phase de déploiement : 0 = version light (1 Reolink, 1 switch PoE, ton PC qui enregistre), 1 = strict minimum
- * (3 Pi, 1 switch), 2 = installation complète. Les phases 0 et 1 sont des scénarios à part, sans cluster
- * k3s ; la phase 1 met les conteneurs du PC sur 2 Pi (go2rtc + motion, House Sync + API + WebApp) et un disque dur externe.
+ * Phase de déploiement : 0 = version light (2 Reolink, 1 switch PoE, ton PC qui enregistre), 1 = un mini PC neuf et un
+ * disque dur externe (la même pile Docker Compose), 2 = installation complète. Les phases 0 et 1 sont des scénarios à part,
+ * sans cluster k3s.
  */
 export type Phase = 0 | 1 | 2
 
@@ -24,6 +24,8 @@ export interface DiagramNode {
   sub: string
   /** Prix saisi à la main, utilisé seulement pour les composants libres. */
   price?: number
+  /** Puissance maximale au secteur, en watts, d'un composant libre branché sur une prise 230 V (le mini PC). */
+  watts?: number
   /** Zone surveillée (caméras seulement), ex. « Portail ». */
   zone?: string
 }
@@ -60,6 +62,9 @@ export const isK3sKind = (k: NodeKind): boolean => k === 'pi' || k === 'backup'
 /** Composants branchés directement sur une prise 230 V (les caméras PoE passent par les switchs). */
 export const isMainsKind = (k: NodeKind): boolean => k === 'switch' || k === 'pi' || k === 'backup'
 
+/** Un composant branché au secteur : un type qui l'est toujours, ou un composant libre qui déclare sa puissance. */
+export const isMainsNode = (n: DiagramNode): boolean => isMainsKind(n.kind) || (n.watts ?? 0) > 0
+
 /** Puissance maximale estimée par composant branché au secteur, en watts. */
 export const MAINS_WATTS: Partial<Record<NodeKind, number>> = {
   switch: 64, // budget PoE du TP-Link Omada ES208GP, caméras comprises
@@ -88,8 +93,8 @@ const node = (id: string, kind: NodeKind, x: number, y: number, extra: Partial<D
 /**
  * Schéma de départ, posé sur le plan de la maison (voir plan.ts), en trois phases.
  * - Phase 0, version light : 2 Reolink 4K vers le portail, 1 switch PoE, le PC de la maison (enregistrement sur son disque).
- * - Phase 1 : les conteneurs du PC sur 2 Pi, 2 Reolink vers le portail, 1 switch, 1 disque dur externe.
- *   Pi 1 : go2rtc + motion ; Pi 2 : House Sync + API + WebApp, avec le disque en USB.
+ * - Phase 1 : un mini PC neuf (BOSGAME E5) fait tourner tous les conteneurs, 2 Reolink vers le portail, 1 switch,
+ *   1 disque dur externe en USB pour les clips et la base.
  * - Phase 2, l'installation complète : cluster k3s (2 Pi5 et le Pi de sauvegarde), 2 switchs, 2 Reolink au portail.
  * Rez-de-chaussée : 2 Reolink au portail, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon.
  * Sous-sol : 1 Pi5 et le 2ᵉ switch.
@@ -102,10 +107,9 @@ export const defaultNodes: DiagramNode[] = [
   node('swB', 'switch', 460, 175, { title: 'Switch PoE B', phases: [2] }),
 
   node('pi1', 'pi', 600, 335, { title: 'Pi5 #1', sub: 'control-plane + worker', floor: 'rdc', phases: [2] }),
-  // Phase 1 : les conteneurs du PC sur deux Pi. Pi 1 reçoit les flux des caméras, Pi 2 sert la WebApp et garde les clips.
-  node('rec', 'pi', 455, 285, { title: 'Pi 1', sub: 'go2rtc + motion', floor: 'rdc', phases: [1] }),
-  node('hub', 'pi', 590, 335, { title: 'Pi 2', sub: 'House Sync + API + WebApp', floor: 'rdc', phases: [1], w: 130 }),
-  node('ssd', 'disk', 455, 380, { title: 'SSD Verbatim 1 To', phases: [1], w: 130, price: 129 }),
+  // Phase 1 : un mini PC neuf (299 €) fait tourner toute la pile, avec un SSD externe en USB pour les clips et la base.
+  node('mini', 'custom', 590, 335, { title: 'Mini PC', sub: 'BOSGAME E5 · Docker', floor: 'rdc', phases: [1], w: 130, price: 299, watts: 65 }),
+  node('ssd', 'disk', 600, 392, { title: 'SSD Verbatim 1 To', phases: [1], w: 130, price: 129 }),
   // Phase 0 : le PC existant (déjà possédé, prix 0) fait l'enregistrement à la place du Pi5.
   node('pc', 'custom', 600, 335, { title: 'PC', sub: 'enregistre le RTSP', floor: 'rdc', phases: [0], price: 0 }),
   // Phase 0 : la box (internet) et le téléphone qui ouvre l'appli sur le PC, déjà possédés (prix 0).
@@ -121,7 +125,7 @@ export const linkTypeFor = (a: NodeKind, b: NodeKind): LinkType => {
   const kinds = [a, b]
   if (kinds.some(isCameraKind) && kinds.includes('switch')) return 'poe'
   if (kinds.includes('phone')) return 'wifi'
-  // Un disque dur externe se branche en USB sur un Pi (composant libre ‹ ssd ›).
+  // Un disque dur externe se branche en USB sur le mini PC (composant ‹ ssd ›).
   if (kinds.includes('disk')) return 'usb'
   return 'eth'
 }
@@ -141,11 +145,10 @@ export const defaultLinks: DiagramLink[] = [
   link('swA', 'pc', 'eth', [0]),
   link('pc', 'box', 'eth', [0]),
   link('phone', 'box', 'wifi', [0, 1]),
-  // Phase 1 : tout sur l'unique switch, relié à la box ; le disque est en USB sur le Pi 2.
-  link('swA', 'rec', 'eth', [1]),
-  link('swA', 'hub', 'eth', [1]),
+  // Phase 1 : tout sur l'unique switch, relié à la box ; le disque est en USB sur le mini PC.
+  link('swA', 'mini', 'eth', [1]),
   link('swA', 'box', 'eth', [1]),
-  link('hub', 'ssd', 'usb', [1]),
+  link('mini', 'ssd', 'usb', [1]),
   // Phase 2 : cluster k3s, second switch, caméras du portail réparties sur les deux switchs.
   link('swA', 'pi1', 'eth', [2]),
   link('swA', 'pi2', 'eth', [2]),

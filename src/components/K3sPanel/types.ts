@@ -2,8 +2,6 @@ import type { DiagramNode } from '@/nodes'
 
 export interface K3sPanelProps {
   nodes: DiagramNode[]
-  /** La phase affichée : 1 (2 Pi, un serveur et un agent) ou 2 (le cluster à 3 control-plane). */
-  phase: 1 | 2
 }
 
 export interface K3sNodeRow {

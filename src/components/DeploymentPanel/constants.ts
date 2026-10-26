@@ -78,9 +78,8 @@ export const REMINDERS = [
   'Si l’IP du PC change, mettre à jour CERT_HOSTS dans .env et l’adresse de la caméra si besoin, puis docker compose up -d.',
 ]
 
-/** Phase 1 : les adresses des deux Pi restent à fixer par un bail DHCP statique sur la box. */
-export const PI1_IP = '192.168.1.x'
-export const PI2_IP = '192.168.1.y'
+/** Phase 1 : l'adresse du mini PC reste à fixer par un bail DHCP statique sur la box. */
+export const MINI_IP = '192.168.1.x'
 export const CAMERA2_IP = '192.168.1.52'
 
 export const ENTRIES_PHASE1: DeployEntry[] = [
@@ -95,43 +94,44 @@ export const ENTRIES_PHASE1: DeployEntry[] = [
     note: `${CAMERA_IP} et ${CAMERA2_IP}, alimentées en PoE par le switch (ports 7 et 6). RTSP activé (port 554). Baux DHCP statiques sur la box.`,
   },
   {
-    id: 'pi1',
-    name: 'Pi 1 · enregistreur',
-    role: 'go2rtc + motion (agent k3s)',
+    id: 'mini',
+    name: 'Mini PC (BOSGAME E5)',
+    role: 'Linux + Docker Compose : go2rtc, motion, House Sync, API, WebApp',
     url: '',
     account: 'SSH (clé)',
-    note: `${PI1_IP}. go2rtc (1984, 8554) et l’API de motion (8080) n’ont pas de mot de passe : le pare-feu du Pi 1 ne les ouvre qu’au Pi 2. Logs : kubectl logs -f deploy/motion (depuis le Pi 2).`,
+    note: `${MINI_IP}. go2rtc (1984, 8554) et l’API de l’enregistreur (8080 interne) n’ont pas de mot de passe : ils ne sont jamais publiés. Logs : docker compose logs -f motion.`,
   },
   {
     id: 'webapp',
     name: 'WebApp House',
-    role: 'la page de la maison (Pi 2)',
-    url: `https://${PI2_IP}:8080`,
+    role: 'la page de la maison',
+    url: `https://${MINI_IP}:8080`,
     account: 'clé secrète de l’API (API_KEY)',
     note: 'Une seule clé : la même que l’API. Le direct (MJPEG) et les clips passent par l’API.',
   },
   {
     id: 'api',
     name: 'House API',
-    role: 'lecture seule : SQLite et clips ; PoE du switch (Pi 2)',
-    url: `https://${PI2_IP}:8080/welcome`,
+    role: 'lecture seule : SQLite et clips ; PoE du switch',
+    url: `https://${MINI_IP}:8080/welcome`,
     account: 'en-tête X-House-Key',
-    note: 'Services /auth, /direct, /events, /clips/id, /snapshots, /stream, /frame (relais du go2rtc du Pi 1) et /poe (page web du switch).',
+    note: 'Services /auth, /direct, /events, /clips/id, /snapshots, /stream, /frame (relais de go2rtc) et /poe (page web du switch).',
   },
   {
     id: 'sync',
     name: 'House Sync',
-    role: 'polling de motion, base SQLite, clips (Pi 2)',
-    url: `https://${PI2_IP}:8081`,
+    role: 'polling des enregistreurs, base SQLite, clips',
+    url: `https://${MINI_IP}:8081`,
     account: 'même clé que l’API',
-    note: 'Écrit sur le disque dur externe (USB, monté sur le Pi 2) : clips, images par minute et events.db. Seul programme qui écrit ; l’API n’expose jamais la base brute.',
+    note: 'Écrit sur le SSD externe (USB, monté sur le mini PC) : clips, images par minute et events.db. Seul programme qui écrit ; l’API n’expose jamais la base brute.',
   },
   ENTRIES[ENTRIES.length - 1],
 ]
 
 export const REMINDERS_PHASE1 = [
-  'Les mots de passe sont des Secrets k3s (créés avec kubectl, jamais dans git) et nulle part ailleurs.',
-  'Le disque dur externe du Pi 2 doit être monté au démarrage (fstab) avant k3s ; si l’IP du Pi 2 change, mettre à jour le certificat de la maison, l’adresse du serveur k3s sur le Pi 1 et RECORDER_URLS.',
+  'Les mots de passe sont dans code/phase0/.env (ignoré par git) et nulle part ailleurs.',
+  'Le SSD externe doit être monté au démarrage (fstab) avant docker compose ; si l’IP du mini PC change, mettre à jour CERT_HOSTS dans .env, puis docker compose up -d.',
+  'Dans le BIOS du mini PC : démarrage automatique après une coupure de courant.',
 ]
 
 export const HEADERS = ['Quoi', 'Adresse', 'Compte', 'À savoir']

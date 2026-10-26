@@ -75,7 +75,7 @@ export interface ArchView {
 }
 
 export interface PhaseArchitectureProps {
-  /** La phase affichée : 0 (le PC) ou 1 (deux Pi). */
+  /** La phase affichée : 0 (le PC) ou 1 (le mini PC). */
   phase: 0 | 1
 }
 

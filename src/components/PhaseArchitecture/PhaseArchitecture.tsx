@@ -6,7 +6,7 @@ import PhaseArchitectureUI from './UI'
 import { DEFAULT_VIEW, PHASE_CONFIGS, VIEW_OPTIONS } from './constants'
 import type { PhaseArchitectureProps, ViewId } from './types'
 
-/** L'architecture d'une phase sans cluster : la phase 0 (le PC) ou la phase 1 (deux Pi). */
+/** L'architecture d'une phase sans cluster : la phase 0 (le PC) ou la phase 1 (le mini PC). */
 const PhaseArchitecture = ({ phase }: PhaseArchitectureProps) => {
   const [view, setView] = useState<ViewId>(DEFAULT_VIEW)
   const config = PHASE_CONFIGS[phase]

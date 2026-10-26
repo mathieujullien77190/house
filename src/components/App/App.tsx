@@ -111,7 +111,7 @@ const App = () => {
         }
         architecture={phase === 2 ? null : <PhaseArchitecture phase={phase} />}
         mains={phase === 0 ? null : <MainsPanel nodes={nodes} phase={phase} />}
-        k3s={phase === 0 ? null : <K3sPanel nodes={nodes} phase={phase} />}
+        k3s={phase === 2 ? <K3sPanel nodes={nodes} /> : null}
         pricing={
           <Pricing
             phase={phase}
