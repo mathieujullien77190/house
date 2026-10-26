@@ -34,7 +34,7 @@ Pi de sauvegarde (SSD), sur le secteur comme les Pi5
 
 Le Pi de sauvegarde (phase 2 seulement) est sur le secteur avec sa propre alimentation 27 W (`pi-psu`), comme les Pi5.
 
-**`PhaseArchitecture`** (phases 0 et 1, prop `phase`) : quatre vues, données dans `constants.ts` (phase 0) et `constantsPhase1.ts` (phase 1, `PHASE_CONFIGS`). « Matériel » et « Logiciel » (schémas SVG), « Code » (`CodeBrowser` : les fichiers de `code/phase0` avec une explication chacun), « Déploiement » (`DeploymentPanel`, aussi par phase : les adresses réelles de la maison, comptes nommés, jamais de mot de passe). `DEFAULT_VIEW` reste `'hardware'`.
+**`PhaseArchitecture`** (phases 0 et 1, prop `phase`) : cinq vues, données dans `constants.ts` (phase 0) et `constantsPhase1.ts` (phase 1, `PHASE_CONFIGS`). « Matériel » et « Logiciel » (schémas SVG), « Interfaces » (`InterfacesMap` : l'architecture des deux apps web, de `@house/ui`, de Storybook et de House API, pastilles posées par `layoutColumns`), « Code » (`CodeBrowser` : les fichiers de `code/phase0` avec une explication chacun), « Déploiement » (`DeploymentPanel`, aussi par phase : les adresses réelles de la maison, comptes nommés, jamais de mot de passe). `DEFAULT_VIEW` reste `'hardware'`.
 
 **Schéma de départ, phase 2** (`defaultNodes`, `src/nodes.ts`) : rez-de-chaussée, 2 Reolink au portail, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon ; sous-sol, 1 switch et 1 Pi5.
 
@@ -52,6 +52,8 @@ Le Pi de sauvegarde (phase 2 seulement) est sur le secteur avec sa propre alimen
 - **Prix.** Calculés depuis le schéma ; les 3 Pi dans un groupe « Raspberry Pi ». En phase 1 les Pi sont des Pi 5 de 4 Go (136,80 €) avec le boîtier officiel ventilé (10,68 €), prix relevés sur Kubii ; les câbles de 2 m (4 × 2,97 €) sont des lignes à part en phase 1, avec les câbles des caméras en plus ; la ligne du tableau est un lien vers la fiche (`url` de `Line`, `src/catalog.ts`). Les phases 1 et 2 ne listent que les achats nouveaux : les composants déjà présents dans une phase précédente (Reolink, switch, un câble par caméra) n'y sont pas recomptés (`ownedFor`), et le total est affiché sans, puis avec eux (`creditFor`). Rien n'est grisé : une ligne à zéro disparaît, sauf un compteur réglable qui n'est pas déjà acheté. Phase 1 : une microSD Verbatim de 256 Go (36,95 € chez Kubii) par Pi. Prix « dépôt » depuis `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`), le reste estimé. Le disque dur externe et les composants libres se chiffrent à la main (`isPricedByHand`). Avertissements : ports manquants, moins de 3 nœuds k3s (phase 2 seulement).
 
 ## Commandes
+
+Le **Storybook** de `@house/ui` est servi avec ce site : `npm run build:storybook` le compile dans `public/storybook/` (ignoré par git), Vite le sert à `/storybook/index.html`, et l'onglet « Interfaces » y renvoie. À refaire quand les composants ou les stories changent.
 
 ```
 npm run dev        # serveur Vite
@@ -86,8 +88,9 @@ src/
     ├── InfoPanel/            détail du composant ou de la liaison
     ├── Legend/               légende
     ├── K3sPanel/             nœuds k3s, règles, commandes
-    ├── PhaseArchitecture/   vues matériel, logiciel, code, déploiement
+    ├── PhaseArchitecture/   vues matériel, logiciel, interfaces, code, déploiement
     ├── DeploymentPanel/      adresses réelles de la phase 0
+    ├── InterfacesMap/       schéma des interfaces : apps web, @house/ui, Storybook, House API
     ├── CodeBrowser/          fichiers de code/phase0 : arbre, explication, code coloré
     ├── MainsPanel/           secteur 230 V
     ├── Pricing/              tableau des prix
@@ -110,7 +113,7 @@ src/
 - **Three.js** : chargé avec `React.lazy` ; millimètres ; scène construite une fois, démontage qui libère tout (`forceContextLoss`) ; molette seule = défilement, Ctrl + molette = zoom ; rendu arrêté hors écran.
 - **Tailwind uniquement**, thème dans `index.css`. Une seule classe par propriété sur un élément (ordre non garanti).
 - TypeScript strict, pas de `any`.
-- **Vue « Code »** : tout fichier ajouté dans `code/phase0` y apparaît ; son explication va dans `components/CodeBrowser/constants.ts` (`EXPLANATIONS` ; `UI.tsx`, `types.ts`, `constants.ts`, `helpers.ts`, `index.ts`, `CLAUDE.md` ont une explication générique dans `ROLE_EXPLANATIONS`).
+- **Vue « Code »** : l'arbre s'affiche avec tous les dossiers fermés, un clic sur un dossier l'ouvre ou le ferme (`open`, `visibleNodes`). Tout fichier ajouté dans `code/phase0` y apparaît ; son explication va dans `components/CodeBrowser/constants.ts` (`EXPLANATIONS` ; `UI.tsx`, `types.ts`, `constants.ts`, `helpers.ts`, `index.ts`, `CLAUDE.md` ont une explication générique dans `ROLE_EXPLANATIONS`).
 
 ## Pièges connus
 

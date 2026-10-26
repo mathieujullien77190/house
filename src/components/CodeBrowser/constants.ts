@@ -290,7 +290,9 @@ export const EMPTY_TEXT = 'Aucun fichier trouvé dans code/phase0.'
 
 export const LAYOUT_CLASS = 'grid gap-3 md:grid-cols-[15rem_minmax(0,1fr)]'
 export const TREE_CLASS = 'rounded-xl border border-line bg-bg p-2 text-[0.85rem]'
-export const FOLDER_CLASS = 'block px-2 py-1 font-semibold text-fg'
+export const FOLDER_CLASS = 'flex w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 text-left font-semibold text-fg hover:bg-card focus-visible:outline-2 focus-visible:outline-camera'
+export const FOLDER_CHEVRON_CLASS = 'size-2.5 shrink-0 fill-muted transition-transform'
+export const FOLDER_CHEVRON_OPEN_CLASS = 'rotate-90'
 export const FILE_ACTIVE_CLASS = 'block w-full cursor-pointer rounded-lg border border-line bg-card px-2 py-1 text-left font-semibold text-fg'
 export const FILE_IDLE_CLASS =
   'block w-full cursor-pointer rounded-lg border border-transparent px-2 py-1 text-left text-muted hover:bg-card hover:text-fg'

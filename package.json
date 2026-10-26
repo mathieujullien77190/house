@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "typecheck": "tsc",
     "lint": "eslint .",
+    "build:storybook": "npm --prefix code/phase0/ui run build-storybook -- -o ../../../public/storybook",
     "preview": "vite preview"
   },
   "dependencies": {

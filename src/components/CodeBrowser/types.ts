@@ -19,8 +19,12 @@ export interface Token {
 export type Rule = [TokenKind, RegExp]
 
 export interface CodeBrowserUIProps {
+  /** Les lignes visibles : un fichier ou un dossier n'y est que si tous ses dossiers parents sont ouverts. */
   nodes: TreeNode[]
+  /** Les dossiers ouverts (leur chemin). */
+  open: Set<string>
   selected: string
+  onToggle: (folder: string) => void
   onSelect: (path: string) => void
   tokens: Token[]
   explanation: string

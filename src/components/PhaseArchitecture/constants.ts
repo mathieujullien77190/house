@@ -165,6 +165,12 @@ const SOFTWARE: ArchView = {
   ],
 }
 
+/** Les interfaces ne changent pas d'une phase à l'autre : la même introduction pour toutes. */
+export const INTERFACES_INTRO = [
+  'Les deux interfaces web (la WebApp et la page de House Sync), le paquet @house/ui qu’elles partagent avec son Storybook, et House API qui sert la WebApp.',
+  'Chaque application garde ses conteneurs (état, appels, calculs) et passe des props à des composants qui ne tiennent aucune donnée.',
+]
+
 export const CODE_INTRO = [
   'Les fichiers de la phase 0, tels qu’ils sont dans le dépôt (dossier code/phase0). Clique sur un fichier pour voir son code et ce qu’il fait.',
   'C’est un squelette minimal : chaque bloc démarre et répond, le reste viendra ensuite. Le site n’exécute rien de ce code.',
@@ -177,16 +183,17 @@ export const DEPLOY_INTRO = [
 
 /** La configuration de chaque phase qui a une architecture : 0 (le PC) et 1 (deux Pi). */
 export const PHASE_CONFIGS: Record<0 | 1, PhaseConfig> = {
-  0: { title: TITLE, views: { hardware: HARDWARE, software: SOFTWARE }, intros: { code: CODE_INTRO, deploy: DEPLOY_INTRO } },
+  0: { title: TITLE, views: { hardware: HARDWARE, software: SOFTWARE }, intros: { interfaces: INTERFACES_INTRO, code: CODE_INTRO, deploy: DEPLOY_INTRO } },
   1: {
     title: TITLE_PHASE1,
     views: { hardware: HARDWARE_PHASE1, software: SOFTWARE_PHASE1 },
-    intros: { code: CODE_INTRO_PHASE1, deploy: DEPLOY_INTRO_PHASE1 },
+    intros: { interfaces: INTERFACES_INTRO, code: CODE_INTRO_PHASE1, deploy: DEPLOY_INTRO_PHASE1 },
   },
 }
 export const VIEW_OPTIONS: { id: ViewId; label: string }[] = [
   { id: 'hardware', label: HARDWARE.label },
   { id: 'software', label: SOFTWARE.label },
+  { id: 'interfaces', label: 'Interfaces' },
   { id: 'code', label: 'Code' },
   { id: 'deploy', label: 'Déploiement' },
 ]

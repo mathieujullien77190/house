@@ -5,6 +5,8 @@ import {
   EXPLANATION_CLASS,
   FILE_ACTIVE_CLASS,
   FILE_IDLE_CLASS,
+  FOLDER_CHEVRON_CLASS,
+  FOLDER_CHEVRON_OPEN_CLASS,
   FOLDER_CLASS,
   LAYOUT_CLASS,
   PATH_CLASS,
@@ -14,7 +16,7 @@ import {
 } from './constants'
 import type { CodeBrowserUIProps } from './types'
 
-const CodeBrowserUI = ({ nodes, selected, onSelect, tokens, explanation }: CodeBrowserUIProps) => {
+const CodeBrowserUI = ({ nodes, open, selected, onToggle, onSelect, tokens, explanation }: CodeBrowserUIProps) => {
   if (nodes.length === 0) return <p className="m-0 text-muted">{EMPTY_TEXT}</p>
   return (
     <div className={LAYOUT_CLASS}>
@@ -23,7 +25,12 @@ const CodeBrowserUI = ({ nodes, selected, onSelect, tokens, explanation }: CodeB
           {nodes.map((node) => (
             <li key={node.path} className={DEPTH_CLASS[Math.min(node.depth, DEPTH_CLASS.length - 1)]}>
               {node.isFolder ? (
-                <span className={FOLDER_CLASS}>{node.name}/</span>
+                <button type="button" aria-expanded={open.has(node.path)} className={FOLDER_CLASS} onClick={() => onToggle(node.path)}>
+                  <svg aria-hidden viewBox="0 0 10 10" className={`${FOLDER_CHEVRON_CLASS} ${open.has(node.path) ? FOLDER_CHEVRON_OPEN_CLASS : ''}`}>
+                    <path d="M2 1 L8 5 L2 9 z" />
+                  </svg>
+                  {node.name}/
+                </button>
               ) : (
                 <button
                   type="button"

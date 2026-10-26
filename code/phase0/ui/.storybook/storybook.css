@@ -1,8 +1,28 @@
 @import 'tailwindcss';
 @import '../src/tokens.css';
 
+/* Storybook est toujours sombre : on force les jetons sombres, quel que soit le système. */
+:root {
+  color-scheme: dark;
+  --bg: #12151b;
+  --card: #1a1e26;
+  --text: #e8ebf1;
+  --muted: #98a1b1;
+  --line: #3a4150;
+  --accent: #5b9bf0;
+  --green: #3fc590;
+  --orange: #f0a940;
+  --danger: #f06a6a;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, sans-serif;
+}
+
+/* Le conteneur de la page docs et ses fonds clairs. */
+.sbdocs.sbdocs-wrapper,
+.sbdocs-wrapper {
+  background: var(--bg);
 }

@@ -54,6 +54,13 @@ export const tokenize = (code: string, language: Language): Token[] => {
   return out
 }
 
+/** Ne garde que les lignes dont tous les dossiers parents sont ouverts. */
+export const visibleNodes = (nodes: TreeNode[], open: Set<string>): TreeNode[] =>
+  nodes.filter((node) => {
+    const parents = node.path.split('/').slice(0, -1)
+    return parents.every((_, i) => open.has(parents.slice(0, i + 1).join('/')))
+  })
+
 /** Aplatit les chemins en lignes d'arbre : dans chaque dossier, les fichiers d'abord, puis les sous-dossiers. */
 export const buildTree = (paths: string[]): TreeNode[] => {
   const root: Dir = { dirs: new Map(), files: [] }
