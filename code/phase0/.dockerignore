@@ -7,3 +7,5 @@ sync/web/dist
 api/node_modules
 data
 .env
+sync/node_modules
+motion/node_modules
