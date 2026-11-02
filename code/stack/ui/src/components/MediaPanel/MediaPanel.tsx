@@ -10,7 +10,7 @@ const MediaPanel = ({ kind, title, src, onClose }: MediaPanelProps) => {
         <span className={TITLE_CLASS}>{title}</span>
         <Button onClick={onClose}>{CLOSE_LABEL}</Button>
       </div>
-      {kind === 'video' ? <video className={MEDIA_CLASS} src={src} controls autoPlay /> : <img className={MEDIA_CLASS} src={src} alt={IMAGE_ALT} />}
+      {kind === 'video' ? <video className={MEDIA_CLASS} src={src} controls autoPlay muted playsInline /> : <img className={MEDIA_CLASS} src={src} alt={IMAGE_ALT} />}
     </aside>
   )
 }

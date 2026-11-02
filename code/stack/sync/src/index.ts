@@ -12,6 +12,7 @@ import { extname, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { readDocker } from './docker.ts'
 import { readSpecs } from './specs.ts'
+import { parseRange } from './range.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
 import { readSystem } from './system.ts'
 import { readPower, type ApiTarget } from './power.ts'
@@ -372,11 +373,24 @@ const sendStatic = async (res: ServerResponse, pathname: string) => {
 
 // Un clip ou une image du disque backup : seulement clips/<caméra>/<id>.mp4 ou snapshots/<caméra>/<t>.jpg.
 const BACKUP_FILE = /^\/files\/((?:clips\/[\w-]+\/[\w.-]+\.mp4)|(?:snapshots\/[\w-]+\/\d+\.jpg))$/
-const sendBackupFile = async (res: ServerResponse, relativePath: string) => {
+// Un fichier du disque backup, par morceaux si le navigateur le demande (Range) : un téléphone lit la vidéo sans la
+// télécharger en entier et s'y déplace ; sans cela, il attend les 30 Mo (et l'iPhone refuse).
+const sendBackupFile = async (res: ServerResponse, relativePath: string, rangeHeader: string | undefined) => {
   try {
-    const { size } = await stat(`${DATA_DIR}/${relativePath}`)
-    res.writeHead(200, { 'Content-Type': relativePath.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4', 'Content-Length': size })
-    createReadStream(`${DATA_DIR}/${relativePath}`).pipe(res)
+    const path = `${DATA_DIR}/${relativePath}`
+    const { size } = await stat(path)
+    const type = relativePath.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4'
+    const range = parseRange(rangeHeader, size)
+    if (range === 'invalid') {
+      res.writeHead(416, { 'Content-Range': `bytes */${size}` })
+      return void res.end()
+    }
+    if (range) {
+      res.writeHead(206, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${range.start}-${range.end}/${size}`, 'Content-Length': range.end - range.start + 1 })
+      return void createReadStream(path, { start: range.start, end: range.end }).pipe(res)
+    }
+    res.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': size })
+    createReadStream(path).pipe(res)
   } catch {
     sendJson(res, 404, { error: 'not found' })
   }
@@ -401,7 +415,7 @@ const overview = async () => {
 }
 
 // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
-const service = async (res: ServerResponse, pathname: string, params: URLSearchParams) => {
+const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
   if (pathname === '/api/overview') return sendJson(res, 200, await overview())
   if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(DOCKER_FILE, COMPOSE_FILE))
   if (pathname === '/api/specs') return sendJson(res, 200, await readSpecs())
@@ -418,7 +432,7 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
     return sendJson(res, 200, paginate(clips, page, size))
   }
   const file = BACKUP_FILE.exec(pathname)
-  if (file) return sendBackupFile(res, file[1])
+  if (file) return sendBackupFile(res, file[1], rangeHeader)
   sendJson(res, 404, { error: 'not found' })
 }
 
@@ -441,7 +455,7 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
   if (pathname.startsWith('/api/') || pathname.startsWith('/files/')) {
     if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
-    return service(res, pathname, searchParams)
+    return service(res, pathname, searchParams, req.headers.range)
   }
   sendStatic(res, pathname)
 }
