@@ -75,8 +75,8 @@ const node = (id: string, kind: NodeKind, x: number, y: number, extra: Partial<D
 /**
  * Schéma de départ, posé sur le plan de la maison (voir plan.ts) : l'état actuel du système.
  * Rez-de-chaussée : 2 Reolink au portail, le switch PoE, le mini PC (ACEMAGIC K1, SSD de 1 To, toute la pile Docker),
- * la box (internet et serveur VPN WireGuard), le téléphone qui ouvre les applications par le WiFi de la box, et, hors de
- * la maison (en haut à droite du jardin), le téléphone en 4G qui arrive par le tunnel WireGuard.
+ * la box (internet et serveur VPN WireGuard), le PC de la maison qui ouvre les applications par le WiFi de la box et, hors
+ * de la maison (en haut à droite du jardin), le téléphone en 4G qui arrive par le tunnel WireGuard.
  */
 export const defaultNodes: DiagramNode[] = [
   node('cam1', 'camera', 40, 205, { title: 'Reolink 1', zone: 'Portail' }),
@@ -85,9 +85,9 @@ export const defaultNodes: DiagramNode[] = [
   node('swA', 'switch', 440, 335, { title: 'Switch PoE', floor: 'rdc' }),
   // Le mini PC (479 €) fait tourner toute la pile ; son SSD de 1 To garde les clips et la base.
   node('mini', 'custom', 590, 335, { title: 'Mini PC', sub: 'ACEMAGIC K1 · 1 To · Docker', floor: 'rdc', w: 130, price: 479, watts: 65 }),
-  // La box (internet, serveur VPN WireGuard) et le téléphone qui ouvre les applications : déjà possédés (prix 0).
+  // La box (internet, serveur VPN WireGuard) et le PC qui ouvre les applications : déjà possédés (prix 0).
   node('box', 'custom', 600, 292, { title: 'Box', sub: 'internet · VPN WireGuard', floor: 'rdc', w: 130, price: 0 }),
-  node('phone', 'phone', 300, 428, { sub: 'ouvre les applis' }),
+  node('pc', 'custom', 300, 428, { title: 'PC', sub: 'ouvre les applis', floor: 'rdc', price: 0 }),
   node('remote', 'phone', 790, 40, { title: 'Téléphone 4G', sub: 'hors de la maison' }),
 ]
 
@@ -109,7 +109,7 @@ export const defaultLinks: DiagramLink[] = [
   // Tout sur l'unique switch, relié à la box ; les clips sont sur le SSD interne du mini PC.
   link('swA', 'mini', 'eth'),
   link('swA', 'box', 'eth'),
-  link('phone', 'box', 'wifi'),
+  link('pc', 'box', 'wifi'),
   // L'accès distant : le téléphone en 4G entre par le tunnel WireGuard de la box, puis atteint le mini PC.
   link('remote', 'box', 'vpn'),
 ]

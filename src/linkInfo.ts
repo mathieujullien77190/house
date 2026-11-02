@@ -37,6 +37,6 @@ const detail = (a: NodeKind, b: NodeKind): string => {
 export const describeLink = (a: DiagramNode, b: DiagramNode, type: LinkType): string => {
   const ids = [a.id, b.id]
   if (ids.includes('mini') && ids.includes('swA')) return 'Câble RJ45 : le mini PC reçoit les flux RTSP des caméras (go2rtc), les enregistre (motion), puis sert la WebApp, l’API et House Sync.'
-  if (ids.includes('remote') && ids.includes('box')) return 'Tunnel WireGuard : le téléphone se connecte à la box depuis l’extérieur (port UDP du serveur VPN de la Freebox), reçoit une adresse du réseau 192.168.27.0/24, puis atteint le mini PC (WebApp 8080, House Sync 8081) comme s’il était à la maison. Le pare-feu du mini PC n’ouvre ces ports qu’au réseau de la maison et à ce réseau VPN ; rien n’est redirigé sur la Freebox.'
+  if (ids.includes('remote') && ids.includes('box')) return 'Tunnel WireGuard : le téléphone se connecte à la box depuis l’extérieur (port UDP du serveur VPN de la Freebox), reçoit une adresse du réseau 192.168.27.0/24, puis atteint le mini PC, vu à l’adresse 192.168.27.139 (WebApp 8080, House Sync 8081), comme s’il était à la maison. Le pare-feu du mini PC n’ouvre ces ports qu’au réseau de la maison et à ce réseau VPN ; rien n’est redirigé sur la Freebox.'
   return `${BASE[type]} ${detail(a.kind, b.kind)}`.trim()
 }

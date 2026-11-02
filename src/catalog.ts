@@ -37,7 +37,6 @@ export const countsOf = (nodes: DiagramNode[]): Counts => {
 
 const REOLINK_PRICE = 74.5
 const SWITCH_PRICE = 69.99
-const CABLE_PRICE = 3
 const SSD_URL = 'https://www.kubii.com/fr/support-de-stockage/3058-1469-disque-dur-ssd-verbatim-vi550-3272496311510.html'
 const MINI_URL = 'https://www.amazon.fr/dp/B0GJC1K9HD'
 const ADAPTER_URL = 'https://www.kubii.com/fr/hub-cables-adaptateurs/3151-adaptateur-usb-vers-sata-3272496304642.html'
@@ -51,12 +50,11 @@ export const portsNeeded = (c: Counts): number => c.reolink + 2 + (c.switches >=
 
 export const buildLines = (c: Counts, customs: DiagramNode[] = []): Line[] => {
   const lines: Line[] = [
-    { id: 'reolink', group: 'Caméras', label: 'Reolink RLC-810A 4K PoE (objectif 4 mm)', unit: REOLINK_PRICE, qty: c.reolink, source: 'perso', editable: 'reolink', note: 'lot de 2 à 149 € ; 12 W max, 802.3af' },
+    { id: 'reolink', group: 'Caméras', label: 'Reolink RLC-810A 4K PoE (objectif 4 mm)', unit: REOLINK_PRICE, qty: c.reolink, source: 'perso', note: 'lot de 2 à 149 € ; 12 W max, 802.3af' },
 
-    { id: 'switch', group: 'Réseau', label: 'Switch PoE Gigabit 8 ports TP-Link Omada ES208GP', unit: SWITCH_PRICE, qty: c.switches, source: 'perso', editable: 'switches', note: '8 ports PoE+, budget PoE 64 W, administrable (Omada) : PoE coupable port par port' },
-    // Trois câbles de 2 m (mini PC, box, un de plus), plus les câbles des caméras (plus longs, calculés).
-    { id: 'rj45-2m', group: 'Réseau', label: 'Câble Ethernet Cat6 Gigabit RJ45 Vention, 2 m', unit: 2.97, qty: 3, source: 'perso', note: 'Kubii : mini PC, lien vers la box, 1 de plus', url: 'https://www.kubii.com/fr/hub-cables-adaptateurs/4253-cable-reseau-ethernet-cat6-gigabit-rj45-vention-3272496317505.html' },
-    { id: 'rj45-cam', group: 'Réseau', label: 'Câbles RJ45 Cat6 vers les caméras (calculés)', unit: CABLE_PRICE, qty: c.reolink, source: 'estimation', note: 'un par caméra PoE, longueur selon le trajet' },
+    { id: 'switch', group: 'Réseau', label: 'Switch PoE Gigabit 8 ports TP-Link Omada ES208GP', unit: SWITCH_PRICE, qty: c.switches, source: 'perso', note: '8 ports PoE+, budget PoE 64 W, administrable (Omada) : PoE coupable port par port' },
+    // Un rouleau de 100 m d'Ethernet d'extérieur pour les caméras.
+    { id: 'rj45-100m', group: 'Réseau', label: 'deleyCON câble d’installation extérieur Cat6, 100 m (cuivre rigide, étanche)', unit: 84.26, qty: 1, source: 'perso', note: 'Amazon : le rouleau pour les caméras du portail, jardin et extérieur, 1000 Mbit/s', url: 'https://www.amazon.fr/dp/B0GX68JQNN' },
 
     // Le mini PC (479 €, SSD M.2 de 1 To pour les clips et la base). Un disque externe reste ajoutable à la main.
     ...customs.filter((n) => (n.price ?? 0) > 0).map((n): Line => ({
@@ -90,10 +88,10 @@ export const warnings = (c: Counts): Warning[] => {
   const capacity = c.switches * PORTS_PER_SWITCH
   const needed = portsNeeded(c)
   if (needed > capacity) {
-    out.push({ id: 'ports', text: `${needed} ports nécessaires pour ${capacity} disponibles : ajoute un switch ou retire des éléments.` })
+    out.push({ id: 'ports', text: `${needed} ports nécessaires pour ${capacity} disponibles : retire des éléments.` })
   }
   if (c.reolink > c.switches * POE_PORTS_PER_SWITCH) {
-    out.push({ id: 'poe-ports', text: `${c.reolink} caméras PoE pour ${c.switches * POE_PORTS_PER_SWITCH} ports PoE (8 par switch) : ajoute un switch.` })
+    out.push({ id: 'poe-ports', text: `${c.reolink} caméras PoE pour ${c.switches * POE_PORTS_PER_SWITCH} ports PoE (8 par switch) : retire des caméras.` })
   }
   return out
 }

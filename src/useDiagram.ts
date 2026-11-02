@@ -9,12 +9,12 @@ import {
   type DiagramNode,
   type NodeKind,
 } from '@/nodes'
-import { autoWire, wireInfra } from '@/wiring'
+import { autoWire } from '@/wiring'
 
 /** Où apparaît un nouveau composant : jardin au sud pour le rez-de-chaussée, local technique au sous-sol. */
 const SPAWN = { rdc: { x: 420, y: 440 }, basement: { x: 330, y: 300 } }
 
-const KEY = 'house-diagram-v26'
+const KEY = 'house-diagram-v28'
 
 interface State {
   nodes: DiagramNode[]
@@ -93,7 +93,7 @@ export const useDiagram = () => {
         ...(kind === 'disk' ? { price: 129 } : {}),
       }
       const nodes = [...s.nodes, node]
-      if (!isCameraKind(kind)) return { nodes, links: wireInfra(nodes, s.links, node, () => newId('link')), notice: undefined }
+      if (!isCameraKind(kind)) return { nodes, links: s.links, notice: undefined }
       const wired = autoWire(nodes, s.links, node, () => linkId)
       return { nodes, links: wired.links, notice: wired.notice }
     })

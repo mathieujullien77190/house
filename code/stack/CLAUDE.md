@@ -14,7 +14,7 @@ Des conteneurs Docker (`docker-compose.yml`) sur le mini PC de la maison (ACEMAG
 
 Sur l'hôte (hors Docker), `power/` : deux services systemd (la puissance du processeur par RAPL, l'état des conteneurs Docker) qui écrivent un fichier que House Sync lit.
 
-**Accès distant.** Les applications ne sont jamais ouvertes sur internet. Hors de la maison, un téléphone ouvre un tunnel **WireGuard** vers la Freebox (serveur VPN intégré, un utilisateur WireGuard par appareil, un seul port UDP ouvert sur la box) : il reçoit une adresse du réseau `192.168.27.0/24` et joint le mini PC comme depuis la maison. Le pare-feu du mini PC n'autorise que le réseau de la maison et ce réseau VPN. Le dossier peut s'appeler autrement sur le mini PC : sa copie y est dans `~/house/code/phase0` (ancien nom de ce dossier, à renommer avec les chemins des deux services de `power/`).
+**Accès distant.** Les applications ne sont jamais ouvertes sur internet. Hors de la maison, un téléphone ouvre un tunnel **WireGuard** vers la Freebox (serveur VPN intégré, un utilisateur WireGuard par appareil, un seul port UDP ouvert sur la box) : il reçoit une adresse du réseau `192.168.27.0/24` et voit le mini PC à **`192.168.27.139`** (`https://192.168.27.139:8080` pour la WebApp, `:8081` pour House Sync ; cette adresse est dans `CERT_HOSTS`). Le pare-feu du mini PC n'autorise que le réseau de la maison et ce réseau VPN. Le dossier peut s'appeler autrement sur le mini PC : sa copie y est dans `~/house/code/phase0` (ancien nom de ce dossier, à renommer avec les chemins des deux services de `power/`).
 
 Un CLAUDE.md par dossier : `certs/`, `power/`, `go2rtc/`, `motion/`, `sync/`, `sync/web/`, `api/`, `web/`, `ui/` (le paquet `@house/ui` : les composants dumb des deux apps, avec un Storybook).
 

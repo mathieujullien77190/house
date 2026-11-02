@@ -58,14 +58,3 @@ export const autoWire = (nodes: DiagramNode[], links: DiagramLink[], cam: Diagra
     notice,
   }
 }
-
-/**
- * Branche un composant ajouté sans mode manuel : un switch de plus se relie au premier autre switch (un seul câble
- * entre les deux, sans boucle). Les autres types (composant libre, téléphone, disque) restent sans lien.
- */
-export const wireInfra = (nodes: DiagramNode[], links: DiagramLink[], node: DiagramNode, makeId: () => string): DiagramLink[] => {
-  if (node.kind !== 'switch') return links
-  const other = nodes.find((n) => n.id !== node.id && n.kind === 'switch')
-  if (!other) return links
-  return [...links, { id: makeId(), from: node.id, to: other.id, type: linkTypeFor(node.kind, other.kind) }]
-}

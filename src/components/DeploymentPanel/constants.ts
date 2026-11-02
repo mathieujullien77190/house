@@ -8,6 +8,8 @@ export const BOX_IP = '192.168.1.254'
 /** Le mini PC (Ubuntu Server, mDNS via avahi) : son nom, et son adresse fixée par un bail DHCP statique sur la box. */
 export const MINI_IP = 'mini.local'
 export const MINI_ADDRESS = '192.168.1.139'
+/** L'adresse du mini PC vue d'un téléphone connecté au VPN WireGuard de la Freebox. */
+export const MINI_VPN_ADDRESS = '192.168.27.139'
 /** Le réseau que le serveur VPN WireGuard de la Freebox donne à un téléphone connecté. */
 export const VPN_NETWORK = '192.168.27.0/24'
 
@@ -26,7 +28,7 @@ export const ENTRIES: DeployEntry[] = [
     role: 'le téléphone, hors de la maison',
     url: '',
     account: 'un utilisateur WireGuard par appareil',
-    note: `Appli WireGuard sur le téléphone : on importe le QR code que donne la Freebox, on active le tunnel, puis on ouvre https://${MINI_ADDRESS}:8080 comme à la maison. Le téléphone reçoit une adresse du réseau ${VPN_NETWORK}. Rien n’est redirigé sur la Freebox : seul le port UDP de WireGuard est ouvert. Retirer un appareil perdu : supprimer son utilisateur dans Freebox OS.`,
+    note: `Appli WireGuard sur le téléphone : on importe le QR code que donne la Freebox, on active le tunnel, puis on ouvre https://${MINI_VPN_ADDRESS}:8080 (WebApp) ou https://${MINI_VPN_ADDRESS}:8081 (House Sync). Le téléphone reçoit une adresse du réseau ${VPN_NETWORK}. Rien n’est redirigé sur la Freebox : seul le port UDP de WireGuard est ouvert. Retirer un appareil perdu : supprimer son utilisateur dans Freebox OS.`,
   },
   {
     id: 'switch',
