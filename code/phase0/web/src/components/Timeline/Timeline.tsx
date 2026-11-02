@@ -3,7 +3,7 @@ import { Timeline as TimelineUI } from '@house/ui'
 import { fetchEvents, fetchSnapshotTimes } from '@/lib/api'
 import type { EventRow } from '@/types'
 import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
-import { buildCoverage, buildMarkers, buildTicks, clampWindow, fetchBucket, focusOn, liveEnd, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, timeAt, windowText } from './helpers'
+import { buildCoverage, buildMarkers, buildTicks, clampWindow, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, timeAt, windowText } from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
@@ -30,10 +30,29 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   const [history, setHistory] = useState<EventRow[]>([])
   const [olderCount, setOlderCount] = useState<number | null>(null)
   const axisRef = useRef<HTMLDivElement>(null)
+  // La largeur de l'axe : sur un téléphone, il porte moins de graduations que sur un écran large.
+  const [axisWidth, setAxisWidth] = useState(0)
   // Le glisser en cours : position de départ du pointeur et bord droit au départ.
   const drag = useRef<{ x: number; end: number; moved: boolean } | null>(null)
+  // Les doigts posés sur l'axe (identifiant → position) et le pincement en cours : l'écart des doigts au départ, la
+  // largeur de la fenêtre et l'instant sous le milieu des doigts, qui reste sous eux pendant qu'on zoome.
+  const pointers = useRef(new Map<number, number>())
+  const pinch = useRef<{ distance: number; seconds: number; anchor: number } | null>(null)
+  // Après un pincement, le doigt qui reste posé ne déplace ni ne clique : il faut tout relever avant de reprendre.
+  const gestureDone = useRef(false)
   // La fenêtre courante, lisible par l'écouteur de molette sans le réinstaller à chaque rendu.
   const view = useRef({ seconds, end })
+
+  // Suit la largeur de l'axe (rotation du téléphone, fenêtre redimensionnée).
+  useEffect(() => {
+    const axis = axisRef.current
+    if (!axis) return
+    const update = () => setAxisWidth(axis.clientWidth)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(axis)
+    return () => observer.disconnect()
+  }, [])
   useEffect(() => {
     view.current = { seconds, end }
   }, [seconds, end])
@@ -171,12 +190,44 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     }
   }
 
+  // L'écart entre les deux premiers doigts (au moins 1 px) et la place de leur milieu sur l'axe (de 0 à 1).
+  const fingers = (axis: HTMLDivElement): { distance: number; fraction: number } => {
+    const [a = 0, b = 0] = [...pointers.current.values()]
+    const rect = axis.getBoundingClientRect()
+    return { distance: Math.max(1, Math.abs(a - b)), fraction: Math.min(1, Math.max(0, ((a + b) / 2 - rect.left) / (rect.width || 1))) }
+  }
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    pointers.current.set(event.pointerId, event.clientX)
+    try {
+      // Les doigts restent suivis même s'ils sortent de l'axe ; un pointeur déjà fini ne peut plus être capturé.
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // sans capture, le geste continue tant que le pointeur reste sur l'axe
+    }
+    if (pointers.current.size >= 2) {
+      // Un deuxième doigt : le glisser s'arrête, le pincement commence.
+      const { distance, fraction } = fingers(event.currentTarget)
+      const { seconds: current, end: currentEnd } = view.current
+      pinch.current = { distance, seconds: current, anchor: timeAt(fraction, currentEnd, current) }
+      gestureDone.current = true
+      drag.current = null
+      setDragging(true)
+      return
+    }
+    gestureDone.current = false
     drag.current = { x: event.clientX, end, moved: false }
-    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (pointers.current.has(event.pointerId)) pointers.current.set(event.pointerId, event.clientX)
+    if (pinch.current && pointers.current.size >= 2) {
+      // Les doigts s'écartent : la fenêtre se resserre ; l'instant de départ reste sous le milieu des doigts, qui peut aussi se déplacer.
+      const { distance, fraction } = fingers(event.currentTarget)
+      const next = clampWindow((pinch.current.seconds * pinch.current.distance) / distance)
+      place(pinch.current.anchor + (1 - fraction) * next, next)
+      return
+    }
     if (!drag.current) return
     const dx = event.clientX - drag.current.x
     if (!drag.current.moved && Math.abs(dx) < DRAG_THRESHOLD) return
@@ -187,8 +238,18 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   }
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(event.pointerId)
+    if (pointers.current.size < 2) pinch.current = null
     const started = drag.current
     drag.current = null
+    if (gestureDone.current) {
+      // Fin d'un pincement : ni clic ni glisser tant qu'il reste un doigt posé.
+      if (pointers.current.size === 0) {
+        gestureDone.current = false
+        setDragging(false)
+      }
+      return
+    }
     setDragging(false)
     if (!started || started.moved) return
     // Un simple clic : le curseur se pose à cet instant, l'image correspondante est demandée.
@@ -216,7 +277,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
       range={presetOf(seconds)}
       live={live}
       windowText={windowText(seconds, end)}
-      ticks={buildTicks(seconds, end)}
+      ticks={buildTicks(seconds, end, maxTicksFor(axisWidth))}
       markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
       nowX={nowX}

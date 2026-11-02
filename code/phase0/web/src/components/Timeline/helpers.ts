@@ -1,7 +1,7 @@
 import type { TimelineSegment, TimelineTick } from '@house/ui'
 import { describeEvent, formatTime } from '@/lib/format'
 import type { EventRow } from '@/types'
-import { COVERAGE_GAP, FUTURE_SHARE, MAX_REFRESH_MS, MAX_TICKS, MAX_WINDOW, MIN_REFETCH_SECONDS, MIN_REFRESH_MS, REFETCH_DIVISOR, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_STEPS } from './constants'
+import { COVERAGE_GAP, FUTURE_SHARE, MAX_REFRESH_MS, MAX_TICKS, MAX_WINDOW, MIN_REFETCH_SECONDS, MIN_REFRESH_MS, MIN_TICKS, REFETCH_DIVISOR, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_MIN_PX, TICK_STEPS } from './constants'
 import type { Marker, RangeId } from './types'
 
 export const secondsOf = (id: RangeId): number => (RANGES.find((r) => r.id === id) ?? RANGES[0]).seconds
@@ -33,8 +33,12 @@ export const fetchBucket = (end: number, seconds: number): number => Math.floor(
 export const nearestTime = (times: number[], at: number): number | null =>
   times.reduce<number | null>((best, time) => (best === null || Math.abs(time - at) < Math.abs(best - at) ? time : best), null)
 
-/** Le pas de graduation adapté à la fenêtre : le plus petit qui donne au plus MAX_TICKS graduations. */
-export const tickStep = (seconds: number): number => TICK_STEPS.find((step) => seconds / step <= MAX_TICKS) ?? TICK_STEPS[TICK_STEPS.length - 1]
+/** Le nombre de graduations que porte un axe de cette largeur (en pixels) ; MAX_TICKS tant que la largeur est inconnue (0). */
+export const maxTicksFor = (axisWidth: number): number =>
+  axisWidth > 0 ? Math.min(MAX_TICKS, Math.max(MIN_TICKS, Math.floor(axisWidth / TICK_MIN_PX))) : MAX_TICKS
+
+/** Le pas de graduation adapté à la fenêtre : le plus petit qui donne au plus `maxTicks` graduations. */
+export const tickStep = (seconds: number, maxTicks = MAX_TICKS): number => TICK_STEPS.find((step) => seconds / step <= maxTicks) ?? TICK_STEPS[TICK_STEPS.length - 1]
 
 const tickLabel = (time: number, step: number): string => {
   const date = new Date(time * 1000)
@@ -44,8 +48,8 @@ const tickLabel = (time: number, step: number): string => {
 }
 
 /** Les graduations, alignées sur l'heure locale (heures rondes, ou minuit pour les grands pas). */
-export const buildTicks = (seconds: number, end: number): TimelineTick[] => {
-  const step = tickStep(seconds)
+export const buildTicks = (seconds: number, end: number, maxTicks = MAX_TICKS): TimelineTick[] => {
+  const step = tickStep(seconds, maxTicks)
   const start = end - seconds
   const offset = new Date(end * 1000).getTimezoneOffset() * 60
   const first = Math.ceil((start - offset) / step) * step + offset

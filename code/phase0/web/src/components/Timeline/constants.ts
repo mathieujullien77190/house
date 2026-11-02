@@ -20,6 +20,9 @@ export const EVENT_FOCUS_SHARE = 0.5
 /** Pas de graduation possibles ; on prend le plus petit qui donne au plus MAX_TICKS graduations. */
 export const TICK_STEPS = [5, 10, 30, MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE, 15 * MINUTE, 30 * MINUTE, HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY]
 export const MAX_TICKS = 12
+/** La place qu'un repère de l'axe demande (son étiquette, en pixels) : une frise étroite en porte moins. */
+export const TICK_MIN_PX = 70
+export const MIN_TICKS = 2
 /** Largeur minimale d'un événement sur l'axe, en % : un événement court reste cliquable. */
 export const MIN_WIDTH = 1.2
 /** Deux images à moins de ce délai (secondes) forment une même plage de couverture. */
