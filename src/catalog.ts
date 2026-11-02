@@ -43,7 +43,8 @@ const REOLINK_PRICE = 74.5
 const SWITCH_PRICE = 69.99
 const CABLE_PRICE = 3
 const SSD_URL = 'https://www.kubii.com/fr/support-de-stockage/3058-1469-disque-dur-ssd-verbatim-vi550-3272496311510.html'
-const ADAPTER_URL = 'https://www.kubii.com/fr/hub-cables-adaptateurs/3151-adaptateur-usb-vers-sata-3272496304642.html'
+const MINI_URL = 'https://www.amazon.fr/dp/B0GJC1K9HD'
+const ADAPTER_URL ='https://www.kubii.com/fr/hub-cables-adaptateurs/3151-adaptateur-usb-vers-sata-3272496304642.html'
 
 export const PORTS_PER_SWITCH = 8
 /** Ports PoE par switch : les caméras ne se branchent que sur ceux-là (ES208GP : 8 ports PoE+). */
@@ -86,7 +87,7 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = [], phase: Phase 
     { id: 'pi-sd', group: 'Raspberry Pi', label: 'Carte microSD Verbatim 256 Go (classe 10)', unit: 36.95, qty: c.pis, source: 'perso', note: 'Kubii', url: 'https://www.kubii.com/fr/support-de-stockage/3061-1475-carte-micro-sdhc-verbatim-classe-10-3272496311527.html', phases: [2] },
     { id: 'pi-sd-backup', group: 'Raspberry Pi', label: 'Carte microSD 1 To', unit: 108, qty: 1, source: 'perso', phases: [2] },
 
-    // Phase 1 : le mini PC (299 €) et le SSD externe (clips et base), branché en USB 3 avec un adaptateur SATA.
+    // Phase 1 : le mini PC (479 €, SSD M.2 de 1 To pour les clips et la base). Un disque externe reste ajoutable à la main.
     ...customs.filter((n) => (n.price ?? 0) > 0).map((n): Line => ({
       id: n.id,
       group: 'Divers',
@@ -94,8 +95,8 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = [], phase: Phase 
       unit: n.price ?? 0,
       qty: 1,
       source: 'perso',
-      note: n.kind === 'disk' ? 'Kubii, SATA III 2,5" : clips et base du mini PC ; 480 To d’endurance annoncée' : n.id === 'mini' ? 'BOSGAME E5 : Ryzen 3 5300U, 16 Go, SSD NVMe 512 Go, 2 ports 2,5 Gb/s ; Docker Compose' : 'composant ajouté au schéma',
-      url: n.kind === 'disk' ? SSD_URL : undefined,
+      note: n.kind === 'disk' ? 'Kubii, SATA III 2,5" : clips et base du mini PC ; 480 To d’endurance annoncée' : n.id === 'mini' ? 'ACEMAGIC K1 : Ryzen 5 7530U (6 cœurs, 15 W), 16 Go, SSD M.2 1 To, Ethernet 1 Gb/s (clips et base) ; Docker Compose' : 'composant ajouté au schéma',
+      url: n.kind === 'disk' ? SSD_URL : n.id === 'mini' ? MINI_URL : undefined,
     })),
     { id: 'disk-adapter', group: 'Divers', label: 'Adaptateur USB 3.0 / SATA 2,5"', unit: 6.95, qty: customs.filter((n) => n.kind === 'disk').length, source: 'perso', note: 'Kubii : branche le SSD sur un port USB 3 du mini PC', url: ADAPTER_URL, phases: [1] },
   ]

@@ -4,8 +4,8 @@ export type LinkType = 'poe' | 'eth' | 'wifi' | 'usb'
 /** Étage où se trouve un composant : rez-de-chaussée (maison et jardin) ou sous-sol. */
 export type Floor = 'rdc' | 'basement'
 /**
- * Phase de déploiement : 0 = version light (2 Reolink, 1 switch PoE, ton PC qui enregistre), 1 = un mini PC neuf et un
- * disque dur externe (la même pile Docker Compose), 2 = installation complète. Les phases 0 et 1 sont des scénarios à part,
+ * Phase de déploiement : 0 = version light (2 Reolink, 1 switch PoE, ton PC qui enregistre), 1 = un mini PC neuf avec un
+ * SSD de 1 To (la même pile Docker Compose), 2 = installation complète. Les phases 0 et 1 sont des scénarios à part,
  * sans cluster k3s.
  */
 export type Phase = 0 | 1 | 2
@@ -93,8 +93,8 @@ const node = (id: string, kind: NodeKind, x: number, y: number, extra: Partial<D
 /**
  * Schéma de départ, posé sur le plan de la maison (voir plan.ts), en trois phases.
  * - Phase 0, version light : 2 Reolink 4K vers le portail, 1 switch PoE, le PC de la maison (enregistrement sur son disque).
- * - Phase 1 : un mini PC neuf (BOSGAME E5) fait tourner tous les conteneurs, 2 Reolink vers le portail, 1 switch,
- *   1 disque dur externe en USB pour les clips et la base.
+ * - Phase 1 : un mini PC neuf (ACEMAGIC K1) fait tourner tous les conteneurs, 2 Reolink vers le portail, 1 switch,
+ *   (SSD NVMe de 1 To en interne pour les clips et la base).
  * - Phase 2, l'installation complète : cluster k3s (2 Pi5 et le Pi de sauvegarde), 2 switchs, 2 Reolink au portail.
  * Rez-de-chaussée : 2 Reolink au portail, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon.
  * Sous-sol : 1 Pi5 et le 2ᵉ switch.
@@ -107,9 +107,8 @@ export const defaultNodes: DiagramNode[] = [
   node('swB', 'switch', 460, 175, { title: 'Switch PoE B', phases: [2] }),
 
   node('pi1', 'pi', 600, 335, { title: 'Pi5 #1', sub: 'control-plane + worker', floor: 'rdc', phases: [2] }),
-  // Phase 1 : un mini PC neuf (299 €) fait tourner toute la pile, avec un SSD externe en USB pour les clips et la base.
-  node('mini', 'custom', 590, 335, { title: 'Mini PC', sub: 'BOSGAME E5 · Docker', floor: 'rdc', phases: [1], w: 130, price: 299, watts: 65 }),
-  node('ssd', 'disk', 600, 392, { title: 'SSD Verbatim 1 To', phases: [1], w: 130, price: 129 }),
+  // Phase 1 : un mini PC neuf (479 €) fait tourner toute la pile ; son SSD M.2 de 1 To garde les clips et la base.
+  node('mini', 'custom', 590, 335, { title: 'Mini PC', sub: 'ACEMAGIC K1 · 1 To · Docker', floor: 'rdc', phases: [1], w: 130, price: 479, watts: 65 }),
   // Phase 0 : le PC existant (déjà possédé, prix 0) fait l'enregistrement à la place du Pi5.
   node('pc', 'custom', 600, 335, { title: 'PC', sub: 'enregistre le RTSP', floor: 'rdc', phases: [0], price: 0 }),
   // Phase 0 : la box (internet) et le téléphone qui ouvre l'appli sur le PC, déjà possédés (prix 0).
@@ -145,10 +144,9 @@ export const defaultLinks: DiagramLink[] = [
   link('swA', 'pc', 'eth', [0]),
   link('pc', 'box', 'eth', [0]),
   link('phone', 'box', 'wifi', [0, 1]),
-  // Phase 1 : tout sur l'unique switch, relié à la box ; le disque est en USB sur le mini PC.
+  // Phase 1 : tout sur l'unique switch, relié à la box ; les clips sont sur le SSD interne du mini PC.
   link('swA', 'mini', 'eth', [1]),
   link('swA', 'box', 'eth', [1]),
-  link('mini', 'ssd', 'usb', [1]),
   // Phase 2 : cluster k3s, second switch, caméras du portail réparties sur les deux switchs.
   link('swA', 'pi1', 'eth', [2]),
   link('swA', 'pi2', 'eth', [2]),

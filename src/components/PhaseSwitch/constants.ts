@@ -7,7 +7,7 @@ export const HIDDEN_PHASES: Phase[] = [2]
 
 export const PHASES: { id: Phase; title: string; summary: string }[] = [
   { id: 0, title: 'Phase 0 · Version light', summary: '2 Reolink 4K, 1 switch PoE, enregistrement sur ton PC' },
-  { id: 1, title: 'Phase 1 · Un mini PC', summary: '2 Reolink, 1 switch, un mini PC neuf qui fait tourner toute la pile (Docker Compose) et un SSD externe pour les clips' },
+  { id: 1, title: 'Phase 1 · Un mini PC', summary: '2 Reolink, 1 switch, un mini PC neuf qui fait tourner toute la pile (Docker Compose) et son SSD de 1 To pour les clips' },
   { id: 2, title: 'Phase 2 · Installation complète', summary: 'cluster k3s (2 Pi5 + sauvegarde), 2 switchs, 2 Reolink au portail, onduleur' },
 ]
 

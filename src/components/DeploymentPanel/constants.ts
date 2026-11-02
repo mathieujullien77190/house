@@ -78,8 +78,8 @@ export const REMINDERS = [
   'Si l’IP du PC change, mettre à jour CERT_HOSTS dans .env et l’adresse de la caméra si besoin, puis docker compose up -d.',
 ]
 
-/** Phase 1 : l'adresse du mini PC reste à fixer par un bail DHCP statique sur la box. */
-export const MINI_IP = '192.168.1.x'
+/** Phase 1 : nom du mini PC (Ubuntu Server, mDNS via avahi), IP 192.168.1.139 fixée par un bail DHCP statique sur la box. */
+export const MINI_IP = 'mini.local'
 export const CAMERA2_IP = '192.168.1.52'
 
 export const ENTRIES_PHASE1: DeployEntry[] = [
@@ -95,11 +95,11 @@ export const ENTRIES_PHASE1: DeployEntry[] = [
   },
   {
     id: 'mini',
-    name: 'Mini PC (BOSGAME E5)',
-    role: 'Linux + Docker Compose : go2rtc, motion, House Sync, API, WebApp',
+    name: 'Mini PC (ACEMAGIC K1)',
+    role: 'Ubuntu Server 26.04 + Docker Compose : go2rtc, motion, House Sync, API, WebApp',
     url: '',
-    account: 'SSH (clé)',
-    note: `${MINI_IP}. go2rtc (1984, 8554) et l’API de l’enregistreur (8080 interne) n’ont pas de mot de passe : ils ne sont jamais publiés. Logs : docker compose logs -f motion.`,
+    account: 'SSH (clé) : mathieu@mini',
+    note: `${MINI_IP} (192.168.1.139), relié au switch (le switch à la box). go2rtc (1984, 8554) et l’API de l’enregistreur (8080 interne) n’ont pas de mot de passe : ils ne sont jamais publiés. Logs : docker compose logs -f motion.`,
   },
   {
     id: 'webapp',
@@ -123,14 +123,14 @@ export const ENTRIES_PHASE1: DeployEntry[] = [
     role: 'polling des enregistreurs, base SQLite, clips',
     url: `https://${MINI_IP}:8081`,
     account: 'même clé que l’API',
-    note: 'Écrit sur le SSD externe (USB, monté sur le mini PC) : clips, images par minute et events.db. Seul programme qui écrit ; l’API n’expose jamais la base brute.',
+    note: 'Écrit sur le SSD interne du mini PC (1 To) : clips, images par minute et events.db. Seul programme qui écrit ; l’API n’expose jamais la base brute.',
   },
   ENTRIES[ENTRIES.length - 1],
 ]
 
 export const REMINDERS_PHASE1 = [
   'Les mots de passe sont dans code/phase0/.env (ignoré par git) et nulle part ailleurs.',
-  'Le SSD externe doit être monté au démarrage (fstab) avant docker compose ; si l’IP du mini PC change, mettre à jour CERT_HOSTS dans .env, puis docker compose up -d.',
+  'Les volumes de data/ sont sur le SSD interne : surveiller l’espace libre (df -h) et purger les clips anciens ; si l’IP du mini PC change, mettre à jour CERT_HOSTS dans .env, puis docker compose up -d.',
   'Dans le BIOS du mini PC : démarrage automatique après une coupure de courant.',
 ]
 

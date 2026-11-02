@@ -165,16 +165,16 @@ const SOFTWARE: ArchView = {
   ],
 }
 
-/** Phase 1 : la même pile logicielle que la phase 0, sur le mini PC ; seul le texte change (une machine, un SSD externe). */
+/** Phase 1 : la même pile logicielle que la phase 0, sur le mini PC ; seul le texte change (une machine, un SSD interne). */
 const SOFTWARE_PHASE1: ArchView = {
   ...SOFTWARE,
-  ariaLabel: SOFTWARE.ariaLabel.replace('phase 0', 'phase 1').replace('sur le PC', 'sur le mini PC').replaceAll('le disque backup', 'le SSD externe').replaceAll('disque backup', 'SSD externe'),
+  ariaLabel: SOFTWARE.ariaLabel.replace('phase 0', 'phase 1').replace('sur le PC', 'sur le mini PC').replaceAll('le disque backup', 'le SSD du mini PC').replaceAll('disque backup', 'SSD du mini PC'),
   panels: SOFTWARE.panels.map((panel) => (panel.id === 'pc' ? { ...panel, title: 'Mini PC' } : panel)),
-  disks: SOFTWARE.disks?.map((disk) => (disk.id === 'backup' ? { ...disk, title: 'SSD externe' } : disk)),
+  disks: SOFTWARE.disks?.map((disk) => (disk.id === 'backup' ? { ...disk, title: 'SSD du mini PC' } : disk)),
   intro: [
     'Six conteneurs Docker sur le mini PC : deux unités « go2rtc + motion » (une par caméra), House Sync, et House API qui sert la WebApp.',
-    'Une unité est un go2rtc et son enregistreur motion : go2rtc ouvre une seule connexion vers sa caméra ; motion enregistre le flux principal par segments, détecte le mouvement sur le flux léger et fabrique les clips. House Sync interroge chaque enregistreur par polling, copie les clips et une image par minute sur le SSD externe, et écrit dans SQLite les événements et l’adresse du go2rtc de chaque caméra.',
-    ...SOFTWARE.intro.slice(2).map((text) => text.replaceAll('le disque backup', 'le SSD externe')),
+    'Une unité est un go2rtc et son enregistreur motion : go2rtc ouvre une seule connexion vers sa caméra ; motion enregistre le flux principal par segments, détecte le mouvement sur le flux léger et fabrique les clips. House Sync interroge chaque enregistreur par polling, copie les clips et une image par minute sur le SSD du mini PC, et écrit dans SQLite les événements et l’adresse du go2rtc de chaque caméra.',
+    ...SOFTWARE.intro.slice(2).map((text) => text.replaceAll('le disque backup', 'le SSD du mini PC')),
   ],
 }
 
