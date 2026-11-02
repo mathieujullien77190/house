@@ -132,6 +132,7 @@ export const REMINDERS_PHASE1 = [
   'Les mots de passe sont dans code/phase0/.env (ignoré par git) et nulle part ailleurs.',
   'Les volumes de data/ sont sur le SSD interne : surveiller l’espace libre (df -h) et purger les clips anciens ; si l’IP du mini PC change, mettre à jour CERT_HOSTS dans .env, puis docker compose up -d.',
   'Dans le BIOS du mini PC : démarrage automatique après une coupure de courant.',
+  'Pare-feu du mini PC (ufw) : SSH, 8080 et 8081 réservés au réseau de la maison et au VPN WireGuard de la Freebox (192.168.27.0/24). Pour y accéder de l’extérieur : ce VPN ou Tailscale, jamais une redirection de ports.',
 ]
 
 export const HEADERS = ['Quoi', 'Adresse', 'Compte', 'À savoir']
