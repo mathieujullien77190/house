@@ -3,6 +3,7 @@ import { CameraCard as CameraCardUI, SnapshotImage as ImageBox } from '@house/ui
 import ClipPlayer from '@/components/ClipPlayer'
 import PowerButton from '@/components/PowerButton'
 import { liveSrc } from '@/lib/live'
+import { useBigView } from '@/lib/useBigView'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
@@ -30,6 +31,8 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const [readyClip, setReadyClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
   const { power, setPower } = usePower(apiKey, camera.name)
+  // « Afficher en grand » : le média en plein écran, en paysage.
+  const bigView = useBigView()
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
@@ -89,6 +92,10 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
       caption={captionOf(cursor, selected)}
       actions={<PowerButton apiKey={apiKey} camera={camera.name} power={power} onPower={setPower} />}
       media={media}
+      figureRef={bigView.ref}
+      expanded={bigView.big}
+      onExpand={bigView.open}
+      onCollapse={bigView.close}
       timeline={
         <Timeline
           apiKey={apiKey}

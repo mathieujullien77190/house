@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 export interface CameraCardProps {
   name: string
@@ -12,4 +12,11 @@ export interface CameraCardProps {
   actions?: ReactNode
   /** La frise, rendue par le parent. */
   timeline: ReactNode
+  /** L'élément qui passe en plein écran : le parent le lit pour appeler l'API plein écran du navigateur. */
+  figureRef?: RefObject<HTMLElement | null>
+  /** Le média occupe tout l'écran, en paysage (tourné de 90° si le téléphone reste droit). */
+  expanded?: boolean
+  /** Le bouton « Afficher en grand » n'apparaît que si le parent sait l'ouvrir. */
+  onExpand?: () => void
+  onCollapse?: () => void
 }

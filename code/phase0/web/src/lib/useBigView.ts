@@ -1,0 +1,61 @@
+// « Afficher en grand » : le média d'une caméra passe en plein écran, en paysage. Le plein écran du navigateur et le
+// verrouillage de l'orientation ne sont pas offerts partout (pas sur iPhone, pas toujours sur Android) : la vue en
+// grand est donc d'abord un état de la page (la carte se pose sur tout l'écran, tournée si l'écran reste droit), et
+// le plein écran réel et le verrou ne sont que des plus quand le navigateur les accepte.
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+
+export interface BigView {
+  ref: RefObject<HTMLElement | null>
+  big: boolean
+  open: () => void
+  close: () => void
+}
+
+const unlockOrientation = () => {
+  try {
+    screen.orientation.unlock()
+  } catch {
+    // pas d'API d'orientation : rien n'était verrouillé
+  }
+}
+
+export const useBigView = (): BigView => {
+  const ref = useRef<HTMLElement>(null)
+  const [big, setBig] = useState(false)
+
+  const close = useCallback(() => {
+    setBig(false)
+    unlockOrientation()
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined)
+  }, [])
+
+  const open = useCallback(() => {
+    setBig(true)
+    const enter = async () => {
+      try {
+        await ref.current?.requestFullscreen()
+      } catch {
+        // iPhone, ou plein écran refusé : la vue en grand de la page suffit
+      }
+      try {
+        await screen.orientation.lock('landscape')
+      } catch {
+        // verrou refusé (hors plein écran, navigateur sans l'API) : la vue se tourne d'elle-même si l'écran reste droit
+      }
+    }
+    enter()
+  }, [])
+
+  // Retour, Échap ou geste système ferment le plein écran réel : la vue en grand se ferme avec lui.
+  useEffect(() => {
+    const onChange = () => {
+      if (document.fullscreenElement) return
+      setBig(false)
+      unlockOrientation()
+    }
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  return { ref, big, open, close }
+}
