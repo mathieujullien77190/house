@@ -91,7 +91,7 @@ export const ENTRIES_PHASE1: DeployEntry[] = [
     role: 'caméras du portail (portail et camera2)',
     url: '',
     account: 'admin (app Reolink), le même mot de passe',
-    note: `${CAMERA_IP} et ${CAMERA2_IP}, alimentées en PoE par le switch (ports 7 et 6). RTSP activé (port 554). Baux DHCP statiques sur la box.`,
+    note: `${CAMERA_IP} et ${CAMERA2_IP}, alimentées en PoE par le switch (ports 3 et 4 : portail sur le 3, camera2 sur le 4). RTSP activé (port 554). Baux DHCP statiques sur la box.`,
   },
   {
     id: 'mini',

@@ -133,7 +133,7 @@ services:
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: portail:7,camera2:6
+      SWITCH_PORTS: portail:3,camera2:4
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem
