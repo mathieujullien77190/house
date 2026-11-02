@@ -10,9 +10,9 @@ export const HIT_LENGTH = 10
 
 export const WRAP_CLASS = 'mt-3 flex flex-wrap items-center gap-6 rounded-xl border border-line bg-card px-4 py-3'
 export const SVG_CLASS = 'size-[200px] shrink-0 -rotate-90'
-export const ARC_CLASS = 'transition-colors'
-/** La couleur d'une part survolée : celle du texte, qui ressort sur toutes les autres. */
-export const ARC_ACTIVE_CLASS = 'stroke-fg'
+export const ARC_CLASS = 'transition-[filter]'
+/** Une part survolée garde sa couleur, en plus claire : sur la grande part « Libre », le blanc éblouissait. */
+export const ARC_ACTIVE_CLASS = 'brightness-150'
 export const HIT_CLASS = 'stroke-transparent'
 export const CENTER_WRAP_CLASS = 'pointer-events-none absolute inset-0 flex flex-col items-center justify-center'
 export const CENTER_VALUE_CLASS = 'text-[1.3rem] font-bold tabular-nums'

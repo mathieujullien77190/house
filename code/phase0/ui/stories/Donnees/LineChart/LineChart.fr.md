@@ -1,0 +1,1 @@
+Une courbe en direct avec sa valeur actuelle. Elle se remplit depuis la droite : tant que l'historique est plus court que `capacity`, la partie gauche reste vide, et la mesure la plus récente colle au bord.

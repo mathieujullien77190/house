@@ -26,7 +26,7 @@ import type { PieChartProps } from './types'
 
 /**
  * Un camembert (anneau) et sa légende : chaque part a un nom, une valeur et une couleur de la maison. Survoler une
- * part ou sa ligne change la couleur de la part et surligne la ligne (l'état de survol est de la présentation pure).
+ * part ou sa ligne éclaircit la part et surligne la ligne (l'état de survol est de la présentation pure).
  */
 const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) => {
   const [hovered, setHovered] = useState<string | null>(null)
@@ -49,7 +49,7 @@ const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) =>
                 r={RADIUS}
                 fill="none"
                 strokeWidth={STROKE}
-                className={`${hovered === arc.id ? ARC_ACTIVE_CLASS : STROKE_CLASS[slice?.tone ?? 'line']} ${ARC_CLASS}`}
+                className={`${STROKE_CLASS[slice?.tone ?? 'line']} ${ARC_CLASS} ${hovered === arc.id ? ARC_ACTIVE_CLASS : ''}`}
                 strokeDasharray={arc.dashArray}
                 strokeDashoffset={arc.dashOffset}
               >

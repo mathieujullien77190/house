@@ -1,0 +1,1 @@
+Une section qu'on réduit d'un clic sur son titre. C'est un `<details>` natif : le clavier, les lecteurs d'écran et l'état ouvert ou fermé sont gérés par le navigateur, le composant ne tient aucun état.

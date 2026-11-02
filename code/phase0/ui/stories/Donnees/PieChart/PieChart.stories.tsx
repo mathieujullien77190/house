@@ -20,14 +20,15 @@ export const Disk: StoryObj<typeof PieChart> = {
   parameters: source(diskCode),
   args: {
     label: 'Répartition de la place sur le disque',
-    centerValue: '931.0 Go',
-    centerLabel: 'libres sur 953.9 Go',
+    centerValue: '879.4 Go',
+    centerLabel: 'libres sur 935.3 Go',
     slices: [
-      { id: 'clips', label: 'Clips vidéo', value: 12e9, display: '11.2 Go', tone: 'accent' },
-      { id: 'snapshots', label: 'Images par minute', value: 3e9, display: '2.8 Go', tone: 'green' },
-      { id: 'db', label: 'Base SQLite', value: 5e7, display: '47.7 Mo', tone: 'orange' },
-      { id: 'other', label: 'Autres fichiers', value: 8e9, display: '7.5 Go', tone: 'muted' },
-      { id: 'free', label: 'Libre', value: 9.99e11, display: '931.0 Go', tone: 'line' },
+      { id: 'clips', label: 'Clips vidéo', value: 6e8, display: '572.2 Mo', tone: 'accent' },
+      { id: 'snapshots', label: 'Images par minute', value: 1e8, display: '95.4 Mo', tone: 'green' },
+      { id: 'db', label: 'Base SQLite', value: 36864, display: '36.0 Ko', tone: 'orange' },
+      { id: 'other', label: 'Autres fichiers (système, enregistrements)', value: 17e9, display: '15.8 Go', tone: 'muted' },
+      { id: 'reserved', label: 'Réservé au système (ext4)', value: 41948340224, display: '39.1 Go', tone: 'danger' },
+      { id: 'free', label: 'Libre', value: 944120147968, display: '879.3 Go', tone: 'line' },
     ],
   },
 }
