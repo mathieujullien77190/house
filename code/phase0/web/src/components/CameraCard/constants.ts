@@ -12,3 +12,6 @@ export const CAMERA_OFF_TEXT = 'Caméra éteinte'
 export const CAMERA_STARTING_TEXT = 'Caméra en démarrage…'
 export const NO_CLIP_TEXT = 'Clip en cours de copie par House Sync… il apparaîtra dès qu’il est prêt.'
 export const ONGOING_CLIP_TEXT = 'Événement en cours : le clip arrivera à la fin du mouvement.'
+
+/** Le lecteur du clip se charge sans se voir (sr-only le garde dans la page : un `display: none` empêcherait le téléphone de charger la vidéo). */
+export const HIDDEN_PLAYER_CLASS = 'sr-only'

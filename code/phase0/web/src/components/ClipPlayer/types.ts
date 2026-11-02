@@ -1,10 +1,11 @@
 export interface ClipPlayerProps {
-  apiKey: string
+  /** Plus utilisé pour télécharger : le cookie de session suffit. Gardé pour que le parent n'ait rien à changer. */
+  apiKey?: string
   /** Chemin du service clips (/clips/id). */
   path: string
   /** Appelé par le bouton Fermer, montré seulement en cas d'erreur (sinon la frise a « Maintenant »). */
   onClose: () => void
-  /** Appelé une fois le fichier téléchargé : la vidéo est là. */
+  /** Appelé quand la première image de la vidéo est prête. */
   onReady?: () => void
   /** Position de lecture, en secondes depuis le début du clip, à chaque avancée de la vidéo. */
   onTime?: (seconds: number) => void

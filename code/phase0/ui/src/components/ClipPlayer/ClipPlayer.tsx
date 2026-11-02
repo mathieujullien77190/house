@@ -4,7 +4,7 @@ import { BOX_CLASS, CLOSE_CLASS, CLOSE_LABEL, ERROR_CLASS, LOADING_TEXT, PLAYER_
 import type { ClipPlayerProps } from './types'
 
 /** Le lecteur d'un clip : démarre à `startAt`, remonte sa durée et sa position. Le téléchargement est au parent. */
-const ClipPlayer = ({ src, error, startAt, restart = 0, onClose, onTime, onDuration }: ClipPlayerProps) => {
+const ClipPlayer = ({ src, error, startAt, restart = 0, onClose, onReady, onFailure, onTime, onDuration }: ClipPlayerProps) => {
   const video = useRef<HTMLVideoElement>(null)
 
   // À chaque nouvelle position demandée (ou nouveau clic : restart change), la lecture saute là, une fois la vidéo prête.
@@ -34,7 +34,19 @@ const ClipPlayer = ({ src, error, startAt, restart = 0, onClose, onTime, onDurat
       {error ? (
         <p className={ERROR_CLASS}>{error}</p>
       ) : src ? (
-        <video ref={video} className={VIDEO_CLASS} src={src} controls onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)} />
+        <video
+          ref={video}
+          className={VIDEO_CLASS}
+          src={src}
+          controls
+          // Les clips n'ont pas de son : démarrer en sourdine est la seule façon que les téléphones acceptent de lancer la lecture tout seuls.
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedData={onReady}
+          onError={(event) => onFailure?.(event.currentTarget.error?.code ?? 0)}
+          onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)}
+        />
       ) : (
         <div className={BOX_CLASS}>{LOADING_TEXT}</div>
       )}

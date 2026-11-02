@@ -54,7 +54,6 @@ export const setCameraPower = async (key: string, camera: string, on: boolean): 
   if (!res.ok) throw new ApiError(res.status, `/poe : HTTP ${res.status}`)
   return res.json()
 }
-export const fetchClip = async (key: string, path: string): Promise<Blob> => (await request(key, path)).blob()
 
 /** Les instants (secondes) où House Sync a gardé une image de cette caméra, entre from et to. */
 export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>

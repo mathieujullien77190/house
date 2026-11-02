@@ -8,6 +8,10 @@ export interface ClipPlayerProps {
   /** Change à chaque nouveau clic sur le même clip : la lecture repart de `startAt` même si cette position n'a pas changé. */
   restart?: number
   onClose: () => void
+  /** La vidéo a de quoi afficher sa première image : le parent peut la montrer. */
+  onReady?: () => void
+  /** La vidéo ne se lit pas : le code d'erreur du navigateur (2 réseau, 3 décodage, 4 format non pris en charge). */
+  onFailure?: (code: number) => void
   /** Position de lecture, en secondes, à chaque avancée de la vidéo. */
   onTime: (seconds: number) => void
   /** Durée de la vidéo, une fois ses métadonnées connues. */

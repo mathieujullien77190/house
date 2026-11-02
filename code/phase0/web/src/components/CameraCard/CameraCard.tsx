@@ -8,7 +8,7 @@ import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
 import type { EventRow } from '@/types'
-import { CAMERA_OFF_TEXT, CAMERA_STARTING_TEXT, CAMERA_TITLE_PREFIX, NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT } from './constants'
+import { CAMERA_OFF_TEXT, CAMERA_STARTING_TEXT, CAMERA_TITLE_PREFIX, HIDDEN_PLAYER_CLASS, NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT } from './constants'
 import { captionOf, clipLead } from './helpers'
 import type { CameraCardProps } from './types'
 
@@ -68,7 +68,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const media = (
     <>
       {selected?.clip ? (
-        <div hidden={!clipReady}>
+        <div className={clipReady ? undefined : HIDDEN_PLAYER_CLASS}>
           <ClipPlayer
             key={selected.clip}
             apiKey={apiKey}
