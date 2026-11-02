@@ -5,6 +5,8 @@
 export const CLIP_MAX_LEAD_SECONDS = 5
 export const CAMERA_TITLE_PREFIX = 'Caméra : '
 export const LIVE_CAPTION = 'Direct'
+/** Le direct est un flux MJPEG que l'API relaie depuis go2rtc (le flux léger de la caméra, recodé en JPEG). */
+export const LIVE_FORMAT = 'MJPEG'
 export const AT_CAPTION_PREFIX = 'Image à '
 export const CLIP_CAPTION_PREFIX = 'Clip · '
 export const QUALITY_LABEL = 'Qualité de la vidéo'

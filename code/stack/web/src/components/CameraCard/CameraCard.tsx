@@ -9,7 +9,7 @@ import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
 import type { EventRow } from '@/types'
 import { CAMERA_OFF_TEXT, CAMERA_STARTING_TEXT, CAMERA_TITLE_PREFIX, HIDDEN_PLAYER_CLASS, NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT, QUALITY_LABEL, QUALITY_OPTIONS } from './constants'
-import { captionOf, clipLead, clipPathOf } from './helpers'
+import { captionOf, clipLead, clipPathOf, liveCaption } from './helpers'
 import type { CameraCardProps, Quality } from './types'
 
 /**
@@ -30,6 +30,8 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   // La version du clip à lire (la légère par défaut : tous les appareils la lisent) et d'où la reprendre quand on en change.
   const [quality, setQuality] = useState<Quality>('h264')
   const [resumeAt, setResumeAt] = useState(0)
+  // La résolution réelle du direct, lue dans l'image du navigateur à la première image reçue.
+  const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null)
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
   const [readyClip, setReadyClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
@@ -73,7 +75,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   ) : cursor !== null ? (
     <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} />
   ) : (
-    <ImageBox src={placeholder ? '' : live} message={placeholder || NO_IMAGE_TEXT} />
+    <ImageBox src={placeholder ? '' : live} message={placeholder || NO_IMAGE_TEXT} onSize={(width, height) => setLiveSize({ width, height })} />
   )
   // Le lecteur se monte dès le choix (il télécharge le clip) mais reste caché : l'image reste en place jusqu'à ce que la vidéo soit là.
   const media = (
@@ -100,7 +102,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   return (
     <CameraCardUI
       name={`${CAMERA_TITLE_PREFIX}${camera.name}`}
-      caption={captionOf(cursor, selected)}
+      caption={captionOf(cursor, selected, liveCaption(placeholder ? null : liveSize))}
       actions={
         <>
           {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...QUALITY_OPTIONS]} value={quality} onChange={changeQuality} /> : null}

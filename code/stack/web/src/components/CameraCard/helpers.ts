@@ -1,7 +1,7 @@
 import { describeEvent, formatTime } from '@/lib/format'
 import type { EventRow } from '@/types'
 import type { Quality } from './types'
-import { AT_CAPTION_PREFIX, CLIP_CAPTION_PREFIX, CLIP_MAX_LEAD_SECONDS, LIVE_CAPTION } from './constants'
+import { AT_CAPTION_PREFIX, CLIP_CAPTION_PREFIX, CLIP_MAX_LEAD_SECONDS, LIVE_CAPTION, LIVE_FORMAT } from './constants'
 
 /**
  * De combien le clip commence avant l'événement. Quand l'enregistreur a donné le début réel du clip, on l'utilise (il
@@ -19,8 +19,12 @@ export const clipLead = (event: EventRow, videoDuration: number | null): number 
 /** L'adresse du clip à lire : la copie H.264 si on la demande et qu'elle existe, sinon l'original. */
 export const clipPathOf = (event: EventRow, quality: Quality): string | null => (quality === 'h264' && event.clip_h264 ? event.clip_h264 : event.clip)
 
-export const captionOf = (cursor: number | null, selected: EventRow | null): string => {
+/** « Direct · MJPEG · 640×360 » : le type du flux et, une fois la première image reçue, sa résolution. */
+export const liveCaption = (size: { width: number; height: number } | null): string =>
+  [LIVE_CAPTION, LIVE_FORMAT, size ? `${size.width}×${size.height}` : ''].filter(Boolean).join(' · ')
+
+export const captionOf = (cursor: number | null, selected: EventRow | null, live: string): string => {
   if (selected) return selected.ended_at === null ? describeEvent(selected) : `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`
   if (cursor !== null) return `${AT_CAPTION_PREFIX}${formatTime(cursor)}`
-  return LIVE_CAPTION
+  return live
 }
