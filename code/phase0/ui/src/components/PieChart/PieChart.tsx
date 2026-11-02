@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   ARC_CLASS,
-  ARC_DIM_CLASS,
+  ARC_ACTIVE_CLASS,
   CENTER_LABEL_CLASS,
   CENTER_VALUE_CLASS,
   CENTER_WRAP_CLASS,
@@ -14,7 +14,6 @@ import {
   RADIUS,
   ROW_ACTIVE_CLASS,
   ROW_CLASS,
-  ROW_DIM_CLASS,
   SIZE,
   STROKE,
   STROKE_CLASS,
@@ -27,7 +26,7 @@ import type { PieChartProps } from './types'
 
 /**
  * Un camembert (anneau) et sa légende : chaque part a un nom, une valeur et une couleur de la maison. Survoler une
- * part ou sa ligne met les deux en avant et estompe le reste (l'état de survol est de la présentation pure).
+ * part ou sa ligne change la couleur de la part et surligne la ligne (l'état de survol est de la présentation pure).
  */
 const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) => {
   const [hovered, setHovered] = useState<string | null>(null)
@@ -35,7 +34,6 @@ const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) =>
   const sliceOf = (id: string) => slices.find((slice) => slice.id === id)
   const enter = (id: string) => () => setHovered(id)
   const leave = () => setHovered(null)
-  const dimmed = (id: string) => hovered !== null && hovered !== id
 
   return (
     <div className={WRAP_CLASS}>
@@ -51,7 +49,7 @@ const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) =>
                 r={RADIUS}
                 fill="none"
                 strokeWidth={STROKE}
-                className={`${STROKE_CLASS[slice?.tone ?? 'line']} ${ARC_CLASS} ${dimmed(arc.id) ? ARC_DIM_CLASS : ''}`}
+                className={`${hovered === arc.id ? ARC_ACTIVE_CLASS : STROKE_CLASS[slice?.tone ?? 'line']} ${ARC_CLASS}`}
                 strokeDasharray={arc.dashArray}
                 strokeDashoffset={arc.dashOffset}
               >
@@ -84,7 +82,7 @@ const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) =>
         {slices.map((slice) => (
           <li
             key={slice.id}
-            className={`${ROW_CLASS} ${hovered === slice.id ? ROW_ACTIVE_CLASS : ''} ${dimmed(slice.id) ? ROW_DIM_CLASS : ''}`}
+            className={`${ROW_CLASS} ${hovered === slice.id ? ROW_ACTIVE_CLASS : ''}`}
             onMouseEnter={enter(slice.id)}
             onMouseLeave={leave}
           >
