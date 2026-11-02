@@ -17,6 +17,8 @@ export interface AppUIProps {
   specs: Specs | null
   /** Les dernières mesures du processeur et de la mémoire, en pourcentage. */
   history: LiveHistory
+  /** Les caractéristiques de la machine sont ouvertes au départ (écran de bureau), fermées sur mobile. */
+  specsOpen: boolean
   /** Les conteneurs Docker, null tant qu'ils ne sont pas lus. */
   docker: Docker | null
   /** Heure du dernier chargement, vide avant le premier. */

@@ -3,7 +3,7 @@ import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
 import { fetchOverview, fetchDocker, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
 import type { Media, Docker, Overview, Power, Specs, System } from '@/types'
 import AppUI from './UI'
-import { DEFAULT_TAB, LIVE_CAPACITY, LIVE_MS, REFRESH_MS } from './constants'
+import { DEFAULT_TAB, DESKTOP_QUERY, LIVE_CAPACITY, LIVE_MS, REFRESH_MS } from './constants'
 import type { Status, TabId } from './types'
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
@@ -21,6 +21,8 @@ const App = () => {
   const [specs, setSpecs] = useState<Specs | null>(null)
   const [docker, setDocker] = useState<Docker | null>(null)
   const [history, setHistory] = useState<LiveHistory>(EMPTY_HISTORY)
+  // Écran de bureau ou mobile, lu une fois au départ : sur mobile les caractéristiques commencent fermées.
+  const [specsOpen] = useState(() => window.matchMedia(DESKTOP_QUERY).matches)
   const [loadedAt, setLoadedAt] = useState('')
   const [media, setMedia] = useState<Media | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -109,6 +111,7 @@ const App = () => {
       system={system}
       specs={specs}
       history={history}
+      specsOpen={specsOpen}
       docker={docker}
       loadedAt={loadedAt}
       media={media}

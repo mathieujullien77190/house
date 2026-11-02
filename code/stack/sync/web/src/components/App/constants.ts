@@ -28,6 +28,9 @@ export const DOCKER_NOTE =
 export const LIVE_START_LABEL = '−2 min'
 export const LIVE_END_LABEL = 'maintenant'
 export const LIVE_UNIT = '%'
+/** Le bureau commence à cette largeur (le point de rupture `lg` de Tailwind) ; en dessous, c'est la mise en page mobile. */
+export const DESKTOP_QUERY = '(min-width: 1024px)'
+export const CPU_MEMORY_TITLE = 'Processeur et mémoire (RAM)'
 export const LIVE_TITLE = 'En direct (2 dernières minutes)'
 export const LIVE_CPU_TITLE = 'Processeur'
 export const LIVE_MEMORY_TITLE = 'Mémoire (RAM)'

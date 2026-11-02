@@ -20,9 +20,8 @@ import { buildCpuChart, buildMemoryChart } from '@/lib/system'
 import {
   BACKUP_TITLE,
   CPU_CHART_LABEL,
-  CPU_TITLE,
+  CPU_MEMORY_TITLE,
   MEMORY_CHART_LABEL,
-  MEMORY_TITLE,
   SYSTEM_MISSING_TEXT,
   DISK_CHART_LABEL,
   DISK_TITLE,
@@ -63,7 +62,7 @@ import {
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, power, system, specs, docker, history, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onRefresh, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, power, system, specs, docker, history, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onRefresh, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
@@ -109,7 +108,7 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
             <>
               <div className={GRID_CLASS}>
                 <section>
-                  <Collapsible title={SPECS_TITLE} defaultOpen={false}>
+                  <Collapsible title={SPECS_TITLE} defaultOpen={specsOpen}>
                     {specItems.length ? <SpecList items={specItems} /> : <Notice text={SPECS_MISSING_TEXT} />}
                   </Collapsible>
                 </section>
@@ -149,26 +148,20 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                   />
                 </div>
               </Collapsible>
-              <div className={GRID_CLASS}>
-                <section>
-                  <Collapsible title={CPU_TITLE}>
-                    {cpuChart ? (
-                      <PieChart slices={cpuChart.slices} centerValue={cpuChart.centerValue} centerLabel={cpuChart.centerLabel} label={CPU_CHART_LABEL} />
-                    ) : (
-                      <Notice text={SYSTEM_MISSING_TEXT} />
-                    )}
-                  </Collapsible>
-                </section>
-                <section>
-                  <Collapsible title={MEMORY_TITLE}>
-                    {memoryChart ? (
-                      <PieChart slices={memoryChart.slices} centerValue={memoryChart.centerValue} centerLabel={memoryChart.centerLabel} label={MEMORY_CHART_LABEL} />
-                    ) : (
-                      <Notice text={SYSTEM_MISSING_TEXT} />
-                    )}
-                  </Collapsible>
-                </section>
-              </div>
+              <Collapsible title={CPU_MEMORY_TITLE}>
+                <div className={GRID_CLASS}>
+                  {cpuChart ? (
+                    <PieChart slices={cpuChart.slices} centerValue={cpuChart.centerValue} centerLabel={cpuChart.centerLabel} label={CPU_CHART_LABEL} />
+                  ) : (
+                    <Notice text={SYSTEM_MISSING_TEXT} />
+                  )}
+                  {memoryChart ? (
+                    <PieChart slices={memoryChart.slices} centerValue={memoryChart.centerValue} centerLabel={memoryChart.centerLabel} label={MEMORY_CHART_LABEL} />
+                  ) : (
+                    <Notice text={SYSTEM_MISSING_TEXT} />
+                  )}
+                </div>
+              </Collapsible>
               <Collapsible title={POWER_TITLE}>
                 {power ? <Totals totals={buildPowerTotals(power)} /> : <Notice text={POWER_MISSING_TEXT} />}
               </Collapsible>
