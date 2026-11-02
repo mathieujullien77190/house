@@ -4,9 +4,6 @@ import Button from '@/components/UI/Button'
 import SegmentedControl from '@/components/UI/SegmentedControl'
 import {
   ARIA_LABEL,
-  CLUSTER_LABEL_CLASS,
-  CLUSTER_RECT_CLASS,
-  CLUSTER_TITLE,
   LINK_HIT_CLASS,
   SVG_CLASS,
   VIEWPORT_CLASS,
@@ -19,7 +16,7 @@ import type { DiagramUIProps } from './types'
 
 const DiagramUI = ({
   svgRef, width, zoomLabel, canZoomIn, canZoomOut, onZoomIn, onZoomOut, onZoomReset,
-  floor, floors, onFloorChange, cluster, links, nodes,
+  floor, floors, onFloorChange, links, nodes,
 }: DiagramUIProps) => {
   return (
     <div>
@@ -41,15 +38,6 @@ const DiagramUI = ({
       <div className={VIEWPORT_CLASS}>
         <svg ref={svgRef} viewBox={VIEW_BOX} className={SVG_CLASS} style={{ width }} role="img" aria-label={`${ARIA_LABEL} – ${floor === 'rdc' ? 'rez-de-chaussée' : 'sous-sol'}`}>
           <HousePlan floor={floor} />
-
-          {cluster && (
-            <>
-              <rect x={cluster.x} y={cluster.y} width={cluster.w} height={cluster.h} rx="10" className={CLUSTER_RECT_CLASS} />
-              <text x={cluster.x + 10} y={cluster.y + 14} className={CLUSTER_LABEL_CLASS}>
-                {CLUSTER_TITLE}
-              </text>
-            </>
-          )}
 
           {links.map((l) => (
             <g key={l.id}>

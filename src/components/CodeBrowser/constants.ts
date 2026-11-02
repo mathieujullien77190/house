@@ -1,30 +1,30 @@
 import type { Language, Rule, TokenKind } from './types'
 
-const PREFIX = '/code/phase0/'
+const PREFIX = '/code/stack/'
 
-/** Les fichiers du dossier code/phase0, lus tels quels à la compilation (le site n'exécute rien de ce code). */
+/** Les fichiers du dossier code/stack, lus tels quels à la compilation (le site n'exécute rien de ce code). */
 const modules = import.meta.glob<string>(
   [
-    '/code/phase0/**/*.{yml,ts,tsx,js,json,html,css,md,sh}',
-    '/code/phase0/**/Dockerfile',
-    '/code/phase0/.env.example',
-    '/code/phase0/.dockerignore',
-    '!/code/phase0/data/**',
-    '!/code/phase0/**/node_modules/**',
-    '!/code/phase0/**/dist/**',
-    '!/code/phase0/ui/storybook-static/**',
-    '!/code/phase0/**/package-lock.json',
+    '/code/stack/**/*.{yml,ts,tsx,js,json,html,css,md,sh}',
+    '/code/stack/**/Dockerfile',
+    '/code/stack/.env.example',
+    '/code/stack/.dockerignore',
+    '!/code/stack/data/**',
+    '!/code/stack/**/node_modules/**',
+    '!/code/stack/**/dist/**',
+    '!/code/stack/ui/storybook-static/**',
+    '!/code/stack/**/package-lock.json',
   ],
   { query: '?raw', import: 'default', eager: true },
 )
 
-/** Contenu de chaque fichier, par chemin relatif à code/phase0. */
+/** Contenu de chaque fichier, par chemin relatif à code/stack. */
 export const FILES: Record<string, string> = Object.fromEntries(
   Object.entries(modules).map(([path, content]) => [path.slice(PREFIX.length), content]),
 )
 
 export const DEFAULT_FILE = 'docker-compose.yml'
-export const TREE_LABEL = 'Fichiers de la phase 0'
+export const TREE_LABEL = 'Fichiers du système'
 
 /** À la racine : les fichiers d'abord, puis les blocs dans cet ordre. */
 export const ORDER = [
@@ -103,7 +103,7 @@ export const EXPLANATIONS: Record<string, string> = {
   'sync/web/src/components/ClipsSection/ClipsSection.tsx': 'Les clips du disque backup, paginés (20 fichiers) dans le DataTable de @house/ui, avec taille, date et un bouton « voir ».',
   'sync/web/src/components/MediaPanel/MediaPanel.tsx': 'Le conteneur du panneau : l’adresse du fichier (servi par House Sync derrière la session) va au MediaPanel de @house/ui.',
   '.dockerignore': 'Ce que Docker ne copie pas dans les images : les dépendances et les compilations (WebApp, page de House Sync, API), refaites dans les images, les données et le .env.',
-  'api/Dockerfile': 'Image de House API, en deux étapes : la première compile la WebApp (npm ci puis vite build), la seconde installe les dépendances de l’API (Express, sans celles de développement) et garde le dossier web compilé, que l’API sert. Le contexte de build est le dossier phase0 pour voir les deux.',
+  'api/Dockerfile': 'Image de House API, en deux étapes : la première compile la WebApp (npm ci puis vite build), la seconde installe les dépendances de l’API (Express, sans celles de développement) et garde le dossier web compilé, que l’API sert. Le contexte de build est le dossier stack pour voir les deux.',
   'certs/Dockerfile': 'Image minuscule (Alpine + openssl) du conteneur éphémère des certificats : il lance make-certs.sh puis s’arrête. House Sync et l’API attendent qu’il ait fini.',
   'certs/make-certs.sh': 'Crée une fois la CA de la maison (rootCA.pem, à installer sur chaque appareil ; sa clé reste sur le PC), puis un certificat du PC signé par elle, avec les adresses de CERT_HOSTS (Chrome exige cette liste, le SAN). Il est refait si la liste change ou s’il expire dans moins de 30 jours. HTTPS est obligatoire : le cookie de session de l’API est Secure.',
   'api/package.json': 'L’API tourne sur Express 5 ; les types et TypeScript ne servent qu’à la vérification (npm run typecheck), Node 24 exécute le TypeScript tel quel.',
@@ -304,7 +304,7 @@ export const TOKEN_CLASS: Record<TokenKind, string> = {
   attr: 'text-backup',
 }
 
-export const EMPTY_TEXT = 'Aucun fichier trouvé dans code/phase0.'
+export const EMPTY_TEXT = 'Aucun fichier trouvé dans code/stack.'
 
 export const LAYOUT_CLASS = 'grid gap-3 md:grid-cols-[15rem_minmax(0,1fr)]'
 export const TREE_CLASS = 'rounded-xl border border-line bg-bg p-2 text-[0.85rem]'

@@ -3,5 +3,5 @@ dist
 storybook-static
 public/storybook
 package-lock.json
-code/phase0/data
+code/stack/data
 *.md

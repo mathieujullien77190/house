@@ -1,14 +1,9 @@
-// Modèle du schéma : types, modèles de composants (templates) et schéma par défaut.
-export type NodeKind = 'camera' | 'switch' | 'pi' | 'backup' | 'phone' | 'custom' | 'disk'
-export type LinkType = 'poe' | 'eth' | 'wifi' | 'usb'
+// Modèle du schéma : types, modèles de composants (templates) et schéma par défaut : l'état actuel du système.
+export type NodeKind = 'camera' | 'switch' | 'phone' | 'custom' | 'disk'
+/** `vpn` : le tunnel WireGuard de la Freebox, qui amène un téléphone de l'extérieur sur le réseau de la maison. */
+export type LinkType = 'poe' | 'eth' | 'wifi' | 'usb' | 'vpn'
 /** Étage où se trouve un composant : rez-de-chaussée (maison et jardin) ou sous-sol. */
 export type Floor = 'rdc' | 'basement'
-/**
- * Phase de déploiement : 0 = version light (2 Reolink, 1 switch PoE, ton PC qui enregistre), 1 = un mini PC neuf avec un
- * SSD de 1 To (la même pile Docker Compose), 2 = installation complète. Les phases 0 et 1 sont des scénarios à part,
- * sans cluster k3s.
- */
-export type Phase = 0 | 1 | 2
 
 export interface DiagramNode {
   id: string
@@ -18,8 +13,6 @@ export interface DiagramNode {
   h: number
   kind: NodeKind
   floor: Floor
-  /** Phases où le composant est présent. */
-  phases: Phase[]
   title: string
   sub: string
   /** Prix saisi à la main, utilisé seulement pour les composants libres. */
@@ -35,8 +28,6 @@ export interface DiagramLink {
   from: string
   to: string
   type: LinkType
-  /** Phases où le lien existe (la topologie change entre les phases). */
-  phases: Phase[]
 }
 
 export interface Template {
@@ -49,18 +40,13 @@ export interface Template {
   sub: string
 }
 
-export const inPhase = (item: { phases: Phase[] }, phase: Phase): boolean => item.phases.includes(phase)
-
 /** Composants dont le prix se saisit à la main : les composants libres et le disque dur externe. */
 export const isPricedByHand = (k: NodeKind): boolean => k === 'custom' || k === 'disk'
 
 export const isCameraKind = (k: NodeKind): boolean => k === 'camera'
 
-/** Nœuds du cluster k3s : les Pi5 et le Pi de sauvegarde (control-plane sans applications). */
-export const isK3sKind = (k: NodeKind): boolean => k === 'pi' || k === 'backup'
-
-/** Composants branchés directement sur une prise 230 V (les caméras PoE passent par les switchs). */
-export const isMainsKind = (k: NodeKind): boolean => k === 'switch' || k === 'pi' || k === 'backup'
+/** Composants branchés directement sur une prise 230 V (les caméras PoE passent par le switch). */
+export const isMainsKind = (k: NodeKind): boolean => k === 'switch'
 
 /** Un composant branché au secteur : un type qui l'est toujours, ou un composant libre qui déclare sa puissance. */
 export const isMainsNode = (n: DiagramNode): boolean => isMainsKind(n.kind) || (n.watts ?? 0) > 0
@@ -68,8 +54,6 @@ export const isMainsNode = (n: DiagramNode): boolean => isMainsKind(n.kind) || (
 /** Puissance maximale estimée par composant branché au secteur, en watts. */
 export const MAINS_WATTS: Partial<Record<NodeKind, number>> = {
   switch: 64, // budget PoE du TP-Link Omada ES208GP, caméras comprises
-  pi: 27, // alimentation officielle USB-C 27 W
-  backup: 27, // idem, sur le secteur comme les Pi5
 }
 
 /** Plan commun aux deux étages : le jardin et la maison tiennent dans ce cadre. */
@@ -78,8 +62,6 @@ export const CANVAS = { w: 900, h: 540 }
 export const templates: Record<NodeKind, Template> = {
   camera: { label: 'Reolink', w: 92, h: 36, floor: 'rdc', title: 'Reolink', sub: 'Caméra PoE' },
   switch: { label: 'Switch PoE', w: 120, h: 38, floor: 'basement', title: 'Switch PoE', sub: 'Alimente les caméras' },
-  pi: { label: 'Pi5', w: 108, h: 46, floor: 'basement', title: 'Pi5', sub: 'worker' },
-  backup: { label: 'Pi backup', w: 108, h: 46, floor: 'rdc', title: 'Pi backup', sub: 'k3s · sauvegarde' },
   phone: { label: 'Téléphone', w: 44, h: 72, floor: 'rdc', title: 'Téléphone', sub: 'WiFi' },
   disk: { label: 'Disque dur externe', w: 108, h: 36, floor: 'rdc', title: 'Disque dur', sub: 'USB · clips + base' },
   custom: { label: 'Composant libre', w: 96, h: 36, floor: 'rdc', title: 'Composant', sub: 'Personnalisé' },
@@ -87,36 +69,26 @@ export const templates: Record<NodeKind, Template> = {
 
 const node = (id: string, kind: NodeKind, x: number, y: number, extra: Partial<DiagramNode> = {}): DiagramNode => {
   const t = templates[kind]
-  return { id, x, y, w: t.w, h: t.h, kind, floor: t.floor, phases: [1, 2], title: t.title, sub: t.sub, ...extra }
+  return { id, x, y, w: t.w, h: t.h, kind, floor: t.floor, title: t.title, sub: t.sub, ...extra }
 }
 
 /**
- * Schéma de départ, posé sur le plan de la maison (voir plan.ts), en trois phases.
- * - Phase 0, version light : 2 Reolink 4K vers le portail, 1 switch PoE, le PC de la maison (enregistrement sur son disque).
- * - Phase 1 : un mini PC neuf (ACEMAGIC K1) fait tourner tous les conteneurs, 2 Reolink vers le portail, 1 switch,
- *   (SSD NVMe de 1 To en interne pour les clips et la base).
- * - Phase 2, l'installation complète : cluster k3s (2 Pi5 et le Pi de sauvegarde), 2 switchs, 2 Reolink au portail.
- * Rez-de-chaussée : 2 Reolink au portail, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon.
- * Sous-sol : 1 Pi5 et le 2ᵉ switch.
+ * Schéma de départ, posé sur le plan de la maison (voir plan.ts) : l'état actuel du système.
+ * Rez-de-chaussée : 2 Reolink au portail, le switch PoE, le mini PC (ACEMAGIC K1, SSD de 1 To, toute la pile Docker),
+ * la box (internet et serveur VPN WireGuard), le téléphone qui ouvre les applications par le WiFi de la box, et, hors de
+ * la maison (en haut à droite du jardin), le téléphone en 4G qui arrive par le tunnel WireGuard.
  */
 export const defaultNodes: DiagramNode[] = [
-  node('cam1', 'camera', 40, 205, { title: 'Reolink 1', zone: 'Portail', phases: [0, 1, 2] }),
-  node('cam2', 'camera', 40, 300, { title: 'Reolink 2', zone: 'Portail', phases: [0, 1, 2] }),
+  node('cam1', 'camera', 40, 205, { title: 'Reolink 1', zone: 'Portail' }),
+  node('cam2', 'camera', 40, 300, { title: 'Reolink 2', zone: 'Portail' }),
 
-  node('swA', 'switch', 440, 335, { title: 'Switch PoE A', floor: 'rdc', phases: [0, 1, 2] }),
-  node('swB', 'switch', 460, 175, { title: 'Switch PoE B', phases: [2] }),
-
-  node('pi1', 'pi', 600, 335, { title: 'Pi5 #1', sub: 'control-plane + worker', floor: 'rdc', phases: [2] }),
-  // Phase 1 : un mini PC neuf (479 €) fait tourner toute la pile ; son SSD M.2 de 1 To garde les clips et la base.
-  node('mini', 'custom', 590, 335, { title: 'Mini PC', sub: 'ACEMAGIC K1 · 1 To · Docker', floor: 'rdc', phases: [1], w: 130, price: 479, watts: 65 }),
-  // Phase 0 : le PC existant (déjà possédé, prix 0) fait l'enregistrement à la place du Pi5.
-  node('pc', 'custom', 600, 335, { title: 'PC', sub: 'enregistre le RTSP', floor: 'rdc', phases: [0], price: 0 }),
-  // Phase 0 : la box (internet) et le téléphone qui ouvre l'appli sur le PC, déjà possédés (prix 0).
-  node('box', 'custom', 600, 292, { title: 'Box', sub: 'internet', floor: 'rdc', phases: [0, 1], price: 0 }),
-  node('phone', 'phone', 300, 428, { sub: 'ouvre l’appli', phases: [0, 1] }),
-  node('pi2', 'pi', 320, 130, { title: 'Pi5 #2', sub: 'control-plane + worker', phases: [2] }),
-
-  node('bak', 'backup', 440, 270, { phases: [2] }),
+  node('swA', 'switch', 440, 335, { title: 'Switch PoE', floor: 'rdc' }),
+  // Le mini PC (479 €) fait tourner toute la pile ; son SSD de 1 To garde les clips et la base.
+  node('mini', 'custom', 590, 335, { title: 'Mini PC', sub: 'ACEMAGIC K1 · 1 To · Docker', floor: 'rdc', w: 130, price: 479, watts: 65 }),
+  // La box (internet, serveur VPN WireGuard) et le téléphone qui ouvre les applications : déjà possédés (prix 0).
+  node('box', 'custom', 600, 292, { title: 'Box', sub: 'internet · VPN WireGuard', floor: 'rdc', w: 130, price: 0 }),
+  node('phone', 'phone', 300, 428, { sub: 'ouvre les applis' }),
+  node('remote', 'phone', 790, 40, { title: 'Téléphone 4G', sub: 'hors de la maison' }),
 ]
 
 /** Type de lien déduit des deux extrémités. */
@@ -129,30 +101,15 @@ export const linkTypeFor = (a: NodeKind, b: NodeKind): LinkType => {
   return 'eth'
 }
 
-const link = (from: string, to: string, type: LinkType, phases: Phase[] = [1, 2]): DiagramLink => ({
-  id: `${from}-${to}`,
-  from,
-  to,
-  type,
-  phases,
-})
+const link = (from: string, to: string, type: LinkType): DiagramLink => ({ id: `${from}-${to}`, from, to, type })
 
 export const defaultLinks: DiagramLink[] = [
-  link('cam1', 'swA', 'poe', [0, 1, 2]),
-  link('cam2', 'swA', 'poe', [0, 1]),
-  // Phase 0 : le PC enregistre, relié à la box.
-  link('swA', 'pc', 'eth', [0]),
-  link('pc', 'box', 'eth', [0]),
-  link('phone', 'box', 'wifi', [0, 1]),
-  // Phase 1 : tout sur l'unique switch, relié à la box ; les clips sont sur le SSD interne du mini PC.
-  link('swA', 'mini', 'eth', [1]),
-  link('swA', 'box', 'eth', [1]),
-  // Phase 2 : cluster k3s, second switch, caméras du portail réparties sur les deux switchs.
-  link('swA', 'pi1', 'eth', [2]),
-  link('swA', 'pi2', 'eth', [2]),
-  link('cam2', 'swB', 'poe', [2]),
-  link('swA', 'swB', 'eth', [2]),
-  link('swB', 'pi1', 'eth', [2]),
-  link('swB', 'pi2', 'eth', [2]),
-  link('swB', 'bak', 'eth', [2]),
+  link('cam1', 'swA', 'poe'),
+  link('cam2', 'swA', 'poe'),
+  // Tout sur l'unique switch, relié à la box ; les clips sont sur le SSD interne du mini PC.
+  link('swA', 'mini', 'eth'),
+  link('swA', 'box', 'eth'),
+  link('phone', 'box', 'wifi'),
+  // L'accès distant : le téléphone en 4G entre par le tunnel WireGuard de la box, puis atteint le mini PC.
+  link('remote', 'box', 'vpn'),
 ]

@@ -1,4 +1,4 @@
-import { isK3sKind, type DiagramLink, type DiagramNode } from './nodes'
+import type { DiagramLink, DiagramNode } from './nodes'
 
 type Side = 'top' | 'bottom' | 'left' | 'right'
 interface Pt { x: number; y: number }
@@ -76,15 +76,4 @@ export const computeLinkPaths = (nodes: DiagramNode[], links: DiagramLink[]): Re
     out[l.id] = { d: `M ${a.p.x} ${a.p.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.p.x} ${b.p.y}` }
   }
   return out
-}
-
-/** Rectangle englobant les nœuds k3s (cadre du cluster), ou null s'il n'y en a pas. */
-export const clusterBox = (nodes: DiagramNode[]): { x: number; y: number; w: number; h: number } | null => {
-  const pis = nodes.filter((n) => isK3sKind(n.kind))
-  if (pis.length === 0) return null
-  const x1 = Math.min(...pis.map((n) => n.x)) - 14
-  const y1 = Math.min(...pis.map((n) => n.y)) - 22
-  const x2 = Math.max(...pis.map((n) => n.x + n.w)) + 14
-  const y2 = Math.max(...pis.map((n) => n.y + n.h)) + 10
-  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
 }

@@ -1,4 +1,4 @@
-/** Une ligne du déploiement : un équipement ou un service de la phase 0 et où le joindre. */
+/** Une ligne du déploiement : un équipement ou un service du système et où le joindre. */
 export interface DeployEntry {
   id: string
   name: string
@@ -10,11 +10,6 @@ export interface DeployEntry {
   account: string
   /** Détail utile, avec les termes du glossaire. */
   note: string
-}
-
-export interface DeploymentPanelProps {
-  /** La phase affichée : 0 (le PC) ou 1 (le mini PC). */
-  phase: 0 | 1
 }
 
 export interface DeploymentPanelUIProps {

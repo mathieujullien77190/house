@@ -10,6 +10,7 @@
   --switch: #7a4fd6;
   --pi: #1f9d6b;
   --backup: #d98a1c;
+  --vpn: #0e9bb5;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,6 +24,7 @@
     --switch: #a07df0;
     --pi: #3fc590;
     --backup: #f0a940;
+    --vpn: #3ccbe0;
   }
 }
 
@@ -36,6 +38,7 @@
   --color-switch: var(--switch);
   --color-pi: var(--pi);
   --color-backup: var(--backup);
+  --color-vpn: var(--vpn);
 }
 
 @layer base {

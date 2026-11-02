@@ -5,7 +5,6 @@ import type { FloorTab } from './types'
 export const MARGIN = 12
 export const VIEW_BOX = `${-MARGIN} ${-MARGIN} ${CANVAS.w + 2 * MARGIN} ${CANVAS.h + 2 * MARGIN}`
 export const ARIA_LABEL = 'Schéma du système de caméras'
-export const CLUSTER_TITLE = 'Cluster k3s'
 
 export const FLOORS: FloorTab[] = [
   { id: 'rdc', label: 'Rez-de-chaussée' },
@@ -30,6 +29,4 @@ export const ZOOM_BAR_CLASS = 'mb-2 flex flex-wrap items-center gap-1.5'
 export const LINK_DIM_CLASS = 'opacity-25'
 export const ZOOM_BUTTON_CLASS = 'min-w-8 !px-2'
 export const ZOOM_LABEL_CLASS = 'min-w-12 text-center text-[0.85rem] tabular-nums text-muted'
-export const CLUSTER_RECT_CLASS = 'fill-none stroke-pi stroke-[1.5] opacity-70 [stroke-dasharray:6_5]'
-export const CLUSTER_LABEL_CLASS = 'fill-pi text-xs font-semibold'
 export const LINK_HIT_CLASS = 'fill-none stroke-transparent stroke-[16] cursor-pointer [pointer-events:stroke]'

@@ -3,8 +3,6 @@ import type { NodeKind } from '@/nodes'
 export const KIND_STROKE: Record<NodeKind, string> = {
   camera: 'stroke-camera',
   switch: 'stroke-switch',
-  pi: 'stroke-pi',
-  backup: 'stroke-backup',
   phone: 'stroke-muted',
   custom: 'stroke-muted',
   disk: 'stroke-muted',

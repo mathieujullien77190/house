@@ -3,8 +3,8 @@ import PricingUI from './UI'
 import { buildSections, portsLabel, sum } from './helpers'
 import type { PricingProps } from './types'
 
-const Pricing = ({ phase, counts, customs, owned, credit, onAdd, onRemove, onReset }: PricingProps) => {
-  const lines = buildLines(counts, customs, phase, owned)
+const Pricing = ({ counts, customs, onAdd, onRemove, onReset }: PricingProps) => {
+  const lines = buildLines(counts, customs)
 
   const handleQuantityChange = (key: keyof Counts, value: number) => {
     // On compare à la quantité affichée, qui peut inclure des unités hors compteur.
@@ -17,10 +17,9 @@ const Pricing = ({ phase, counts, customs, owned, credit, onAdd, onRemove, onRes
     <PricingUI
       sections={buildSections(lines)}
       total={euro(sum(lines))}
-      breakdown={credit > 0 ? { withPrevious: euro(sum(lines) + credit), owned: euro(credit) } : undefined}
       estimated={euro(sum(lines.filter((l) => l.source === 'estimation')))}
-      ports={portsLabel(counts, phase)}
-      warnings={warnings(counts, phase)}
+      ports={portsLabel(counts)}
+      warnings={warnings(counts)}
       onQuantityChange={handleQuantityChange}
       onReset={onReset}
     />

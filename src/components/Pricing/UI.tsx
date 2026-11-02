@@ -5,7 +5,7 @@ import Stepper from '@/components/UI/Stepper'
 import { LINK_CLASS, NUM_CLASS, REPO_URL, TD_CLASS, TH_CLASS } from './constants'
 import type { PricingUIProps } from './types'
 
-const PricingUI = ({ sections, total, breakdown, estimated, ports, warnings, onQuantityChange, onReset }: PricingUIProps) => {
+const PricingUI = ({ sections, total, estimated, ports, warnings, onQuantityChange, onReset }: PricingUIProps) => {
   return (
     <Card as="section" className="mt-4">
       <h2 className="m-0 text-[1.15rem] font-semibold">Estimation des prix</h2>
@@ -22,11 +22,6 @@ const PricingUI = ({ sections, total, breakdown, estimated, ports, warnings, onQ
           <span className="text-[0.8rem] text-muted">Total</span>
           <strong className="text-2xl leading-tight">{total}</strong>
           <small className="text-muted">dont {estimated} estimés</small>
-          {breakdown && (
-            <small className="text-muted">
-              sans la phase 0 déjà achetée ({breakdown.owned}) ; avec : {breakdown.withPrevious}
-            </small>
-          )}
         </div>
         <div className="flex flex-col">
           <span className="text-[0.8rem] text-muted">Ports switch</span>

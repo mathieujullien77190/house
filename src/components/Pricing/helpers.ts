@@ -1,5 +1,4 @@
 import { PORTS_PER_SWITCH, euro, groups, portsNeeded, type Counts, type Line } from '@/catalog'
-import type { Phase } from '@/nodes'
 import { SOURCE_LABEL } from './constants'
 import type { PricingRowView, PricingSectionView } from './types'
 
@@ -31,6 +30,6 @@ export const buildSections = (lines: Line[]): PricingSectionView[] => {
   })
 }
 
-export const portsLabel = (counts: Counts, phase: Phase): string => {
-  return `${portsNeeded(counts, phase)} / ${counts.switches * PORTS_PER_SWITCH}`
+export const portsLabel = (counts: Counts): string => {
+  return `${portsNeeded(counts)} / ${counts.switches * PORTS_PER_SWITCH}`
 }

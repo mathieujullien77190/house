@@ -1,4 +1,4 @@
-import { linkTypeFor, type DiagramLink, type DiagramNode, type Phase } from '@/nodes'
+import { linkTypeFor, type DiagramLink, type DiagramNode } from '@/nodes'
 
 export interface WiringResult {
   links: DiagramLink[]
@@ -9,19 +9,15 @@ export interface WiringResult {
 const sameZone = (a?: string, b?: string): boolean =>
   !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase()
 
-/** Phases communes à deux composants (vide s'ils n'existent jamais ensemble). */
-const sharedPhases = (a: DiagramNode, b: DiagramNode): Phase[] => a.phases.filter((p) => b.phases.includes(p))
-
 /**
  * Branche une caméra sur un switch en fonction de sa zone :
  * - zone déjà couverte par d'autres caméras : l'autre switch (redondance) ;
  * - sinon, ou si tous les switchs sont déjà pris : le switch le moins chargé.
- * Seuls les switchs présents dans toutes les phases de la caméra sont candidats.
  * Les anciens liens de la caméra vers un switch sont remplacés.
  */
 export const autoWire = (nodes: DiagramNode[], links: DiagramLink[], cam: DiagramNode, makeId: () => string): WiringResult => {
   const allSwitches = nodes.filter((n) => n.kind === 'switch')
-  const switches = allSwitches.filter((sw) => cam.phases.every((p) => sw.phases.includes(p)))
+  const switches = allSwitches
   if (switches.length === 0) return { links }
 
   const isSwitch = (id: string) => allSwitches.some((sw) => sw.id === id)
@@ -57,43 +53,19 @@ export const autoWire = (nodes: DiagramNode[], links: DiagramLink[], cam: Diagra
   return {
     links: [
       ...kept,
-      { id: makeId(), from: cam.id, to: target.id, type: linkTypeFor(cam.kind, target.kind), phases: sharedPhases(cam, target) },
+      { id: makeId(), from: cam.id, to: target.id, type: linkTypeFor(cam.kind, target.kind) },
     ],
     notice,
   }
 }
 
 /**
- * Branche un composant d'infrastructure ajouté sans mode manuel :
- * - Pi5 : un lien vers chaque switch ;
- * - switch : un lien vers chaque Pi5 et vers le premier autre switch ;
- * - Pi de sauvegarde : un lien vers le switch le moins chargé.
- * Un lien n'existe que dans les phases communes aux deux composants.
- * Les autres types (composant libre) restent sans lien.
+ * Branche un composant ajouté sans mode manuel : un switch de plus se relie au premier autre switch (un seul câble
+ * entre les deux, sans boucle). Les autres types (composant libre, téléphone, disque) restent sans lien.
  */
 export const wireInfra = (nodes: DiagramNode[], links: DiagramLink[], node: DiagramNode, makeId: () => string): DiagramLink[] => {
-  const others = nodes.filter((n) => n.id !== node.id)
-  const switches = others.filter((n) => n.kind === 'switch')
-  const make = (target: DiagramNode): DiagramLink[] => {
-    const phases = sharedPhases(node, target)
-    if (phases.length === 0) return []
-    return [{ id: makeId(), from: node.id, to: target.id, type: linkTypeFor(node.kind, target.kind), phases }]
-  }
-
-  if (node.kind === 'pi') return [...links, ...switches.flatMap(make)]
-
-  if (node.kind === 'switch') {
-    const pis = others.filter((n) => n.kind === 'pi')
-    return [...links, ...pis.flatMap(make), ...switches.slice(0, 1).flatMap(make)]
-  }
-
-  if (node.kind === 'backup') {
-    const usable = switches.filter((sw) => sharedPhases(node, sw).length > 0)
-    if (usable.length === 0) return links
-    const load = (id: string) => links.filter((l) => l.from === id || l.to === id).length
-    const target = usable.reduce((best, sw) => (load(sw.id) < load(best.id) ? sw : best))
-    return [...links, ...make(target)]
-  }
-
-  return links
+  if (node.kind !== 'switch') return links
+  const other = nodes.find((n) => n.id !== node.id && n.kind === 'switch')
+  if (!other) return links
+  return [...links, { id: makeId(), from: node.id, to: other.id, type: linkTypeFor(node.kind, other.kind) }]
 }

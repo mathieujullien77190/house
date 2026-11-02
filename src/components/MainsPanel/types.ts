@@ -1,9 +1,7 @@
-import type { DiagramNode, Phase } from '@/nodes'
+import type { DiagramNode } from '@/nodes'
 
 export interface MainsPanelProps {
   nodes: DiagramNode[]
-  /** L'onduleur n'est prévu qu'en phase 2. */
-  phase: Phase
 }
 
 export interface MainsItem {

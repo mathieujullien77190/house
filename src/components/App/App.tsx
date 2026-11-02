@@ -1,24 +1,21 @@
 import { useState } from 'react'
-import { countsOf, creditFor, ownedFor, totalFor } from '@/catalog'
+import { countsOf } from '@/catalog'
 import CameraDialog from '@/components/CameraDialog'
 import Diagram from '@/components/Diagram'
 import GlossarySheet from '@/components/GlossarySheet'
 import InfoPanel from '@/components/InfoPanel'
-import K3sPanel from '@/components/K3sPanel'
 import Legend from '@/components/Legend'
 import MainsPanel from '@/components/MainsPanel'
-import PhaseArchitecture from '@/components/PhaseArchitecture'
-import PhaseSwitch from '@/components/PhaseSwitch'
+import Architecture from '@/components/Architecture'
 import Pricing from '@/components/Pricing'
 import { GlossaryContext } from '@/lib/glossaryContext'
-import { inPhase, isCameraKind, isPricedByHand, templates, type Floor, type NodeKind, type Phase } from '@/nodes'
+import { isCameraKind, isPricedByHand, templates, type Floor, type NodeKind } from '@/nodes'
 import { useDiagram } from '@/useDiagram'
 import AppUI from './UI'
 import { HINT, SUBTITLE, TITLE } from './constants'
 
 const App = () => {
   const d = useDiagram()
-  const [phase, setPhase] = useState<Phase>(0)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [selectedLink, setSelectedLink] = useState<string | null>(null)
   const [floor, setFloor] = useState<Floor>('rdc')
@@ -26,10 +23,10 @@ const App = () => {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [cameraOpen, setCameraOpen] = useState(false)
 
-  // Seuls les composants et les liens de la phase affichée comptent partout.
-  const nodes = d.nodes.filter((n) => inPhase(n, phase))
+  // Un lien dont une extrémité a disparu n'est pas montré.
+  const nodes = d.nodes
   const ids = new Set(nodes.map((n) => n.id))
-  const links = d.links.filter((l) => inPhase(l, phase) && ids.has(l.from) && ids.has(l.to))
+  const links = d.links.filter((l) => ids.has(l.from) && ids.has(l.to))
 
   const node = nodes.find((n) => n.id === selectedNode) ?? null
   const link = links.find((l) => l.id === selectedLink) ?? null
@@ -53,7 +50,7 @@ const App = () => {
   // Un composant ajouté apparaît à son étage : on y bascule pour le voir.
   const add = (kind: NodeKind) => {
     setFloor(templates[kind].floor)
-    selectNode(d.addNode(kind, phase))
+    selectNode(d.addNode(kind))
   }
 
   const removeLink = (id: string) => {
@@ -66,7 +63,6 @@ const App = () => {
     setSelectedNode(null)
     setSelectedLink(null)
     setFloor('rdc')
-    setPhase(0)
   }
 
   const openTerm = (id: string) => {
@@ -79,7 +75,6 @@ const App = () => {
       <AppUI
         title={TITLE}
         subtitle={SUBTITLE}
-        phaseSwitch={<PhaseSwitch phase={phase} totals={{ 0: totalFor(d.nodes, 0), 1: totalFor(d.nodes, 1), 2: totalFor(d.nodes, 2) }} onChange={setPhase} />}
         notice={d.notice}
         hint={HINT}
         diagram={
@@ -109,18 +104,14 @@ const App = () => {
             onSelectLink={selectLink}
           />
         }
-        architecture={phase === 2 ? null : <PhaseArchitecture phase={phase} />}
-        mains={phase === 0 ? null : <MainsPanel nodes={nodes} phase={phase} />}
-        k3s={phase === 2 ? <K3sPanel nodes={nodes} /> : null}
+        architecture={<Architecture />}
+        mains={<MainsPanel nodes={nodes} />}
         pricing={
           <Pricing
-            phase={phase}
             counts={countsOf(nodes)}
             customs={nodes.filter((n) => isPricedByHand(n.kind))}
-            owned={ownedFor(d.nodes, phase)}
-            credit={creditFor(d.nodes, phase)}
             onAdd={add}
-            onRemove={(kind) => d.removeLast(kind, phase)}
+            onRemove={(kind) => d.removeLast(kind)}
             onReset={reset}
           />
         }

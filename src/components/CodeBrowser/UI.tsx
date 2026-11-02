@@ -46,7 +46,7 @@ const CodeBrowserUI = ({ nodes, open, selected, onToggle, onSelect, tokens, expl
         </ul>
       </nav>
       <div className="min-w-0">
-        <p className={PATH_CLASS}>code/phase0/{selected}</p>
+        <p className={PATH_CLASS}>code/stack/{selected}</p>
         {explanation && <p className={EXPLANATION_CLASS}>{explanation}</p>}
         <pre className={CODE_BLOCK_CLASS}>
           <code>

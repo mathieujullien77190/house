@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { clusterBox, computeLinkPaths } from '@/geometry'
+import { computeLinkPaths } from '@/geometry'
 import { linkClass, type LinkLevel } from '@/lib/linkStyles'
 import { isMainsNode, type DiagramNode } from '@/nodes'
 import UI from './UI'
@@ -84,7 +84,6 @@ const Diagram = ({
       floor={floor}
       floors={FLOORS}
       onFloorChange={onFloorChange}
-      cluster={clusterBox(nodes.filter((n) => n.floor === floor))}
       links={linkViews}
       nodes={nodes.map((n) => ({
         n,

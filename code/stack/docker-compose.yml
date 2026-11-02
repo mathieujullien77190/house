@@ -1,0 +1,131 @@
+# La pile du mini PC : go2rtc (les flux des caméras), motion (l'enregistreur), House Sync, House API + WebApp, et un
+# conteneur éphémère pour les certificats. Démarrage : voir README.md.
+
+services:
+  # Conteneur éphémère : crée la CA de la maison et le certificat du PC dans data/certs, puis s'arrête.
+  # House Sync et l'API attendent qu'il ait fini pour démarrer avec ce certificat.
+  certs:
+    build: ./certs
+    restart: "no"
+    environment:
+      CERT_HOSTS: ${CERT_HOSTS}
+    volumes:
+      - ./data/certs:/certs
+
+  # go2rtc : une seule connexion RTSP vers la caméra, qu'il partage (RTSP interne, MJPEG, image à l'instant).
+  # Ni son RTSP (8554) ni son API (1984) ne sont publiés : seuls les autres conteneurs les voient.
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    restart: unless-stopped
+    environment:
+      REOLINK_PASSWORD: ${REOLINK_PASSWORD}
+      # La deuxième caméra (camera2) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA2_IP: ${CAMERA2_IP:-}
+      CAMERA2_USER: ${CAMERA2_USER:-admin}
+      CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    networks:
+      - sync_net
+
+  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (portail et camera2) : enregistre le flux principal
+  # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
+  motion:
+    build: ./motion
+    restart: unless-stopped
+    depends_on:
+      - go2rtc
+    environment:
+      CAMERAS: portail,camera2
+      GO2RTC_RTSP: rtsp://go2rtc:8554
+      GO2RTC_API: http://go2rtc:1984
+      # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
+      RETENTION_HOURS: "6"
+    volumes:
+      - ./data/recordings:/recordings
+      - ./data/clips:/data
+    networks:
+      - sync_net
+
+  sync:
+    build:
+      # Le contexte est le dossier stack : la page de House Sync consomme le paquet ui.
+      context: .
+      dockerfile: sync/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      motion:
+        condition: service_started
+      certs:
+        condition: service_completed_successfully
+    environment:
+      # Les enregistreurs (un par machine), séparés par des virgules : leur API est interne, sans mot de passe.
+      RECORDER_URLS: ${RECORDER_URLS:-http://motion:8080}
+      # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
+      HOUSE_KEY: ${API_KEY}
+      PAGE_PORT: "8081"
+      TLS_CERT: /certs/cert.pem
+      TLS_KEY: /certs/key.pem
+      DATA_DIR: /data
+      POLL_INTERVAL_SECONDS: "5"
+      # Une image par caméra et par minute, gardée 7 jours (~115 Mo par jour et par caméra).
+      SNAPSHOT_INTERVAL_SECONDS: "60"
+      SNAPSHOT_RETENTION_DAYS: "7"
+      # La consommation : la puissance du processeur (fichier de power/house-power.sh) et le PoE des caméras (House API).
+      POWER_FILE: /power/cpu.json
+      API_URL: https://api:8080
+      API_CA_FILE: /certs/rootCA.pem
+      API_SERVERNAME: localhost
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data/backup:/data
+      - ./data/certs:/certs:ro
+      - ./data/power:/power:ro
+      # Le nom et le système de la machine (le conteneur a les siens) : deux fichiers de l'hôte, en lecture seule.
+      # Le docker-compose.yml tel qu'il est lancé (références ${VARIABLE} seulement, pas de secret) : l'onglet Docker le montre.
+      - ./docker-compose.yml:/host/docker-compose.yml:ro
+      - /etc/hostname:/host/hostname:ro
+      - /etc/os-release:/host/os-release:ro
+    networks:
+      - sync_net
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+    environment:
+      DATA_DIR: /data
+      # La clé que l'utilisateur donne depuis la WebApp ; l'API ne démarre pas sans.
+      API_KEY: ${API_KEY}
+      # go2rtc : le direct (MJPEG) et l'image à l'instant, relayés par l'API.
+      GO2RTC_URLS: ${GO2RTC_URLS:-http://go2rtc:1984}
+      # Le switch PoE : l'API coupe ou rend le PoE du port d'une caméra (page web du switch). Sans mot de passe, le service poe répond 503.
+      SWITCH_URL: http://192.168.1.33
+      SWITCH_USER: ${SWITCH_USER:-admin}
+      SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
+      # Caméra:port du switch, séparés par des virgules.
+      SWITCH_PORTS: portail:3,camera2:4
+      # Le certificat de la maison : HTTPS pour la WebApp.
+      TLS_CERT: /certs/cert.pem
+      TLS_KEY: /certs/key.pem
+      # Le certificat PUBLIC de l'autorité de la maison, à télécharger depuis un téléphone (/rootCA.crt).
+      CA_CERT: /certs/rootCA.crt
+    ports:
+      - "8080:8080"
+    volumes:
+      # Lecture seule : l'API ne modifie jamais les clips, la base ni les certificats.
+      - ./data/backup:/data:ro
+      - ./data/certs:/certs:ro
+    networks:
+      - web_net
+      # Pour joindre go2rtc (go2rtc:1984), qui n'est jamais publié.
+      - sync_net
+
+networks:
+  sync_net:
+  web_net:

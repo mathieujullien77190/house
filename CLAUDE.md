@@ -9,47 +9,41 @@ Site React + TypeScript (Vite, Tailwind) pour **dessiner et chiffrer** un systè
 - ce qui se **branche au secteur** (badge ⚡) ;
 - un **tableau des prix** relié au schéma.
 
-Le dossier `code/phase0/` contient la **vraie pile de la phase 0** (Docker, en service sur le PC) : voir `code/phase0/CLAUDE.md` et le CLAUDE.md de chaque sous-dossier.
+Le dossier `code/stack/` contient la **vraie pile** (Docker, en service sur le mini PC) : voir `code/stack/CLAUDE.md` et le CLAUDE.md de chaque sous-dossier. Le site décrit l'**état actuel** du système : il n'y a plus de phases ni de scénarios.
 
 ## Le système modélisé
 
 ```
-Caméras : Reolink PoE
+Caméras : 2 Reolink RLC-810A, PoE, au portail
    │  un câble RJ45 par caméra (données + alimentation)
    ▼
-2 switchs PoE (A et B) reliés entre eux ; les caméras sont réparties entre les deux
-   │  chaque Pi5 a un lien vers A et un lien vers B
+1 switch PoE TP-Link ES208GP (ports 3 et 4 pour les caméras), relié à la box
    ▼
-Cluster k3s : les Pi5 (control-plane + worker) et le Pi de sauvegarde (control-plane sans applications)
+Mini PC ACEMAGIC K1 (Ubuntu Server, SSD de 1 To) : Docker Compose, tout en conteneurs
    ▼
-Pi de sauvegarde (SSD), sur le secteur comme les Pi5
+Box (Freebox) : internet, WiFi, serveur VPN WireGuard
+   ▲  tunnel WireGuard (un seul port UDP ouvert)
+Téléphone, hors de la maison
 ```
 
 **La maison** (`src/plan.ts`) : plain-pied avec jardin et sous-sol. Au nord : chambre 1, salle de bain, cuisine, escalier (en haut à droite). Au milieu : couloir à gauche, entrée à droite. Au sud : chambre 2 et le salon en L qui monte jusqu'à la cuisine. Portail à l'ouest, relié par un chemin à la porte au bout du couloir.
 
-**Trois phases** (`Phase = 0 | 1 | 2`, `phases` sur chaque composant et lien, `inPhase` dans `src/nodes.ts`). `PhaseSwitch` filtre le schéma, les panneaux et les prix.
-- **Phase 0, version light** : 2 Reolink 4K vers le portail, 1 switch PoE, le **PC** de la maison qui enregistre (`swA` → `pc` → `box` ← `phone`). `pc` et `box` sont des composants perso à 0 €, `phone` est relié à la box en `wifi`. Reolink comptée 74,50 € (lot de 2). Les panneaux secteur et k3s sont remplacés par `PhaseArchitecture`.
-- **Phase 1, un mini PC** : la pile de la phase 0 (Docker Compose, les mêmes conteneurs) passe sur un **mini PC neuf** (`mini`, composant libre à 479 € : ACEMAGIC K1, Ryzen 5 7530U (6 cœurs, 15 W), 16 Go, SSD M.2 1 To en interne pour les clips et la base, un port Ethernet 1 Gb/s, alimentation 19 V 3,42 A, Linux + Docker ; plus de disque externe). 2 Reolink au portail, 1 switch relié au `mini` et à la `box` ; le `phone` est relié à la box en `wifi`. Pas de Pi, pas de k3s : c'est un scénario à part, une seule machine (les deux Pi k3s ont été écartés : plus chers et moins puissants).
-- **Phase 2, installation complète** : le cluster k3s (2 Pi5 et le Pi de sauvegarde), 2 switchs (caméras et Pi répartis dessus), 2 Reolink au portail et l'onduleur.
+**Le schéma** (`defaultNodes` et `defaultLinks`, `src/nodes.ts`) : `cam1` et `cam2` (2 Reolink au portail) → `swA` (le switch) → `mini` (composant libre à 479 €, 65 W : ACEMAGIC K1, Ryzen 5 7530U, 16 Go, SSD M.2 1 To, un port Ethernet 1 Gb/s, Linux + Docker) et `box` (la box, 0 €) ; `phone` relié à la box en `wifi` ; `remote` (le téléphone en 4G, hors de la maison, dans le jardin en haut à droite) relié à la box par un lien `vpn` (WireGuard, bleu, longs tirets). Pas de Pi, pas de k3s (écartés : plus chers et moins puissants), pas de second switch.
 
-Le Pi de sauvegarde (phase 2 seulement) est sur le secteur avec sa propre alimentation 27 W (`pi-psu`), comme les Pi5.
-
-**`PhaseArchitecture`** (phases 0 et 1, prop `phase`) : cinq vues, données dans `constants.ts` (phase 0, et la vue logicielle de la phase 1, qui en dérive) et `constantsPhase1.ts` (matériel et textes de la phase 1, `PHASE_CONFIGS`). « Matériel » et « Logiciel » (schémas SVG), « Interfaces » (`InterfacesMap` : l'architecture des deux apps web, de `@house/ui`, de Storybook et de House API, pastilles posées par `layoutColumns`), « Code » (`CodeBrowser` : les fichiers de `code/phase0` avec une explication chacun), « Déploiement » (`DeploymentPanel`, aussi par phase : les adresses réelles de la maison, comptes nommés, jamais de mot de passe). `DEFAULT_VIEW` reste `'hardware'`.
-
-**Schéma de départ, phase 2** (`defaultNodes`, `src/nodes.ts`) : rez-de-chaussée, 2 Reolink au portail, 1 switch, 1 Pi5 et le Pi de sauvegarde dans le salon ; sous-sol, 1 switch et 1 Pi5.
+**`Architecture`** (`src/components/Architecture`) : cinq vues. « Matériel » et « Logiciel » (schémas SVG, avec l'accès distant WireGuard : un cadre « Hors de la maison », le tunnel en bleu, le serveur VPN de la Freebox), « Interfaces » (`InterfacesMap` : l'architecture des deux apps web, de `@house/ui`, de Storybook et de House API, pastilles posées par `layoutColumns`), « Code » (`CodeBrowser` : les fichiers de `code/stack` avec une explication chacun), « Déploiement » (`DeploymentPanel` : les adresses réelles de la maison, l'accès distant, comptes nommés, jamais de mot de passe). Les données sont dans `constants.ts` (`ARCHITECTURE`) ; une flèche `vpn: true` est le tunnel. `DEFAULT_VIEW` reste `'hardware'`.
 
 ## Règles métier
 
 - **Zones.** Une caméra a une zone (`ZONES`, `components/InfoPanel/constants.ts`). Quand elle change, `autoWire` (`src/wiring.ts`) la branche sur l'autre switch si la zone est déjà couverte (redondance), sinon sur le moins chargé.
-- **Cluster k3s.** Le Pi de sauvegarde est le 3ᵉ control-plane (taint `node-role.kubernetes.io/backup=true:NoSchedule`, seulement des jobs de sauvegarde). `isK3sKind` (`src/nodes.ts`), panneau `K3sPanel`. Quorum = Pi5 + Pi de sauvegarde (≥ 3), en phase 2 ; `K3sPanel` n'existe qu'en phase 2 ; l'avertissement de quorum aussi.
+- **Accès distant.** Jamais de redirection de ports : le VPN WireGuard de la Freebox amène un téléphone sur le réseau de la maison (adresse `192.168.27.0/24`), le pare-feu du mini PC (ufw, et `DOCKER-USER` pour les ports que Docker publie) n'ouvre SSH, 8080 et 8081 qu'au réseau de la maison et à ce réseau. Le lien `vpn` du schéma (`LinkType`) le représente.
 - **Panneau de détail.** Nom, description, zone, position (`locate`, `src/plan.ts`), liens décrits (`src/linkInfo.ts`) et mis en évidence dans le schéma.
 - **Glossaire.** Termes dans `src/glossary.ts` ; `components/UI/RichText` les rend cliquables et ouvre `GlossarySheet` (via `GlossaryContext`, `src/lib/glossaryContext.ts`). Jamais de `RichText` dans un `<button>`.
 - **Étages.** `floor` (`rdc` ou `basement`) sur chaque composant ; un étage affiché à la fois, l'autre en filigrane.
-- **Composants ajoutés** (boutons +/− des prix) : caméra selon les zones ; Pi5 relié à tous les switchs ; switch relié aux Pi5 et au premier autre switch ; Pi de sauvegarde au switch le moins chargé (`wireInfra`). Le type d'une liaison est déduit (`linkTypeFor`) ; une liaison se supprime seulement ; un composant se retire par le bouton −.
-- **Secteur 230 V.** Switchs, Pi5, Pi de sauvegarde et onduleur (`isMainsKind`, `MAINS_WATTS`). Les caméras sont en PoE.
+- **Composants ajoutés** (boutons +/− des prix) : caméra selon les zones ; switch relié au premier autre switch (`wireInfra`, un seul câble entre les deux). Le type d'une liaison est déduit (`linkTypeFor`) ; une liaison se supprime seulement ; un composant se retire par le bouton −.
+- **Secteur 230 V.** Le switch et les composants libres qui déclarent des watts, comme le mini PC (`isMainsNode`, `MAINS_WATTS`). Les caméras sont en PoE.
 - **Reolink RLC-810A** : 4K 25 i/s H.265, flux principal 4 à 8 Mb/s, flux secondaire 64 à 512 kb/s, PoE 802.3af 12 W, 94,99 € à l'unité. 2 lecteurs du flux principal au plus ; RTSP à activer dans la caméra ; pas d'ONVIF.
-- **Switch TP-Link Omada ES208GP** (69,99 €) : 8 ports PoE+, 64 W, administrable (PoE coupable port par port, reprise automatique). Un seul câble entre les deux switchs, pas de RSTP (détection de boucle seulement). Avertissement au-delà de 8 caméras par switch (`POE_PORTS_PER_SWITCH`) ; 64 W = 5 Reolink en pratique.
-- **Prix.** Calculés depuis le schéma ; les 3 Pi dans un groupe « Raspberry Pi ». En phase 1, le mini PC (479 €, SSD de 1 To compris) est un composant à prix saisi (un disque externe `disk` reste ajoutable : 129 € plus 6,95 € d'adaptateur) ; les câbles de 2 m (3 × 2,97 €, prix Kubii) sont des lignes à part, avec les câbles des caméras en plus ; la ligne du tableau est un lien vers la fiche (`url` de `Line`, `src/catalog.ts`). Les phases 1 et 2 ne listent que les achats nouveaux : les composants déjà présents dans une phase précédente (Reolink, switch, un câble par caméra) n'y sont pas recomptés (`ownedFor`), et le total est affiché sans, puis avec eux (`creditFor`). Rien n'est grisé : une ligne à zéro disparaît, sauf un compteur réglable qui n'est pas déjà acheté. Prix « dépôt » depuis `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`), le reste estimé. Le disque dur externe et les composants libres se chiffrent à la main (`isPricedByHand`). Avertissements : ports manquants, moins de 3 nœuds k3s (phase 2 seulement).
+- **Switch TP-Link Omada ES208GP** (69,99 €) : 8 ports PoE+, 64 W, administrable (PoE coupable port par port, reprise automatique). Si l'on ajoute un second switch : un seul câble entre les deux, pas de RSTP (détection de boucle seulement). Avertissement au-delà de 8 caméras par switch (`POE_PORTS_PER_SWITCH`) ; 64 W = 5 Reolink en pratique.
+- **Prix.** Calculés depuis le schéma, pour tout ce que le système compte aujourd'hui (`src/catalog.ts`). Le mini PC (479 €, SSD de 1 To compris) est un composant à prix saisi (un disque externe `disk` reste ajoutable : 129 € plus 6,95 € d'adaptateur) ; les câbles de 2 m (3 × 2,97 €, prix Kubii) sont des lignes à part, avec les câbles des caméras en plus ; la ligne du tableau est un lien vers la fiche (`url` de `Line`). Reolink comptée 74,50 € (lot de 2). Rien n'est grisé : une ligne à zéro disparaît, sauf un compteur réglable. Prix « dépôt » depuis `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`), le reste estimé. Le disque dur externe et les composants libres se chiffrent à la main (`isPricedByHand`). Avertissements : ports manquants, trop de caméras PoE par switch.
 
 ## Commandes
 
@@ -62,7 +56,7 @@ npm run lint       # eslint
 npm run build      # tsc puis vite build
 ```
 
-Avant de rendre un travail : `npx tsc`, `npx eslint .` et `npm run build` passent. Pour la pile de la phase 0, voir `code/phase0/CLAUDE.md`.
+Avant de rendre un travail : `npx tsc`, `npx eslint .` et `npm run build` passent. Pour la pile Docker, voir `code/stack/CLAUDE.md`.
 
 ## Organisation du code
 
@@ -74,24 +68,22 @@ src/
 ├── plan.ts         géométrie de la maison et localisation d'un composant
 ├── linkInfo.ts     libellés et descriptions des liaisons
 ├── geometry.ts     tracé des liens et cadre du cluster (fonctions pures)
-├── wiring.ts       branchements automatiques : autoWire (caméras) et wireInfra (Pi5, switchs, backup)
+├── wiring.ts       branchements automatiques : autoWire (caméras) et wireInfra (switchs)
 ├── useDiagram.ts   état du schéma : ajout, déplacement, zones, liens, localStorage
 ├── catalog.ts      catalogue de prix, compteurs, avertissements
 ├── glossary.ts     termes du glossaire
 ├── lib/            classes Tailwind partagées, GlossaryContext
 └── components/
     ├── App/                  assemble la page
-    ├── PhaseSwitch/          choix de la phase, budget de chacune
     ├── Diagram/              schéma SVG : étage, glisser, clavier, zoom, mode secteur
     ├── HousePlan/            fond du schéma : plan de la maison
     ├── DiagramNode/          un composant du schéma
     ├── InfoPanel/            détail du composant ou de la liaison
     ├── Legend/               légende
-    ├── K3sPanel/             nœuds k3s, règles, commandes
-    ├── PhaseArchitecture/   vues matériel, logiciel, interfaces, code, déploiement
-    ├── DeploymentPanel/      adresses réelles de la phase 0
+    ├── Architecture/         vues matériel, logiciel, interfaces, code, déploiement
+    ├── DeploymentPanel/      adresses réelles du système, accès distant
     ├── InterfacesMap/       schéma des interfaces : apps web, @house/ui, Storybook, House API
-    ├── CodeBrowser/          fichiers de code/phase0 : arbre, explication, code coloré
+    ├── CodeBrowser/          fichiers de code/stack : arbre, explication, code coloré
     ├── MainsPanel/           secteur 230 V
     ├── Pricing/              tableau des prix
     ├── CameraDialog/         boîte de dialogue d'une caméra (2D, 3D à la demande)
@@ -103,17 +95,17 @@ src/
 
 ## Conventions de code
 
-- **Un dossier par composant** : `Nom.tsx` (conteneur : état, hooks, handlers), `UI.tsx` (rendu pur), `helpers.ts` (fonctions pures), `constants.ts` (valeurs et classes Tailwind), `types.ts`, `index.ts` (export par défaut + types). Les mêmes conventions dans `code/phase0/web`, `code/phase0/sync/web` et le paquet `code/phase0/ui` (les composants dumb des deux apps, avec un Storybook ; les apps n'y gardent que les conteneurs).
+- **Un dossier par composant** : `Nom.tsx` (conteneur : état, hooks, handlers), `UI.tsx` (rendu pur), `helpers.ts` (fonctions pures), `constants.ts` (valeurs et classes Tailwind), `types.ts`, `index.ts` (export par défaut + types). Les mêmes conventions dans `code/stack/web`, `code/stack/sync/web` et le paquet `code/stack/ui` (les composants dumb des deux apps, avec un Storybook ; les apps n'y gardent que les conteneurs).
 - **Logique séparée du rendu** : `UI.tsx` n'a ni état métier ni calcul.
 - **Fonctions fléchées partout**, jamais de `function`. `export default` en fin de fichier de composant.
 - **Alias `@/` = `src/`** hors du dossier courant ; `./` dans le dossier ; jamais de `../`. On importe le dossier d'un composant.
 - **Composants de bas niveau** dans `components/UI/`, métier dans `components/`.
-- **Couleurs** : le plan utilise les couleurs de la page ; seuls composants et liaisons ont des couleurs d'accent.
+- **Couleurs** : le plan utilise les couleurs de la page ; seuls composants et liaisons ont des couleurs d'accent. Les liaisons ont chacune la leur (PoE bleu, VPN WireGuard bleu-vert à longs tirets : `--vpn` dans `index.css`).
 - **Caméras** : un clic (sans glisser, ou Entrée) ouvre `CameraDialog` (`<dialog>`, `UI/Dialog`) ; un glissement de plus de 4 unités déplace (`DRAG_THRESHOLD`).
 - **Three.js** : chargé avec `React.lazy` ; millimètres ; scène construite une fois, démontage qui libère tout (`forceContextLoss`) ; molette seule = défilement, Ctrl + molette = zoom ; rendu arrêté hors écran.
 - **Tailwind uniquement**, thème dans `index.css`. Une seule classe par propriété sur un élément (ordre non garanti).
 - TypeScript strict, pas de `any`.
-- **Vue « Code »** : l'arbre s'affiche avec tous les dossiers fermés, un clic sur un dossier l'ouvre ou le ferme (`open`, `visibleNodes`). Tout fichier ajouté dans `code/phase0` y apparaît ; son explication va dans `components/CodeBrowser/constants.ts` (`EXPLANATIONS` ; `UI.tsx`, `types.ts`, `constants.ts`, `helpers.ts`, `index.ts`, `CLAUDE.md` ont une explication générique dans `ROLE_EXPLANATIONS`).
+- **Vue « Code »** : l'arbre s'affiche avec tous les dossiers fermés, un clic sur un dossier l'ouvre ou le ferme (`open`, `visibleNodes`). Tout fichier ajouté dans `code/stack` y apparaît ; son explication va dans `components/CodeBrowser/constants.ts` (`EXPLANATIONS` ; `UI.tsx`, `types.ts`, `constants.ts`, `helpers.ts`, `index.ts`, `CLAUDE.md` ont une explication générique dans `ROLE_EXPLANATIONS`).
 
 ## Pièges connus
 

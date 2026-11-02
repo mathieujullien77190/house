@@ -1,7 +1,7 @@
 import Card from '@/components/UI/Card'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ title, subtitle, phaseSwitch, notice, hint, diagram, legend, info, architecture, mains, k3s, pricing, sheet }: AppUIProps) => {
+const AppUI = ({ title, subtitle, notice, hint, diagram, legend, info, architecture, mains, pricing, sheet }: AppUIProps) => {
   return (
     <>
       <header className="sticky top-0 z-10 border-b border-line bg-card/90 backdrop-blur">
@@ -12,9 +12,7 @@ const AppUI = ({ title, subtitle, phaseSwitch, notice, hint, diagram, legend, in
       </header>
 
       <main className="mx-auto max-w-[1280px] px-4 pb-28 pt-5">
-        <section aria-label="Phases">{phaseSwitch}</section>
-
-        <div className="mt-4 grid grid-cols-1 items-start gap-4 min-[901px]:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 items-start gap-4 min-[901px]:grid-cols-[1fr_320px]">
           <Card as="section">
             {notice && (
               <p className="mb-2 mt-0 border-l-[3px] border-camera bg-bg px-2.5 py-1.5 text-[0.85rem]" role="status">
@@ -33,12 +31,7 @@ const AppUI = ({ title, subtitle, phaseSwitch, notice, hint, diagram, legend, in
 
         {architecture}
 
-        {(mains || k3s) && (
-          <div className="mt-4 grid items-start gap-4 min-[1000px]:grid-cols-2">
-            {mains}
-            {k3s}
-          </div>
-        )}
+        {mains && <div className="mt-4">{mains}</div>}
 
         {pricing}
       </main>

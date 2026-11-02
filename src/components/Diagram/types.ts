@@ -17,13 +17,6 @@ export interface DiagramProps {
   onMove: (id: string, x: number, y: number) => void
 }
 
-export interface ClusterBox {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
 export interface LinkView {
   id: string
   d: string
@@ -49,7 +42,6 @@ export interface DiagramUIProps {
   floor: Floor
   floors: FloorTab[]
   onFloorChange: (floor: Floor) => void
-  cluster: ClusterBox | null
   links: LinkView[]
   nodes: DiagramNodeProps[]
 }

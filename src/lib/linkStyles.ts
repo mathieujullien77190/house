@@ -9,6 +9,7 @@ const LINK_COLOR: Record<LinkType, string> = {
   eth: 'stroke-muted',
   wifi: 'stroke-muted',
   usb: 'stroke-muted',
+  vpn: 'stroke-vpn',
 }
 
 const LINK_WIDTH: Record<LinkType, string> = {
@@ -16,14 +17,16 @@ const LINK_WIDTH: Record<LinkType, string> = {
   eth: 'stroke-2',
   wifi: 'stroke-2',
   usb: 'stroke-2',
+  vpn: 'stroke-[2.5]',
 }
 
-/** Le WiFi est en pointillés : pas de câble. */
+/** Le WiFi est en pointillés : pas de câble. Le VPN a de longs tirets : un tunnel par-dessus internet. */
 const LINK_DASH: Record<LinkType, string> = {
   poe: '',
   eth: '',
   wifi: '[stroke-dasharray:2_6]',
   usb: '[stroke-dasharray:8_3]',
+  vpn: '[stroke-dasharray:12_5]',
 }
 
 const LINK_GLOW: Record<LinkType, string> = {
@@ -31,6 +34,7 @@ const LINK_GLOW: Record<LinkType, string> = {
   eth: '[filter:drop-shadow(0_0_3px_var(--muted))]',
   wifi: '[filter:drop-shadow(0_0_3px_var(--muted))]',
   usb: '[filter:drop-shadow(0_0_3px_var(--muted))]',
+  vpn: '[filter:drop-shadow(0_0_3px_var(--vpn))]',
 }
 
 /** Une liaison mise en évidence garde la couleur de son type : plus épaisse, avec un halo. */

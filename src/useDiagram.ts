@@ -7,16 +7,14 @@ import {
   templates,
   type DiagramLink,
   type DiagramNode,
-  inPhase,
   type NodeKind,
-  type Phase,
 } from '@/nodes'
 import { autoWire, wireInfra } from '@/wiring'
 
 /** Où apparaît un nouveau composant : jardin au sud pour le rez-de-chaussée, local technique au sous-sol. */
 const SPAWN = { rdc: { x: 420, y: 440 }, basement: { x: 330, y: 300 } }
 
-const KEY = 'house-diagram-v25'
+const KEY = 'house-diagram-v26'
 
 interface State {
   nodes: DiagramNode[]
@@ -73,8 +71,8 @@ export const useDiagram = () => {
     }))
   }, [])
 
-  /** Ajoute un composant, présent à partir de la phase donnée. */
-  const addNode = useCallback((kind: NodeKind, phase: Phase): string => {
+  /** Ajoute un composant du type donné et le branche. */
+  const addNode = useCallback((kind: NodeKind): string => {
     const id = newId(kind)
     const linkId = newId('link')
     const t = templates[kind]
@@ -85,12 +83,11 @@ export const useDiagram = () => {
         id,
         kind,
         floor: t.floor,
-        phases: phase === 0 ? [0, 1, 2] : phase === 1 ? [1, 2] : [2],
         x: clamp(SPAWN[t.floor].x + i * 12, 0, CANVAS.w - t.w),
         y: clamp(SPAWN[t.floor].y + i * 12, 0, CANVAS.h - t.h),
         w: t.w,
         h: t.h,
-        title: kind === 'pi' ? `Pi5 #${count}` : `${t.title} ${count}`,
+        title: `${t.title} ${count}`,
         sub: t.sub,
         ...(kind === 'custom' ? { price: 0 } : {}),
         ...(kind === 'disk' ? { price: 129 } : {}),
@@ -117,10 +114,10 @@ export const useDiagram = () => {
   }, [])
 
   /** Retire le dernier composant ajouté de ce type (utilisé par les boutons − du tableau des prix). */
-  const removeLast = useCallback((kind: NodeKind, phase: Phase) => {
+  const removeLast = useCallback((kind: NodeKind) => {
     setState((s) => {
       for (let i = s.nodes.length - 1; i >= 0; i--) {
-        if (s.nodes[i].kind === kind && inPhase(s.nodes[i], phase)) return withoutNode(s, s.nodes[i].id)
+        if (s.nodes[i].kind === kind) return withoutNode(s, s.nodes[i].id)
       }
       return s
     })
