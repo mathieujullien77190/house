@@ -15,6 +15,9 @@ const config = loadConfig()
 const store = createEventStore(config.stateFile)
 const log = (message: string) => console.log(`${new Date().toISOString()} ${message}`)
 
+// Un événement resté ouvert d'une exécution précédente (redémarrage en plein mouvement) ne serait jamais fermé.
+for (const record of store.closeOrphans()) log(`${record.camera} : événement ${record.id} laissé ouvert par l’exécution précédente, fermé`)
+
 const TICK_MS = 5_000
 const PRUNE_MS = 60_000
 // Un segment dure `segmentSeconds` et n'est complet que quand le suivant commence : on attend un peu de plus.

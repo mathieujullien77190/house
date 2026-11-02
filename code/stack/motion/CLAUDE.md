@@ -13,7 +13,7 @@ Un programme TypeScript (Node 24, sans dépendance, ffmpeg dans l'image) fait po
 
 - `src/index.ts` : l'assemblage (une boucle par caméra, le tick de 5 s pour les clips, le nettoyage).
 - `src/detector.ts` : fonctions pures, `changedShare` (part des pixels changés de plus de `pixelThreshold`) et `createDetector` (la machine à états ; une part au-delà de `lightChangeThreshold` est un changement de lumière, ignoré).
-- `src/watcher.ts` : ffmpeg sur le flux léger, relancé s'il s'arrête. `src/segments.ts` : l'enregistrement par segments, le choix des segments d'une plage, le nettoyage. `src/clips.ts` : l'assemblage d'un clip. `src/events.ts` : le magasin d'événements, écrit dans `data/clips/events.json` (survit à un redémarrage). `src/server.ts` : l'API. `src/config.ts` : le réglage par l'environnement.
+- `src/watcher.ts` : ffmpeg sur le flux léger, relancé s'il s'arrête. `src/segments.ts` : l'enregistrement par segments, le choix des segments d'une plage, le nettoyage. `src/clips.ts` : l'assemblage d'un clip. `src/events.ts` : le magasin d'événements, écrit dans `data/clips/events.json` (survit à un redémarrage). Au démarrage, `closeOrphans` ferme les événements restés ouverts par l'exécution précédente (le détecteur repart de zéro et ne les fermerait jamais : sinon un événement « en cours » pour toujours dans la frise) ; leur clip se fait ensuite comme les autres. `src/server.ts` : l'API. `src/config.ts` : le réglage par l'environnement.
 - `src/*.test.ts` : les tests (`npm test`).
 
 ## Régler

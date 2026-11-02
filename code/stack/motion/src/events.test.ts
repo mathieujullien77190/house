@@ -48,3 +48,21 @@ test('selectSegments garde ceux qui recouvrent la plage, avec une marge', () => 
   assert.deepEqual(selectSegments(starts, 125, 142, 10), [110, 120, 130, 140])
   assert.deepEqual(selectSegments(starts, 1000, 1010, 10), [])
 })
+
+test('closeOrphans ferme au démarrage les événements restés ouverts, et eux seuls', () => {
+  const file = `${mkdtempSync(`${tmpdir()}/events-`)}/events.json`
+  const first = createEventStore(file)
+  const finished = first.open('portail', 1000)
+  first.close(finished.id, 1010)
+  const ghost = first.open('portail', 2000)
+  // Un redémarrage : le détecteur est neuf, mais le fichier garde l'événement ouvert.
+  const second = createEventStore(file)
+  assert.equal(second.list({ inProgress: true }).length, 1)
+  assert.deepEqual(second.closeOrphans().map((e) => e.id), [ghost.id])
+  assert.equal(second.list({ inProgress: true }).length, 0)
+  assert.equal(second.get(finished.id)?.end_time, 1010)
+  assert.equal(second.get(ghost.id)?.end_time, 2000)
+  assert.deepEqual(second.withoutClip().map((e) => e.id).sort(), [finished.id, ghost.id].sort())
+  assert.equal(createEventStore(file).list({ inProgress: true }).length, 0, 'la fermeture est écrite sur le disque')
+  assert.equal(second.closeOrphans().length, 0)
+})

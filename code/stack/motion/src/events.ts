@@ -52,6 +52,17 @@ export const createEventStore = (file: string) => {
         save()
       }
     },
+    /**
+     * Ferme les événements restés ouverts par une exécution précédente : le détecteur, lui, repart de zéro et ne les
+     * fermerait jamais (un événement « en cours » pour toujours dans la frise). À appeler au démarrage, avant la
+     * détection. Chacun se termine à son propre début ; son clip se fait ensuite comme les autres. Rend ceux qu'on a fermés.
+     */
+    closeOrphans: (): MotionRecord[] => {
+      const orphans = events.filter((e) => e.end_time === null)
+      for (const record of orphans) record.end_time = record.start_time
+      if (orphans.length > 0) save()
+      return orphans
+    },
     markClip: (id: string, clipStart: number) => {
       const record = events.find((e) => e.id === id)
       if (record) {
