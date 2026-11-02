@@ -1,0 +1,1 @@
+A donut chart with its legend: each slice has a name, an already formatted value and a house colour. A slice's size comes from the raw `value`, what is shown comes from `display`: the parent knows its units.

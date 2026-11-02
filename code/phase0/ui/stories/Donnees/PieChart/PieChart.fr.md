@@ -1,0 +1,1 @@
+Un camembert en anneau avec sa légende : chaque part a un nom, une valeur déjà mise en forme et une couleur de la maison. La taille d'une part vient de `value` (brute), l'affichage de `display` : le parent connaît ses unités.
