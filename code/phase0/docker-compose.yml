@@ -19,20 +19,24 @@ services:
     restart: unless-stopped
     environment:
       REOLINK_PASSWORD: ${REOLINK_PASSWORD}
+      # La deuxième caméra (camera2) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA2_IP: ${CAMERA2_IP:-}
+      CAMERA2_USER: ${CAMERA2_USER:-admin}
+      CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
     volumes:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
     networks:
       - sync_net
 
-  # L'enregistreur (voir motion/CLAUDE.md) : enregistre le flux principal par segments, détecte le mouvement sur
-  # le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
+  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (portail et camera2) : enregistre le flux principal
+  # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
     restart: unless-stopped
     depends_on:
       - go2rtc
     environment:
-      CAMERAS: portail
+      CAMERAS: portail,camera2
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -40,39 +44,6 @@ services:
     volumes:
       - ./data/recordings:/recordings
       - ./data/clips:/data
-    networks:
-      - sync_net
-
-  # Le second enregistreur, pour tester plusieurs machines (un enregistreur et son go2rtc par Pi) : mêmes images,
-  # son propre go2rtc, ses propres dossiers. Il ne démarre que si COMPOSE_PROFILES=second ; pour que House Sync et
-  # l'API le voient, ajouter son adresse dans RECORDER_URLS et GO2RTC_URLS (.env.example).
-  go2rtc2:
-    image: alexxit/go2rtc:latest
-    profiles: [second]
-    restart: unless-stopped
-    environment:
-      CAMERA2_IP: ${CAMERA2_IP:-}
-      CAMERA2_USER: ${CAMERA2_USER:-admin}
-      CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
-    volumes:
-      - ./go2rtc/go2rtc2.yaml:/config/go2rtc.yaml:ro
-    networks:
-      - sync_net
-
-  motion2:
-    build: ./motion
-    profiles: [second]
-    restart: unless-stopped
-    depends_on:
-      - go2rtc2
-    environment:
-      CAMERAS: camera2
-      GO2RTC_RTSP: rtsp://go2rtc2:8554
-      GO2RTC_API: http://go2rtc2:1984
-      RETENTION_HOURS: "6"
-    volumes:
-      - ./data/recordings2:/recordings
-      - ./data/clips2:/data
     networks:
       - sync_net
 
@@ -111,6 +82,11 @@ services:
       - ./data/backup:/data
       - ./data/certs:/certs:ro
       - ./data/power:/power:ro
+      # Le nom et le système de la machine (le conteneur a les siens) : deux fichiers de l'hôte, en lecture seule.
+      # Le docker-compose.yml tel qu'il est lancé (références ${VARIABLE} seulement, pas de secret) : l'onglet Docker le montre.
+      - ./docker-compose.yml:/host/docker-compose.yml:ro
+      - /etc/hostname:/host/hostname:ro
+      - /etc/os-release:/host/os-release:ro
     networks:
       - sync_net
 

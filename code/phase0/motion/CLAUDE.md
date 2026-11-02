@@ -18,6 +18,6 @@ Un programme TypeScript (Node 24, sans dépendance, ffmpeg dans l'image) fait po
 
 ## Régler
 
-Trop d'événements → monter `AREA_THRESHOLD` (part de pixels, 0,005 par défaut) ou `PIXEL_THRESHOLD` (écart de gris, 25) ; mouvements ratés → les baisser. Idées pour la suite : zones à ignorer (masque), fond moyen glissant au lieu de l'image précédente, plusieurs caméras (`CAMERAS=portail,jardin` : il faut aussi les flux `<nom>_main`, `<nom>_sub`, `<nom>_sub_mjpeg` dans `go2rtc/go2rtc.yaml`).
+Trop d'événements → monter `AREA_THRESHOLD` (part de pixels, 0,005 par défaut) ou `PIXEL_THRESHOLD` (écart de gris, 25) ; mouvements ratés → les baisser. Idées pour la suite : zones à ignorer (masque), fond moyen glissant au lieu de l'image précédente, d'autres caméras (déjà fait pour deux : `CAMERAS=portail,camera2`, avec les flux `<nom>_main`, `<nom>_sub`, `<nom>_sub_mjpeg` de chacune dans `go2rtc/go2rtc.yaml`).
 
 Conteneur : `docker compose up -d --build motion`, `docker compose logs -f motion`. Vérifications : `npm run typecheck && npm test`.

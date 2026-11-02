@@ -6,6 +6,10 @@ streams:
   portail_main: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
   portail_sub: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
   portail_sub_mjpeg: ffmpeg:portail_sub#video=mjpeg
+  # La deuxième caméra : adresse, compte et mot de passe viennent de .env (CAMERA2_IP, CAMERA2_USER, CAMERA2_PASSWORD).
+  camera2_main: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_main
+  camera2_sub: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_sub
+  camera2_sub_mjpeg: ffmpeg:camera2_sub#video=mjpeg
 
 rtsp:
   listen: ":8554"
