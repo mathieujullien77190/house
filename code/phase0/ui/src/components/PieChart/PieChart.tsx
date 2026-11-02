@@ -11,7 +11,6 @@ import {
   HIT_CLASS,
   LEGEND_CLASS,
   NAME_CLASS,
-  RADIUS,
   ROW_ACTIVE_CLASS,
   ROW_CLASS,
   SIZE,
@@ -42,32 +41,24 @@ const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) =>
           {arcs.map((arc) => {
             const slice = sliceOf(arc.id)
             return (
-              <circle
+              <path
                 key={arc.id}
-                cx={SIZE / 2}
-                cy={SIZE / 2}
-                r={RADIUS}
+                d={arc.path}
                 fill="none"
                 strokeWidth={STROKE}
                 className={`${STROKE_CLASS[slice?.tone ?? 'line']} ${ARC_CLASS} ${hovered === arc.id ? ARC_ACTIVE_CLASS : ''}`}
-                strokeDasharray={arc.dashArray}
-                strokeDashoffset={arc.dashOffset}
               >
                 <title>{slice ? `${slice.label} : ${slice.display}` : arc.id}</title>
-              </circle>
+              </path>
             )
           })}
           {arcs.map((arc) => (
-            <circle
+            <path
               key={`${arc.id}-hit`}
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={RADIUS}
+              d={arc.hitPath}
               fill="none"
               strokeWidth={STROKE}
               className={HIT_CLASS}
-              strokeDasharray={arc.hitDashArray}
-              strokeDashoffset={arc.hitDashOffset}
               onMouseEnter={enter(arc.id)}
               onMouseLeave={leave}
             />
