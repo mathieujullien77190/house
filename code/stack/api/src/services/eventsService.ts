@@ -21,6 +21,7 @@ const toDto = (row: EventRow): EventDto => ({
   started_at: row.started_at,
   ended_at: row.ended_at,
   clip: row.clip_path ? `/clips/${row.id}` : null,
+  clip_h264: row.clip_web_path ? `/clips/${row.id}/h264` : null,
   clip_started_at: row.clip_started_at,
 })
 
@@ -36,8 +37,8 @@ export const createEventsService = (events: EventsRepository) => ({
     const limit = Math.min(MAX_WINDOW_EVENTS, Math.max(1, query.limit ?? MAX_WINDOW_EVENTS))
     return events.between({ camera: query.camera, from: query.from, to: query.to }, limit).map(toDto)
   },
-  /** Le chemin du clip d'un événement sur le disque backup, ou null. */
-  clipPath: (id: string): string | null => events.clipPath(id),
+  /** Le chemin du clip d'un événement sur le disque backup (l'original, ou la copie H.264 avec `h264`), ou null. */
+  clipPath: (id: string, h264 = false): string | null => events.clipPath(id, h264),
 })
 
 export type EventsService = ReturnType<typeof createEventsService>

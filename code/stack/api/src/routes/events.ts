@@ -1,6 +1,6 @@
 // events (le dernier de chaque caméra avec ?last=1 ; avec ?camera=, ?from= et ?to= (secondes) les événements qui touchent
 // cette fenêtre, au plus 1000 (?limit= pour moins) ; sinon les 200 derniers) et clips/:id (la vidéo d'un événement).
-import { Router } from 'express'
+import { Router, type RequestHandler } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import type { EventsService } from '../services/eventsService.ts'
 
@@ -27,14 +27,17 @@ export const eventsRouter = (events: EventsService, files: BackupFiles): Router 
     }
     res.json(events.list({ lastOnly: req.query.last === '1', camera, from, to, limit }))
   })
-  router.get('/clips/:id', (req, res) => {
+  // L'original (H.265, 4K) et, à côté, la copie légère (H.264, 720p) que tous les navigateurs lisent.
+  const sendClip = (h264: boolean): RequestHandler => (req, res) => {
     const id = String(req.params.id)
-    const path = EVENT_ID.test(id) ? events.clipPath(id) : null
+    const path = EVENT_ID.test(id) ? events.clipPath(id, h264) : null
     if (!path) {
       res.status(404).json({ error: 'clip not found' })
       return
     }
     files.send(res, path, 'video/mp4')
-  })
+  }
+  router.get('/clips/:id', sendClip(false))
+  router.get('/clips/:id/h264', sendClip(true))
   return router
 }

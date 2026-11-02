@@ -13,4 +13,4 @@ export const SERVICES: ApiService[] = [
 ]
 
 export const CLIPS_NOTE =
-  'Pas de JSON, voir l’onglet Caméras : /clips/<id> (la vidéo d’un événement, mp4), /snapshot?camera=…&at=… (l’image la plus proche d’un instant, jpeg), /stream?camera=… (le direct, MJPEG relayé depuis go2rtc, accepte la session) et /frame?camera=… (l’image à l’instant) ; POST /poe/<caméra> avec {"on": false} coupe le PoE du port de la caméra, {"on": true} le rend.'
+  'Pas de JSON, voir l’onglet Caméras : /clips/<id> (la vidéo d’un événement, mp4, H.265 4K) et /clips/<id>/h264 (sa copie légère, H.264 720p, lisible partout), /snapshot?camera=…&at=… (l’image la plus proche d’un instant, jpeg), /stream?camera=… (le direct, MJPEG relayé depuis go2rtc, accepte la session) et /frame?camera=… (l’image à l’instant) ; POST /poe/<caméra> avec {"on": false} coupe le PoE du port de la caméra, {"on": true} le rend.'

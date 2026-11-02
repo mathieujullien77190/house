@@ -14,6 +14,8 @@ export interface EventRow {
   ended_at: number | null
   /** Chemin du service clips, ou null si le clip n'a pas été copié. */
   clip: string | null
+  /** La copie légère du clip (H.264, 720p, lisible partout), ou null si elle n'existe pas encore. */
+  clip_h264: string | null
   /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null (anciens clips). */
   clip_started_at: number | null
 }

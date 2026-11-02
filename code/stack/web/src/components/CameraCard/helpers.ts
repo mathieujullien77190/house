@@ -1,5 +1,6 @@
 import { describeEvent, formatTime } from '@/lib/format'
 import type { EventRow } from '@/types'
+import type { Quality } from './types'
 import { AT_CAPTION_PREFIX, CLIP_CAPTION_PREFIX, CLIP_MAX_LEAD_SECONDS, LIVE_CAPTION } from './constants'
 
 /**
@@ -14,6 +15,9 @@ export const clipLead = (event: EventRow, videoDuration: number | null): number 
   return Math.min(CLIP_MAX_LEAD_SECONDS, Math.max(0, (videoDuration - eventDuration) / 2))
 }
 
+
+/** L'adresse du clip à lire : la copie H.264 si on la demande et qu'elle existe, sinon l'original. */
+export const clipPathOf = (event: EventRow, quality: Quality): string | null => (quality === 'h264' && event.clip_h264 ? event.clip_h264 : event.clip)
 
 export const captionOf = (cursor: number | null, selected: EventRow | null): string => {
   if (selected) return selected.ended_at === null ? describeEvent(selected) : `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`

@@ -3,8 +3,8 @@
 //   2. il surveille le flux léger et ouvre un événement au début d'un mouvement, le ferme à sa fin ;
 //   3. quand un événement est fini et que ses segments sont écrits, il en fait un clip MP4.
 // Une petite API (server.ts) rend tout cela à House Sync, sous la forme que Frigate offrait.
-import { mkdirSync, unlinkSync } from 'node:fs'
-import { buildClip } from './clips.ts'
+import { existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
+import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
@@ -52,6 +52,32 @@ for (const camera of config.cameras) {
 
 startServer(config, store, log)
 
+// La copie H.264 720p de chaque clip qui n'en a pas (un navigateur sans décodeur H.265 ne lit que celle-là). Une à la fois :
+// l'encodage est fait par le processeur. Rattrape aussi les clips faits avant cette copie.
+let encoding = false
+const failedWebClips = new Set<string>()
+const makeWebClips = async () => {
+  if (encoding) return
+  encoding = true
+  try {
+    for (const record of store.list({ hasClip: true, limit: 1000 })) {
+      const clip = `${config.clipsDir}/${record.id}.mp4`
+      const web = webClipPath(clip)
+      if (!existsSync(clip) || existsSync(web) || failedWebClips.has(record.id)) continue
+      try {
+        await buildWebClip(clip, web)
+        log(`${record.camera} : copie H.264 ${record.id}`)
+      } catch (error) {
+        // Un clip illisible (fait de segments vides) échouerait à chaque tour : on ne réessaie qu'au prochain démarrage.
+        failedWebClips.add(record.id)
+        log(`${record.camera} : copie H.264 ${record.id} impossible : ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+  } finally {
+    encoding = false
+  }
+}
+
 // Toutes les 5 s : les événements finis dont tous les segments sont écrits reçoivent leur clip.
 setInterval(async () => {
   const now = Date.now() / 1000
@@ -74,6 +100,7 @@ setInterval(async () => {
       log(`${record.camera} : clip ${record.id} impossible : ${error instanceof Error ? error.message : String(error)}`)
     }
   }
+  await makeWebClips()
 }, TICK_MS)
 
 // Chaque minute : on jette les segments, les événements et les clips plus vieux que la rétention.
@@ -86,6 +113,7 @@ setInterval(() => {
     } catch {
       // pas de clip : rien à effacer
     }
+    rmSync(webClipPath(`${config.clipsDir}/${record.id}.mp4`), { force: true })
   }
 }, PRUNE_MS)
 

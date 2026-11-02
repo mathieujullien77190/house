@@ -2,6 +2,7 @@
 // dernière image), sans mot de passe ; elle n'écoute que sur le réseau Docker interne, jamais publiée.
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
+import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
 
@@ -40,9 +41,10 @@ export const startServer = (config: Config, store: EventStore, log: (message: st
       )
     }
 
-    const clip = /^\/api\/events\/([\w.-]+)\/clip\.mp4$/.exec(pathname)
+    // clip.mp4 : l'original (H.265, 4K) ; clip.h264.mp4 : la copie légère (H.264, 720p), absente tant qu'elle n'est pas faite.
+    const clip = /^\/api\/events\/([\w.-]+?)\/clip(\.h264)?\.mp4$/.exec(pathname)
     if (clip) {
-      const path = clipPath(clip[1])
+      const path = clip[2] ? webClipPath(clipPath(clip[1])) : clipPath(clip[1])
       if (!store.get(clip[1])?.has_clip || !existsSync(path)) return json(res, 404, { error: 'clip not found' })
       // X-Clip-Start : l'instant (secondes depuis 1970) où le clip commence, pour que House Sync le garde.
       res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': statSync(path).size, 'X-Clip-Start': String(store.get(clip[1])?.clip_start ?? '') })

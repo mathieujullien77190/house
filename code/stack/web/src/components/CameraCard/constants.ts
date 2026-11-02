@@ -7,6 +7,11 @@ export const CAMERA_TITLE_PREFIX = 'Caméra : '
 export const LIVE_CAPTION = 'Direct'
 export const AT_CAPTION_PREFIX = 'Image à '
 export const CLIP_CAPTION_PREFIX = 'Clip · '
+export const QUALITY_LABEL = 'Qualité de la vidéo'
+export const QUALITY_OPTIONS = [
+  { id: 'h264', label: 'H.264 · 720p' },
+  { id: 'original', label: 'H.265 · 4K' },
+] as const
 export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'
 export const CAMERA_OFF_TEXT = 'Caméra éteinte'
 export const CAMERA_STARTING_TEXT = 'Caméra en démarrage…'

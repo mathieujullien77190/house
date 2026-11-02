@@ -4,6 +4,7 @@ import { fetchClips } from '@/lib/api'
 import { formatDateMs, formatSize } from '@/lib/format'
 import type { BackupFile, Page } from '@/types'
 import { COLUMNS, DESCRIPTION, MUTED_CLASS, NUM_CLASS, OPEN_LABEL, PAGE_SIZE, TITLE } from './constants'
+import { versionOf } from './helpers'
 import type { ClipsSectionProps } from './types'
 
 /** Les clips du disque backup, paginés, avec un bouton pour voir chacun dans le panneau. */
@@ -34,6 +35,9 @@ const ClipsSection = ({ refreshTick, onOpen }: ClipsSectionProps) => {
         <span key="path" className="inline-flex flex-wrap items-center gap-2">
           <span>{file.path}</span>
           <Button onClick={() => onOpen({ path: file.path, kind: 'video' })}>{OPEN_LABEL}</Button>
+        </span>,
+        <span key="version" className={MUTED_CLASS}>
+          {versionOf(file.path)}
         </span>,
         <span key="size" className={NUM_CLASS}>
           {formatSize(file.size)}

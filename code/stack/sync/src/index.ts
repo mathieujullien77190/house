@@ -71,7 +71,8 @@ db.exec(`
     started_at INTEGER NOT NULL,
     ended_at INTEGER,
     clip_path TEXT,
-    clip_started_at INTEGER
+    clip_started_at INTEGER,
+    clip_web_path TEXT
   );
   CREATE TABLE IF NOT EXISTS last_images (
     camera TEXT PRIMARY KEY,
@@ -101,6 +102,10 @@ const upsertLive = db.prepare(
 if (!(db.prepare('PRAGMA table_info(events)').all() as { name: string }[]).some((column) => column.name === 'clip_started_at')) {
   db.exec('ALTER TABLE events ADD COLUMN clip_started_at INTEGER')
 }
+// Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).
+if (!(db.prepare('PRAGMA table_info(events)').all() as { name: string }[]).some((column) => column.name === 'clip_web_path')) {
+  db.exec('ALTER TABLE events ADD COLUMN clip_web_path TEXT')
+}
 const findEvent = db.prepare('SELECT ended_at FROM events WHERE id = ?')
 // Un événement en cours est inséré sans fin ni clip ; une fois terminé, la même ligne reçoit sa fin et son clip.
 const upsertEvent = db.prepare(
@@ -114,6 +119,8 @@ const eventsWithoutClip = db.prepare(
   'SELECT id, camera, label, started_at, ended_at FROM events WHERE clip_path IS NULL AND ended_at IS NOT NULL AND ended_at <= ? AND started_at > ?',
 )
 const updateClip = db.prepare('UPDATE events SET clip_path = ?, clip_started_at = ? WHERE id = ?')
+const clipsWithoutWeb = db.prepare('SELECT id, camera, clip_path FROM events WHERE clip_path IS NOT NULL AND clip_web_path IS NULL AND started_at > ?')
+const updateWebClip = db.prepare('UPDATE events SET clip_web_path = ? WHERE id = ?')
 // Un clip peut ne pas être prêt au moment de la copie : on réessaie tant que l'enregistreur garde ses enregistrements.
 const CLIP_RETRY_SECONDS = 6 * 3600
 // L'enregistreur écrit ses enregistrements par segments de 10 s : un clip demandé trop tôt après la fin de l'événement
@@ -291,6 +298,23 @@ const retryMissingClips = async () => {
   return repaired
 }
 
+// La copie légère (H.264 720p) des clips copiés : l'enregistreur la fabrique après le clip, on la récupère dès qu'elle existe
+// (et tant qu'il garde le clip). Les clips plus anciens n'en ont pas (voir sync/CLAUDE.md).
+const syncWebClips = async () => {
+  const now = Math.floor(Date.now() / 1000)
+  let copied = 0
+  for (const row of clipsWithoutWeb.all(now - CLIP_RETRY_SECONDS) as { id: string; camera: string; clip_path: string }[]) {
+    if (!/^[\w.-]+$/.test(row.id) || !/^[\w-]+$/.test(row.camera)) continue
+    const res = await recorder(row.camera, `/api/events/${row.id}/clip.h264.mp4`)
+    if (!res.ok) continue
+    const path = row.clip_path.replace(/\.mp4$/, '.h264.mp4')
+    await writeFile(`${DATA_DIR}/${path}`, Buffer.from(await res.arrayBuffer()))
+    updateWebClip.run(path, row.id)
+    copied += 1
+  }
+  return copied
+}
+
 let busy = false
 const poll = async () => {
   if (busy) return
@@ -309,7 +333,7 @@ const poll = async () => {
         log(`Enregistreur ${base} : ${error instanceof Error ? error.message : String(error)}`)
       }
     }
-    const repaired = await retryMissingClips()
+    const repaired = (await retryMissingClips()) + (await syncWebClips())
     const snapshots = await syncSnapshots(cameras)
     log(
       `${cameras.length} caméra(s), ${copied} nouvel(aux) événement(s)${ongoing ? `, ${ongoing} en cours` : ''}${repaired ? `, ${repaired} clip(s) récupéré(s)` : ''}${snapshots ? `, ${snapshots} image(s)` : ''}`,
