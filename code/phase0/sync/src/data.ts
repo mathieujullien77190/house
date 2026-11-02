@@ -1,5 +1,5 @@
 // Ce que la page de House Sync lit dans la base et sur le disque backup : fonctions pures, sans HTTP.
-import { readdir, stat } from 'node:fs/promises'
+import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
 export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots']
@@ -63,6 +63,23 @@ export const listBackup = async (dir: string, prefix = ''): Promise<BackupFile[]
     }
   }
   return out.sort((a, b) => b.modifiedMs - a.modifiedMs)
+}
+
+export interface DiskSpace {
+  /** La taille du disque qui porte le dossier, en octets. */
+  total: number
+  /** Ce qui reste libre pour un programme sans droits particuliers. */
+  free: number
+}
+
+/** La place du disque qui porte un dossier ; 0 et 0 si elle ne se lit pas. */
+export const readDiskSpace = async (dir: string): Promise<DiskSpace> => {
+  try {
+    const info = await statfs(dir)
+    return { total: Number(info.blocks) * Number(info.bsize), free: Number(info.bavail) * Number(info.bsize) }
+  } catch {
+    return { total: 0, free: 0 }
+  }
 }
 
 export const sumSize = (files: BackupFile[]): number => files.reduce((sum, f) => sum + f.size, 0)

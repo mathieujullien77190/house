@@ -100,11 +100,17 @@ services:
       # Une image par caméra et par minute, gardée 7 jours (~115 Mo par jour et par caméra).
       SNAPSHOT_INTERVAL_SECONDS: "60"
       SNAPSHOT_RETENTION_DAYS: "7"
+      # La consommation : la puissance du processeur (fichier de power/house-power.sh) et le PoE des caméras (House API).
+      POWER_FILE: /power/cpu.json
+      API_URL: https://api:8080
+      API_CA_FILE: /certs/rootCA.pem
+      API_SERVERNAME: localhost
     ports:
       - "8081:8081"
     volumes:
       - ./data/backup:/data
       - ./data/certs:/certs:ro
+      - ./data/power:/power:ro
     networks:
       - sync_net
 

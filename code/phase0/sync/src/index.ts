@@ -10,7 +10,9 @@ import { createServer as createHttpServer, type IncomingMessage, type ServerResp
 import { createServer as createHttpsServer } from 'node:https'
 import { extname, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { listBackup, pageParams, paginate, readTable, summarizeTables, sumSize } from './data.ts'
+import { readSystem } from './system.ts'
+import { readPower, type ApiTarget } from './power.ts'
+import { listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
 
 // L'enregistreur (conteneur motion) : son API est interne, sans mot de passe, jamais publiée.
 // Les enregistreurs à interroger (un par machine) : RECORDER_URLS, séparés par des virgules ; RECORDER_URL pour un seul.
@@ -26,6 +28,13 @@ const TLS_CERT = process.env.TLS_CERT ?? ''
 const TLS_KEY = process.env.TLS_KEY ?? ''
 const SESSION_COOKIE = 'house_sync'
 const DATA_DIR = process.env.DATA_DIR ?? './data'
+// La consommation : le fichier écrit sur l'hôte (power/house-power.sh) et House API (le PoE des caméras, même clé).
+const POWER_FILE = process.env.POWER_FILE ?? '/power/cpu.json'
+const API_URL = process.env.API_URL ?? ''
+const API_CA_FILE = process.env.API_CA_FILE ?? ''
+const API_SERVERNAME = process.env.API_SERVERNAME ?? 'localhost'
+const apiTarget = (): ApiTarget | null =>
+  API_URL && HOUSE_KEY && existsSync(API_CA_FILE) ? { url: API_URL, key: HOUSE_KEY, ca: readFileSync(API_CA_FILE, 'utf8'), servername: API_SERVERNAME } : null
 const INTERVAL_MS = Number(process.env.POLL_INTERVAL_SECONDS ?? 30) * 1000
 const EVENTS_PER_POLL = 50
 // Un événement long peut se terminer après des événements plus récents : on relit une heure en arrière.
@@ -266,7 +275,7 @@ const syncOngoingEvents = async (base: string, cameras: string[]) => {
 const retryMissingClips = async () => {
   const now = Math.floor(Date.now() / 1000)
   let repaired = 0
-  const rows = eventsWithoutClip.all(now - CLIP_SETTLE_SECONDS, now - CLIP_RETRY_SECONDS) as Omit<RecorderEvent, 'has_clip' | 'start_time' | 'end_time'>[]
+  const rows = eventsWithoutClip.all(now - CLIP_SETTLE_SECONDS, now - CLIP_RETRY_SECONDS) as (Omit<RecorderEvent, 'has_clip' | 'start_time' | 'end_time'> & { started_at: number; ended_at: number })[]
   for (const row of rows) {
     const clip = await copyClip({ ...row, has_clip: true, start_time: row.started_at, end_time: row.ended_at })
     if (!clip) continue
@@ -374,12 +383,14 @@ const overview = async () => {
   const clips = files.filter((f) => f.path.startsWith('clips/'))
   const snapshots = files.filter((f) => f.path.startsWith('snapshots/'))
   const dbSize = await stat(`${DATA_DIR}/events.db`).then((s) => s.size).catch(() => 0)
+  const disk = await readDiskSpace(DATA_DIR)
   return {
     database: { path: `${DATA_DIR}/events.db`, size: dbSize, tables: summarizeTables(db) },
     backup: {
       path: DATA_DIR,
       clips: { count: clips.length, size: sumSize(clips) },
       snapshots: { count: snapshots.length, size: sumSize(snapshots) },
+      disk,
     },
   }
 }
@@ -387,6 +398,8 @@ const overview = async () => {
 // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
 const service = async (res: ServerResponse, pathname: string, params: URLSearchParams) => {
   if (pathname === '/api/overview') return sendJson(res, 200, await overview())
+  if (pathname === '/api/system') return sendJson(res, 200, await readSystem())
+  if (pathname === '/api/power') return sendJson(res, 200, await readPower(POWER_FILE, apiTarget()))
   if (pathname === '/api/table') {
     const { page, size } = pageParams(params)
     const result = readTable(db, params.get('name') ?? '', page, size)
@@ -406,7 +419,7 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
   const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost')
   if (req.method === 'POST' && pathname === '/login') {
     // La clé arrive en JSON ({ key }) ; une session = un jeton aléatoire dans un cookie, en mémoire seulement.
-    let key = ''
+    let key: string
     try {
       key = String((JSON.parse(await readBody(req)) as { key?: unknown }).key ?? '')
     } catch {

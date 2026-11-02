@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchOverview, isLoginRequired, login, logout } from '@/lib/api'
-import type { Media, Overview } from '@/types'
+import { fetchOverview, fetchPower, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
+import type { Media, Overview, Power, System } from '@/types'
 import AppUI from './UI'
 import { DEFAULT_TAB, REFRESH_MS } from './constants'
 import type { Status, TabId } from './types'
@@ -15,6 +15,8 @@ const App = () => {
   const [status, setStatus] = useState<Status>('checking')
   const [message, setMessage] = useState('')
   const [overview, setOverview] = useState<Overview | null>(null)
+  const [power, setPower] = useState<Power | null>(null)
+  const [system, setSystem] = useState<System | null>(null)
   const [loadedAt, setLoadedAt] = useState('')
   const [media, setMedia] = useState<Media | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -24,6 +26,9 @@ const App = () => {
   const refresh = useCallback(async () => {
     try {
       setOverview(await fetchOverview())
+      // La consommation est secondaire : si elle ne se lit pas, le reste de la page marche quand même.
+      setPower(await fetchPower().catch(() => null))
+      setSystem(await fetchSystem().catch(() => null))
       setLoadedAt(new Date().toLocaleTimeString('fr-FR'))
       setRefreshTick((tick) => tick + 1)
       setStatus('ready')
@@ -74,6 +79,8 @@ const App = () => {
       status={status}
       message={message}
       overview={overview}
+      power={power}
+      system={system}
       loadedAt={loadedAt}
       media={media}
       refreshTick={refreshTick}

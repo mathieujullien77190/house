@@ -1,0 +1,81 @@
+// L'état de la machine que montre la page de House Sync : la mémoire et le processeur, lus dans /proc de l'hôte
+// (un conteneur Docker y voit ceux de la machine, pas les siens).
+import { readFile } from 'node:fs/promises'
+
+export interface MemoryUsage {
+  /** Mémoire vue par le système, en octets. */
+  total: number
+  /** Mémoire utilisable sans toucher au disque (libre et cache récupérable), en octets. */
+  available: number
+}
+
+export interface CpuUsage {
+  /** Part du temps où le processeur travaille, de 0 à 100, mesurée sur un court intervalle. */
+  percent: number
+  /** Nombre de threads (cœurs logiques). */
+  threads: number
+  /** Charge moyenne sur une minute. */
+  load1: number
+}
+
+export interface SystemReport {
+  memory: MemoryUsage | null
+  cpu: CpuUsage | null
+}
+
+const SAMPLE_MS = 400
+
+export const parseMemory = (meminfo: string): MemoryUsage | null => {
+  const kilobytes = (name: string): number | null => {
+    const match = new RegExp(`^${name}:\\s+(\\d+)\\s+kB`, 'm').exec(meminfo)
+    return match ? Number(match[1]) : null
+  }
+  const total = kilobytes('MemTotal')
+  const available = kilobytes('MemAvailable')
+  return total === null || available === null ? null : { total: total * 1024, available: available * 1024 }
+}
+
+export interface CpuTimes {
+  busy: number
+  total: number
+}
+
+/** Les temps cumulés de la ligne « cpu » de /proc/stat : user nice system idle iowait irq softirq steal. */
+export const parseCpuTimes = (stat: string): CpuTimes | null => {
+  const line = stat.split('\n').find((l) => l.startsWith('cpu '))
+  if (!line) return null
+  const values = line.trim().split(/\s+/).slice(1, 9).map(Number)
+  if (values.length < 4 || values.some(Number.isNaN)) return null
+  const total = values.reduce((sum, value) => sum + value, 0)
+  const idle = (values[3] ?? 0) + (values[4] ?? 0)
+  return { busy: total - idle, total }
+}
+
+export const cpuPercent = (before: CpuTimes, after: CpuTimes): number => {
+  const total = after.total - before.total
+  return total <= 0 ? 0 : Math.min(100, Math.max(0, ((after.busy - before.busy) / total) * 100))
+}
+
+export const countThreads = (stat: string): number => stat.split('\n').filter((l) => /^cpu\d+ /.test(l)).length
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const readCpu = async (): Promise<CpuUsage | null> => {
+  try {
+    const first = await readFile('/proc/stat', 'utf8')
+    await wait(SAMPLE_MS)
+    const second = await readFile('/proc/stat', 'utf8')
+    const before = parseCpuTimes(first)
+    const after = parseCpuTimes(second)
+    if (!before || !after) return null
+    const load1 = Number((await readFile('/proc/loadavg', 'utf8')).split(' ')[0])
+    return { percent: cpuPercent(before, after), threads: countThreads(second), load1: Number.isNaN(load1) ? 0 : load1 }
+  } catch {
+    return null
+  }
+}
+
+export const readSystem = async (): Promise<SystemReport> => ({
+  memory: parseMemory(await readFile('/proc/meminfo', 'utf8').catch(() => '')),
+  cpu: await readCpu(),
+})

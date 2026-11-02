@@ -1,0 +1,9 @@
+[Unit]
+Description=House : puissance du processeur (RAPL) pour House Sync
+
+[Service]
+ExecStart=/usr/local/bin/house-power
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
