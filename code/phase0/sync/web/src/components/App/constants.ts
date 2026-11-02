@@ -60,5 +60,5 @@ export const POWER_MISSING_TEXT = 'Consommation indisponible.'
 export const LOADING_TEXT = 'Chargement…'
 
 export const TABS_CLASS = 'mt-4'
-/** Les graphiques côte à côte tant qu'il y a la place, l'un sous l'autre sinon. */
-export const GRID_CLASS = 'grid grid-cols-[repeat(auto-fit,minmax(min(100%,30rem),1fr))] gap-x-4'
+/** Les graphiques l'un sous l'autre de 360 à 1024 px (mobile), côte à côte au-delà (bureau). */
+export const GRID_CLASS = 'grid grid-cols-1 gap-x-4 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,30rem),1fr))]'

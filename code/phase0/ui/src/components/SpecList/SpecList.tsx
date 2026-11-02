@@ -1,4 +1,4 @@
-import { LABEL_CLASS, VALUE_CLASS, WRAP_CLASS } from './constants'
+import { ITEM_CLASS, LABEL_CLASS, VALUE_CLASS, WRAP_CLASS } from './constants'
 import type { SpecListProps } from './types'
 
 /** Une liste de caractéristiques : un nom à gauche, sa valeur à droite, dans une carte. */
@@ -6,7 +6,7 @@ const SpecList = ({ items }: SpecListProps) => {
   return (
     <dl className={WRAP_CLASS}>
       {items.map((item) => (
-        <div key={item.id} className="contents">
+        <div key={item.id} className={ITEM_CLASS}>
           <dt className={LABEL_CLASS}>{item.label}</dt>
           <dd className={VALUE_CLASS}>{item.value}</dd>
         </div>

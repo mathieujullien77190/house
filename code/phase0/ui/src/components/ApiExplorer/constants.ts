@@ -4,7 +4,7 @@ export const KEY_BADGE = 'clé'
 export const EMPTY_TEXT = 'Choisis un service à gauche.'
 export const BUSY_TEXT = 'Appel en cours…'
 
-export const LAYOUT_CLASS = 'mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]'
+export const LAYOUT_CLASS = 'mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]'
 export const INTRO_CLASS = 'mt-3 text-[0.9rem] text-muted'
 export const LIST_CLASS = 'm-0 list-none space-y-1.5 p-0'
 export const SERVICE_CLASS = 'block w-full cursor-pointer rounded-lg border px-3 py-2 text-left hover:border-accent'

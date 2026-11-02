@@ -1,5 +1,6 @@
 import Pager from '../Pager'
 import {
+  BODY_CLASS,
   CARD_CLASS,
   CELL_CLASS,
   CHEVRON_CLASS,
@@ -12,10 +13,12 @@ import {
   EXPAND_ARIA,
   HEAD_CELL_CLASS,
   HEAD_CLASS,
+  HEAD_GROUP_CLASS,
   ROW_CLASS,
   TABLE_CLASS,
   TITLE_CLASS,
   TOGGLE_CLASS,
+  VALUE_CLASS,
   WRAP_CLASS,
 } from './constants'
 import type { DataTableProps } from './types'
@@ -47,7 +50,7 @@ const DataTable = ({ title, description, detail, columns, rows, keys, page, size
       ) : (
         <div className={WRAP_CLASS}>
           <table className={TABLE_CLASS}>
-            <thead>
+            <thead className={HEAD_GROUP_CLASS}>
               <tr>
                 {columns.map((column) => (
                   <th key={column} className={HEAD_CELL_CLASS}>
@@ -56,12 +59,12 @@ const DataTable = ({ title, description, detail, columns, rows, keys, page, size
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className={BODY_CLASS}>
               {rows.map((cells, index) => (
                 <tr key={keys[index]} className={ROW_CLASS}>
                   {cells.map((cell, column) => (
-                    <td key={columns[column]} className={CELL_CLASS}>
-                      {cell}
+                    <td key={columns[column]} data-label={columns[column]} className={CELL_CLASS}>
+                      <span className={VALUE_CLASS}>{cell}</span>
                     </td>
                   ))}
                 </tr>
