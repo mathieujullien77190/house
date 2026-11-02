@@ -11,12 +11,12 @@ export interface ChartModel {
 
 /** Le camembert du disque : ce que House Sync y a mis, le reste du disque (système, enregistrements), et le libre ; null si la taille est inconnue. */
 export const buildDiskChart = (overview: Overview): ChartModel | null => {
-  const { total, free } = overview.backup.disk
+  const { total, free, reserved } = overview.backup.disk
   if (total <= 0) return null
   const clips = overview.backup.clips.size
   const snapshots = overview.backup.snapshots.size
   const database = overview.database.size
-  const used = Math.max(0, total - free)
+  const used = Math.max(0, total - free - reserved)
   const other = Math.max(0, used - clips - snapshots - database)
   const slice = (id: string, label: string, value: number, tone: PieSlice['tone']): PieSlice => ({ id, label, value, display: formatSize(value), tone })
   return {
@@ -25,6 +25,7 @@ export const buildDiskChart = (overview: Overview): ChartModel | null => {
       slice('snapshots', 'Images par minute', snapshots, 'green'),
       slice('db', 'Base SQLite', database, 'orange'),
       slice('other', 'Autres fichiers (système, enregistrements)', other, 'muted'),
+      slice('reserved', 'Réservé au système (ext4)', reserved, 'danger'),
       slice('free', 'Libre', free, 'line'),
     ],
     centerValue: formatSize(free),

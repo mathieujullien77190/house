@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchOverview, fetchPower, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
-import type { Media, Overview, Power, System } from '@/types'
+import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
+import { fetchOverview, fetchDocker, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
+import type { Media, Docker, Overview, Power, Specs, System } from '@/types'
 import AppUI from './UI'
-import { DEFAULT_TAB, REFRESH_MS } from './constants'
+import { DEFAULT_TAB, LIVE_CAPACITY, LIVE_MS, REFRESH_MS } from './constants'
 import type { Status, TabId } from './types'
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
@@ -17,6 +18,9 @@ const App = () => {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [power, setPower] = useState<Power | null>(null)
   const [system, setSystem] = useState<System | null>(null)
+  const [specs, setSpecs] = useState<Specs | null>(null)
+  const [docker, setDocker] = useState<Docker | null>(null)
+  const [history, setHistory] = useState<LiveHistory>(EMPTY_HISTORY)
   const [loadedAt, setLoadedAt] = useState('')
   const [media, setMedia] = useState<Media | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -29,6 +33,8 @@ const App = () => {
       // La consommation est secondaire : si elle ne se lit pas, le reste de la page marche quand même.
       setPower(await fetchPower().catch(() => null))
       setSystem(await fetchSystem().catch(() => null))
+      setSpecs(await fetchSpecs().catch(() => null))
+      setDocker(await fetchDocker().catch(() => null))
       setLoadedAt(new Date().toLocaleTimeString('fr-FR'))
       setRefreshTick((tick) => tick + 1)
       setStatus('ready')
@@ -54,6 +60,26 @@ const App = () => {
     const timer = setInterval(refresh, REFRESH_MS)
     return () => clearInterval(timer)
   }, [status, media, refresh])
+
+  // Onglet Machine ouvert : le processeur et la mémoire sont relus toutes les 2 s pour la courbe en direct.
+  useEffect(() => {
+    if (status !== 'ready' || tab !== 'system') return
+    let stopped = false
+    const timer = setInterval(async () => {
+      try {
+        const next = await fetchSystem()
+        if (stopped) return
+        setSystem(next)
+        setHistory((current) => addSystemSample(current, next, LIVE_CAPACITY))
+      } catch {
+        // une mesure perdue : la courbe attend la suivante
+      }
+    }, LIVE_MS)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [status, tab])
 
   const connect = async (key: string) => {
     setStatus('checking')
@@ -81,6 +107,9 @@ const App = () => {
       overview={overview}
       power={power}
       system={system}
+      specs={specs}
+      history={history}
+      docker={docker}
       loadedAt={loadedAt}
       media={media}
       refreshTick={refreshTick}

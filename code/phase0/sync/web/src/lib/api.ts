@@ -1,5 +1,5 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
-import type { BackupFile, Overview, Page, Power, Row, System } from '@/types'
+import type { BackupFile, Overview, Docker, Page, Power, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
   status: number
@@ -29,6 +29,10 @@ export const logout = async (): Promise<void> => {
 }
 
 export const fetchOverview = async (): Promise<Overview> => (await request('/api/overview')).json()
+
+export const fetchDocker = async (): Promise<Docker> => (await request('/api/docker')).json()
+
+export const fetchSpecs = async (): Promise<Specs> => (await request('/api/specs')).json()
 
 export const fetchSystem = async (): Promise<System> => (await request('/api/system')).json()
 

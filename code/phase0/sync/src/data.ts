@@ -70,15 +70,18 @@ export interface DiskSpace {
   total: number
   /** Ce qui reste libre pour un programme sans droits particuliers. */
   free: number
+  /** Ce que le système de fichiers garde pour root (5 % sur ext4) : libre, mais pas pour les programmes ordinaires. */
+  reserved: number
 }
 
 /** La place du disque qui porte un dossier ; 0 et 0 si elle ne se lit pas. */
 export const readDiskSpace = async (dir: string): Promise<DiskSpace> => {
   try {
     const info = await statfs(dir)
-    return { total: Number(info.blocks) * Number(info.bsize), free: Number(info.bavail) * Number(info.bsize) }
+    const size = Number(info.bsize)
+    return { total: Number(info.blocks) * size, free: Number(info.bavail) * size, reserved: (Number(info.bfree) - Number(info.bavail)) * size }
   } catch {
-    return { total: 0, free: 0 }
+    return { total: 0, free: 0, reserved: 0 }
   }
 }
 

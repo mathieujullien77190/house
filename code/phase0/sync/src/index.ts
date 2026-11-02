@@ -10,6 +10,8 @@ import { createServer as createHttpServer, type IncomingMessage, type ServerResp
 import { createServer as createHttpsServer } from 'node:https'
 import { extname, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { readDocker } from './docker.ts'
+import { readSpecs } from './specs.ts'
 import { readSystem } from './system.ts'
 import { readPower, type ApiTarget } from './power.ts'
 import { listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
@@ -30,6 +32,8 @@ const SESSION_COOKIE = 'house_sync'
 const DATA_DIR = process.env.DATA_DIR ?? './data'
 // La consommation : le fichier écrit sur l'hôte (power/house-power.sh) et House API (le PoE des caméras, même clé).
 const POWER_FILE = process.env.POWER_FILE ?? '/power/cpu.json'
+const DOCKER_FILE = process.env.DOCKER_FILE ?? '/power/docker.json'
+const COMPOSE_FILE = process.env.COMPOSE_FILE ?? '/host/docker-compose.yml'
 const API_URL = process.env.API_URL ?? ''
 const API_CA_FILE = process.env.API_CA_FILE ?? ''
 const API_SERVERNAME = process.env.API_SERVERNAME ?? 'localhost'
@@ -398,6 +402,8 @@ const overview = async () => {
 // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
 const service = async (res: ServerResponse, pathname: string, params: URLSearchParams) => {
   if (pathname === '/api/overview') return sendJson(res, 200, await overview())
+  if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(DOCKER_FILE, COMPOSE_FILE))
+  if (pathname === '/api/specs') return sendJson(res, 200, await readSpecs())
   if (pathname === '/api/system') return sendJson(res, 200, await readSystem())
   if (pathname === '/api/power') return sendJson(res, 200, await readPower(POWER_FILE, apiTarget()))
   if (pathname === '/api/table') {

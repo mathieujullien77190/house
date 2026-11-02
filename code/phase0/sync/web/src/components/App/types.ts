@@ -1,8 +1,9 @@
-import type { Media, Overview, Power, System } from '@/types'
+import type { LiveHistory } from '@/lib/live'
+import type { Media, Docker, Overview, Power, Specs, System } from '@/types'
 
 export type Status = 'locked' | 'checking' | 'ready'
 
-export type TabId = 'db' | 'disk' | 'system' | 'power'
+export type TabId = 'db' | 'disk' | 'system' | 'docker'
 
 export interface AppUIProps {
   status: Status
@@ -12,6 +13,12 @@ export interface AppUIProps {
   power: Power | null
   /** La mémoire et le processeur, null tant qu'ils ne sont pas lus. */
   system: System | null
+  /** Les caractéristiques de la machine, null tant qu'elles ne sont pas lues. */
+  specs: Specs | null
+  /** Les dernières mesures du processeur et de la mémoire, en pourcentage. */
+  history: LiveHistory
+  /** Les conteneurs Docker, null tant qu'ils ne sont pas lus. */
+  docker: Docker | null
   /** Heure du dernier chargement, vide avant le premier. */
   loadedAt: string
   media: Media | null
