@@ -1,16 +1,16 @@
 // auth : la clé est bonne (le middleware l'a vérifiée) ; on ouvre une session (cookie) pour le direct et les images.
 // logout ferme cette session.
 import { Router } from 'express'
-import { closeSession, openSession } from '../middleware/session.ts'
+import type { Sessions } from '../middleware/session.ts'
 
-export const authRouter = (): Router => {
+export const authRouter = (sessions: Sessions): Router => {
   const router = Router()
   router.get('/auth', (_req, res) => {
-    openSession(res)
+    sessions.open(res)
     res.json({ ok: true })
   })
-  router.get('/logout', (req, res) => {
-    closeSession(req, res)
+  router.get('/logout', (_req, res) => {
+    sessions.close(res)
     res.json({ ok: true })
   })
   return router

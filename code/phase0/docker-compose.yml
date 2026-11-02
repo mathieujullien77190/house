@@ -113,6 +113,8 @@ services:
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem
+      # Le certificat PUBLIC de l'autorité de la maison, à télécharger depuis un téléphone (/rootCA.crt).
+      CA_CERT: /certs/rootCA.crt
     ports:
       - "8080:8080"
     volumes:

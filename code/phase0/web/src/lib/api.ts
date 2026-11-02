@@ -1,5 +1,5 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
-// La clé n'est jamais dans le code : elle vient de l'utilisateur, gardée dans l'onglet (sessionStorage).
+// La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { CameraPower, CameraRow, EventRow } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
@@ -69,19 +69,14 @@ export const callService = async (key: string, path: string): Promise<{ status: 
   return { status: res.status, body: await res.text() }
 }
 
-export const loadStoredKey = (): string => {
+/**
+ * Les versions précédentes gardaient la clé dans l'onglet. Elle n'est plus gardée nulle part : la session est un
+ * cookie signé (HttpOnly, 30 jours) posé par /auth, que le navigateur renvoie tout seul.
+ */
+export const clearStoredKey = (): void => {
   try {
-    return sessionStorage.getItem(KEY_STORAGE) ?? ''
+    sessionStorage.removeItem(KEY_STORAGE)
   } catch {
-    return ''
-  }
-}
-
-export const storeKey = (key: string) => {
-  try {
-    if (key) sessionStorage.setItem(KEY_STORAGE, key)
-    else sessionStorage.removeItem(KEY_STORAGE)
-  } catch {
-    // Stockage indisponible (navigation privée) : la clé ne survit pas au rechargement, rien de plus.
+    // Stockage indisponible (navigation privée) : rien à effacer.
   }
 }

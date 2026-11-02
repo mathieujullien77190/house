@@ -3,7 +3,7 @@
 // l'adresse de la dernière image et l'adresse iframe du direct de chaque caméra.
 // Seul House Sync écrit dans cette base ; House API la lit. Il sert aussi sa propre page (port 8081, HTTPS,
 // derrière la clé) qui montre la base et les fichiers du disque backup : l'API n'expose jamais la base brute.
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'node:crypto'
 import { createReadStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -12,6 +12,7 @@ import { extname, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { readDocker } from './docker.ts'
 import { readSpecs } from './specs.ts'
+import { createToken, isValidToken, sessionCookie } from './session.ts'
 import { readSystem } from './system.ts'
 import { readPower, type ApiTarget } from './power.ts'
 import { listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
@@ -321,8 +322,8 @@ const poll = async () => {
 
 // ---- La page de House Sync ----
 
-// Les sessions ouvertes avec la bonne clé : un jeton aléatoire par navigateur, en mémoire seulement.
-const sessions = new Set<string>()
+// Les sessions : un cookie signé avec la clé et daté (session.ts), rien en mémoire.
+const hasSession = (token: string): boolean => isValidToken(HOUSE_KEY, token, Math.floor(Date.now() / 1000))
 
 const hasValidKey = (given: string): boolean => {
   const a = Buffer.from(given)
@@ -424,7 +425,7 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
 const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
   const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost')
   if (req.method === 'POST' && pathname === '/login') {
-    // La clé arrive en JSON ({ key }) ; une session = un jeton aléatoire dans un cookie, en mémoire seulement.
+    // La clé arrive en JSON ({ key }) ; la session est un cookie signé de 30 jours, la clé n'est pas gardée par le navigateur.
     let key: string
     try {
       key = String((JSON.parse(await readBody(req)) as { key?: unknown }).key ?? '')
@@ -432,17 +433,14 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
       key = ''
     }
     if (!hasValidKey(key)) return sendJson(res, 401, { error: 'invalid key' })
-    const token = randomBytes(24).toString('hex')
-    sessions.add(token)
-    return sendJson(res, 200, { ok: true }, { 'Set-Cookie': `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax` })
+    return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, createToken(HOUSE_KEY, Math.floor(Date.now() / 1000))) })
   }
   if (req.method === 'POST' && pathname === '/logout') {
-    sessions.delete(sessionOf(req))
-    return sendJson(res, 200, { ok: true }, { 'Set-Cookie': `${SESSION_COOKIE}=; Path=/; Max-Age=0` })
+    return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, '') })
   }
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
   if (pathname.startsWith('/api/') || pathname.startsWith('/files/')) {
-    if (!sessions.has(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+    if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
     return service(res, pathname, searchParams)
   }
   sendStatic(res, pathname)

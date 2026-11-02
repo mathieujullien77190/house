@@ -1,6 +1,6 @@
 // L'état de la WebApp : la clé, sa vérification, puis les caméras et les événements, rafraîchis à intervalle régulier.
 import { useCallback, useEffect, useState } from 'react'
-import { checkKey, fetchEvents, fetchLive, isKeyRefused, loadStoredKey, storeKey } from './api'
+import { checkKey, clearStoredKey, fetchEvents, fetchLive, isKeyRefused } from './api'
 import type { Camera, EventRow } from '@/types'
 
 export const EVENTS_REFRESH_MS = 1_000
@@ -23,8 +23,9 @@ const errorMessage = (error: unknown): string => (error instanceof Error ? error
 const toCameras = (live: { camera: string }[]): Camera[] => live.map(({ camera }) => ({ name: camera }))
 
 export const useHouse = (): HouseState => {
-  const [key, setKey] = useState(loadStoredKey)
-  const [status, setStatus] = useState<Status>(() => (loadStoredKey() ? 'checking' : 'locked'))
+  // Au départ pas de clé : on essaie la session par cookie ; sinon la page demande la clé.
+  const [key, setKey] = useState('')
+  const [status, setStatus] = useState<Status>('checking')
   const [message, setMessage] = useState('')
   const [cameras, setCameras] = useState<Camera[]>([])
   const [events, setEvents] = useState<EventRow[]>([])
@@ -32,7 +33,6 @@ export const useHouse = (): HouseState => {
   const forget = useCallback(() => {
     // Ferme aussi la session (cookie) qui autorise le direct.
     fetch('/logout').catch(() => undefined)
-    storeKey('')
     setKey('')
     setCameras([])
     setEvents([])
@@ -46,6 +46,9 @@ export const useHouse = (): HouseState => {
     setMessage('')
   }, [])
 
+  // Efface la clé que les anciennes versions gardaient dans l'onglet : la session est maintenant un cookie.
+  useEffect(() => clearStoredKey(), [])
+
   // Vérifie la clé puis charge les caméras ; une clé refusée est oubliée.
   useEffect(() => {
     if (status !== 'checking') return
@@ -55,17 +58,14 @@ export const useHouse = (): HouseState => {
         await checkKey(key)
         const [live, rows] = await Promise.all([fetchLive(key), fetchEvents(key)])
         if (cancelled) return
-        storeKey(key)
         setCameras(toCameras(live))
         setEvents(rows)
         setStatus('ready')
       } catch (error) {
         if (cancelled) return
-        setMessage(errorMessage(error))
-        if (isKeyRefused(error)) {
-          storeKey('')
-          setKey('')
-        }
+        // Sans clé saisie, un refus veut seulement dire qu'il n'y a pas (ou plus) de session : pas de message.
+        setMessage(key || !isKeyRefused(error) ? errorMessage(error) : '')
+        if (isKeyRefused(error)) setKey('')
         setStatus('locked')
       }
     }

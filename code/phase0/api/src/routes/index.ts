@@ -2,6 +2,7 @@
 import { Router } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import { createRequireKey } from '../middleware/requireKey.ts'
+import { createSessions } from '../middleware/session.ts'
 import type { CamerasService } from '../services/camerasService.ts'
 import type { EventsService } from '../services/eventsService.ts'
 import type { PoeService } from '../services/poeService.ts'
@@ -9,6 +10,7 @@ import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
 import { authRouter } from './auth.ts'
 import { camerasRouter } from './cameras.ts'
+import { caRouter } from './ca.ts'
 import { eventsRouter } from './events.ts'
 import { liveRouter } from './live.ts'
 import { poeRouter } from './poe.ts'
@@ -25,14 +27,16 @@ export interface Services {
   files: BackupFiles
 }
 
-/** Les chemins derrière la clé ; tout le reste (welcome, logout, les fichiers de la WebApp) est public. */
+/** Les chemins derrière la clé ; tout le reste (welcome, logout, le certificat public, les fichiers de la WebApp) est public. */
 export const SECURED_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/stream', '/frame', '/poe']
 
-export const createRoutes = (apiKey: string, services: Services): Router => {
+export const createRoutes = (apiKey: string, services: Services, caCert = ''): Router => {
   const router = Router()
   router.use(welcomeRouter())
-  router.use(SECURED_PATHS, createRequireKey(apiKey))
-  router.use(authRouter())
+  router.use(caRouter(caCert))
+  const sessions = createSessions(apiKey)
+  router.use(SECURED_PATHS, createRequireKey(apiKey, sessions))
+  router.use(authRouter(sessions))
   router.use(camerasRouter(services.cameras))
   router.use(eventsRouter(services.events, services.files))
   router.use(snapshotsRouter(services.snapshots, services.files))

@@ -16,6 +16,8 @@ export interface Config {
   switchPoe: { url: string; user: string; password: string; ports: Record<string, number> } | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
   tls: { cert: string; key: string } | null
+  /** Le certificat public de l'autorité de la maison, que l'API propose au téléchargement (/rootCA.crt) ; vide : pas de téléchargement. */
+  caCert: string
 }
 
 const MIN_KEY_LENGTH = 8
@@ -50,5 +52,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .filter(Boolean),
     switchPoe: parseSwitch(env),
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
+    caCert: env.CA_CERT ?? '',
   }
 }

@@ -30,7 +30,7 @@ export const createApp = (config: Config): Express => {
 
   const app = express()
   app.disable('x-powered-by')
-  app.use(createRoutes(config.apiKey, services))
+  app.use(createRoutes(config.apiKey, services, config.caCert))
   // La WebApp compilée : index.html à la racine, les scripts et styles dans assets/.
   app.use(express.static(config.webDir, { index: 'index.html' }))
   app.use(notFound)
