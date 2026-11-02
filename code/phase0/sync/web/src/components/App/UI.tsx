@@ -1,4 +1,4 @@
-import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PageHeader, PieChart, SectionTitle, SpecList, Tabs, Totals } from '@house/ui'
+import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PageHeader, PieChart, SpecList, Tabs, Totals } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
 import KeyForm from '@/components/KeyForm'
 import MediaPanel from '@/components/MediaPanel'
@@ -24,7 +24,6 @@ import {
   MEMORY_CHART_LABEL,
   MEMORY_TITLE,
   SYSTEM_MISSING_TEXT,
-  SYSTEM_NOTE,
   DISK_CHART_LABEL,
   DISK_TITLE,
   CHECKING_TEXT,
@@ -49,17 +48,14 @@ import {
   DOCKER_NETWORKS_TITLE,
   DOCKER_NOTE,
   GRID_CLASS,
-  INTRO,
   LOADING_TEXT,
   LOCKED_TEXT,
   POWER_MISSING_TEXT,
-  POWER_NOTE,
   POWER_TITLE,
   SPECS_MISSING_TEXT,
   SPECS_TITLE,
   LOGOUT_LABEL,
   REFRESH_LABEL,
-  REFRESH_NOTE,
   TABS,
   TABS_CLASS,
   TABS_LABEL,
@@ -75,7 +71,7 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
   const memoryNow = system ? memoryPercent(system) : null
   const specItems = specs ? buildSpecItems(specs) : []
   const diskChart = overview ? buildDiskChart(overview) : null
-  const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : `${loadedAt ? `mis à jour ${loadedAt} · ` : ''}${REFRESH_NOTE}`
+  const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : loadedAt ? `mis à jour ${loadedAt}` : ''
   return (
     <Page>
       <PageHeader
@@ -91,7 +87,6 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
           ) : null
         }
       />
-      <Notice text={INTRO} />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
       {ready && !overview ? <Notice text={LOADING_TEXT} /> : null}
@@ -104,74 +99,79 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
           {media ? <MediaPanel media={media} onClose={onClose} /> : null}
           {tab === 'db' ? (
             <>
-              <SectionTitle text={DATABASE_TITLE} detail={overview.database.path} />
-              {overview.database.tables.map((table) => (
-                <TableSection key={table.name} table={table} refreshTick={refreshTick} onOpen={onOpen} />
-              ))}
+              <Collapsible title={DATABASE_TITLE} detail={overview.database.path}>
+                {overview.database.tables.map((table) => (
+                  <TableSection key={table.name} table={table} refreshTick={refreshTick} onOpen={onOpen} />
+                ))}
+              </Collapsible>
             </>
           ) : tab === 'system' ? (
             <>
               <div className={GRID_CLASS}>
                 <section>
-                  <SectionTitle text={SPECS_TITLE} />
-                  {specItems.length ? <SpecList items={specItems} /> : <Notice text={SPECS_MISSING_TEXT} />}
+                  <Collapsible title={SPECS_TITLE} defaultOpen={false}>
+                    {specItems.length ? <SpecList items={specItems} /> : <Notice text={SPECS_MISSING_TEXT} />}
+                  </Collapsible>
                 </section>
                 {diskChart ? (
                   <section>
-                    <SectionTitle text={DISK_TITLE} detail={overview.backup.path} />
-                    <PieChart slices={diskChart.slices} centerValue={diskChart.centerValue} centerLabel={diskChart.centerLabel} label={DISK_CHART_LABEL} />
+                    <Collapsible title={DISK_TITLE} detail={overview.backup.path}>
+                      <PieChart slices={diskChart.slices} centerValue={diskChart.centerValue} centerLabel={diskChart.centerLabel} label={DISK_CHART_LABEL} />
+                    </Collapsible>
                   </section>
                 ) : null}
               </div>
-              <SectionTitle text={LIVE_TITLE} />
-              <div className={GRID_CLASS}>
-                <LineChart
-                  title={LIVE_CPU_TITLE}
-                  valueText={cpuNow === null ? '—' : `${cpuNow.toFixed(0)} %`}
-                  label={LIVE_CPU_LABEL}
-                  tone="orange"
-                  max={100}
-                  unit={LIVE_UNIT}
-                  startLabel={LIVE_START_LABEL}
-                  endLabel={LIVE_END_LABEL}
-                  capacity={LIVE_CAPACITY}
-                  values={history.cpu}
-                />
-                <LineChart
-                  title={LIVE_MEMORY_TITLE}
-                  valueText={memoryNow === null ? '—' : `${memoryNow.toFixed(0)} %`}
-                  label={LIVE_MEMORY_LABEL}
-                  tone="accent"
-                  max={100}
-                  unit={LIVE_UNIT}
-                  startLabel={LIVE_START_LABEL}
-                  endLabel={LIVE_END_LABEL}
-                  capacity={LIVE_CAPACITY}
-                  values={history.memory}
-                />
-              </div>
+              <Collapsible title={LIVE_TITLE}>
+                <div className={GRID_CLASS}>
+                  <LineChart
+                    title={LIVE_CPU_TITLE}
+                    valueText={cpuNow === null ? '—' : `${cpuNow.toFixed(0)} %`}
+                    label={LIVE_CPU_LABEL}
+                    tone="orange"
+                    max={100}
+                    unit={LIVE_UNIT}
+                    startLabel={LIVE_START_LABEL}
+                    endLabel={LIVE_END_LABEL}
+                    capacity={LIVE_CAPACITY}
+                    values={history.cpu}
+                  />
+                  <LineChart
+                    title={LIVE_MEMORY_TITLE}
+                    valueText={memoryNow === null ? '—' : `${memoryNow.toFixed(0)} %`}
+                    label={LIVE_MEMORY_LABEL}
+                    tone="accent"
+                    max={100}
+                    unit={LIVE_UNIT}
+                    startLabel={LIVE_START_LABEL}
+                    endLabel={LIVE_END_LABEL}
+                    capacity={LIVE_CAPACITY}
+                    values={history.memory}
+                  />
+                </div>
+              </Collapsible>
               <div className={GRID_CLASS}>
                 <section>
-                  <SectionTitle text={CPU_TITLE} />
-                  {cpuChart ? (
-                    <PieChart slices={cpuChart.slices} centerValue={cpuChart.centerValue} centerLabel={cpuChart.centerLabel} label={CPU_CHART_LABEL} />
-                  ) : (
-                    <Notice text={SYSTEM_MISSING_TEXT} />
-                  )}
+                  <Collapsible title={CPU_TITLE}>
+                    {cpuChart ? (
+                      <PieChart slices={cpuChart.slices} centerValue={cpuChart.centerValue} centerLabel={cpuChart.centerLabel} label={CPU_CHART_LABEL} />
+                    ) : (
+                      <Notice text={SYSTEM_MISSING_TEXT} />
+                    )}
+                  </Collapsible>
                 </section>
                 <section>
-                  <SectionTitle text={MEMORY_TITLE} />
-                  {memoryChart ? (
-                    <PieChart slices={memoryChart.slices} centerValue={memoryChart.centerValue} centerLabel={memoryChart.centerLabel} label={MEMORY_CHART_LABEL} />
-                  ) : (
-                    <Notice text={SYSTEM_MISSING_TEXT} />
-                  )}
+                  <Collapsible title={MEMORY_TITLE}>
+                    {memoryChart ? (
+                      <PieChart slices={memoryChart.slices} centerValue={memoryChart.centerValue} centerLabel={memoryChart.centerLabel} label={MEMORY_CHART_LABEL} />
+                    ) : (
+                      <Notice text={SYSTEM_MISSING_TEXT} />
+                    )}
+                  </Collapsible>
                 </section>
               </div>
-              <SectionTitle text={POWER_TITLE} />
-              {power ? <Totals totals={buildPowerTotals(power)} /> : <Notice text={POWER_MISSING_TEXT} />}
-              <Notice text={SYSTEM_NOTE} />
-              <Notice text={POWER_NOTE} />
+              <Collapsible title={POWER_TITLE}>
+                {power ? <Totals totals={buildPowerTotals(power)} /> : <Notice text={POWER_MISSING_TEXT} />}
+              </Collapsible>
             </>
           ) : tab === 'docker' ? (
             <>
@@ -181,21 +181,25 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                   <SpecList items={buildEngineItems(docker.global)} />
                   <div className={GRID_CLASS}>
                     <section>
-                      <SectionTitle text={DOCKER_IMAGES_TITLE} />
-                      <SpecList items={buildImageItems(docker.global)} />
+                      <Collapsible title={DOCKER_IMAGES_TITLE}>
+                        <SpecList items={buildImageItems(docker.global)} />
+                      </Collapsible>
                     </section>
                     <section>
-                      <SectionTitle text={DOCKER_NETWORKS_TITLE} />
-                      <SpecList items={buildNetworkItems(docker.global)} />
+                      <Collapsible title={DOCKER_NETWORKS_TITLE}>
+                        <SpecList items={buildNetworkItems(docker.global)} />
+                      </Collapsible>
                     </section>
                     <section>
-                      <SectionTitle text={DOCKER_DISK_TITLE} />
-                      <SpecList items={buildDiskItems(docker.global)} />
+                      <Collapsible title={DOCKER_DISK_TITLE}>
+                        <SpecList items={buildDiskItems(docker.global)} />
+                      </Collapsible>
                     </section>
                   </div>
-                  <SectionTitle text={DOCKER_ENV_TITLE} detail=".env" />
-                  <SpecList items={buildEnvItems(docker.global)} />
-                  <Notice text={DOCKER_ENV_NOTE} />
+                  <Collapsible title={DOCKER_ENV_TITLE} detail=".env">
+                    <SpecList items={buildEnvItems(docker.global)} />
+                    <Notice text={DOCKER_ENV_NOTE} />
+                  </Collapsible>
                 </Collapsible>
               ) : null}
               {docker?.compose ? (
@@ -204,22 +208,21 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                 </Collapsible>
               ) : null}
               {docker?.serviceAvailable ? (
-                <>
-                  <SectionTitle text={DOCKER_CONTAINERS_TITLE} />
+                <Collapsible title={DOCKER_CONTAINERS_TITLE}>
                   {docker.containers.map((container) => (
-                    <section key={container.name}>
-                      <SectionTitle text={container.name} detail={containerDetail(container)} />
+                    <Collapsible key={container.name} title={container.name} detail={containerDetail(container)}>
                       <SpecList items={buildContainerItems(container)} />
-                    </section>
+                    </Collapsible>
                   ))}
-                </>
+                </Collapsible>
               ) : null}
               <Notice text={DOCKER_NOTE} />
             </>
           ) : (
             <>
-              <SectionTitle text={BACKUP_TITLE} detail={overview.backup.path} />
-              <ClipsSection refreshTick={refreshTick} onOpen={onOpen} />
+              <Collapsible title={BACKUP_TITLE} detail={overview.backup.path}>
+                <ClipsSection refreshTick={refreshTick} onOpen={onOpen} />
+              </Collapsible>
             </>
           )}
         </>
