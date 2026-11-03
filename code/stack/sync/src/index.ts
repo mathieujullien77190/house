@@ -15,6 +15,7 @@ import { readSpecs } from './specs.ts'
 import { parseRange } from './range.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
 import { readHueBridge } from './hue.ts'
+import { createAttemptLimiter } from './attempts.ts'
 import { readNetwork } from './network.ts'
 import { readSystem } from './system.ts'
 import { readPower, type ApiTarget } from './power.ts'
@@ -352,6 +353,9 @@ const poll = async () => {
 // Les sessions : un cookie signé avec la clé et daté (session.ts), rien en mémoire.
 const hasSession = (token: string): boolean => isValidToken(HOUSE_KEY, token, Math.floor(Date.now() / 1000))
 
+/** Les essais de clé ratés sur la page : 10 par adresse et par 15 minutes, puis 429. */
+const loginAttempts = createAttemptLimiter()
+
 const hasValidKey = (given: string): boolean => {
   const a = Buffer.from(given)
   const b = Buffer.from(HOUSE_KEY)
@@ -467,6 +471,8 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
 const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
   const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost')
   if (req.method === 'POST' && pathname === '/login') {
+    const ip = req.socket.remoteAddress ?? ''
+    if (loginAttempts.isBlocked(ip)) return sendJson(res, 429, { error: 'too many attempts' })
     // La clé arrive en JSON ({ key }) ; la session est un cookie signé de 30 jours, la clé n'est pas gardée par le navigateur.
     let key: string
     try {
@@ -474,7 +480,11 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
     } catch {
       key = ''
     }
-    if (!hasValidKey(key)) return sendJson(res, 401, { error: 'invalid key' })
+    if (!hasValidKey(key)) {
+      loginAttempts.fail(ip)
+      return sendJson(res, 401, { error: 'invalid key' })
+    }
+    loginAttempts.clear(ip)
     return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, createToken(HOUSE_KEY, Math.floor(Date.now() / 1000))) })
   }
   if (req.method === 'POST' && pathname === '/logout') {

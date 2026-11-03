@@ -12,7 +12,8 @@ src/
 ├── repositories/     le SQL : cameras, events, snapshots
 ├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 2 min), live (relais go2rtc : le flux <flux>_mjpeg)
 ├── routes/           un fichier par service ; index.ts liste SECURED_PATHS (derrière la clé) ; welcome public
-├── middleware/       requireKey (X-House-Key en temps constant, ou la session) ; session (cookie signé ouvert par /auth, 30 jours) ; errorHandler (JSON)
+├── middleware/       requireKey (X-House-Key en temps constant, ou la session ; 10 clés fausses par adresse en 15 min, puis 429) ; session (cookie signé ouvert par /auth, 30 jours) ; errorHandler (JSON)
+├── lib/attemptLimiter.ts  les essais de clé ratés par adresse (10 en 15 min, en mémoire)
 ├── lib/backupFiles.ts  envoi d'un fichier du disque backup, jamais hors du disque, avec Range (la vidéo se déplace)
 └── lib/switchClient.ts client de la page web du switch ES208GP (connexion, lecture des ports, PoE on/off d'un port, une session à la fois)
 ```

@@ -55,7 +55,7 @@ setfacl -x "u:$CLAUDE_USER" "$STACK_DIR/.env" 2>/dev/null || true
 chmod 600 "$STACK_DIR/.env"
 chown "$OWNER" "$STACK_DIR/.env"
 # Le certificat privé de la CA : pas même en lecture.
-setfacl -x "u:$CLAUDE_USER" "$STACK_DIR"/data/certs/*-key.pem 2>/dev/null || true
+chmod 600 "$STACK_DIR"/data/certs/rootCA-key.pem 2>/dev/null || true   # la clé de la CA : seul le propriétaire (les conteneurs de service n'en ont pas besoin)
 if TOP="$(git -C "$STACK_DIR" rev-parse --show-toplevel 2>/dev/null)"; then
   sudo -u "$CLAUDE_USER" git config --global --add safe.directory "$TOP"
 fi

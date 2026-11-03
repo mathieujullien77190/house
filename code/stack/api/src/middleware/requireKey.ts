@@ -3,6 +3,7 @@
 // une page rouverte sans qu'on ressaisisse la clé.
 import { timingSafeEqual } from 'node:crypto'
 import type { Request, RequestHandler } from 'express'
+import { createAttemptLimiter, type AttemptLimiter } from '../lib/attemptLimiter.ts'
 import type { Sessions } from './session.ts'
 
 export const KEY_HEADER = 'x-house-key'
@@ -15,13 +16,26 @@ export const createKeyCheck = (apiKey: string) => {
   }
 }
 
-export const createRequireKey = (apiKey: string, sessions: Sessions): RequestHandler => {
+export const createRequireKey = (apiKey: string, sessions: Sessions, limiter: AttemptLimiter = createAttemptLimiter()): RequestHandler => {
   const hasKey = createKeyCheck(apiKey)
   return (req, res, next) => {
-    if (hasKey(req) || sessions.has(req)) {
+    if (sessions.has(req)) {
       next()
       return
     }
+    const ip = req.ip ?? ''
+    // Un en-tête vide est la page qui essaie son cookie : ce n'est pas un essai de clé.
+    const tried = (req.header(KEY_HEADER) ?? '') !== ''
+    if (tried && limiter.isBlocked(ip)) {
+      res.status(429).json({ error: 'too many attempts' })
+      return
+    }
+    if (hasKey(req)) {
+      limiter.clear(ip)
+      next()
+      return
+    }
+    if (tried) limiter.fail(ip)
     res.status(401).json({ error: 'invalid key' })
   }
 }
