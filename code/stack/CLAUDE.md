@@ -31,6 +31,16 @@ Un CLAUDE.md par dossier : `certs/`, `power/`, `go2rtc/`, `motion/`, `sync/`, `s
 - **Données** dans `data/` (ignoré) : `data/recordings`, `data/clips`, `data/backup`, `data/certs`.
 - Les fichiers de ce dossier apparaissent dans la vue « Code » du site : chaque fichier ajouté a une explication dans `src/components/CodeBrowser/constants.ts`.
 
+## Lumières (pont Hue)
+
+Le pont Philips Hue (`HUE_BRIDGE_IP`, clé d'application `HUE_APP_KEY` dans `.env`) est piloté par House API (`/hue`, `/hue/sensors`, `/hue/automations`, `/hue/positions`) et par l'onglet **Lumière** de la WebApp : un plan de la maison, les lampes rangées par zone (`ZONES`, `web/src/components/Lights/constants.ts`), les détecteurs de mouvement de la cage (groupe « Volière »), et les règles d'automatisation. Le pont est joignable ou non : House Sync le dit dans l'onglet Machine.
+
+**Les règles d'automatisation vivent dans le pont** (appli Hue), pas dans House : House les lit (`GET /hue/automations`, API v2 du pont) et les affiche dans la section « Automatisations » de l'onglet Lumière. État au 3 novembre 2026 :
+
+- **« Eteind tout »** : **tous les jours à 10:00, éteint toutes les pièces** (wc, Couloir, cuisine, Salle de bain, chambre perruches, Abri perruche, Chambre Matou), **cage à perruches comprise**. Avant le 3 novembre elle ne visait que la lampe de la cage (« Lampe coin salon », devenue « Perruche »). Une règle ne vise que des pièces : les deux lampes qui n'ont **aucune pièce** dans le pont (« WC », « Hue ambiance spot 2 ») ne sont pas éteintes par elle. Son action est une « recette » interne du pont, qu'il ne détaille pas : c'est la même que celle des règles « Eteind… » et on la traite comme « éteindre » (à confirmer à 10:00 le lendemain d'un changement).
+- **« Capteur perruche milieu »** et **« Capteur perruche proche »** (détecteurs de mouvement de la cage), deux tranches par jour : **de jour** (du lever au coucher du soleil), un mouvement ne fait rien et, sans mouvement pendant 40 min (milieu) ou 10 min (proche), tout s'éteint ; **de nuit** (du coucher au lever), **un mouvement allume la scène « Lumineux »** et, sans mouvement pendant 20 min, tout s'éteint. Le pont n'a **aucune localisation configurée** (le capteur « Daylight » est « non configuré », sans latitude ni longitude) : il ne peut pas calculer le soleil. Le lever et le coucher sont donc écrits en **heures fixes**, **07:39 et 17:27 le 3 novembre 2026** (région parisienne) : **elles ne suivent pas les saisons** et sont à remettre à jour de temps en temps (mi-décembre : 08:40 et 16:55 environ ; juin : 05:50 et 21:55 environ). Pour que ce soit automatique, il faut renseigner la localisation du pont dans l'appli Hue, puis mettre dans chaque tranche `start_time` = `{"type": "sunrise"}` ou `{"type": "sunset"}` (le pont accepte ce format). Les anciennes heures (06:00 et 22:00) sont gardées sur le mini PC, hors dépôt : `~/hue-capteurs-avant-soleil-2026-11-03.json`.
+- **Supprimées le 3 novembre 2026** (elles ne servaient à rien) : « sécu eteind perruche » (07:00, scène « Lumineux » dans l'abri), « Allume perruche » (16:30), « Eteind perruche » (21:00), « Hhh » et « Tttt » (essais). Leur configuration est gardée sur le mini PC, hors dépôt : `~/hue-automations-supprimees-2026-11-03.json`.
+
 ## Commandes
 
 ```
