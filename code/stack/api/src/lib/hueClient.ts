@@ -1,3 +1,4 @@
+import https from 'node:https'
 // Client du pont Philips Hue (API locale v1, HTTP sur le réseau de la maison) : la clé d'application est dans l'adresse.
 // Le pont donne une clé après un appui sur son bouton (POST /api) ; elle vit dans HUE_APP_KEY (.env), jamais dans le code.
 
@@ -20,6 +21,15 @@ export interface HueGroup {
   action: { on: boolean; bri?: number }
 }
 
+/** Un capteur du pont : un détecteur Hue en compte trois (mouvement, luminosité, température), liés par l'adresse radio de leur uniqueid. */
+export interface HueSensor {
+  name: string
+  type: string
+  uniqueid?: string
+  state: { presence?: boolean | null; lightlevel?: number | null; dark?: boolean | null; temperature?: number | null; lastupdated?: string }
+  config: { battery?: number; reachable?: boolean }
+}
+
 export interface HueState {
   on?: boolean
   /** Luminosité, de 1 à 254. */
@@ -27,6 +37,9 @@ export interface HueState {
 }
 
 export interface HueClient {
+  /** Une ressource de l'API v2 du pont (en HTTPS, avec le certificat du pont, que l'on n'authentifie pas : c'est un équipement du réseau de la maison). */
+  v2: <T>(path: string) => Promise<T[]>
+  sensors: () => Promise<Record<string, HueSensor>>
   lights: () => Promise<Record<string, HueLight>>
   groups: () => Promise<Record<string, HueGroup>>
   /** Change l'état d'une lampe ou d'une pièce : { on?, bri? }. */
@@ -52,7 +65,31 @@ export const createHueClient = (config: HueConfig): HueClient => {
     if (error) throw new Error(`pont Hue : ${error.description ?? 'erreur'}`)
     return data as T
   }
+  const host = new URL(config.url).host
+  const v2 = <T>(path: string): Promise<T[]> =>
+    new Promise((resolve, reject) => {
+      const request = https.get(
+        { host, path: `/clip/v2/resource/${path}`, headers: { 'hue-application-key': config.key }, rejectUnauthorized: false, timeout: TIMEOUT_MS },
+        (res) => {
+          let body = ''
+          res.setEncoding('utf8')
+          res.on('data', (chunk: string) => (body += chunk))
+          res.on('end', () => {
+            if (res.statusCode !== 200) return reject(new Error(`pont Hue v2 : HTTP ${res.statusCode}`))
+            try {
+              resolve((JSON.parse(body) as { data: T[] }).data)
+            } catch (error) {
+              reject(error)
+            }
+          })
+        },
+      )
+      request.on('timeout', () => request.destroy(new Error('pont Hue v2 : délai dépassé')))
+      request.on('error', reject)
+    })
   return {
+    v2,
+    sensors: () => call<Record<string, HueSensor>>('GET', '/sensors'),
     lights: () => call<Record<string, HueLight>>('GET', '/lights'),
     groups: () => call<Record<string, HueGroup>>('GET', '/groups'),
     setLight: async (id, state) => void (await call('PUT', `/lights/${id}/state`, state)),

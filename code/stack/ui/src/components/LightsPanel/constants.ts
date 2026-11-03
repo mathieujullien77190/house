@@ -14,6 +14,9 @@ export const LIST_CLASS = 'mt-3 flex flex-col gap-2'
 export const GROUP_CLASS = 'rounded-lg border border-line bg-card px-3 pb-2'
 /** Un trait entre le nom du groupe et ses lampes. */
 export const LAMPS_CLASS = 'mt-1 border-t border-line'
+/** Un mouvement détecté : une pastille pleine ; calme : du texte discret. */
+export const MOTION_ON_CLASS = 'rounded-md bg-orange px-2 py-0.5 text-[0.85rem] font-semibold text-bg'
+export const MOTION_OFF_CLASS = 'text-[0.85rem] text-muted'
 export const ROW_CLASS = 'flex flex-wrap items-center gap-x-3 gap-y-2 py-2 lg:gap-x-4'
 /** Le nom d'une lampe : une colonne de largeur fixe (sur grand écran) pour que le bouton et le curseur soient alignés d'une ligne à l'autre. */
 export const NAME_CLASS = 'w-full lg:w-56 lg:shrink-0'

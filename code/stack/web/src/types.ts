@@ -53,6 +53,29 @@ export interface HueRoom {
   lights: HueLight[]
 }
 
+/** Une règle d'automatisation du pont, en phrases (un horaire ou un détecteur de mouvement). */
+export interface HueAutomation {
+  id: string
+  name: string
+  enabled: boolean
+  kind: 'horaire' | 'capteur'
+  lines: string[]
+}
+
+/** Un détecteur de mouvement Hue avec sa température et sa luminosité. */
+export interface HueSensor {
+  id: string
+  name: string
+  presence: boolean | null
+  /** Le dernier changement de l'état de mouvement (ISO, UTC), ou null. */
+  presenceSince: string | null
+  temperature: number | null
+  lux: number | null
+  dark: boolean | null
+  battery: number | null
+  reachable: boolean
+}
+
 /** Un changement : allumer ou éteindre (on), régler la luminosité (bri, 1 à 254). */
 export interface HueState {
   on?: boolean

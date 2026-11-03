@@ -1,5 +1,6 @@
 // Les lumières : les pièces du pont Hue et leurs lampes, et leur allumage (une pièce entière ou une lampe).
-import type { HueClient, HueState } from '../lib/hueClient.ts'
+import { describeAutomations, type AutomationDto, type BehaviorInstance, type Named } from '../lib/automations.ts'
+import type { HueClient, HueSensor, HueState } from '../lib/hueClient.ts'
 import type { LampPositions, PositionsStore } from '../lib/positionsStore.ts'
 
 export interface LightDto {
@@ -43,6 +44,57 @@ export const parseState = (body: unknown): HueState | null => {
   return state.on === undefined && state.bri === undefined ? null : state
 }
 
+/** Un détecteur de mouvement Hue avec sa température et sa luminosité. */
+export interface SensorDto {
+  /** L'identifiant du capteur de mouvement chez le pont. */
+  id: string
+  name: string
+  /** Un mouvement est détecté en ce moment ; null si le pont ne le dit pas. */
+  presence: boolean | null
+  /** Le dernier changement de l'état de mouvement (ISO, UTC), ou null. */
+  presenceSince: string | null
+  /** En degrés Celsius, à un dixième près ; null si inconnue. */
+  temperature: number | null
+  /** La luminosité en lux ; null si inconnue. */
+  lux: number | null
+  dark: boolean | null
+  battery: number | null
+  reachable: boolean
+}
+
+/** L'adresse radio d'un capteur : le début de son uniqueid, commun aux trois capteurs d'un même détecteur. */
+const deviceOf = (sensor: HueSensor): string => sensor.uniqueid?.split('-')[0] ?? ''
+
+/** Un horodatage du pont (« 2026-11-03T01:55:59 », en UTC, sans fuseau) en ISO avec le Z. */
+const utc = (value: string | undefined): string | null => (value && /^\d{4}-\d\d-\d\dT/.test(value) ? `${value}Z` : null)
+
+/** Réunit mouvement, luminosité et température d'un même détecteur : un par capteur de mouvement. */
+export const toSensors = (raw: Record<string, HueSensor>): SensorDto[] => {
+  const all = Object.entries(raw)
+  return all
+    .filter(([, sensor]) => sensor.type === 'ZLLPresence')
+    .map(([id, presence]) => {
+      const device = deviceOf(presence)
+      const sibling = (type: string): HueSensor | undefined => all.find(([, sensor]) => sensor.type === type && device !== '' && deviceOf(sensor) === device)?.[1]
+      const light = sibling('ZLLLightLevel')
+      const temperature = sibling('ZLLTemperature')
+      const level = light?.state.lightlevel
+      const celsius = temperature?.state.temperature
+      return {
+        id,
+        name: presence.name,
+        presence: presence.state.presence ?? null,
+        presenceSince: utc(presence.state.lastupdated),
+        temperature: typeof celsius === 'number' ? Math.round(celsius / 10) / 10 : null,
+        // Le pont donne la luminosité en échelle logarithmique : 10 000 × log10(lux) + 1.
+        lux: typeof level === 'number' ? Math.round(10 ** ((level - 1) / 10000)) : null,
+        dark: light?.state.dark ?? null,
+        battery: presence.config.battery ?? null,
+        reachable: presence.config.reachable ?? false,
+      }
+    })
+}
+
 export const createHueService = (hue: HueClient, positions: PositionsStore) => {
   const list = async (): Promise<RoomDto[]> => {
     const [lights, groups] = await Promise.all([hue.lights(), hue.groups()])
@@ -74,6 +126,18 @@ export const createHueService = (hue: HueClient, positions: PositionsStore) => {
 
   return {
     list,
+    /** Les règles d'automatisation du pont (horaires et détecteurs), en phrases. */
+    automations: async (): Promise<AutomationDto[]> => {
+      const [instances, rooms, lights, scenes] = await Promise.all([
+        hue.v2<BehaviorInstance>('behavior_instance'),
+        hue.v2<Named>('room'),
+        hue.v2<Named>('light'),
+        hue.v2<Named>('scene'),
+      ])
+      return describeAutomations(instances, rooms, lights, scenes)
+    },
+    /** Les détecteurs de mouvement, avec leur température et leur luminosité. */
+    sensors: async (): Promise<SensorDto[]> => toSensors(await hue.sensors()),
     /** Les positions des ampoules sur le plan que l'utilisateur a posées. */
     positions: (): LampPositions => positions.get(),
     /** Garde ces positions (les autres restent) ; rend l'ensemble. */

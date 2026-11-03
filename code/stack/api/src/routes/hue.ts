@@ -1,4 +1,4 @@
-// hue : les pièces et leurs lampes (GET /hue), les positions des ampoules sur le plan (GET et PUT /hue/positions) ; PUT /hue/rooms/:id et PUT /hue/lights/:id avec {"on": true|false} et/ou {"bri": 1..254}.
+// hue : les pièces et leurs lampes (GET /hue), les règles d'automatisation du pont (GET /hue/automations), les détecteurs de mouvement (GET /hue/sensors), les positions des ampoules sur le plan (GET et PUT /hue/positions) ; PUT /hue/rooms/:id et PUT /hue/lights/:id avec {"on": true|false} et/ou {"bri": 1..254}.
 // Sans pont configuré (HUE_APP_KEY absente), le service répond 503.
 import express, { Router } from 'express'
 import type { HueService } from '../services/hueService.ts'
@@ -11,6 +11,22 @@ export const hueRouter = (hue: HueService | null): Router => {
     if (!hue) return void res.status(503).json({ error: 'hue bridge not configured' })
     try {
       res.json(await hue.list())
+    } catch (error) {
+      next(error)
+    }
+  })
+  router.get('/hue/automations', async (_req, res, next) => {
+    if (!hue) return void res.status(503).json({ error: 'hue bridge not configured' })
+    try {
+      res.json(await hue.automations())
+    } catch (error) {
+      next(error)
+    }
+  })
+  router.get('/hue/sensors', async (_req, res, next) => {
+    if (!hue) return void res.status(503).json({ error: 'hue bridge not configured' })
+    try {
+      res.json(await hue.sensors())
     } catch (error) {
       next(error)
     }

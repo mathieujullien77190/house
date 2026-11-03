@@ -1,6 +1,6 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
-import type { CameraPower, CameraRow, EventRow, HueRoom, HueState } from '@/types'
+import type { CameraPower, CameraRow, EventRow, HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -69,6 +69,12 @@ export const setHue = async (key: string, kind: 'rooms' | 'lights', id: string, 
   if (!res.ok) throw new ApiError(res.status, `/hue : HTTP ${res.status}`)
   return res.json()
 }
+
+/** Les règles d'automatisation du pont, en phrases (503 sans pont configuré). */
+export const fetchAutomations = async (key: string): Promise<HueAutomation[]> => (await request(key, '/hue/automations')).json()
+
+/** Les détecteurs de mouvement du pont, avec leur température et leur luminosité (503 sans pont configuré). */
+export const fetchSensors = async (key: string): Promise<HueSensor[]> => (await request(key, '/hue/sensors')).json()
 
 /** Les positions des ampoules sur le plan, gardées par l'API (503 sans pont configuré). */
 export const fetchLampPositions = async (key: string): Promise<Record<string, { x: number; y: number }>> => (await request(key, '/hue/positions')).json()

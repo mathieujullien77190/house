@@ -12,6 +12,8 @@ import {
   GROUP_CLASS,
   LAMPS_CLASS,
   LIST_CLASS,
+  MOTION_OFF_CLASS,
+  MOTION_ON_CLASS,
   MUTED_CLASS,
   NAME_CLASS,
   PERCENT_CLASS,
@@ -22,7 +24,7 @@ import {
   UNREACHABLE_TEXT,
 } from './constants'
 import { briOf, countText, percentOf } from './helpers'
-import type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom } from './types'
+import type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
 /** Les lumières : une section repliable par pièce, un bouton et un curseur de luminosité pour la pièce et pour chaque lampe. */
 const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft }: LightsPanelProps) => {
@@ -70,6 +72,21 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft }: L
     </li>
   )
 
+  const sensor = (item: LightsSensor) => (
+    <li key={`sensor:${item.id}`} className={ROW_CLASS}>
+      <span className={NAME_CLASS}>
+        {item.name}
+        {item.reachable ? null : <span className={MUTED_CLASS}> · {UNREACHABLE_TEXT}</span>}
+      </span>
+      <span className={item.motion ? MOTION_ON_CLASS : MOTION_OFF_CLASS}>{item.motionText}</span>
+      {item.readings.map((reading) => (
+        <span key={reading} className={MUTED_CLASS}>
+          {reading}
+        </span>
+      ))}
+    </li>
+  )
+
   const room = (item: LightsRoom) => (
     <div key={item.id} className={GROUP_CLASS}>
       <Collapsible
@@ -82,7 +99,10 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft }: L
         defaultOpen={!item.ungrouped}
         actions={item.ungrouped ? null : controls(`room:${item.id}`, item.on, item.bri, false, (change) => onRoom(item.id, change))}
       >
-        <ul className={LAMPS_CLASS}>{item.lights.map(lamp)}</ul>
+        <ul className={LAMPS_CLASS}>
+          {item.lights.map(lamp)}
+          {(item.sensors ?? []).map(sensor)}
+        </ul>
       </Collapsible>
     </div>
   )

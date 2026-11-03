@@ -10,6 +10,8 @@ export const SERVICES: ApiService[] = [
   { path: '/events', description: 'Les 200 derniers événements, du plus récent au plus ancien.', secured: true },
   { path: '/poe', description: 'L’alimentation de chaque caméra, lue sur le switch (PoE activé, puissance). 503 sans switch configuré.', secured: true },
   { path: '/hue', description: 'Les pièces du pont Philips Hue et leurs lampes (état, luminosité). PUT /hue/rooms/<id> ou /hue/lights/<id> avec {"on": true} et/ou {"bri": 1 à 254} les change. 503 sans pont configuré.', secured: true },
+  { path: '/hue/automations', description: 'Les règles d’automatisation du pont Hue en phrases : les horaires (quand, où, quoi) et les détecteurs de mouvement. 503 sans pont configuré.', secured: true },
+  { path: '/hue/sensors', description: 'Les détecteurs de mouvement du pont Hue, avec leur température et leur luminosité. 503 sans pont configuré.', secured: true },
   { path: '/snapshots?camera=portail', description: 'Les instants où House Sync a gardé une image de la caméra (une par minute).', secured: true },
 ]
 

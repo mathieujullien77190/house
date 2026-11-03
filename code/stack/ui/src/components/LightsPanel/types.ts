@@ -9,6 +9,19 @@ export interface LightsLamp {
   reachable: boolean
 }
 
+/** Un détecteur de mouvement d'un groupe, avec ses mesures déjà écrites (le parent formate). */
+export interface LightsSensor {
+  id: string
+  name: string
+  /** Un mouvement est détecté en ce moment ; null si inconnu. */
+  motion: boolean | null
+  /** « Mouvement », ou « Calme depuis 02/11 15:44 ». */
+  motionText: string
+  /** Les mesures à côté : température, luminosité, pile. */
+  readings: string[]
+  reachable: boolean
+}
+
 /** Une pièce et ses lampes. */
 export interface LightsRoom {
   id: string
@@ -18,6 +31,8 @@ export interface LightsRoom {
   /** La luminosité de la pièce (1 à 254), ou null si inconnue. */
   bri: number | null
   lights: LightsLamp[]
+  /** Les détecteurs de mouvement du groupe, sous ses lampes. */
+  sensors?: LightsSensor[]
   /** Des lampes sans pièce : pas de commande groupée. */
   ungrouped?: boolean
 }

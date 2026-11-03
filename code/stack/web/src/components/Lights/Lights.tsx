@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Collapsible, LightsPanel, LightsPlan, Notice } from '@house/ui'
-import { ApiError, fetchLampPositions, fetchLights, saveLampPositions, setHue } from '@/lib/api'
-import type { HueRoom, HueState } from '@/types'
-import { ALL_KEY, DESKTOP_QUERY, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
-import { allLights, buildZones, clearLegacyPositions, defaultPositions, planLamps, readLegacyPositions } from './helpers'
+import { Collapsible, LightsPanel, LightsPlan, Notice, SpecList } from '@house/ui'
+import { ApiError, fetchAutomations, fetchLampPositions, fetchLights, fetchSensors, saveLampPositions, setHue } from '@/lib/api'
+import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
+import { ALL_KEY, AUTOMATIONS_POLL_MS, AUTOMATIONS_TITLE, DESKTOP_QUERY, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
+import { allLights, buildAutomationItems, buildZones, clearLegacyPositions, defaultPositions, planLamps, readLegacyPositions } from './helpers'
 import type { LightsProps, LightsStatus, Positions } from './types'
 
 /**
@@ -14,6 +14,8 @@ import type { LightsProps, LightsStatus, Positions } from './types'
  */
 const Lights = ({ apiKey }: LightsProps) => {
   const [rooms, setRooms] = useState<HueRoom[]>([])
+  const [sensors, setSensors] = useState<HueSensor[]>([])
+  const [automations, setAutomations] = useState<HueAutomation[]>([])
   const [status, setStatus] = useState<LightsStatus>('loading')
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
@@ -29,10 +31,11 @@ const Lights = ({ apiKey }: LightsProps) => {
   useEffect(() => {
     let cancelled = false
     const load = () =>
-      fetchLights(apiKey)
-        .then((list) => {
+      Promise.all([fetchLights(apiKey), fetchSensors(apiKey).catch(() => [])])
+        .then(([list, found]) => {
           if (cancelled) return
           setRooms(list)
+          setSensors(found)
           setStatus('ready')
         })
         .catch((error: unknown) => {
@@ -67,6 +70,23 @@ const Lights = ({ apiKey }: LightsProps) => {
     }
   }, [apiKey])
 
+  // Les règles d'automatisation du pont : lues rarement, et sans bloquer le reste si le pont ne les donne pas.
+  useEffect(() => {
+    let cancelled = false
+    const load = () =>
+      fetchAutomations(apiKey)
+        .then((list) => {
+          if (!cancelled) setAutomations(list)
+        })
+        .catch(() => undefined)
+    load()
+    const timer = setInterval(load, AUTOMATIONS_POLL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [apiKey])
+
   // Les positions déplacées partent chez l'API quand le glisser s'arrête, et aussi si on quitte l'onglet avant.
   const flush = useCallback(() => {
     window.clearTimeout(timer.current)
@@ -91,7 +111,7 @@ const Lights = ({ apiKey }: LightsProps) => {
   }
 
   const lights = allLights(rooms)
-  const zones = buildZones(lights)
+  const zones = buildZones(lights, sensors)
   const lamps = planLamps(lights, positions, defaultPositions(lights))
 
   const move = (id: string, x: number, y: number) => {
@@ -148,6 +168,11 @@ const Lights = ({ apiKey }: LightsProps) => {
         onLight={(id, state) => void changeLight(id, state)}
         onDraft={(key, percent) => setDrafts((current) => ({ ...current, [key]: percent }))}
       />
+      {automations.length > 0 ? (
+        <Collapsible title={AUTOMATIONS_TITLE} detail={`${automations.filter((automation) => automation.enabled).length}/${automations.length} actives`} defaultOpen={planOpen}>
+          <SpecList items={buildAutomationItems(automations)} />
+        </Collapsible>
+      ) : null}
     </>
   )
 }

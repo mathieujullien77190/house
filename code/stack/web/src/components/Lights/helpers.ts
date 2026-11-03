@@ -1,15 +1,19 @@
-import type { LightsRoom, PlanLamp } from '@house/ui'
-import type { HueLight, HueRoom } from '@/types'
+import type { LightsRoom, LightsSensor, PlanLamp, SpecItem } from '@house/ui'
+import type { HueAutomation, HueLight, HueRoom, HueSensor } from '@/types'
 import {
+  CALM_TEXT,
+  DARK_TEXT,
   LAMP_POSITIONS,
   LEGACY_STORAGE_KEY,
   OTHER_ZONE,
+  MOTION_TEXT,
   OTHER_ZONE_NAME,
   SIDE_COLUMN_WIDTH,
   SIDE_ROW_HEIGHT,
   SIDE_ROWS,
   SIDE_TOP,
   SIDE_ZONE,
+  UNKNOWN_MOTION_TEXT,
   ZONES,
 } from './constants'
 import type { Positions } from './types'
@@ -21,23 +25,43 @@ export const allLights = (rooms: HueRoom[]): HueLight[] => {
   return [...byId.values()].sort((a, b) => Number(a.id) - Number(b.id))
 }
 
-const toZone = (id: string, name: string, lights: HueLight[]): LightsRoom => ({
+/** « 02/11 15:44 » : un instant du pont (ISO, UTC) à l'heure et à la date de la maison. */
+const formatSince = (iso: string): string => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+/** Un détecteur de mouvement prêt à afficher : l'état du mouvement et ses mesures (température, luminosité, pile) déjà écrits. */
+const toLightsSensor = (sensor: HueSensor): LightsSensor => ({
+  id: sensor.id,
+  name: sensor.name,
+  motion: sensor.presence,
+  motionText: sensor.presence === null ? UNKNOWN_MOTION_TEXT : sensor.presence ? MOTION_TEXT : sensor.presenceSince ? `${CALM_TEXT} ${formatSince(sensor.presenceSince)}` : 'Calme',
+  readings: [
+    sensor.temperature === null ? null : `${sensor.temperature.toFixed(1).replace('.', ',')} °C`,
+    sensor.lux === null ? null : `${sensor.lux} lx${sensor.dark ? ` · ${DARK_TEXT}` : ''}`,
+    sensor.battery === null ? null : `Pile ${sensor.battery} %`,
+  ].filter((reading): reading is string => reading !== null),
+  reachable: sensor.reachable,
+})
+
+const toZone = (id: string, name: string, lights: HueLight[], sensors: LightsSensor[] = []): LightsRoom => ({
   id,
   name,
   on: lights.some((light) => light.on),
   // La luminosité affichée pour la zone : celle de la première lampe allumée, sinon de la première qui en a une.
   bri: (lights.find((light) => light.on && light.bri !== null) ?? lights.find((light) => light.bri !== null))?.bri ?? null,
   lights,
+  ...(sensors.length > 0 ? { sensors } : {}),
 })
 
 /** Les zones de la maison avec leurs lampes (celles que le pont connaît), puis « Autres » pour les lampes sans zone. */
-export const buildZones = (lights: HueLight[]): LightsRoom[] => {
+export const buildZones = (lights: HueLight[], sensors: HueSensor[] = []): LightsRoom[] => {
   const byId = new Map(lights.map((light) => [light.id, light]))
+  const sensorById = new Map(sensors.map((sensor) => [sensor.id, sensor]))
   const used = new Set<string>()
   const zones = ZONES.map((zone) => {
     const members = zone.lights.map((id) => byId.get(id)).filter((light): light is HueLight => light !== undefined)
     members.forEach((light) => used.add(light.id))
-    return toZone(zone.id, zone.name, members)
+    const found = (zone.sensors ?? []).map((id) => sensorById.get(id)).filter((sensor): sensor is HueSensor => sensor !== undefined)
+    return toZone(zone.id, zone.name, members, found.map(toLightsSensor))
   }).filter((zone) => zone.lights.length > 0)
   const rest = lights.filter((light) => !used.has(light.id))
   return rest.length > 0 ? [...zones, { ...toZone(OTHER_ZONE, OTHER_ZONE_NAME, rest), ungrouped: true }] : zones
@@ -63,6 +87,14 @@ export const defaultPositions = (lights: HueLight[]): Positions => {
 
 /** Le nombre de lampes qui sont dans une zone de la maison : celles du groupe « À placer » ne comptent pas. */
 export const placedLampCount = (rooms: HueRoom[]): number => allLights(rooms).filter((light) => ZONES.some((zone) => zone.lights.includes(light.id))).length
+
+/** Les règles du pont pour la liste : leur nom (et « désactivée »), puis ce qu'elles font en une ligne. */
+export const buildAutomationItems = (automations: HueAutomation[]): SpecItem[] =>
+  automations.map((automation) => ({
+    id: automation.id,
+    label: `${automation.name}${automation.enabled ? '' : ' (désactivée)'}`,
+    value: automation.lines.join(' · '),
+  }))
 
 /** Les ampoules du plan : la position gardée par l'API, sinon celle de départ. */
 export const planLamps = (lights: HueLight[], positions: Positions, defaults: Positions): PlanLamp[] =>

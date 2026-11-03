@@ -2,6 +2,14 @@ import type { PlanRoom, PlanWall } from '@house/ui'
 import type { Positions } from './types'
 
 export const POLL_MS = 5000
+export const AUTOMATIONS_TITLE = 'Automatisations'
+/** Les règles du pont changent rarement : on les relit chaque minute. */
+export const AUTOMATIONS_POLL_MS = 60_000
+/** « Calme depuis 02/11 15:44 » : le début, puis la date écrite à la française. */
+export const CALM_TEXT = 'Calme depuis'
+export const MOTION_TEXT = 'Mouvement'
+export const UNKNOWN_MOTION_TEXT = 'Mouvement inconnu'
+export const DARK_TEXT = 'sombre'
 /** La clé de « busy » pendant « Tout allumer » ou « Tout éteindre » (la même que celle de @house/ui). */
 export const ALL_KEY = 'all'
 /** Le nom de l'étage, lu par les lecteurs d'écran (il n'est pas écrit dans le plan). */
@@ -18,7 +26,7 @@ export const LOADING_TEXT = 'Chargement des lumières…'
  * Les zones de la maison et leurs lampes, par identifiant de lampe du pont (leurs noms peuvent changer, pas leur identifiant) :
  * une zone se commande d'un coup (allumer, éteindre, luminosité), à la place des pièces du pont, qui ne suivent pas la maison.
  */
-export const ZONES: { id: string; name: string; lights: string[] }[] = [
+export const ZONES: { id: string; name: string; lights: string[]; sensors?: string[] }[] = [
   { id: 'chambre-1', name: 'Chambre 1', lights: ['15'] },
   // « SdB 2 » (lampe 1) n'est dans aucune zone : elle est dans le groupe « À placer » tant qu'on ne sait pas où la mettre.
   { id: 'sdb', name: 'SdB', lights: ['9', '10', '19', '8', '6', '4'] },
@@ -27,7 +35,8 @@ export const ZONES: { id: string; name: string; lights: string[] }[] = [
   { id: 'couloir', name: 'Couloir', lights: ['7'] },
   { id: 'entree', name: 'Entrée', lights: ['27'] },
   { id: 'salon', name: 'Salon', lights: ['11', '16', '18', '22'] },
-  { id: 'voliere', name: 'Volière', lights: ['26'] },
+  // Les deux détecteurs de mouvement de la cage à perruches (identifiants du pont) : mouvement, température et luminosité.
+  { id: 'voliere', name: 'Volière', lights: ['26'], sensors: ['54', '57'] },
 ]
 /** Les zones que « Tout allumer » et « Tout éteindre » ne touchent pas : la volière (la lampe des perruches) reste à part. */
 export const EXCLUDED_FROM_ALL = ['voliere']
