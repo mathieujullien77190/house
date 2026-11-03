@@ -1,5 +1,5 @@
 import type { LiveHistory } from '@/lib/live'
-import type { Media, Docker, Overview, Power, Specs, System } from '@/types'
+import type { Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
 
 export type Status = 'locked' | 'checking' | 'ready'
 
@@ -15,6 +15,10 @@ export interface AppUIProps {
   system: System | null
   /** Les caractéristiques de la machine, null tant qu'elles ne sont pas lues. */
   specs: Specs | null
+  /** Les cartes réseau (câble RJ45 et WiFi), null tant qu'elles ne sont pas lues. */
+  network: NetworkInterface[] | null
+  /** Le pont Hue (joignable ou non), null tant qu'il n'est pas lu. */
+  bridge: HueBridge | null
   /** Les dernières mesures du processeur et de la mémoire, en pourcentage. */
   history: LiveHistory
   /** Les caractéristiques de la machine sont ouvertes au départ (écran de bureau), fermées sur mobile. */

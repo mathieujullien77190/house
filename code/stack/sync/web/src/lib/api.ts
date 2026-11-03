@@ -1,5 +1,5 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
-import type { BackupFile, Overview, Docker, Page, Power, Row, Specs, System } from '@/types'
+import type { ClipGroup, Overview, Docker, HueBridge, NetworkInterface, Page, Power, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
   status: number
@@ -34,6 +34,10 @@ export const fetchDocker = async (): Promise<Docker> => (await request('/api/doc
 
 export const fetchSpecs = async (): Promise<Specs> => (await request('/api/specs')).json()
 
+export const fetchHue = async (): Promise<HueBridge> => (await request('/api/hue')).json()
+
+export const fetchNetwork = async (): Promise<NetworkInterface[]> => (await request('/api/network')).json()
+
 export const fetchSystem = async (): Promise<System> => (await request('/api/system')).json()
 
 export const fetchPower = async (): Promise<Power> => (await request('/api/power')).json()
@@ -41,7 +45,7 @@ export const fetchPower = async (): Promise<Power> => (await request('/api/power
 export const fetchTable = async (name: string, page: number, size: number): Promise<Page<Row>> =>
   (await request(`/api/table?name=${encodeURIComponent(name)}&page=${page}&size=${size}`)).json()
 
-export const fetchClips = async (page: number, size: number): Promise<Page<BackupFile>> =>
+export const fetchClips = async (page: number, size: number): Promise<Page<ClipGroup>> =>
   (await request(`/api/clips?page=${page}&size=${size}`)).json()
 
 /** L'adresse d'un fichier du disque backup, servie par House Sync derrière la session. */

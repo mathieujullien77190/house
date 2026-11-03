@@ -34,6 +34,15 @@ export interface BackupFile {
   modifiedMs: number
 }
 
+/** Un clip du disque backup : ses deux versions, l'original (H.265 4K) et la copie légère (H.264 720p), si elles existent. */
+export interface ClipGroup {
+  /** clips/<caméra>/<id>, sans extension. */
+  id: string
+  original: BackupFile | null
+  light: BackupFile | null
+  modifiedMs: number
+}
+
 /** Un fichier du disque backup à montrer dans le panneau : un clip (vidéo) ou une image. */
 export interface Media {
   path: string
@@ -66,6 +75,33 @@ export interface Specs {
   /** La mémoire vue par le système, en octets. */
   memory: number | null
   disk: { model: string; size: number; rotational: boolean } | null
+}
+
+/** Une carte réseau physique de la machine : le câble RJ45 (ethernet) ou le WiFi. */
+export interface NetworkInterface {
+  name: string
+  kind: 'ethernet' | 'wifi'
+  up: boolean
+  /** Câble branché ou associé à un point d'accès ; null si la carte ne le dit pas. */
+  connected: boolean | null
+  speedMbps: number | null
+  duplex: string | null
+  mac: string
+  rxBytes: number
+  txBytes: number
+  signalDbm: number | null
+}
+
+/** L'état du pont Philips Hue : joignable ou non depuis la machine (sa fiche publique, sans clé). */
+export interface HueBridge {
+  /** Une adresse de pont est réglée ; sinon rien à montrer. */
+  configured: boolean
+  reachable: boolean
+  address: string
+  name: string | null
+  model: string | null
+  apiVersion: string | null
+  softwareVersion: string | null
 }
 
 export interface DockerContainer {

@@ -65,6 +65,33 @@ export const listBackup = async (dir: string, prefix = ''): Promise<BackupFile[]
   return out.sort((a, b) => b.modifiedMs - a.modifiedMs)
 }
 
+/** Un clip du disque backup : ses deux versions réunies, l'original (H.265 4K) et la copie légère (H.264 720p). */
+export interface ClipGroup {
+  /** Le clip sans extension : clips/<caméra>/<id>. */
+  id: string
+  original: BackupFile | null
+  light: BackupFile | null
+  /** La plus récente des deux versions. */
+  modifiedMs: number
+}
+
+const LIGHT_SUFFIX = '.h264.mp4'
+
+/** Réunit les fichiers de clips (<id>.mp4 et <id>.h264.mp4) en un clip par événement, du plus récent au plus ancien. */
+export const groupClips = (files: BackupFile[]): ClipGroup[] => {
+  const groups = new Map<string, ClipGroup>()
+  for (const file of files) {
+    const isLight = file.path.endsWith(LIGHT_SUFFIX)
+    const id = file.path.slice(0, file.path.length - (isLight ? LIGHT_SUFFIX.length : '.mp4'.length))
+    const group = groups.get(id) ?? { id, original: null, light: null, modifiedMs: 0 }
+    if (isLight) group.light = file
+    else group.original = file
+    group.modifiedMs = Math.max(group.modifiedMs, file.modifiedMs)
+    groups.set(id, group)
+  }
+  return [...groups.values()].sort((a, b) => b.modifiedMs - a.modifiedMs)
+}
+
 export interface DiskSpace {
   /** La taille du disque qui porte le dossier, en octets. */
   total: number

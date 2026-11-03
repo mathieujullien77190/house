@@ -14,9 +14,11 @@ import { readDocker } from './docker.ts'
 import { readSpecs } from './specs.ts'
 import { parseRange } from './range.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
+import { readHueBridge } from './hue.ts'
+import { readNetwork } from './network.ts'
 import { readSystem } from './system.ts'
 import { readPower, type ApiTarget } from './power.ts'
-import { listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
+import { groupClips, listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
 
 // L'enregistreur (conteneur motion) : son API est interne, sans mot de passe, jamais publiée.
 // Les enregistreurs à interroger (un par machine) : RECORDER_URLS, séparés par des virgules ; RECORDER_URL pour un seul.
@@ -443,6 +445,8 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
   if (pathname === '/api/overview') return sendJson(res, 200, await overview())
   if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(DOCKER_FILE, COMPOSE_FILE))
   if (pathname === '/api/specs') return sendJson(res, 200, await readSpecs())
+  if (pathname === '/api/hue') return sendJson(res, 200, await readHueBridge())
+  if (pathname === '/api/network') return sendJson(res, 200, await readNetwork())
   if (pathname === '/api/system') return sendJson(res, 200, await readSystem())
   if (pathname === '/api/power') return sendJson(res, 200, await readPower(POWER_FILE, apiTarget()))
   if (pathname === '/api/table') {
@@ -453,7 +457,7 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
   if (pathname === '/api/clips') {
     const { page, size } = pageParams(params)
     const clips = (await listBackup(DATA_DIR)).filter((f) => f.path.startsWith('clips/'))
-    return sendJson(res, 200, paginate(clips, page, size))
+    return sendJson(res, 200, paginate(groupClips(clips), page, size))
   }
   const file = BACKUP_FILE.exec(pathname)
   if (file) return sendBackupFile(res, file[1], rangeHeader)

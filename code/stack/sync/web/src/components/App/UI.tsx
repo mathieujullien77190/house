@@ -15,6 +15,8 @@ import {
 } from '@/lib/docker'
 import { memoryPercent } from '@/lib/live'
 import { buildPowerTotals } from '@/lib/power'
+import { buildBridgeItems, bridgeSummary } from '@/lib/hue'
+import { buildLinkItems, linkSummary } from '@/lib/network'
 import { buildSpecItems } from '@/lib/specs'
 import { buildCpuChart, buildMemoryChart } from '@/lib/system'
 import {
@@ -54,6 +56,9 @@ import {
   SPECS_MISSING_TEXT,
   SPECS_TITLE,
   LOGOUT_LABEL,
+  BRIDGE_TITLE,
+  NETWORK_MISSING_TEXT,
+  NETWORK_TITLE,
   REFRESH_LABEL,
   TABS,
   TABS_CLASS,
@@ -62,13 +67,14 @@ import {
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, power, system, specs, docker, history, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onRefresh, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, power, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onRefresh, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
   const cpuNow = system?.cpu?.percent ?? null
   const memoryNow = system ? memoryPercent(system) : null
   const specItems = specs ? buildSpecItems(specs) : []
+  const linkItems = network ? buildLinkItems(network) : []
   const diskChart = overview ? buildDiskChart(overview) : null
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : loadedAt ? `mis à jour ${loadedAt}` : ''
   return (
@@ -120,6 +126,14 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                   </section>
                 ) : null}
               </div>
+              <Collapsible title={NETWORK_TITLE} detail={network ? linkSummary(network) : ''}>
+                {linkItems.length ? <SpecList items={linkItems} /> : <Notice text={NETWORK_MISSING_TEXT} />}
+              </Collapsible>
+              {bridge?.configured ? (
+                <Collapsible title={BRIDGE_TITLE} detail={bridgeSummary(bridge)}>
+                  <SpecList items={buildBridgeItems(bridge)} />
+                </Collapsible>
+              ) : null}
               <Collapsible title={LIVE_TITLE}>
                 <div className={GRID_CLASS}>
                   <LineChart

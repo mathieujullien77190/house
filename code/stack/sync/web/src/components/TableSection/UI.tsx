@@ -5,7 +5,7 @@ import type { Cell, Media } from '@/types'
 import { BADGE_CLASS, CAMERA_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, NUM_CLASS, OPEN_LABEL } from './constants'
 import { isTimestamp, mediaOf } from './helpers'
 
-/** Une cellule : les médias deviennent un bouton, les adresses des liens, les horodatages lisibles, les étiquettes des pastilles. */
+/** Une cellule : les médias deviennent un bouton, les adresses des liens, les horodatages une date (sans le nombre de secondes), les étiquettes des pastilles. */
 export const renderCell = (column: string, value: Cell, onOpen: (media: Media) => void): ReactNode => {
   if (value === null || value === undefined) return <i className={MUTED_CLASS}>{NULL_TEXT}</i>
   const media = mediaOf(column, value)
@@ -18,11 +18,7 @@ export const renderCell = (column: string, value: Cell, onOpen: (media: Media) =
     )
   }
   if (isTimestamp(column, value)) {
-    return (
-      <span className={NUM_CLASS}>
-        {value} <small className={MUTED_CLASS}>{formatSeconds(value)}</small>
-      </span>
-    )
+    return <span className={NUM_CLASS}>{formatSeconds(value)}</span>
   }
   if (column === 'url' && typeof value === 'string') {
     return (

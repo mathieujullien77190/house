@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
-import { fetchOverview, fetchDocker, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
-import type { Media, Docker, Overview, Power, Specs, System } from '@/types'
+import { fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
+import type { Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
 import AppUI from './UI'
 import { DEFAULT_TAB, DESKTOP_QUERY, LIVE_CAPACITY, LIVE_MS, REFRESH_MS } from './constants'
 import type { Status, TabId } from './types'
@@ -20,6 +20,8 @@ const App = () => {
   const [system, setSystem] = useState<System | null>(null)
   const [specs, setSpecs] = useState<Specs | null>(null)
   const [docker, setDocker] = useState<Docker | null>(null)
+  const [network, setNetwork] = useState<NetworkInterface[] | null>(null)
+  const [bridge, setBridge] = useState<HueBridge | null>(null)
   const [history, setHistory] = useState<LiveHistory>(EMPTY_HISTORY)
   // Écran de bureau ou mobile, lu une fois au départ : sur mobile les caractéristiques commencent fermées.
   const [specsOpen] = useState(() => window.matchMedia(DESKTOP_QUERY).matches)
@@ -37,6 +39,8 @@ const App = () => {
       setSystem(await fetchSystem().catch(() => null))
       setSpecs(await fetchSpecs().catch(() => null))
       setDocker(await fetchDocker().catch(() => null))
+      setNetwork(await fetchNetwork().catch(() => null))
+      setBridge(await fetchHue().catch(() => null))
       setLoadedAt(new Date().toLocaleTimeString('fr-FR'))
       setRefreshTick((tick) => tick + 1)
       setStatus('ready')
@@ -113,6 +117,8 @@ const App = () => {
       history={history}
       specsOpen={specsOpen}
       docker={docker}
+      network={network}
+      bridge={bridge}
       loadedAt={loadedAt}
       media={media}
       refreshTick={refreshTick}
