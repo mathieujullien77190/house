@@ -61,6 +61,8 @@ services:
     environment:
       # Les enregistreurs (un par machine), séparés par des virgules : leur API est interne, sans mot de passe.
       RECORDER_URLS: ${RECORDER_URLS:-http://motion:8080}
+      # L'adresse du pont Philips Hue : House Sync lit sa fiche publique (sans clé) pour dire s'il est joignable.
+      HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
       # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
       HOUSE_KEY: ${API_KEY}
       PAGE_PORT: "8081"
@@ -87,6 +89,8 @@ services:
       - ./docker-compose.yml:/host/docker-compose.yml:ro
       - /etc/hostname:/host/hostname:ro
       - /etc/os-release:/host/os-release:ro
+      # Le /sys de l'hôte, en lecture seule : l'état des cartes réseau physiques (câble RJ45, WiFi) de la page Machine.
+      - /sys:/host/sys:ro
     networks:
       - sync_net
 
@@ -110,6 +114,12 @@ services:
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
       SWITCH_PORTS: portail:3,camera2:4
+      # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
+      # Sans clé, le service hue répond 503.
+      HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
+      HUE_APP_KEY: ${HUE_APP_KEY:-}
+      # Ce que l'API écrit : les positions des ampoules sur le plan (data/house, créé par l'utilisateur de la machine).
+      STATE_DIR: /state
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem
@@ -121,6 +131,7 @@ services:
       # Lecture seule : l'API ne modifie jamais les clips, la base ni les certificats.
       - ./data/backup:/data:ro
       - ./data/certs:/certs:ro
+      - ./data/house:/state
     networks:
       - web_net
       # Pour joindre go2rtc (go2rtc:1984), qui n'est jamais publié.
