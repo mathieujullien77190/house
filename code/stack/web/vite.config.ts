@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // Les services de House API, que le serveur de développement relaie vers l'API (certificat de la maison accepté).
-const API_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/welcome']
+const API_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/stream', '/frame', '/poe', '/hue', '/welcome']
 const API_URL = process.env.HOUSE_API_URL ?? 'https://localhost:8080'
 
 export default defineConfig({

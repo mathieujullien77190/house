@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ApiExplorer as ApiExplorerUI, type ApiResult } from '@house/ui'
 import { callService } from '@/lib/api'
-import { CLIPS_NOTE, SERVICES } from './constants'
+import { SERVICES } from './constants'
 import { prettify } from './helpers'
 import type { ApiExplorerProps } from './types'
 
@@ -25,7 +25,7 @@ const ApiExplorer = ({ apiKey }: ApiExplorerProps) => {
     }
   }
 
-  return <ApiExplorerUI services={SERVICES} selected={selected} busy={busy} result={result} note={CLIPS_NOTE} onCall={call} />
+  return <ApiExplorerUI services={SERVICES} selected={selected} busy={busy} result={result} onCall={call} />
 }
 
 export default ApiExplorer

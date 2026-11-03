@@ -7,6 +7,8 @@ export interface AppUIProps {
   apiKey: string
   cameras: Camera[]
   events: EventRow[]
+  /** Le nombre de lampes des zones de la maison (sans celles à placer), ou null tant qu'il n'est pas connu. */
+  lampCount: number | null
   tab: TabId
   /** Le nom de la caméra ouverte en détail, ou null pour la mosaïque. */
   openCamera: string | null

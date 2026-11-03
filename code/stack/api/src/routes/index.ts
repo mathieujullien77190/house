@@ -5,6 +5,7 @@ import { createRequireKey } from '../middleware/requireKey.ts'
 import { createSessions } from '../middleware/session.ts'
 import type { CamerasService } from '../services/camerasService.ts'
 import type { EventsService } from '../services/eventsService.ts'
+import type { HueService } from '../services/hueService.ts'
 import type { PoeService } from '../services/poeService.ts'
 import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
@@ -12,6 +13,7 @@ import { authRouter } from './auth.ts'
 import { camerasRouter } from './cameras.ts'
 import { caRouter } from './ca.ts'
 import { eventsRouter } from './events.ts'
+import { hueRouter } from './hue.ts'
 import { liveRouter } from './live.ts'
 import { poeRouter } from './poe.ts'
 import { snapshotsRouter } from './snapshots.ts'
@@ -22,13 +24,15 @@ export interface Services {
   events: EventsService
   snapshots: SnapshotsService
   live: LiveService
+  /** Null quand aucun pont Hue n'est configuré. */
+  hue: HueService | null
   /** Null quand aucun switch n'est configuré. */
   poe: PoeService | null
   files: BackupFiles
 }
 
 /** Les chemins derrière la clé ; tout le reste (welcome, logout, le certificat public, les fichiers de la WebApp) est public. */
-export const SECURED_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/stream', '/frame', '/poe']
+export const SECURED_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/stream', '/frame', '/poe', '/hue']
 
 export const createRoutes = (apiKey: string, services: Services, caCert = ''): Router => {
   const router = Router()
@@ -42,5 +46,6 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(snapshotsRouter(services.snapshots, services.files))
   router.use(liveRouter(services.live))
   router.use(poeRouter(services.poe))
+  router.use(hueRouter(services.hue))
   return router
 }

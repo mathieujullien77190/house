@@ -8,12 +8,16 @@ export interface Config {
   webDir: string
   /** Le disque backup écrit par House Sync (base SQLite et clips), monté en lecture seule. */
   dataDir: string
+  /** Le dossier où l'API garde ce qu'elle écrit (les positions des ampoules) : le seul qu'elle modifie, avec le PoE du switch. */
+  stateDir: string
   /** La clé que l'utilisateur donne depuis la WebApp. */
   apiKey: string
   /** Les go2rtc, sur le réseau Docker (ports internes, jamais publiés) : un par enregistreur ; le premier est celui par défaut. */
   go2rtcUrls: string[]
   /** Le switch PoE (page web, réseau de la maison) et le port de chaque caméra ; null sans mot de passe : poe répond 503. */
   switchPoe: { url: string; user: string; password: string; ports: Record<string, number> } | null
+  /** Le pont Philips Hue (réseau de la maison) et sa clé d'application ; null sans clé : hue répond 503. */
+  hue: { url: string; key: string } | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
   tls: { cert: string; key: string } | null
   /** Le certificat public de l'autorité de la maison, que l'API propose au téléchargement (/rootCA.crt) ; vide : pas de téléchargement. */
@@ -45,12 +49,14 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     port: Number(env.PORT ?? 8080),
     webDir: resolve(env.WEB_DIR ?? './web'),
     dataDir: resolve(env.DATA_DIR ?? './data'),
+    stateDir: resolve(env.STATE_DIR ?? './state'),
     apiKey,
     go2rtcUrls: (env.GO2RTC_URLS ?? env.GO2RTC_URL ?? 'http://go2rtc:1984')
       .split(',')
       .map((url) => url.trim().replace(/\/$/, ''))
       .filter(Boolean),
     switchPoe: parseSwitch(env),
+    hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
     caCert: env.CA_CERT ?? '',
   }

@@ -1,6 +1,6 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
-import type { CameraPower, CameraRow, EventRow } from '@/types'
+import type { CameraPower, CameraRow, EventRow, HueRoom, HueState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -52,6 +52,36 @@ export const setCameraPower = async (key: string, camera: string, on: boolean): 
   })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/poe : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Les pièces du pont Hue et leurs lampes (503 sans pont configuré). */
+export const fetchLights = async (key: string): Promise<HueRoom[]> => (await request(key, '/hue')).json()
+
+/** Allume, éteint ou règle une pièce (rooms) ou une lampe (lights) ; rend les pièces à jour. */
+export const setHue = async (key: string, kind: 'rooms' | 'lights', id: string, state: HueState): Promise<HueRoom[]> => {
+  const res = await fetch(`/hue/${kind}/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify(state),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/hue : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Les positions des ampoules sur le plan, gardées par l'API (503 sans pont configuré). */
+export const fetchLampPositions = async (key: string): Promise<Record<string, { x: number; y: number }>> => (await request(key, '/hue/positions')).json()
+
+/** Garde ces positions d'ampoules (les autres restent) ; rend l'ensemble. */
+export const saveLampPositions = async (key: string, changes: Record<string, { x: number; y: number }>): Promise<Record<string, { x: number; y: number }>> => {
+  const res = await fetch('/hue/positions', {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify(changes),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/hue/positions : HTTP ${res.status}`)
   return res.json()
 }
 

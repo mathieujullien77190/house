@@ -1,0 +1,61 @@
+// Client du pont Philips Hue (API locale v1, HTTP sur le réseau de la maison) : la clé d'application est dans l'adresse.
+// Le pont donne une clé après un appui sur son bouton (POST /api) ; elle vit dans HUE_APP_KEY (.env), jamais dans le code.
+
+export interface HueConfig {
+  /** Adresse du pont, par exemple http://192.168.1.81. */
+  url: string
+  key: string
+}
+
+export interface HueLight {
+  name: string
+  state: { on: boolean; bri?: number; reachable: boolean }
+}
+
+export interface HueGroup {
+  name: string
+  type: string
+  lights: string[]
+  state: { any_on: boolean; all_on: boolean }
+  action: { on: boolean; bri?: number }
+}
+
+export interface HueState {
+  on?: boolean
+  /** Luminosité, de 1 à 254. */
+  bri?: number
+}
+
+export interface HueClient {
+  lights: () => Promise<Record<string, HueLight>>
+  groups: () => Promise<Record<string, HueGroup>>
+  /** Change l'état d'une lampe ou d'une pièce : { on?, bri? }. */
+  setLight: (id: string, state: HueState) => Promise<void>
+  setGroup: (id: string, state: HueState) => Promise<void>
+}
+
+const TIMEOUT_MS = 5000
+
+export const createHueClient = (config: HueConfig): HueClient => {
+  const base = `${config.url.replace(/\/$/, '')}/api/${config.key}`
+  const call = async <T>(method: 'GET' | 'PUT', path: string, body?: unknown): Promise<T> => {
+    const res = await fetch(`${base}${path}`, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    if (!res.ok) throw new Error(`pont Hue : HTTP ${res.status}`)
+    const data = (await res.json()) as unknown
+    // Le pont répond 200 avec un tableau d'erreurs (clé refusée, lampe inconnue...).
+    const error = Array.isArray(data) ? (data as { error?: { description?: string } }[]).find((item) => item.error)?.error : undefined
+    if (error) throw new Error(`pont Hue : ${error.description ?? 'erreur'}`)
+    return data as T
+  }
+  return {
+    lights: () => call<Record<string, HueLight>>('GET', '/lights'),
+    groups: () => call<Record<string, HueGroup>>('GET', '/groups'),
+    setLight: async (id, state) => void (await call('PUT', `/lights/${id}/state`, state)),
+    setGroup: async (id, state) => void (await call('PUT', `/groups/${id}/action`, state)),
+  }
+}

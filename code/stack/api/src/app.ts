@@ -10,7 +10,10 @@ import { createSnapshotsRepository } from './repositories/snapshotsRepository.ts
 import { createRoutes } from './routes/index.ts'
 import { createCamerasService } from './services/camerasService.ts'
 import { createEventsService } from './services/eventsService.ts'
+import { createHueClient } from './lib/hueClient.ts'
+import { createPositionsStore } from './lib/positionsStore.ts'
 import { createSwitchClient } from './lib/switchClient.ts'
+import { createHueService } from './services/hueService.ts'
 import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
@@ -25,6 +28,7 @@ export const createApp = (config: Config): Express => {
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
     files: createBackupFiles(config.dataDir),
+    hue: config.hue ? createHueService(createHueClient(config.hue), createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
 

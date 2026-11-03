@@ -1,0 +1,2 @@
+The house plan (540 × 300, its rooms follow the site's ground floor) with one bulb per lamp (its name shows on hover, at the bottom of the garden): drag it to place it, touch it to switch it on or off, the arrow keys move it from the keyboard.
+A drag of more than 4 units moves; anything shorter is a click. The house sits in its garden ("Extérieur") and may have partition walls that stop short of the opposite wall. On the right, an "À placer" zone holds the bulbs that are not placed yet. The positions belong to the parent, which keeps them.

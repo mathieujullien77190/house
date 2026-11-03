@@ -33,7 +33,31 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'cameras' | 'api'
+export type TabId = 'cameras' | 'lights' | 'api'
+
+/** Une lampe du pont Hue. */
+export interface HueLight {
+  id: string
+  name: string
+  on: boolean
+  bri: number | null
+  reachable: boolean
+}
+
+/** Une pièce du pont Hue et ses lampes. */
+export interface HueRoom {
+  id: string
+  name: string
+  on: boolean
+  bri: number | null
+  lights: HueLight[]
+}
+
+/** Un changement : allumer ou éteindre (on), régler la luminosité (bri, 1 à 254). */
+export interface HueState {
+  on?: boolean
+  bri?: number
+}
 
 /** Une caméra avec tout ce que la page sait d'elle. */
 export interface Camera {

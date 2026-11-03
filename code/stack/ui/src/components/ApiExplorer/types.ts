@@ -20,7 +20,7 @@ export interface ApiExplorerProps {
   selected: string
   busy: boolean
   result: ApiResult | null
-  /** Une note sous la liste (les services qui ne renvoient pas de JSON). */
-  note: string
+  /** Une note facultative sous la liste (les services qui ne renvoient pas de JSON). */
+  note?: string
   onCall: (path: string) => void
 }
