@@ -222,7 +222,10 @@ export const EXPLANATIONS: Record<string, string> = {
   'power/house-power.sh': 'Sur l’hôte, pas dans Docker : toutes les 5 secondes, lit le compteur d’énergie du processeur (RAPL, lisible par root seulement) et écrit la puissance moyenne en watts dans data/power/cpu.json, que House Sync lit en lecture seule.',
   'power/house-power.service': 'L’unité systemd qui lance house-power.sh au démarrage du mini PC et le relance s’il s’arrête.',
   'power/house-docker.py': 'Sur l’hôte : toutes les 10 secondes, écrit data/power/docker.json avec l’état de chaque conteneur (docker inspect, stats, top). Il ne reprend que le nom des variables d’environnement et des programmes, jamais leurs valeurs ni leurs arguments, qui peuvent contenir des mots de passe.',
-  'power/house-docker.service': 'L’unité systemd qui lance house-docker.py après Docker et le relance s’il s’arrête.',
+  'remote/README.md': 'La session Claude Code permanente du mini PC : comment elle marche (connexion sortante seulement, pilotée depuis l’appli Claude), ce qu’elle peut et ne peut pas faire, la mise en place pas à pas, le dépannage et ce qui se passe après une coupure de courant (réglage du BIOS).',
+  'remote/setup.sh':'Prépare le mini PC pour une session Claude Code permanente qui ne peut rien supprimer : crée l’utilisateur claude (ni sudo, ni groupe docker), installe house-docker-ctl comme seule porte vers Docker (ps, logs, restart, build de quatre services), donne l’écriture sur le code seulement (jamais data/, .env, docker-compose.yml ni .git) et prépare l’unité systemd house-claude, non activée.',
+  'remote/settings.json': 'Les règles deny de Claude sur le mini PC : pas de rm, find -delete, truncate, dd, docker direct, pare-feu, reboot, git reset --hard, ni d’écriture dans data/. Une règle deny s’applique dans tous les modes, contrairement à une consigne écrite dans CLAUDE.md.',
+  'power/house-docker.service':'L’unité systemd qui lance house-docker.py après Docker et le relance s’il s’arrête.',
 }
 
 /** Explication par rôle de fichier, pour les fichiers de composant qui suivent la convention (un dossier par composant). */

@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sudo house-docker-ctl ps)",
+      "Bash(sudo house-docker-ctl logs *)"
+    ],
+    "deny": [
+      "Bash(rm *)",
+      "Bash(rmdir *)",
+      "Bash(unlink *)",
+      "Bash(shred *)",
+      "Bash(truncate *)",
+      "Bash(dd *)",
+      "Bash(mkfs*)",
+      "Bash(wipefs *)",
+      "Bash(find * -delete*)",
+      "Bash(find * -exec rm*)",
+      "Bash(mv */data/*)",
+      "Bash(cp * */data/*)",
+      "Bash(rsync *--delete*)",
+      "Bash(sqlite3 *)",
+      "Bash(sudo -*)",
+      "Bash(sudo bash*)",
+      "Bash(sudo sh*)",
+      "Bash(sudo su*)",
+      "Bash(su *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(ufw *)",
+      "Bash(iptables *)",
+      "Bash(ip6tables *)",
+      "Bash(nft *)",
+      "Bash(reboot*)",
+      "Bash(shutdown*)",
+      "Bash(poweroff*)",
+      "Bash(systemctl *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(setfacl *)",
+      "Edit(**/data/**)",
+      "Write(**/data/**)",
+      "Read(**/.env)",
+      "Read(**/data/certs/*-key.pem)",
+      "Read(~/.ssh/**)"
+    ]
+  }
+}
