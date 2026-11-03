@@ -1,13 +1,13 @@
 # Règles pour Claude sur le mini PC
 
-Ce fichier est lu par la session Claude Code qui tourne en permanence sur le mini PC (accessible depuis le téléphone). Il est installé dans `~claude/.claude/CLAUDE.md` par `remote/setup.sh`. Les règles de `settings.json` (même dossier) bloquent les commandes dangereuses : ce fichier explique pourquoi.
+Ce fichier est lu par la session Claude Code qui tourne en permanence sur le mini PC (accessible depuis le téléphone). Il est installé sous le nom `~claude/.claude/CLAUDE.md` par `remote/setup.sh` (ici il ne s'appelle pas `CLAUDE.md`, pour ne pas s'appliquer à qui édite ce dépôt). Les règles de `settings.json` (même dossier) bloquent les commandes dangereuses : ce fichier explique pourquoi.
 
 ## Documentation du projet : à lire d'abord
 
 Une copie du dépôt, en **lecture seule**, est dans `/home/mathieu/house-repo` (l'utilisateur la met à jour avec `git pull`). Elle contient les `CLAUDE.md` du projet.
 
 - **Au début de chaque conversation**, lis `/home/mathieu/house-repo/CLAUDE.md` (le site) et `/home/mathieu/house-repo/code/stack/CLAUDE.md` (la pile en service).
-- **Avant de toucher un dossier** de la pile (`api`, `web`, `sync`, `motion`, `go2rtc`, `ui`, `power`, `certs`), lis son `CLAUDE.md` dans `/home/mathieu/house-repo/code/stack/<dossier>/`.
+- **Avant de toucher un dossier** de la pile (`api`, `web`, `sync`, `motion`, `go2rtc`, `ui`, `power`, `certs`), lis son `CLAUDE.md` dans `/home/mathieu/house-repo/code/stack/<dossier>/`. Pour les lumières, lis aussi `code/stack/docs/hue.md`.
 - Ce qui **tourne** est dans `/home/mathieu/house/code/phase0` (c'est là que tu modifies le code). Le dépôt sert de documentation : si les deux diffèrent, `phase0` fait foi, et signale l'écart.
 
 ## Règle n°1 : ne jamais supprimer de données

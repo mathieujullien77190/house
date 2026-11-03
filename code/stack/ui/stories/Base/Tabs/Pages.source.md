@@ -2,11 +2,11 @@
 import { useState } from 'react'
 import { Tabs } from '@house/ui'
 
-type TabId = 'cameras' | 'api' | 'frigate'
+type TabId = 'cameras' | 'lights' | 'api'
 const OPTIONS: { id: TabId; label: string }[] = [
   { id: 'cameras', label: 'Caméras' },
+  { id: 'lights', label: 'Lumière' },
   { id: 'api', label: 'API' },
-  { id: 'frigate', label: 'Frigate' },
 ]
 
 const [tab, setTab] = useState<TabId>('cameras')

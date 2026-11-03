@@ -7,12 +7,12 @@ import en from './Tabs.en.md?raw'
 import fr from './Tabs.fr.md?raw'
 import pagesCode from './Pages.source.md?raw'
 
-type TabId = 'cameras' | 'api' | 'frigate'
+type TabId = 'cameras' | 'lights' | 'api'
 
 const OPTIONS: { id: TabId; label: string }[] = [
   { id: 'cameras', label: 'Caméras' },
+  { id: 'lights', label: 'Lumière' },
   { id: 'api', label: 'API' },
-  { id: 'frigate', label: 'Frigate' },
 ]
 
 /** L'état de l'onglet est au parent : la story le tient ici. */

@@ -11,6 +11,18 @@ Site React + TypeScript (Vite, Tailwind) pour **dessiner et chiffrer** un systè
 
 Le dossier `code/stack/` contient la **vraie pile** (Docker, en service sur le mini PC) : voir `code/stack/CLAUDE.md` et le CLAUDE.md de chaque sous-dossier. Le site décrit l'**état actuel** du système : il n'y a plus de phases ni de scénarios.
 
+## Où est la documentation
+
+| Je travaille sur… | Je lis |
+|---|---|
+| Le site (schéma, prix, plan, vues) | ce fichier |
+| La pile Docker en général, l'accès distant, le pare-feu, les données | `code/stack/CLAUDE.md`, `code/stack/README.md` |
+| Un service de la pile | le `CLAUDE.md` de son dossier : `api/`, `web/`, `sync/`, `sync/web/`, `motion/`, `go2rtc/`, `certs/`, `power/`, `ui/` (dans `code/stack/`) |
+| Les lumières Hue et leurs automatisations | `code/stack/docs/hue.md` |
+| La session Claude permanente du mini PC | `code/stack/remote/README.md` |
+
+Règles : **le code fait foi** (si la doc le contredit, corrige la doc) ; une information vit à **un seul endroit** (les autres fichiers y renvoient) ; toute modification de comportement met à jour le CLAUDE.md du dossier concerné ; **ne jamais supprimer ni écraser de données** de `code/stack/data/` sans copie préalable et accord de l'utilisateur.
+
 ## Le système modélisé
 
 ```
@@ -34,14 +46,14 @@ Téléphone, hors de la maison
 
 ## Règles métier
 
-- **Zones.** Une caméra a une zone (`ZONES`, `components/InfoPanel/constants.ts`). Quand elle change, `autoWire` (`src/wiring.ts`) la branche sur l'autre switch si la zone est déjà couverte (redondance), sinon sur le moins chargé.
+- **Zones.** Une caméra a une zone (`ZONES`, `components/InfoPanel/constants.ts`). Quand elle change, `autoWire` (`src/wiring.ts`) la branche sur un switch qui ne couvre pas encore cette zone (redondance), sinon sur le moins chargé. Le schéma par défaut n'a qu'un switch : elle le choisit alors toujours.
 - **Accès distant.** Jamais de redirection de ports : le VPN WireGuard de la Freebox amène un téléphone sur le réseau de la maison (adresse `192.168.27.0/24`, le mini PC y est vu à `192.168.27.139`, ports 8080 et 8081), le pare-feu du mini PC (ufw, et `DOCKER-USER` pour les ports que Docker publie) n'ouvre SSH, 8080 et 8081 qu'au réseau de la maison et à ce réseau. Le lien `vpn` du schéma (`LinkType`) le représente.
 - **Panneau de détail.** Nom, description, zone, position (`locate`, `src/plan.ts`), liens décrits (`src/linkInfo.ts`) et mis en évidence dans le schéma.
 - **Glossaire.** Termes dans `src/glossary.ts` ; `components/UI/RichText` les rend cliquables et ouvre `GlossarySheet` (via `GlossaryContext`, `src/lib/glossaryContext.ts`). Jamais de `RichText` dans un `<button>`.
 - **Étages.** `floor` (`rdc` ou `basement`) sur chaque composant ; un étage affiché à la fois, l'autre en filigrane.
 - **Composants ajoutés** (boutons +/− des prix) : aucun composant ne s'ajoute plus par le tableau (Reolink, switch et mini PC sont fixes, sans +/−) ; une caméra ajoutée autrement se brancherait selon sa zone (`autoWire`). Le type d'une liaison est déduit (`linkTypeFor`) ; une liaison se supprime seulement ; un composant se retire par le bouton −.
 - **Secteur 230 V.** Le switch et les composants libres qui déclarent des watts, comme le mini PC (`isMainsNode`, `MAINS_WATTS`). Les caméras sont en PoE.
-- **Reolink RLC-810A** : 4K 25 i/s H.265, flux principal 4 à 8 Mb/s, flux secondaire 64 à 512 kb/s, PoE 802.3af 12 W, 94,99 € à l'unité. 2 lecteurs du flux principal au plus ; RTSP à activer dans la caméra ; pas d'ONVIF.
+- **Reolink RLC-810A** : 4K 25 i/s H.265, flux principal 4 à 8 Mb/s, flux secondaire 64 à 512 kb/s, PoE 802.3af 12 W, 94,99 € à l'unité (le tableau compte 74,50 € : lot de 2 à 149 €). 2 lecteurs du flux principal au plus ; RTSP à activer dans la caméra ; pas d'ONVIF.
 - **Switch TP-Link Omada ES208GP** (69,99 €) : 8 ports PoE+, 64 W, administrable (PoE coupable port par port, reprise automatique). Avertissement au-delà de 8 caméras par switch (`POE_PORTS_PER_SWITCH`) ; 64 W = 5 Reolink en pratique.
 - **Prix.** Calculés depuis le schéma, pour tout ce que le système compte aujourd'hui (`src/catalog.ts`). Le mini PC (479 €, SSD de 1 To compris) est un composant à prix saisi (un disque externe `disk` reste ajoutable : 129 € plus 6,95 € d'adaptateur) ; le seul câble chiffré est le rouleau de 100 m d'Ethernet Cat6 d'extérieur pour les caméras (deleyCON, 84,26 €, Amazon) ; la ligne du tableau est un lien vers la fiche (`url` de `Line`). Reolink comptée 74,50 € (lot de 2). Rien n'est grisé : une ligne à zéro disparaît, sauf un compteur réglable. Prix « dépôt » depuis `github.com/mathieujullien77190/birds` (`docs/schema-electronique.md`), le reste estimé. Le disque dur externe et les composants libres se chiffrent à la main (`isPricedByHand`). Avertissements : ports manquants, trop de caméras PoE par switch.
 

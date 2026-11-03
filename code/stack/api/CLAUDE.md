@@ -5,7 +5,7 @@ Express 5 en TypeScript exécuté par Node 24 (pas de compilation ; `npm run typ
 ```
 src/
 ├── index.ts          démarrage : configuration, application, serveur HTTPS (certificat de la maison) ou HTTP
-├── config.ts         environnement validé : PORT, WEB_DIR, DATA_DIR, API_KEY (8 caractères au moins), GO2RTC_URL, TLS_CERT/TLS_KEY
+├── config.ts         environnement validé : PORT, WEB_DIR, DATA_DIR, STATE_DIR, API_KEY (8 caractères au moins), GO2RTC_URLS (ou GO2RTC_URL), TLS_CERT/TLS_KEY, CA_CERT, HUE_BRIDGE_IP/HUE_APP_KEY, SWITCH_*
 ├── app.ts            assemblage : base, dépôts, services, routes, statique, 404, erreurs
 ├── types.ts          lignes de la base et forme des réponses
 ├── db/database.ts    SQLite en lecture seule, ouverte au premier besoin (DatabaseNotReady → 503)

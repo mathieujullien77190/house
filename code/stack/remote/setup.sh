@@ -62,7 +62,7 @@ fi
 
 # 4. Les règles de Claude.
 install -d -o "$CLAUDE_USER" -g "$CLAUDE_USER" "/home/$CLAUDE_USER/.claude"
-install -m 644 -o "$CLAUDE_USER" -g "$CLAUDE_USER" "$HERE/CLAUDE.md" "/home/$CLAUDE_USER/.claude/CLAUDE.md"
+install -m 644 -o "$CLAUDE_USER" -g "$CLAUDE_USER" "$HERE/claude-rules.md" "/home/$CLAUDE_USER/.claude/CLAUDE.md"
 install -m 644 -o "$CLAUDE_USER" -g "$CLAUDE_USER" "$HERE/settings.json" "/home/$CLAUDE_USER/.claude/settings.json"
 
 # 4b. Une copie du dépôt en lecture seule, pour que Claude lise les CLAUDE.md (git pull par le propriétaire).

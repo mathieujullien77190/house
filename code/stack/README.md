@@ -18,9 +18,10 @@ stack/
 
 ## WebApp
 
-Deux onglets après la clé : **Caméras** (nom, direct MJPEG, frise des événements sur 10 min à 7 jours qu'on
-fait glisser, clip de l'événement cliqué, image gardée à l'instant cliqué),
-**API** (chaque service, un clic montre sa réponse JSON).
+Trois onglets après la clé : **Caméras** (mosaïque du direct, puis par caméra : direct MJPEG, frise des
+événements qu'on fait glisser, clip de l'événement cliqué, image gardée à l'instant cliqué, bouton PoE),
+**Lumière** (les lampes Philips Hue, le plan de la maison, les automatisations du pont) et
+**API** (chaque service, un clic montre sa réponse JSON). Détail : `web/CLAUDE.md`.
 
 ## Page de House Sync
 
@@ -63,15 +64,19 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
 
 ## Démarrage
 
-1. Copier `.env.example` en `.env` et remplir les valeurs : mot de passe de la Reolink (`REOLINK_PASSWORD`),
-   clé secrète de l'API (`API_KEY`), hôtes du certificat (`CERT_HOSTS` : l'IP du mini PC, fixée par un bail DHCP
-   statique sur la box).
-2. Mettre l'adresse IP de la Reolink dans `go2rtc/go2rtc.yaml` (bail DHCP statique sur la box).
+1. Copier `.env.example` en `.env` et remplir les valeurs : mot de passe de la Reolink du portail
+   (`REOLINK_PASSWORD`), clé secrète de l'API (`API_KEY`), hôtes du certificat (`CERT_HOSTS` : l'IP du mini PC,
+   fixée par un bail DHCP statique sur la box), la deuxième caméra (`CAMERA2_*`), le compte du switch
+   (`SWITCH_*`) et le pont Hue (`HUE_*`). Sans les trois derniers, la fonction correspondante est désactivée.
+2. Mettre l'adresse IP de la Reolink du portail dans `go2rtc/go2rtc.yaml` (bail DHCP statique sur la box) ;
+   celle de `camera2` vient de `CAMERA2_IP`.
 3. `docker compose up -d --build`
 4. `docker compose logs motion` doit afficher « Enregistreur : portail », puis une ligne à chaque début et
    chaque fin de mouvement. `docker compose logs sync` affiche, toutes les 5 secondes, le nombre de caméras
    et de nouveaux événements. Un clip arrive une vingtaine de secondes après la fin du mouvement.
-5. Installer la CA de la maison sur chaque appareil, une fois : le fichier `data/certs/rootCA.pem`.
+5. Installer la CA de la maison sur chaque appareil, une fois : le fichier `data/certs/rootCA.pem`, ou son
+   téléchargement `https://<adresse du mini PC>:8080/rootCA.crt` (à ouvrir tel quel sur Windows, où l'extension
+   `.crt` est nécessaire).
    Windows : double-clic, « Installer un certificat », utilisateur actuel, magasin « Autorités de
    certification racines de confiance ». Android : Paramètres > Sécurité > Chiffrement et identifiants >
    Installer un certificat > Certificat CA. Puis fermer et rouvrir le navigateur.
@@ -94,8 +99,9 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
   `CERT_HOSTS` change ou à moins de 30 jours de son expiration (`docker compose up -d`).
 - Les données sont dans `data/` (ignoré par git) : `data/recordings` (les segments de l'enregistreur, 6 h),
   `data/clips` (les clips et l'état des événements de l'enregistreur), `data/backup` pour la base `events.db`,
-  les clips copiés (`clips/<caméra>/<id>.mp4`) et les images par minute (`snapshots/<caméra>/<t>.jpg`). Si le
-  schéma de la base change, supprimer `events.db`.
+  les clips copiés (`clips/<caméra>/<id>.mp4`) et les images par minute (`snapshots/<caméra>/<t>.jpg`). Ces
+  données sont irremplaçables : House Sync ajoute lui-même les colonnes manquantes à une base existante, donc
+  **ne supprime jamais `events.db`** sans en avoir fait une copie.
 - L'enregistreur garde 6 h de segments (le 4K en continu ferait ~65 Go par jour) : si House Sync est arrêté, il
   rattrape tout au redémarrage tant que les clips existent (les clips aussi sont gardés 6 h). Entre deux
   événements, c'est l'image par minute de House Sync qu'on voit (~60 Mo par jour et par caméra, 7 jours

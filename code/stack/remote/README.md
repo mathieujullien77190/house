@@ -26,7 +26,7 @@ L'utilisateur Linux `claude` n'est ni dans le groupe `sudo` ni dans `docker`.
 Trois couches, de la plus solide à la plus faible :
 1. **Droits Linux (ACL)** : supprimer un fichier demande d'écrire dans son dossier, ce que `claude` ne peut pas faire dans `data/`.
 2. **`settings.json`** (règles `deny`, copiées dans `~claude/.claude/`) : bloque `rm`, `docker`, `sqlite3`, etc., dans tous les modes.
-3. **`CLAUDE.md`** de ce dossier (copié dans `~claude/.claude/CLAUDE.md`) : les règles expliquées. Une consigne, pas une protection.
+3. **`claude-rules.md`** (copié dans `~claude/.claude/CLAUDE.md`) : les règles expliquées. Une consigne, pas une protection.
 
 Limite connue : `docker-compose.yml` et `.env` sont modifiables seulement par le propriétaire. Un compose modifié pourrait monter `/` dans un conteneur et contourner tout le reste, d'où cette règle.
 
@@ -50,7 +50,7 @@ Le script (`setup.sh <propriétaire> <dossier de la pile>`) :
 1. installe `acl` et `tmux`, crée l'utilisateur `claude` ;
 2. installe `/usr/local/bin/house-docker-ctl` et `/etc/sudoers.d/house-claude` (seule commande `sudo` permise) ;
 3. pose les droits (voir le tableau) ;
-4. copie `CLAUDE.md` et `settings.json` dans `/home/claude/.claude/` ;
+4. copie `claude-rules.md` (sous le nom `CLAUDE.md`) et `settings.json` dans `/home/claude/.claude/` ;
 5. clone le dépôt en lecture seule dans `~/house-repo` (pour que Claude lise les `CLAUDE.md`) ;
 6. écrit l'unité `house-claude.service` (**non activée**).
 
@@ -74,7 +74,7 @@ Vérifier :
 ## Au quotidien
 
 - **Mettre à jour la documentation vue par Claude** : `cd ~/house-repo && git pull` (compte `mathieu`).
-- **Changer les règles** : modifier `CLAUDE.md` ou `settings.json` ici, les recopier dans `/home/claude/.claude/`, puis `sudo systemctl restart house-claude` (le lien de la session change, le nom « Maison » reste).
+- **Changer les règles** : modifier `claude-rules.md` ou `settings.json` ici, les recopier dans `/home/claude/.claude/`, puis `sudo systemctl restart house-claude` (le lien de la session change, le nom « Maison » reste).
 - **Changer le nom** : l'option `--remote-control Maison` dans `/etc/systemd/system/house-claude.service` (et dans `setup.sh`).
 - **Journal** : `sudo journalctl -u house-claude -n 30`.
 

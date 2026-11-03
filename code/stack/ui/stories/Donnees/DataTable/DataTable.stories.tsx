@@ -29,7 +29,7 @@ const Events = () => {
       collapsed={collapsed}
       onToggle={() => setCollapsed((value) => !value)}
       title="events"
-      description="Les événements de Frigate copiés ici : identifiant, caméra, étiquette, début et le chemin du clip."
+      description="Les événements de l’enregistreur copiés ici : identifiant, caméra, étiquette, début et le chemin du clip."
       detail={`${ALL.length} ligne(s)`}
       columns={COLUMNS}
       rows={rows.map((row) => [

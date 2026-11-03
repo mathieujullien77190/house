@@ -20,8 +20,8 @@ export const Unknown: StoryObj<typeof PageFrame> = {
   parameters: source(unknownCode),
   args: {
     src: '',
-    title: 'Frigate',
-    intro: 'L’interface de Frigate, telle quelle.',
-    emptyText: 'Adresse de Frigate inconnue : House Sync n’a pas encore écrit celle du direct.',
+    title: 'Storybook',
+    intro: 'Une autre page de la maison, telle quelle.',
+    emptyText: 'Adresse de la page inconnue.',
   },
 }

@@ -2,9 +2,9 @@
 import { PageFrame } from '@house/ui'
 
 <PageFrame
-  src={frigateOrigin}
-  title="Frigate"
-  intro="L’interface de Frigate, telle quelle."
-  emptyText="Adresse de Frigate inconnue : House Sync n’a pas encore écrit celle du direct."
+  src={pageOrigin}
+  title="Storybook"
+  intro="Une autre page de la maison, telle quelle."
+  emptyText="Adresse de la page inconnue."
 />
 ```
