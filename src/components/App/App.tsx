@@ -1,21 +1,28 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { countsOf } from '@/catalog'
 import CameraDialog from '@/components/CameraDialog'
 import Diagram from '@/components/Diagram'
+import Domain from '@/components/Domain'
 import GlossarySheet from '@/components/GlossarySheet'
 import InfoPanel from '@/components/InfoPanel'
 import Legend from '@/components/Legend'
 import MainsPanel from '@/components/MainsPanel'
 import Architecture from '@/components/Architecture'
 import Pricing from '@/components/Pricing'
+import ShutterSystem from '@/components/ShutterSystem'
 import { GlossaryContext } from '@/lib/glossaryContext'
 import { isCameraKind, isPricedByHand, templates, type Floor, type NodeKind } from '@/nodes'
 import { useDiagram } from '@/useDiagram'
 import AppUI from './UI'
-import { HINT, SUBTITLE, TITLE } from './constants'
+import { DEFAULT_TAB, HINT, LOADING_TEXT, SUBTITLE, TABS, TITLE } from './constants'
+import type { TabId } from './types'
+
+// Three.js est lourd : on ne le charge que lorsqu'on ouvre l'onglet qui montre une vue 3D.
+const ShutterWiring3D = lazy(() => import('@/components/ShutterWiring3D'))
 
 const App = () => {
   const d = useDiagram()
+  const [tab, setTab] = useState<TabId>(DEFAULT_TAB)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [selectedLink, setSelectedLink] = useState<string | null>(null)
   const [floor, setFloor] = useState<Floor>('rdc')
@@ -75,6 +82,20 @@ const App = () => {
       <AppUI
         title={TITLE}
         subtitle={SUBTITLE}
+        tabs={TABS}
+        tab={tab}
+        onTab={setTab}
+        domain={tab === 'architecture' ? null : <Domain id={tab} />}
+        detail={
+          tab === 'shutters' ? (
+            <div className="flex flex-col gap-4">
+              <ShutterSystem />
+              <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
+                <ShutterWiring3D />
+              </Suspense>
+            </div>
+          ) : null
+        }
         notice={d.notice}
         hint={HINT}
         diagram={

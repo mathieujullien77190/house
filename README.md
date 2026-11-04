@@ -1,6 +1,6 @@
-# House – schéma et budget d'un système de caméras
+# House – système domotique de la maison
 
-Un site pour **dessiner et chiffrer** le système de vidéosurveillance d'une maison : un plan interactif sur deux étages, le détail de chaque composant et de chaque liaison, la Reolink en 2D et en 3D, ce qui se branche au secteur, et un tableau des prix relié au schéma. Tout s'exécute dans le navigateur.
+Un site pour **suivre le système domotique d'une maison** : cinq onglets (Caméra, Lumière, Volet, Prise, Architecture). Chaque domaine dit ce qui est en place et ce qui est en préparation, avec le budget connu. L'onglet Caméra garde le plan interactif sur deux étages, le détail de chaque composant et de chaque liaison, la Reolink en 2D et en 3D, ce qui se branche au secteur, et un tableau des prix relié au schéma. Tout s'exécute dans le navigateur.
 
 **En ligne** : https://mathieujullien77190.github.io/house/
 

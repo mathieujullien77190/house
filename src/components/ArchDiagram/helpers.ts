@@ -1,7 +1,8 @@
-import { DISK_SHAPE } from './constants'
+import { DISK_SHAPE, LINE_HEIGHT } from './constants'
 import type { ArchBox, ArchDisk, ArchPanel } from './types'
 
-const LINE_HEIGHT = 18
+/** Nom de la pointe de flèche d'un schéma (un par schéma, la page peut en montrer deux). */
+export const markerId = (viewId: string): string => `arch-arrow-${viewId}`
 
 /** Position du titre d'un bloc : le titre et ses lignes sont centrés verticalement. */
 export const titleY = (b: ArchBox): number => {

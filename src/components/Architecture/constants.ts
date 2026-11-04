@@ -1,40 +1,9 @@
-import type { ArchView, ArchitectureConfig, BoxTone, PanelTone, ViewId } from './types'
+import type { ArchView } from '@/components/ArchDiagram'
+import type { ArchitectureConfig, ViewId } from './types'
 
 export const TITLE = 'Architecture du système'
 export const VIEW_GROUP_LABEL = 'Vue du schéma'
 export const DEFAULT_VIEW: ViewId = 'hardware'
-export const MARKER_ID = 'arch-arrow'
-
-/** Une seule classe par propriété (fond, contour) : l'ordre des classes Tailwind n'est pas garanti. */
-export const BOX_CLASS: Record<BoxTone, string> = {
-  plain: 'fill-card stroke-fg stroke-[1.5]',
-  warm: 'fill-backup/10 stroke-backup stroke-[1.5]',
-  green: 'fill-pi/10 stroke-pi stroke-[1.5]',
-  dashed: 'fill-card stroke-muted stroke-[1.5] [stroke-dasharray:6_4]',
-}
-
-export const PANEL_CLASS: Record<PanelTone, string> = {
-  panel: 'fill-bg stroke-line stroke-[1.5]',
-  warm: 'fill-backup/10 stroke-backup stroke-[1.5]',
-}
-
-export const PANEL_TITLE_CLASS = 'fill-fg text-[15px] font-bold'
-export const DOCKER_TITLE_CLASS = 'fill-fg text-[13px] font-bold'
-export const BOX_TITLE_CLASS = 'fill-fg text-sm font-bold'
-export const BOX_LINE_CLASS = 'fill-muted text-[11.5px]'
-export const ARROW_CLASS = 'fill-none stroke-fg stroke-[1.6]'
-export const ARROW_DASHED_CLASS = 'fill-none stroke-muted stroke-[1.6] [stroke-dasharray:6_4]'
-/** Le tunnel VPN : en bleu, à longs tirets, comme dans le plan de la maison. */
-export const ARROW_VPN_CLASS = 'fill-none stroke-vpn stroke-[2.2] [stroke-dasharray:10_5]'
-export const MARKER_CLASS = 'fill-fg'
-export const LABEL_CLASS = 'fill-fg text-[11.5px]'
-export const VPN_LABEL_CLASS = 'fill-vpn text-[11.5px] font-semibold'
-export const NOTE_CLASS = 'fill-muted text-[10.5px]'
-export const DISK_CLASS = 'fill-pi/10 stroke-pi stroke-[1.5]'
-export const DISK_TOP_CLASS = 'fill-pi/20 stroke-pi stroke-[1.5]'
-
-/** Demi-largeur, rayon vertical de l'ellipse et hauteur du corps d'un disque. */
-export const DISK_SHAPE = { rx: 70, ry: 22, body: 50 }
 
 const HARDWARE: ArchView = {
   id: 'hardware',
@@ -117,18 +86,19 @@ const SOFTWARE: ArchView = {
     { id: 'remote', x: 1175, y: 640, w: 150, h: 55, tone: 'plain', title: 'Téléphone 4G', lines: ['appli WireGuard'] },
   ],
   arrows: [
-    { id: 'rtsp1', d: 'M200 130 H298' },
+    { id: 'rtsp1', d: 'M200 130 H298', live: true },
     { id: 'restream1', d: 'M400 130 H448' },
-    { id: 'rtsp2', d: 'M200 230 H298' },
+    { id: 'rtsp2', d: 'M200 230 H298', live: true },
     { id: 'restream2', d: 'M400 230 H448' },
     { id: 'polling', d: 'M600 450 V190 H562' },
-    { id: 'mjpeg', d: 'M873 262 H760 V320 H350 V277' },
+    { id: 'mjpeg-stream', d: 'M873 308 H340 V277', live: true, both: true },
+    { id: 'mjpeg-frame', d: 'M873 326 H370 V277', live: true, both: true },
     { id: 'auth', d: 'M905 162 V243' },
-    { id: 'stream', d: 'M955 162 V243' },
-    { id: 'frame', d: 'M1005 162 V243' },
+    { id: 'stream', d: 'M955 162 V243', live: true, both: true },
+    { id: 'frame', d: 'M1005 162 V243', live: true, both: true },
     { id: 'events', d: 'M1055 162 V243' },
     { id: 'poe', d: 'M1105 162 V243' },
-    { id: 'app', d: 'M1193 125 H1127' },
+    { id: 'app', d: 'M1193 125 H1127', live: true, both: true },
     { id: 'write', d: 'M632 498 H668' },
     { id: 'write-db', d: 'M590 548 V611 H653' },
     { id: 'read-backup', d: 'M910 387 V490 H812' },
@@ -138,18 +108,19 @@ const SOFTWARE: ArchView = {
     { id: 'vpn-pc', d: 'M1173 552 H1128', vpn: true },
   ],
   labels: [
-    { id: 'rtsp1', x: 249, y: 121, text: 'RTSP', anchor: 'middle' },
+    { id: 'rtsp1', x: 249, y: 121, text: 'RTSP', anchor: 'middle', live: true },
     { id: 'restream1', x: 424, y: 121, text: 'RTSP', anchor: 'middle' },
-    { id: 'rtsp2', x: 249, y: 221, text: 'RTSP', anchor: 'middle' },
+    { id: 'rtsp2', x: 249, y: 221, text: 'RTSP', anchor: 'middle', live: true },
     { id: 'restream2', x: 424, y: 221, text: 'RTSP', anchor: 'middle' },
     { id: 'polling', x: 608, y: 432, text: 'polling · interne' },
-    { id: 'mjpeg', x: 680, y: 312, text: 'MJPEG · image (1984, réseau Docker)', anchor: 'middle' },
+    { id: 'mjpeg-stream', x: 730, y: 303, text: 'stream.mjpeg · flux d’images JPEG', anchor: 'middle', live: true },
+    { id: 'mjpeg-frame', x: 730, y: 342, text: 'frame.jpeg · une image (1984, réseau Docker)', anchor: 'middle', live: true },
     { id: 'auth', x: 911, y: 207, text: 'auth' },
-    { id: 'stream', x: 961, y: 207, text: 'stream' },
-    { id: 'frame', x: 1011, y: 207, text: 'frame' },
+    { id: 'stream', x: 961, y: 207, text: 'stream', live: true },
+    { id: 'frame', x: 1011, y: 207, text: 'frame', live: true },
     { id: 'events', x: 1061, y: 207, text: 'events' },
     { id: 'poe', x: 1111, y: 207, text: 'poe' },
-    { id: 'app', x: 1160, y: 116, text: 'HTTP', anchor: 'middle' },
+    { id: 'app', x: 1160, y: 116, text: 'HTTP', anchor: 'middle', live: true },
     { id: 'write', x: 650, y: 489, text: 'write', anchor: 'middle' },
     { id: 'write-db', x: 598, y: 603, text: 'write' },
     { id: 'read-backup', x: 872, y: 507, text: 'read (clips, images)', anchor: 'middle' },
@@ -159,8 +130,7 @@ const SOFTWARE: ArchView = {
     { id: 'compose1', x: 280, y: 600, text: 'docker compose :', note: true },
     { id: 'compose2', x: 280, y: 616, text: 'quatre conteneurs (+ certs).', note: true },
     { id: 'sec1', x: 280, y: 640, text: 'go2rtc et motion : non publiés,', note: true },
-    { id: 'sec2', x: 280, y: 656, text: 'seuls 8080 et 8081 (avec la clé).', note: true },
-    { id: 'tunnel', x: 1242, y: 620, text: 'tunnel', anchor: 'end', vpn: true },
+    { id: 'sec2', x: 280, y: 656, text: 'seuls 8080 et 8081 (avec la clé).', note: true },    { id: 'tunnel', x: 1242, y: 620, text: 'tunnel', anchor: 'end', vpn: true },
     { id: 'vpn-ports', x: 1168, y: 544, text: '192.168.27.139 : 8080 · 8081', anchor: 'end', vpn: true },
     { id: 'vpn-note1', x: 1168, y: 574, text: 'pare-feu : maison + VPN', anchor: 'end', note: true },
   ],

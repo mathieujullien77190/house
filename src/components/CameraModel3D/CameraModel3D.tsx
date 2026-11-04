@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
+import { disposeObject, supportsWebGL } from '@/lib/three'
 import CameraModel3DUI from './UI'
 import { MODEL, VIEW_HEIGHT } from './constants'
-import { buildScene, disposeObject, supportsWebGL } from './helpers'
+import { buildScene } from './helpers'
 import type { SceneHandle } from './types'
 
 const CameraModel3D = () => {

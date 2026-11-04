@@ -1,8 +1,10 @@
-# House – schéma et budget d'un système de caméras
+# House – système domotique de la maison
 
 ## Présentation
 
-Site React + TypeScript (Vite, Tailwind) pour **dessiner et chiffrer** un système de vidéosurveillance de maison. Tout s'exécute dans le navigateur, le schéma se sauvegarde dans le `localStorage`. La page montre :
+Site React + TypeScript (Vite, Tailwind) pour **suivre le système domotique de la maison** : caméras, lumières, volets, prises. Tout s'exécute dans le navigateur, le schéma se sauvegarde dans le `localStorage`.
+
+**Cinq onglets** (`components/App`, `SegmentedControl`) : **Caméra**, **Lumière**, **Volet**, **Prise** et **Architecture**. Chacun des quatre domaines commence par le même bloc (`components/Domain`) : **ce qui est en place**, puis **ce qui est en préparation** (avec le budget connu). Son contenu est dans `src/domotics.ts` (une entrée par élément ; `price` en euros, absent tant qu'on ne l'a pas relevé) : on y ajoute un achat ou un chantier, et on le déplace de « préparation » à « en place » une fois fait. Les onglets Lumière et Prise n'ont que ce bloc ; **Volet** y ajoute les schémas **matériel et logiciel** des volets (`ShutterSystem`, dessinés par `ArchDiagram`) et le **schéma 3D du montage** ESP32 + CC1101 (`ShutterWiring3D`, chargé à la demande : le courant, les 8 fils colorés, les noms des broches, vue du dessus) ; l'onglet **Caméra** garde en plus tout ce qui suit (le plan, le schéma, le tableau des prix), et **Architecture** les cinq vues du système entier. L'onglet Caméra montre :
 - un **plan SVG interactif de la maison** sur deux étages (rez-de-chaussée avec le jardin, sous-sol), zoom +/−, composants déplaçables, traits qui suivent ;
 - un **panneau de détail** du composant ou de la liaison sélectionnés ;
 - un **dessin** de la caméra sélectionnée (Reolink, en 2D et en 3D) ;
@@ -42,7 +44,7 @@ Téléphone, hors de la maison
 
 **Le schéma** (`defaultNodes` et `defaultLinks`, `src/nodes.ts`) : `cam1` et `cam2` (2 Reolink au portail) → `swA` (le switch) → `mini` (composant libre à 479 €, 65 W : ACEMAGIC K1, Ryzen 5 7530U, 16 Go, SSD M.2 1 To, un port Ethernet 1 Gb/s, Linux + Docker) et `box` (la box, 0 €) ; `pc` (le PC de la maison, composant libre à 0 €, relié à la box en `wifi`) ; `remote` (le téléphone en 4G, hors de la maison, dans le jardin en haut à droite) relié à la box par un lien `vpn` (WireGuard, bleu, longs tirets). Pas de Pi, pas de k3s (écartés : plus chers et moins puissants), pas de second switch.
 
-**`Architecture`** (`src/components/Architecture`) : cinq vues. « Matériel » et « Logiciel » (schémas SVG, avec l'accès distant WireGuard : un cadre « Hors de la maison », le tunnel en bleu, le serveur VPN de la Freebox), « Interfaces » (`InterfacesMap` : l'architecture des deux apps web, de `@house/ui`, de Storybook et de House API, pastilles posées par `layoutColumns`), « Code » (`CodeBrowser` : les fichiers de `code/stack` avec une explication chacun), « Déploiement » (`DeploymentPanel` : les adresses réelles de la maison, l'accès distant, comptes nommés, jamais de mot de passe). Les données sont dans `constants.ts` (`ARCHITECTURE`) ; une flèche `vpn: true` est le tunnel. `DEFAULT_VIEW` reste `'hardware'`.
+**`Architecture`** (`src/components/Architecture`) : cinq vues. « Matériel » et « Logiciel » (schémas SVG dessinés par `ArchDiagram` à partir de données, avec l'accès distant WireGuard : un cadre « Hors de la maison », le tunnel en bleu, le serveur VPN de la Freebox), « Interfaces » (`InterfacesMap` : l'architecture des deux apps web, de `@house/ui`, de Storybook et de House API, pastilles posées par `layoutColumns`), « Code » (`CodeBrowser` : les fichiers de `code/stack` avec une explication chacun), « Déploiement » (`DeploymentPanel` : les adresses réelles de la maison, l'accès distant, comptes nommés, jamais de mot de passe). Les données sont dans `constants.ts` (`ARCHITECTURE`) ; une flèche `vpn: true` est le tunnel. `DEFAULT_VIEW` reste `'hardware'`.
 
 ## Règles métier
 
@@ -83,10 +85,12 @@ src/
 ├── wiring.ts       branchement automatique d'une caméra : autoWire
 ├── useDiagram.ts   état du schéma : ajout, déplacement, zones, liens, localStorage
 ├── catalog.ts      catalogue de prix, compteurs, avertissements
+├── domotics.ts     les quatre domaines (caméra, lumière, volet, prise) : ce qui est en place, ce qui est en préparation, prix
 ├── glossary.ts     termes du glossaire
-├── lib/            classes Tailwind partagées, GlossaryContext
+├── lib/            classes Tailwind partagées, GlossaryContext, `three.ts` (WebGL pris en charge, libération des objets three.js)
 └── components/
-    ├── App/                  assemble la page
+    ├── App/                  assemble la page : les onglets, puis le contenu de chacun
+    ├── Domain/               le bloc « en place / en préparation » d'un domaine
     ├── Diagram/              schéma SVG : étage, glisser, clavier, zoom, mode secteur
     ├── HousePlan/            fond du schéma : plan de la maison
     ├── DiagramNode/          un composant du schéma
@@ -100,6 +104,9 @@ src/
     ├── Pricing/              tableau des prix
     ├── CameraDialog/         boîte de dialogue d'une caméra (2D, 3D à la demande)
     ├── CameraModel3D/        vue 3D three.js de la Reolink
+    ├── ArchDiagram/          un schéma SVG en blocs et flèches, décrit par des données (Architecture et ShutterSystem)
+    ├── ShutterSystem/        schémas matériel et logiciel des volets (onglet Volet)
+    ├── ShutterWiring3D/      vue 3D du montage ESP32 + CC1101 des volets, courant compris (onglet Volet)
     ├── ReolinkDrawing/       dessin de la Reolink
     ├── GlossarySheet/        définition d'un terme
     └── UI/                   Button, Card, Field, Select, Badge, Stepper, SegmentedControl, RichText, BottomSheet, Dialog
@@ -114,7 +121,7 @@ src/
 - **Composants de bas niveau** dans `components/UI/`, métier dans `components/`.
 - **Couleurs** : le plan utilise les couleurs de la page ; seuls composants et liaisons ont des couleurs d'accent. Les liaisons ont chacune la leur (PoE bleu, VPN WireGuard bleu-vert à longs tirets : `--vpn` dans `index.css`).
 - **Caméras** : un clic (sans glisser, ou Entrée) ouvre `CameraDialog` (`<dialog>`, `UI/Dialog`) ; un glissement de plus de 4 unités déplace (`DRAG_THRESHOLD`).
-- **Three.js** : chargé avec `React.lazy` ; millimètres ; scène construite une fois, démontage qui libère tout (`forceContextLoss`) ; molette seule = défilement, Ctrl + molette = zoom ; rendu arrêté hors écran.
+- **Three.js** : chargé avec `React.lazy` ; millimètres ; scène construite une fois, démontage qui libère tout (`forceContextLoss`) ; molette seule = défilement, Ctrl + molette = zoom (sauf `ShutterWiring3D` : la molette zoome) ; rendu arrêté hors écran.
 - **Tailwind uniquement**, thème dans `index.css`. Une seule classe par propriété sur un élément (ordre non garanti).
 - TypeScript strict, pas de `any`.
 - **Vue « Code »** : l'arbre s'affiche avec tous les dossiers fermés, un clic sur un dossier l'ouvre ou le ferme (`open`, `visibleNodes`). Tout fichier ajouté dans `code/stack` y apparaît ; son explication va dans `components/CodeBrowser/constants.ts` (`EXPLANATIONS` ; `UI.tsx`, `types.ts`, `constants.ts`, `helpers.ts`, `index.ts`, `CLAUDE.md` ont une explication générique dans `ROLE_EXPLANATIONS`).
