@@ -16,6 +16,8 @@ export interface CameraCardProps {
   media: ReactNode
   /** Les actions à côté du nom (allumer, éteindre…), rendues par le parent ; rien par défaut. */
   actions?: ReactNode
+  /** Des mesures ou des détails sous le média (température d'un capteur, par exemple), rendus par le parent ; rien par défaut. */
+  details?: ReactNode
   /** La frise, rendue par le parent. */
   timeline: ReactNode
   /** L'élément qui passe en plein écran : le parent le lit pour appeler l'API plein écran du navigateur. */

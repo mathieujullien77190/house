@@ -5,6 +5,10 @@
 export const CLIP_MAX_LEAD_SECONDS = 5
 export const CAMERA_TITLE_PREFIX = 'Caméra : '
 export const LIVE_CAPTION = 'Direct'
+/** La caméra dont la vue détaillée montre la température des deux capteurs de la volière (groupe « Volière » de l'onglet Lumière). */
+export const TEMPERATURE_CAMERA = 'portail'
+export const TEMPERATURE_LABEL = 'Température · '
+export const TEMPERATURE_UNKNOWN_TEXT = 'inconnue'
 /** Le direct est un flux MJPEG que l'API relaie depuis go2rtc (le flux léger de la caméra, recodé en JPEG). */
 export const LIVE_FORMAT = 'MJPEG'
 export const AT_CAPTION_PREFIX = 'Image à '

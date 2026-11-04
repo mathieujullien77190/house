@@ -1,10 +1,12 @@
 import { useCallback, useState } from 'react'
-import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs } from '@house/ui'
+import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, SpecList, Tabs } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
+import { ZONES } from '@/components/Lights/constants'
 import PowerButton from '@/components/PowerButton'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
 import { usePinchZoom } from '@/lib/usePinchZoom'
+import { useSensors } from '@/lib/useSensors'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
@@ -21,8 +23,9 @@ import {
   ONGOING_CLIP_TEXT,
   QUALITY_LABEL,
   QUALITY_OPTIONS,
+  TEMPERATURE_CAMERA,
 } from './constants'
-import { captionOf, clipLead, clipPathOf, liveCaption } from './helpers'
+import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
 import type { CameraCardProps, LiveQuality, Quality } from './types'
 
 /**
@@ -55,6 +58,10 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const bigView = useBigView()
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
   const pinchZoom = usePinchZoom(bigView.big)
+  // La température des deux capteurs de la volière, sous le média de la caméra du portail.
+  const showTemperatures = camera.name === TEMPERATURE_CAMERA
+  const sensors = useSensors(apiKey, showTemperatures)
+  const temperatures = showTemperatures ? temperatureItems(sensors, ZONES.find((zone) => zone.id === 'voliere')?.sensors ?? []) : []
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
@@ -140,6 +147,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
       onExpand={bigView.open}
       onCollapse={bigView.close}
       mediaGesture={pinchZoom}
+      details={temperatures.length > 0 ? <SpecList items={temperatures} /> : undefined}
       timeline={
         <Timeline
           apiKey={apiKey}

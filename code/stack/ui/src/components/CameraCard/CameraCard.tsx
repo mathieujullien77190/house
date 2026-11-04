@@ -21,7 +21,7 @@ import type { CameraCardProps } from './types'
  * Le média peut passer en grand : plein écran, en paysage ; le parent décide quand (`expanded`) et appelle le plein
  * écran du navigateur sur `figureRef`.
  */
-const CameraCard = ({ name, caption, warning = '', actions, media, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
+const CameraCard = ({ name, caption, warning = '', actions, media, details, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
   // Le zoom au doigt n'existe qu'en vue en grand.
   const gesture = expanded ? mediaGesture : undefined
   return (
@@ -51,6 +51,7 @@ const CameraCard = ({ name, caption, warning = '', actions, media, timeline, fig
           </button>
         ) : null}
       </figure>
+      {details}
       {timeline}
     </section>
   )

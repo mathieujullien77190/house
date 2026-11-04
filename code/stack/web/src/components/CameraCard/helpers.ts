@@ -1,7 +1,17 @@
 import { describeEvent, formatTime } from '@/lib/format'
-import type { EventRow } from '@/types'
+import type { SpecItem } from '@house/ui'
+import type { EventRow, HueSensor } from '@/types'
 import type { Quality } from './types'
-import { AT_CAPTION_PREFIX, CLIP_CAPTION_PREFIX, CLIP_MAX_LEAD_SECONDS, LIVE_CAPTION, LIVE_FORMAT } from './constants'
+import { AT_CAPTION_PREFIX, CLIP_CAPTION_PREFIX, CLIP_MAX_LEAD_SECONDS, LIVE_CAPTION, LIVE_FORMAT, TEMPERATURE_LABEL, TEMPERATURE_UNKNOWN_TEXT } from './constants'
+
+/** Une ligne par capteur demandé, dans l'ordre des identifiants : « Température · <nom du capteur> » et sa valeur. Un capteur absent du pont n'a pas de ligne. */
+export const temperatureItems = (sensors: HueSensor[], ids: string[]): SpecItem[] =>
+  ids.flatMap((id) => {
+    const sensor = sensors.find((found) => found.id === id)
+    if (!sensor) return []
+    const value = sensor.temperature === null ? TEMPERATURE_UNKNOWN_TEXT : `${sensor.temperature.toFixed(1).replace('.', ',')} °C`
+    return [{ id, label: `${TEMPERATURE_LABEL}${sensor.name}`, value }]
+  })
 
 /**
  * De combien le clip commence avant l'événement. Quand l'enregistreur a donné le début réel du clip, on l'utilise (il
