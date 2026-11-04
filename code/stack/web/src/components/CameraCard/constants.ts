@@ -14,6 +14,11 @@ export const QUALITY_OPTIONS = [
   { id: 'h264', label: 'H.264 · 720p' },
   { id: 'original', label: 'H.265 · 4K' },
 ] as const
+export const LIVE_QUALITY_LABEL = 'Qualité du direct'
+export const LIVE_QUALITY_OPTIONS = [
+  { id: 'light', label: 'Léger' },
+  { id: 'hd', label: '4K' },
+] as const
 export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'
 export const CAMERA_OFF_TEXT = 'Caméra éteinte'
 export const CAMERA_STARTING_TEXT = 'Caméra en démarrage…'

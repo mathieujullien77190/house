@@ -1,4 +1,10 @@
-import type { ReactNode, RefObject } from 'react'
+import type { CSSProperties, HTMLAttributes, ReactNode, RefObject } from 'react'
+
+/** Le zoom au doigt du média en grand, tenu par le parent : les gestes de la zone, et le style du contenu qui bouge. */
+export interface MediaGesture {
+  handlers: HTMLAttributes<HTMLDivElement>
+  style: CSSProperties
+}
 
 export interface CameraCardProps {
   name: string
@@ -19,4 +25,6 @@ export interface CameraCardProps {
   /** Le bouton « Afficher en grand » n'apparaît que si le parent sait l'ouvrir. */
   onExpand?: () => void
   onCollapse?: () => void
+  /** Zoom au doigt (pincer, déplacer, double toucher), seulement en vue en grand ; sans lui, le média ne bouge pas. */
+  mediaGesture?: MediaGesture
 }

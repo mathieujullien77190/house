@@ -6,7 +6,7 @@ import type { LiveService, Upstream } from '../services/liveService.ts'
 
 const CAMERA = /^[\w-]+$/
 
-const relay = async (req: Request, res: Response, open: (camera: string, signal: AbortSignal) => Promise<Upstream | null>) => {
+const relay = async (req: Request, res: Response, open: (camera: string, signal: AbortSignal, hd: boolean) => Promise<Upstream | null>) => {
   const camera = String(req.query.camera ?? '')
   if (!CAMERA.test(camera)) {
     res.status(400).json({ error: 'camera is required' })
@@ -16,7 +16,7 @@ const relay = async (req: Request, res: Response, open: (camera: string, signal:
   res.on('close', () => controller.abort())
   let upstream: Upstream | null
   try {
-    upstream = await open(camera, controller.signal)
+    upstream = await open(camera, controller.signal, req.query.quality === 'hd')
   } catch {
     if (!res.headersSent) res.status(502).json({ error: 'go2rtc unreachable' })
     return

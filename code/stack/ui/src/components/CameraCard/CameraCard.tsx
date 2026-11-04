@@ -12,6 +12,7 @@ import {
   NAME_CLASS,
   SECTION_CLASS,
   WARNING_CLASS,
+  ZOOM_AREA_CLASS,
 } from './constants'
 import type { CameraCardProps } from './types'
 
@@ -20,7 +21,9 @@ import type { CameraCardProps } from './types'
  * Le média peut passer en grand : plein écran, en paysage ; le parent décide quand (`expanded`) et appelle le plein
  * écran du navigateur sur `figureRef`.
  */
-const CameraCard = ({ name, caption, warning = '', actions, media, timeline, figureRef, expanded = false, onExpand, onCollapse }: CameraCardProps) => {
+const CameraCard = ({ name, caption, warning = '', actions, media, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
+  // Le zoom au doigt n'existe qu'en vue en grand.
+  const gesture = expanded ? mediaGesture : undefined
   return (
     <section className={SECTION_CLASS}>
       <div className={HEAD_CLASS}>
@@ -39,7 +42,9 @@ const CameraCard = ({ name, caption, warning = '', actions, media, timeline, fig
           </figcaption>
         )}
         {warning && !expanded ? <p className={WARNING_CLASS}>{warning}</p> : null}
-        <div className={expanded ? BIG_MEDIA_CLASS : undefined}>{media}</div>
+        <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : undefined} {...gesture?.handlers}>
+          <div style={gesture?.style}>{media}</div>
+        </div>
         {expanded && onCollapse ? (
           <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
             {COLLAPSE_LABEL}

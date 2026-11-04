@@ -16,7 +16,9 @@ export const EXPAND_CLASS = 'cursor-pointer rounded-md border border-line bg-bg 
  * place réelle au média.
  */
 export const EXPANDED_CLASS =
-  'fixed inset-0 z-50 m-0 flex max-w-none items-center justify-center bg-black p-0 [--big-h:100dvh] [--big-w:100dvw] portrait:inset-auto portrait:top-0 portrait:left-0 portrait:h-[100dvw] portrait:w-[100dvh] portrait:origin-top-left portrait:translate-x-[100dvw] portrait:rotate-90 portrait:[--big-h:100dvw] portrait:[--big-w:100dvh]'
+  'fixed inset-0 z-50 m-0 flex overflow-hidden max-w-none items-center justify-center bg-black p-0 [--big-h:100dvh] [--big-w:100dvw] portrait:inset-auto portrait:top-0 portrait:left-0 portrait:h-[100dvw] portrait:w-[100dvh] portrait:origin-top-left portrait:translate-x-[100dvw] portrait:rotate-90 portrait:[--big-h:100dvw] portrait:[--big-w:100dvh]'
 /** Le plus grand cadre 16/9 qui tient dans l'écran. */
 export const BIG_MEDIA_CLASS = 'w-[min(var(--big-w),calc(var(--big-h)*16/9))]'
+/** La zone du média en grand reçoit les gestes : le navigateur ne doit ni défiler ni zoomer la page à sa place. */
+export const ZOOM_AREA_CLASS = 'touch-none select-none'
 export const COLLAPSE_CLASS = 'absolute top-3 right-3 z-10 cursor-pointer rounded-lg border border-white/30 bg-black/60 px-3 py-2 text-[0.9rem] text-white focus-visible:outline-2 focus-visible:outline-accent'

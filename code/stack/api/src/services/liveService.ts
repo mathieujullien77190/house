@@ -43,9 +43,11 @@ export const createLiveService = (go2rtcUrls: string[], cameras: CamerasReposito
 
   return {
     baseOf,
-    /** Le flux MJPEG d'une caméra (multipart/x-mixed-replace), tant que le client reste connecté. */
-    stream: (camera: string, signal: AbortSignal): Promise<Upstream | null> => {
-      const src = streamOf(camera)
+    /** Le flux MJPEG d'une caméra (multipart/x-mixed-replace), tant que le client reste connecté ; `hd` : le 4K au lieu du léger. */
+    stream: (camera: string, signal: AbortSignal, hd = false): Promise<Upstream | null> => {
+      const light = streamOf(camera)
+      // Le léger est `<nom>_sub`, le 4K `<nom>_main` : même caméra, autre flux.
+      const src = light && hd ? light.replace(/_sub$/, '_main') : light
       // go2rtc ne sert du MJPEG que pour un flux déclaré en transcodage : <flux>_mjpeg (voir go2rtc/go2rtc.yaml).
       return src ? open(camera, `/api/stream.mjpeg?src=${encodeURIComponent(`${src}${MJPEG_SUFFIX}`)}`, signal) : Promise.resolve(null)
     },

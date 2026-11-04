@@ -4,13 +4,26 @@ import ClipPlayer from '@/components/ClipPlayer'
 import PowerButton from '@/components/PowerButton'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
+import { usePinchZoom } from '@/lib/usePinchZoom'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
 import type { EventRow } from '@/types'
-import { CAMERA_OFF_TEXT, CAMERA_STARTING_TEXT, CAMERA_TITLE_PREFIX, HIDDEN_PLAYER_CLASS, NO_CLIP_TEXT, NO_IMAGE_TEXT, ONGOING_CLIP_TEXT, QUALITY_LABEL, QUALITY_OPTIONS } from './constants'
+import {
+  CAMERA_OFF_TEXT,
+  CAMERA_STARTING_TEXT,
+  CAMERA_TITLE_PREFIX,
+  HIDDEN_PLAYER_CLASS,
+  LIVE_QUALITY_LABEL,
+  LIVE_QUALITY_OPTIONS,
+  NO_CLIP_TEXT,
+  NO_IMAGE_TEXT,
+  ONGOING_CLIP_TEXT,
+  QUALITY_LABEL,
+  QUALITY_OPTIONS,
+} from './constants'
 import { captionOf, clipLead, clipPathOf, liveCaption } from './helpers'
-import type { CameraCardProps, Quality } from './types'
+import type { CameraCardProps, LiveQuality, Quality } from './types'
 
 /**
  * Une caméra : en haut le direct (flux MJPEG relayé par l'API depuis go2rtc), remplacée par l'image gardée
@@ -32,12 +45,16 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const [resumeAt, setResumeAt] = useState(0)
   // La résolution réelle du direct, lue dans l'image du navigateur à la première image reçue.
   const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null)
+  // Le direct léger par défaut ; le 4K est recodé en MJPEG par le mini PC, donc seulement sur demande.
+  const [liveQuality, setLiveQuality] = useState<LiveQuality>('light')
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
   const [readyClip, setReadyClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
   const { power, setPower } = usePower(apiKey, camera.name)
   // « Afficher en grand » : le média en plein écran, en paysage.
   const bigView = useBigView()
+  // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
+  const pinchZoom = usePinchZoom(bigView.big)
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
@@ -50,7 +67,14 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const onReady = useCallback(() => setReadyClip(clipPath ?? ''), [clipPath])
   const onDuration = useCallback((seconds: number) => setVideoDuration(seconds), [])
   // Le direct : un flux MJPEG que l'API relaie depuis go2rtc ; une seule requête, les images arrivent toutes seules.
-  const live = liveSrc(camera.name)
+  const live = liveSrc(camera.name, liveQuality === 'hd')
+
+  // Changer de direct : la résolution lue à la première image n'est plus valable.
+  const changeLiveQuality = (next: LiveQuality) => {
+    if (next === liveQuality) return
+    setLiveSize(null)
+    setLiveQuality(next)
+  }
 
   // Changer de version reprend la lecture là où elle en est.
   const changeQuality = (next: Quality) => {
@@ -106,6 +130,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
       actions={
         <>
           {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...QUALITY_OPTIONS]} value={quality} onChange={changeQuality} /> : null}
+          {selected || cursor !== null ? null : <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />}
           <PowerButton apiKey={apiKey} camera={camera.name} power={power} onPower={setPower} />
         </>
       }
@@ -114,6 +139,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
       expanded={bigView.big}
       onExpand={bigView.open}
       onCollapse={bigView.close}
+      mediaGesture={pinchZoom}
       timeline={
         <Timeline
           apiKey={apiKey}
