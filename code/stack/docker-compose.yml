@@ -61,8 +61,13 @@ services:
     environment:
       # Les enregistreurs (un par machine), séparés par des virgules : leur API est interne, sans mot de passe.
       RECORDER_URLS: ${RECORDER_URLS:-http://motion:8080}
-      # L'adresse du pont Philips Hue : House Sync lit sa fiche publique (sans clé) pour dire s'il est joignable.
+      # Le pont Philips Hue : son adresse (House Sync lit sa fiche publique, sans clé, pour dire s'il est joignable) et la clé
+      # d'application, la même que l'API : House Sync écoute le flux d'événements du pont et garde le journal des lampes
+      # (table hue_events, d'où vient chaque changement). Sans clé, le journal reste inactif.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
+      HUE_APP_KEY: ${HUE_APP_KEY:-}
+      # Les lignes du journal plus vieilles que ce nombre de jours sont supprimées chaque jour.
+      HUE_LOG_DAYS: ${HUE_LOG_DAYS:-365}
       # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
       HOUSE_KEY: ${API_KEY}
       PAGE_PORT: "8081"

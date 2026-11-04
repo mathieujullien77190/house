@@ -15,6 +15,7 @@ import { readSpecs } from './specs.ts'
 import { parseRange } from './range.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
 import { readHueBridge } from './hue.ts'
+import { createHueLog } from './hueLog.ts'
 import { createAttemptLimiter } from './attempts.ts'
 import { readNetwork } from './network.ts'
 import { readSystem } from './system.ts'
@@ -132,15 +133,28 @@ const CLIP_SETTLE_SECONDS = 20
 
 const log = (message: string) => console.log(`${new Date().toISOString()} ${message}`)
 
+// Le journal des lampes Hue : l'écoute du flux d'événements du pont, gardée dans la table hue_events (hueLog.ts).
+// Il lui faut l'adresse du pont et sa clé d'application (HUE_BRIDGE_IP et HUE_APP_KEY) ; sans l'une, il reste inactif.
+const hueLog = createHueLog(db, {
+  address: process.env.HUE_BRIDGE_IP ?? '',
+  key: process.env.HUE_APP_KEY ?? '',
+  days: Number(process.env.HUE_LOG_DAYS ?? 365),
+  log,
+})
+
 // Requête vers un enregistreur (un conteneur motion) : réseau Docker interne, sans mot de passe, jamais publié.
-const recorderAt = (base: string, path: string): Promise<Response> => fetch(`${base}${path}`)
+// Une requête qui ne finit pas (une caméra éteinte laisse l'image en attente) est coupée : sans ça, elle figerait le tour entier.
+const REQUEST_TIMEOUT_MS = 15_000
+const CLIP_TIMEOUT_MS = 120_000
+const recorderAt = (base: string, path: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> =>
+  fetch(`${base}${path}`, { signal: AbortSignal.timeout(timeoutMs) })
 
 // Quel enregistreur gère quelle caméra : rempli à chaque tour par syncCameras, lu pour copier un clip ou une image.
 const recorderOf = new Map<string, string>()
-const recorder = (camera: string, path: string): Promise<Response> => {
+const recorder = (camera: string, path: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> => {
   const base = recorderOf.get(camera)
   if (!base) return Promise.resolve(new Response(null, { status: 503 }))
-  return recorderAt(base, path)
+  return recorderAt(base, path, timeoutMs)
 }
 
 // Pour chaque caméra de chaque enregistreur : l'adresse de sa dernière image et celle de la page du direct (le go2rtc
@@ -180,11 +194,14 @@ const syncSnapshots = async (cameras: string[]) => {
   lastSnapshotAt = now
   let taken = 0
   for (const camera of cameras) {
-    const res = await recorder(camera, `/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
-    if (!res.ok) continue
+    // Une caméra qui ne répond pas ne doit pas priver les autres de leur image.
+    const image = await recorder(camera, `/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
+      .then(async (res) => (res.ok ? Buffer.from(await res.arrayBuffer()) : null))
+      .catch(() => null)
+    if (!image) continue
     mkdirSync(`${DATA_DIR}/snapshots/${camera}`, { recursive: true })
     const path = `snapshots/${camera}/${now}.jpg`
-    await writeFile(`${DATA_DIR}/${path}`, Buffer.from(await res.arrayBuffer()))
+    await writeFile(`${DATA_DIR}/${path}`, image)
     insertSnapshot.run(camera, now, path)
     taken += 1
   }
@@ -204,7 +221,7 @@ const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
   // L'identifiant sert de nom de fichier : rien d'autre que des caractères sûrs.
   if (!/^[\w.-]+$/.test(event.id) || !/^[\w-]+$/.test(event.camera)) return null
   if (event.end_time !== null && Date.now() / 1000 - event.end_time < CLIP_SETTLE_SECONDS) return null
-  const res = await recorder(event.camera, `/api/events/${event.id}/clip.mp4`)
+  const res = await recorder(event.camera, `/api/events/${event.id}/clip.mp4`, CLIP_TIMEOUT_MS)
   if (!res.ok) {
     log(`Clip ${event.id} indisponible (HTTP ${res.status})`)
     return null
@@ -308,7 +325,7 @@ const syncWebClips = async () => {
   let copied = 0
   for (const row of clipsWithoutWeb.all(now - CLIP_RETRY_SECONDS) as { id: string; camera: string; clip_path: string }[]) {
     if (!/^[\w.-]+$/.test(row.id) || !/^[\w-]+$/.test(row.camera)) continue
-    const res = await recorder(row.camera, `/api/events/${row.id}/clip.h264.mp4`)
+    const res = await recorder(row.camera, `/api/events/${row.id}/clip.h264.mp4`, CLIP_TIMEOUT_MS)
     if (!res.ok) continue
     const path = row.clip_path.replace(/\.mp4$/, '.h264.mp4')
     await writeFile(`${DATA_DIR}/${path}`, Buffer.from(await res.arrayBuffer()))
@@ -450,6 +467,7 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
   if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(DOCKER_FILE, COMPOSE_FILE))
   if (pathname === '/api/specs') return sendJson(res, 200, await readSpecs())
   if (pathname === '/api/hue') return sendJson(res, 200, await readHueBridge())
+  if (pathname === '/api/hue-log') return sendJson(res, 200, hueLog.list(params))
   if (pathname === '/api/network') return sendJson(res, 200, await readNetwork())
   if (pathname === '/api/system') return sendJson(res, 200, await readSystem())
   if (pathname === '/api/power') return sendJson(res, 200, await readPower(POWER_FILE, apiTarget()))
@@ -505,11 +523,13 @@ page.listen(PAGE_PORT, () => log(`Page de House Sync en ${secure ? 'HTTPS' : 'HT
 // ---- Le polling ----
 
 log(`House Sync démarré (${DATA_DIR}/events.db, toutes les ${INTERVAL_MS / 1000} s)`)
+hueLog.start()
 await poll()
 const timer = setInterval(poll, INTERVAL_MS)
 
 const stop = () => {
   clearInterval(timer)
+  hueLog.stop()
   page.close()
   db.close()
   process.exit(0)

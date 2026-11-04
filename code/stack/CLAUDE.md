@@ -36,7 +36,7 @@ Un CLAUDE.md par dossier : `certs/`, `power/`, `go2rtc/`, `motion/`, `sync/`, `s
 
 ## Lumières (pont Hue)
 
-House API pilote le pont Philips Hue (`/hue`, `HUE_BRIDGE_IP` et `HUE_APP_KEY` dans `.env`) et l'onglet **Lumière** de la WebApp l'affiche. **Les règles d'automatisation vivent dans le pont**, pas dans House, et leur état change : le détail (règles, heures de lever et de coucher du soleil écrites en dur, sauvegardes) est dans `docs/hue.md`, à lire avant de toucher à une lumière ou à une règle.
+House API pilote le pont Philips Hue (`/hue`, `HUE_BRIDGE_IP` et `HUE_APP_KEY` dans `.env`) et l'onglet **Lumière** de la WebApp l'affiche. **Les règles d'automatisation vivent dans le pont**, pas dans House, et leur état change : le détail (règles, heures de lever et de coucher du soleil écrites en dur, sauvegardes) est dans `docs/hue.md`, à lire avant de toucher à une lumière ou à une règle. **House Sync tient un journal** de tout ce qui change sur le pont (lampes, scènes, interrupteurs, détecteurs, reconnexions radio) avec une origine devinée, dans la table `hue_events` : pour savoir pourquoi une lampe s'est allumée, voir la section « Le journal des événements » du même fichier.
 
 ## Session Claude permanente (`remote/`)
 
@@ -58,4 +58,4 @@ Vérifications : `npm run typecheck` dans `api/`, `npm run typecheck && npm test
 
 ## Réglages (docker-compose.yml et .env)
 
-`POLL_INTERVAL_SECONDS` (5 s, House Sync vers l'enregistreur), `SNAPSHOT_INTERVAL_SECONDS` (60 s), `SNAPSHOT_RETENTION_DAYS` (7), `RETENTION_HOURS` (6, l'enregistreur), `CERT_HOSTS` (hôtes du certificat), `API_KEY`, `REOLINK_PASSWORD`, `SWITCH_USER` et `SWITCH_PASSWORD` (le compte de la page web du switch, pour couper le PoE d'une caméra), `CAMERA2_IP`, `CAMERA2_USER` et `CAMERA2_PASSWORD` (la deuxième caméra), `HUE_BRIDGE_IP` et `HUE_APP_KEY` (le pont Hue). Le modèle de toutes les variables : `.env.example`. Les seuils de la détection de mouvement : `PIXEL_THRESHOLD`, `AREA_THRESHOLD`, `START_FRAMES`, `END_SECONDS` (voir `motion/CLAUDE.md`).
+`POLL_INTERVAL_SECONDS` (5 s, House Sync vers l'enregistreur), `SNAPSHOT_INTERVAL_SECONDS` (60 s), `SNAPSHOT_RETENTION_DAYS` (7), `RETENTION_HOURS` (6, l'enregistreur), `CERT_HOSTS` (hôtes du certificat), `API_KEY`, `REOLINK_PASSWORD`, `SWITCH_USER` et `SWITCH_PASSWORD` (le compte de la page web du switch, pour couper le PoE d'une caméra), `CAMERA2_IP`, `CAMERA2_USER` et `CAMERA2_PASSWORD` (la deuxième caméra), `HUE_BRIDGE_IP` et `HUE_APP_KEY` (le pont Hue, lus par l'API et par House Sync), `HUE_LOG_DAYS` (jours gardés par le journal des lampes, 365). Le modèle de toutes les variables : `.env.example`. Les seuils de la détection de mouvement : `PIXEL_THRESHOLD`, `AREA_THRESHOLD`, `START_FRAMES`, `END_SECONDS` (voir `motion/CLAUDE.md`).

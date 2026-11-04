@@ -2,7 +2,7 @@
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {
@@ -26,6 +26,11 @@ export interface Page<T> {
 
 const isTable = (name: string): boolean => TABLES.includes(name)
 
+/** Colonnes gardées pour le tri ou la requête, mais pas montrées dans la page (hue_events.happened_ms double happened_at, en millisecondes). */
+const HIDDEN: Record<string, string[]> = { hue_events: ['happened_ms'] }
+
+const shown = (name: string, columns: string[]): string[] => columns.filter((c) => !(HIDDEN[name] ?? []).includes(c))
+
 const columnsOf = (db: DatabaseSync, name: string): string[] =>
   (db.prepare(`PRAGMA table_info(${name})`).all() as { name: string }[]).map((c) => c.name)
 
@@ -33,13 +38,14 @@ const columnsOf = (db: DatabaseSync, name: string): string[] =>
 const orderOf = (columns: string[]): string => {
   if (columns.includes('started_at')) return 'ORDER BY started_at DESC'
   if (columns.includes('taken_at')) return 'ORDER BY taken_at DESC'
+  if (columns.includes('happened_ms')) return 'ORDER BY happened_ms DESC, id DESC'
   return 'ORDER BY camera'
 }
 
 export const summarizeTables = (db: DatabaseSync): TableSummary[] =>
   TABLES.map((name) => ({
     name,
-    columns: columnsOf(db, name),
+    columns: shown(name, columnsOf(db, name)),
     count: (db.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get() as { n: number }).n,
   }))
 
@@ -48,7 +54,8 @@ export const readTable = (db: DatabaseSync, name: string, page: number, size: nu
   if (!isTable(name)) return null
   const columns = columnsOf(db, name)
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get() as { n: number }).n
-  const items = db.prepare(`SELECT * FROM ${name} ${orderOf(columns)} LIMIT ? OFFSET ?`).all(size, page * size) as Record<string, unknown>[]
+  const select = shown(name, columns).join(', ')
+  const items = db.prepare(`SELECT ${select} FROM ${name} ${orderOf(columns)} LIMIT ? OFFSET ?`).all(size, page * size) as Record<string, unknown>[]
   return { items, total, page, size }
 }
 
