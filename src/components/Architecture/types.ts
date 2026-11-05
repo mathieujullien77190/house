@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ArchView } from '@/components/ArchDiagram'
 
-export type DiagramViewId = 'hardware' | 'software'
+export type DiagramViewId = 'hardware' | 'software' | 'settings'
 export type ViewId = DiagramViewId | 'interfaces' | 'code' | 'deploy'
 
 /** Le système : le titre, les deux schémas et l'introduction des vues sans schéma. */

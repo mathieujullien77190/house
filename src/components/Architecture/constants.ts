@@ -140,6 +140,58 @@ const SOFTWARE: ArchView = {
   ],
 }
 
+/** Ce que font les réglages de la sauvegarde (page de House Sync), selon leur valeur. */
+const SETTINGS: ArchView = {
+  id: 'settings',
+  label: 'Réglages',
+  intro: [
+    'Quatre réglages par caméra, sur la page de House Sync (onglet Disque) : les clips gardés, le rythme des images de la frise et la cadence des deux directs (4K et léger). Ils sont gardés dans SQLite (table settings) et House Sync les applique.',
+    'Les clips : « Toujours » garde tout ; « Jamais » éteint aussi la détection de mouvement (ffmpeg du flux léger est arrêté : pas d’événement, moins de processeur) ; « La nuit » ne garde que de 30 minutes avant le coucher du soleil à 30 minutes après son lever, l’heure du soleil étant calculée pour la maison. En dehors de cette fenêtre, c’est comme « Jamais ». Dans une volière où tout bouge le jour, les clips de nuit sont les seuls qui comptent.',
+    'Les images : une image JPEG par caméra toutes les 30 s, 1, 2 ou 5 minutes, gardées 7 jours pour la frise. Les deux directs, 4K et léger, ont chacun un curseur de 1 à 25 images par seconde ; House Sync change à chaud la source du flux MJPEG correspondant de go2rtc, ce qui réduit l’encodage JPEG et le débit (le décodage de la caméra reste complet).',
+  ],
+  ariaLabel:
+    'Vue réglages : le réglage des clips (toujours, la nuit, jamais) décide si la détection de mouvement tourne et si les clips sont gardés sur le SSD ; le réglage des images fixe leur rythme de sauvegarde pour la frise ; les curseurs des directs 4K et léger règlent le nombre d’images par seconde des flux MJPEG de go2rtc',
+  viewBox: '0 0 1000 720',
+  panels: [
+    { id: 'clips', x: 20, y: 20, w: 960, h: 360, tone: 'panel', title: 'Clips et détection de mouvement (par caméra)' },
+    { id: 'snap', x: 20, y: 400, w: 960, h: 130, tone: 'panel', title: 'Images de la frise' },
+    { id: 'live', x: 20, y: 550, w: 960, h: 150, tone: 'panel', title: 'Directs : images par seconde' },
+  ],
+  boxes: [
+    { id: 'setting', x: 40, y: 150, w: 190, h: 110, tone: 'green', title: 'Réglage « Clips vidéo »', lines: ['Toujours · La nuit · Jamais', 'gardé par House Sync', '(SQLite, table settings)'] },
+    { id: 'always', x: 340, y: 55, w: 620, h: 92, tone: 'green', title: 'Toujours', lines: ['détection de mouvement allumée en permanence', 'chaque mouvement : un événement et un clip (4K et H.264)', 'House Sync copie le clip sur le SSD du mini PC'] },
+    { id: 'night', x: 340, y: 155, w: 620, h: 92, tone: 'warm', title: 'La nuit', lines: ['de 30 min avant le coucher du soleil à 30 min après le lever', 'dans cette fenêtre : comme « Toujours »', 'en dehors : comme « Jamais » (soleil calculé pour la maison)'] },
+    { id: 'never', x: 340, y: 255, w: 620, h: 92, tone: 'dashed', title: 'Jamais', lines: ['détection éteinte : ffmpeg du flux léger arrêté', 'aucun événement, aucun clip, moins de processeur', 'les clips déjà gardés ne sont pas effacés'] },
+    { id: 'snapset', x: 40, y: 440, w: 190, h: 80, tone: 'green', title: 'Une image toutes les', lines: ['30 s · 1 · 2 · 5 min', '1 min par défaut'] },
+    { id: 'snapout', x: 330, y: 440, w: 300, h: 80, tone: 'plain', title: 'SSD · snapshots', lines: ['une image par caméra, bande bleue de la frise', 'gardée 7 jours'] },
+    { id: 'slider', x: 40, y: 585, w: 190, h: 50, tone: 'green', title: 'Curseur « Direct 4K »', lines: ['1 à 25 images/s'] },
+    { id: 'slider-light', x: 40, y: 640, w: 190, h: 50, tone: 'green', title: 'Curseur « Direct léger »', lines: ['1 à 25 images/s'] },
+    { id: 'go2rtc-4k', x: 330, y: 585, w: 300, h: 50, tone: 'plain', title: 'go2rtc · portail_main_mjpeg', lines: ['flux principal 4K H.265 recodé en JPEG'] },
+    { id: 'go2rtc-light', x: 330, y: 640, w: 300, h: 50, tone: 'plain', title: 'go2rtc · portail_sub_mjpeg', lines: ['flux secondaire H.264 recodé en JPEG'] },
+  ],
+  arrows: [
+    { id: 'to-always', d: 'M230 190 H290 V101 H338' },
+    { id: 'to-night', d: 'M230 205 H338' },
+    { id: 'to-never', d: 'M230 220 H290 V301 H338' },
+    { id: 'snap', d: 'M230 480 H328' },
+    { id: 'live4k', d: 'M230 610 H328', live: true },
+    { id: 'livelight', d: 'M230 665 H328', live: true },
+  ],
+  labels: [
+    { id: 'push1', x: 40, y: 292, text: 'House Sync dit à motion', note: true },
+    { id: 'push2', x: 40, y: 308, text: 'd’allumer ou d’éteindre', note: true },
+    { id: 'push3', x: 40, y: 324, text: 'la détection (chaque minute).', note: true },
+    { id: 'snap', x: 279, y: 472, text: 'cadence', anchor: 'middle' },
+    { id: 'live4k', x: 279, y: 602, text: 'PATCH', anchor: 'middle', live: true },
+    { id: 'livelight', x: 279, y: 657, text: 'PATCH', anchor: 'middle', live: true },
+    { id: 'snap-note', x: 660, y: 470, text: 'Au-delà de 5 min, « l’image à cet instant »', note: true },
+    { id: 'snap-note2', x: 660, y: 486, text: 'serait trop loin de ce que tu cliques.', note: true },
+    { id: 'live-note1', x: 660, y: 600, text: 'Moins d’images : moins d’encodage JPEG et de débit.', note: true },
+    { id: 'live-note2', x: 660, y: 616, text: 'Le décodage de la caméra reste complet.', note: true },
+    { id: 'live-note3', x: 660, y: 640, text: 'Le direct en cours repart quand le réglage change.', note: true },
+  ],
+}
+
 /** Les interfaces : la même introduction pour tout le système. */
 const INTERFACES_INTRO = [
   'Les deux interfaces web (la WebApp et la page de House Sync), le paquet @house/ui qu’elles partagent avec son Storybook, et House API qui sert la WebApp.',
@@ -159,13 +211,14 @@ const DEPLOY_INTRO = [
 /** Le système tel qu'il est : ses deux schémas et l'introduction des vues sans schéma. */
 export const ARCHITECTURE: ArchitectureConfig = {
   title: TITLE,
-  views: { hardware: HARDWARE, software: SOFTWARE },
+  views: { hardware: HARDWARE, software: SOFTWARE, settings: SETTINGS },
   intros: { interfaces: INTERFACES_INTRO, code: CODE_INTRO, deploy: DEPLOY_INTRO },
 }
 
 export const VIEW_OPTIONS: { id: ViewId; label: string }[] = [
   { id: 'hardware', label: HARDWARE.label },
   { id: 'software', label: SOFTWARE.label },
+  { id: 'settings', label: SETTINGS.label },
   { id: 'interfaces', label: 'Interfaces' },
   { id: 'code', label: 'Code' },
   { id: 'deploy', label: 'Déploiement' },
