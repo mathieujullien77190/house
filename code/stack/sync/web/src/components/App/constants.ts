@@ -29,6 +29,9 @@ export const DOCKER_NOTE =
 export const LIVE_START_LABEL = '−2 min'
 export const LIVE_END_LABEL = 'maintenant'
 export const LIVE_UNIT = '%'
+export const THREADS_TITLE = 'Processeur par thread (2 dernières minutes)'
+export const THREAD_WORD = 'Thread'
+export const THREADS_GRID_CLASS = 'grid grid-cols-2 gap-x-4 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]'
 /** Le bureau commence à cette largeur (le point de rupture `lg` de Tailwind) ; en dessous, c'est la mise en page mobile. */
 export const DESKTOP_QUERY = '(min-width: 1024px)'
 export const CPU_MEMORY_TITLE = 'Processeur et mémoire (RAM)'

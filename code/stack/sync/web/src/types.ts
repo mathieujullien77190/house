@@ -61,7 +61,7 @@ export interface System {
   /** La mémoire en octets ; null si elle ne se lit pas. */
   memory: { total: number; available: number } | null
   /** Le processeur : part utilisée (0 à 100), threads et charge moyenne sur une minute. */
-  cpu: { percent: number; threads: number; load1: number } | null
+  cpu: { percent: number; threads: number; load1: number; perThread: number[] } | null
 }
 
 export interface Specs {

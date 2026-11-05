@@ -105,6 +105,7 @@ export const EXPLANATIONS: Record<string, string> = {
   'sync/web/src/components/TableSection/UI.tsx': 'Le rendu d’une cellule : un chemin de clip ou d’image devient un bouton « voir » (vers le panneau), une adresse un lien, un horodatage une date, une étiquette une pastille.',
   'sync/web/src/components/SettingsSection/SettingsSection.tsx': 'Les réglages de la sauvegarde, caméra par caméra : le choix des clips vidéo gardés (toujours, la nuit, jamais) et le rythme des images gardées (30 s, 1, 2 ou 5 min). Chaque clic est envoyé tout de suite à House Sync (PUT /api/settings).',
   'sync/src/sun.ts': 'Le lever et le coucher du soleil calculés pour la maison (équation du lever de soleil, à quelques minutes près) : sunTimes, et isNight pour la nuit élargie de 30 minutes avant le coucher à 30 minutes après le lever, qui décide quels clips House Sync garde.',
+  'sync/src/system.test.ts': 'Les tests de la lecture du processeur par thread : un temps par ligne cpuN de /proc/stat, part de chaque thread entre deux lectures.',
   'sync/src/sun.test.ts': 'Les tests du soleil : heures de lever et de coucher en novembre près de Paris, bornes de la nuit élargie.',
   'sync/web/src/components/ClipsSection/ClipsSection.tsx': 'Les clips du disque backup, paginés (20 fichiers) dans le DataTable de @house/ui, avec taille, date et un bouton « voir ».',
   'sync/web/src/components/MediaPanel/MediaPanel.tsx': 'Le conteneur du panneau : l’adresse du fichier (servi par House Sync derrière la session) va au MediaPanel de @house/ui.',

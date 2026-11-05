@@ -32,6 +32,9 @@ import {
   CHECKING_TEXT,
   DATABASE_TITLE,
   LIVE_CAPACITY,
+  THREAD_WORD,
+  THREADS_GRID_CLASS,
+  THREADS_TITLE,
   LIVE_END_LABEL,
   LIVE_START_LABEL,
   LIVE_UNIT,
@@ -162,6 +165,25 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                     capacity={LIVE_CAPACITY}
                     values={history.memory}
                   />
+                </div>
+              </Collapsible>
+              <Collapsible title={THREADS_TITLE} defaultOpen={false}>
+                <div className={THREADS_GRID_CLASS}>
+                  {history.threads.map((values, index) => (
+                    <LineChart
+                      key={index}
+                      title={`${THREAD_WORD} ${index}`}
+                      valueText={values.length === 0 ? '—' : `${values[values.length - 1].toFixed(0)} %`}
+                      label={`${LIVE_CPU_LABEL} · ${THREAD_WORD.toLowerCase()} ${index}`}
+                      tone="orange"
+                      max={100}
+                      unit={LIVE_UNIT}
+                      startLabel={LIVE_START_LABEL}
+                      endLabel={LIVE_END_LABEL}
+                      capacity={LIVE_CAPACITY}
+                      values={values}
+                    />
+                  ))}
                 </div>
               </Collapsible>
               <Collapsible title={CPU_MEMORY_TITLE}>

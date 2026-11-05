@@ -16,6 +16,8 @@ export interface CpuUsage {
   threads: number
   /** Charge moyenne sur une minute. */
   load1: number
+  /** La part de temps de chaque thread (cpu0, cpu1…), de 0 à 100, dans l'ordre de /proc/stat. */
+  perThread: number[]
 }
 
 export interface SystemReport {
@@ -51,6 +53,14 @@ export const parseCpuTimes = (stat: string): CpuTimes | null => {
   return { busy: total - idle, total }
 }
 
+/** Les temps cumulés de chaque ligne « cpuN » de /proc/stat, dans l'ordre (un thread par ligne). */
+export const parseThreadTimes = (stat: string): CpuTimes[] =>
+  stat
+    .split('\n')
+    .filter((l) => /^cpu\d+ /.test(l))
+    .map((l) => parseCpuTimes(l.replace(/^cpu\d+ /, 'cpu ')))
+    .map((times) => times ?? { busy: 0, total: 0 })
+
 export const cpuPercent = (before: CpuTimes, after: CpuTimes): number => {
   const total = after.total - before.total
   return total <= 0 ? 0 : Math.min(100, Math.max(0, ((after.busy - before.busy) / total) * 100))
@@ -69,7 +79,9 @@ const readCpu = async (): Promise<CpuUsage | null> => {
     const after = parseCpuTimes(second)
     if (!before || !after) return null
     const load1 = Number((await readFile('/proc/loadavg', 'utf8')).split(' ')[0])
-    return { percent: cpuPercent(before, after), threads: countThreads(second), load1: Number.isNaN(load1) ? 0 : load1 }
+    const threadsBefore = parseThreadTimes(first)
+    const perThread = parseThreadTimes(second).map((times, index) => cpuPercent(threadsBefore[index] ?? times, times))
+    return { percent: cpuPercent(before, after), threads: countThreads(second), load1: Number.isNaN(load1) ? 0 : load1, perThread }
   } catch {
     return null
   }
