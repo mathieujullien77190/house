@@ -20,6 +20,8 @@ export interface Config {
   /** Un clip commence `preSeconds` avant l'événement et finit `postSeconds` après. */
   preSeconds: number
   postSeconds: number
+  /** Des clips qui se recouvrent sont fusionnés en un seul quand le dernier a cet âge (secondes). */
+  mergeDelaySeconds: number
   /** Étiquette vidéo du MP4 : hvc1 pour du H.265 (la caméra), vide pour du H.264. */
   videoTag: string
   /** L'API pour House Sync. */
@@ -46,6 +48,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   retentionSeconds: number(env.RETENTION_HOURS, 6) * 3600,
   preSeconds: number(env.PRE_SECONDS, 5),
   postSeconds: number(env.POST_SECONDS, 5),
+  mergeDelaySeconds: number(env.MERGE_DELAY_MINUTES, 30) * 60,
   videoTag: env.VIDEO_TAG ?? 'hvc1',
   port: number(env.PORT, 8080),
   detector: {

@@ -5,9 +5,11 @@ import type { Config } from './config.ts'
 import { changedShare, createDetector, type MotionEvent } from './detector.ts'
 
 const RETRY_SECONDS = 5
+const CHECK_MS = 1000
+const SUSPENDED = 'détection suspendue'
 
 /** Une passe : lance ffmpeg et analyse ses images jusqu'à ce qu'il s'arrête. Rend la raison de l'arrêt. */
-const run = (url: string, config: Config, onEvent: (event: MotionEvent) => void): Promise<string> =>
+const run = (url: string, config: Config, onEvent: (event: MotionEvent) => void, enabled: () => boolean): Promise<string> =>
   new Promise((resolve) => {
     const frameSize = config.width * config.height
     const ffmpeg = spawn(
@@ -32,16 +34,48 @@ const run = (url: string, config: Config, onEvent: (event: MotionEvent) => void)
         previous = frame
       }
     })
-    ffmpeg.on('error', (error) => resolve(`ffmpeg impossible à lancer : ${error.message}`))
-    ffmpeg.on('close', (code) => resolve(`détection arrêtée (code ${code})`))
+    // Détection suspendue (réglage de House Sync) : on arrête ffmpeg, qui ne décode plus le flux pour rien.
+    let suspended = false
+    const watchdog = setInterval(() => {
+      if (!enabled()) {
+        suspended = true
+        ffmpeg.kill()
+      }
+    }, CHECK_MS)
+    ffmpeg.on('error', (error) => {
+      clearInterval(watchdog)
+      resolve(`ffmpeg impossible à lancer : ${error.message}`)
+    })
+    ffmpeg.on('close', (code) => {
+      clearInterval(watchdog)
+      resolve(suspended ? SUSPENDED : `détection arrêtée (code ${code})`)
+    })
     process.once('SIGTERM', () => ffmpeg.kill())
     process.once('SIGINT', () => ffmpeg.kill())
   })
 
-/** Surveille le flux léger d'une caméra en continu ; relance ffmpeg s'il s'arrête. Ne rend jamais. */
-export const watchMotion = async (url: string, config: Config, onEvent: (event: MotionEvent) => void, log: (message: string) => void): Promise<never> => {
+/**
+ * Surveille le flux léger d'une caméra en continu ; relance ffmpeg s'il s'arrête. Ne rend jamais. `enabled` dit si la
+ * détection doit tourner (House Sync la coupe quand les clips de la caméra ne sont pas gardés) ; `onSuspend` est appelé
+ * à chaque suspension, pour fermer l'événement resté ouvert.
+ */
+export const watchMotion = async (
+  url: string,
+  config: Config,
+  onEvent: (event: MotionEvent) => void,
+  log: (message: string) => void,
+  enabled: () => boolean = () => true,
+  onSuspend: () => void = () => undefined,
+): Promise<never> => {
   for (;;) {
-    const reason = await run(url, config, onEvent)
+    // Suspendue : rien ne tourne, on attend qu'elle revienne.
+    while (!enabled()) await new Promise((resolve) => setTimeout(resolve, CHECK_MS))
+    const reason = await run(url, config, onEvent, enabled)
+    if (reason === SUSPENDED) {
+      log(`${reason}`)
+      onSuspend()
+      continue
+    }
     log(`${reason} : nouvel essai dans ${RETRY_SECONDS} s`)
     await new Promise((resolve) => setTimeout(resolve, RETRY_SECONDS * 1000))
   }

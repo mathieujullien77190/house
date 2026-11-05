@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
+import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
 import { startServer } from './server.ts'
 import { watchMotion } from './watcher.ts'
@@ -22,6 +23,9 @@ const TICK_MS = 5_000
 const PRUNE_MS = 60_000
 // Un segment dure `segmentSeconds` et n'est complet que quand le suivant commence : on attend un peu de plus.
 const SETTLE_SECONDS = config.segmentSeconds + 3
+
+// La détection de chaque caméra : allumée par défaut, éteinte par House Sync quand les clips de la caméra ne sont pas gardés.
+const detecting = new Map<string, boolean>()
 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
@@ -47,10 +51,29 @@ for (const camera of config.cameras) {
       }
     },
     (m) => log(`${camera} : ${m}`),
+    () => detecting.get(camera) !== false,
+    () => {
+      // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là.
+      const id = open.get(camera)
+      if (id) {
+        store.close(id, Date.now() / 1000)
+        open.delete(camera)
+      }
+    },
   )
 }
 
-startServer(config, store, log)
+startServer(
+  config,
+  store,
+  {
+    set: (camera, enabled) => {
+      if (detecting.get(camera) !== enabled) log(`${camera} : détection ${enabled ? 'allumée' : 'éteinte'}`)
+      detecting.set(camera, enabled)
+    },
+  },
+  log,
+)
 
 // La copie H.264 720p de chaque clip qui n'en a pas (un navigateur sans décodeur H.265 ne lit que celle-là). Une à la fois :
 // l'encodage est fait par le processeur. Rattrape aussi les clips faits avant cette copie.
@@ -103,8 +126,23 @@ setInterval(async () => {
   await makeWebClips()
 }, TICK_MS)
 
-// Chaque minute : on jette les segments, les événements et les clips plus vieux que la rétention.
+// Les événements dont les clips se recouvrent (un mouvement qui reprend à quelques secondes d'écart) et dont le dernier a
+// `mergeDelaySeconds` sont fusionnés en un seul : les anciens clips sont effacés, celui du survivant se refait au prochain tour.
+const mergeOverlaps = () => {
+  const now = Date.now() / 1000
+  for (const group of findMergeGroups(store.list({ limit: 100_000 }), now, config, config.mergeDelaySeconds)) {
+    for (const id of group) {
+      rmSync(`${config.clipsDir}/${id}.mp4`, { force: true })
+      rmSync(webClipPath(`${config.clipsDir}/${id}.mp4`), { force: true })
+    }
+    store.merge(group, now)
+    log(`${group.length} événements fusionnés en ${group[0]}`)
+  }
+}
+
+// Chaque minute : on fusionne, puis on jette les segments, les événements et les clips plus vieux que la rétention.
 setInterval(() => {
+  mergeOverlaps()
   const before = Date.now() / 1000 - config.retentionSeconds
   for (const camera of config.cameras) pruneSegments(`${config.recordingsDir}/${camera}`, before)
   for (const record of store.prune(before)) {

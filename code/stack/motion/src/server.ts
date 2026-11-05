@@ -14,11 +14,23 @@ const json = (res: ServerResponse, status: number, body: unknown) => {
 const flag = (value: string | null): boolean | undefined => (value === null ? undefined : value === '1' || value === 'true')
 const num = (value: string | null): number | undefined => (value !== null && Number.isFinite(Number(value)) ? Number(value) : undefined)
 
-export const startServer = (config: Config, store: EventStore, log: (message: string) => void) => {
+/** La détection de mouvement de chaque caméra, que House Sync allume ou éteint (allumée tant qu'on ne lui dit rien). */
+export interface Detection {
+  set: (camera: string, enabled: boolean) => void
+}
+
+export const startServer = (config: Config, store: EventStore, detection: Detection, log: (message: string) => void) => {
   const clipPath = (id: string): string => `${config.clipsDir}/${id}.mp4`
 
   const server = createServer(async (req, res) => {
     const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost')
+    // PUT /api/cameras/<caméra>/detection?enabled=0|1 : allume ou éteint la détection de mouvement de la caméra.
+    const toggle = /^\/api\/cameras\/([\w-]+)\/detection$/.exec(pathname)
+    if (req.method === 'PUT' && toggle) {
+      if (!config.cameras.includes(toggle[1])) return json(res, 404, { error: 'unknown camera' })
+      detection.set(toggle[1], searchParams.get('enabled') !== '0')
+      return json(res, 200, { camera: toggle[1], enabled: searchParams.get('enabled') !== '0' })
+    }
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
 
     // Les caméras et, pour chacune, le go2rtc de cet enregistreur (son adresse sur le réseau Docker) et le flux à montrer en
@@ -37,6 +49,7 @@ export const startServer = (config: Config, store: EventStore, log: (message: st
           hasClip: flag(searchParams.get('has_clip')),
           inProgress: flag(searchParams.get('in_progress')),
           limit: num(searchParams.get('limit')),
+          mergedAfter: num(searchParams.get('merged_after')),
         }),
       )
     }

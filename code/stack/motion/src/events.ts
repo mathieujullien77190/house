@@ -13,6 +13,10 @@ export interface MotionRecord {
   has_clip: boolean
   /** Secondes depuis 1970 : le début réel du clip (le segment qui précède l'événement), connu une fois le clip fait. */
   clip_start?: number
+  /** Fusion : l'identifiant de l'événement qui a absorbé celui-ci (il n'a plus de clip et n'est plus listé). */
+  merged_into?: string
+  /** Fusion : secondes depuis 1970 où l'événement a été fusionné (absorbé ou survivant), pour que House Sync le sache. */
+  merged_at?: number
 }
 
 export interface EventQuery {
@@ -21,6 +25,8 @@ export interface EventQuery {
   hasClip?: boolean
   inProgress?: boolean
   limit?: number
+  /** Seulement les événements fusionnés après cet instant (absorbés compris), au lieu de la liste normale. */
+  mergedAfter?: number
 }
 
 /** Un identifiant sûr pour un nom de fichier : début et caméra. */
@@ -71,17 +77,38 @@ export const createEventStore = (file: string) => {
         save()
       }
     },
+    /**
+     * Fusionne des événements voisins (du plus ancien au plus récent) : le premier survit, finit à la fin du dernier et
+     * perd son clip (il se refait avec la plage entière) ; les autres sont absorbés (gardés pour que House Sync les retire).
+     */
+    merge: (ids: string[], at: number) => {
+      const group = ids.map((id) => events.find((e) => e.id === id)).filter((e): e is MotionRecord => e !== undefined)
+      if (group.length < 2) return
+      const [first, ...others] = group
+      first.end_time = Math.max(...group.map((e) => e.end_time ?? e.start_time))
+      first.has_clip = false
+      delete first.clip_start
+      first.merged_at = at
+      for (const other of others) {
+        other.merged_into = first.id
+        other.merged_at = at
+        other.has_clip = false
+        delete other.clip_start
+      }
+      save()
+    },
     get: (id: string): MotionRecord | undefined => events.find((e) => e.id === id),
     /** Les événements qui filtrent, du plus récent au plus ancien (comme l'API que House Sync lisait). */
     list: (query: EventQuery = {}): MotionRecord[] =>
       events
+        .filter((e) => (query.mergedAfter === undefined ? e.merged_into === undefined : (e.merged_at ?? 0) > query.mergedAfter))
         .filter((e) => (query.after === undefined || e.start_time > query.after) && (query.before === undefined || e.start_time < query.before))
         .filter((e) => query.hasClip === undefined || e.has_clip === query.hasClip)
         .filter((e) => query.inProgress === undefined || (e.end_time === null) === query.inProgress)
         .sort((a, b) => b.start_time - a.start_time)
         .slice(0, query.limit ?? 100),
     /** Les événements terminés dont le clip n'est pas encore fait. */
-    withoutClip: (): MotionRecord[] => events.filter((e) => e.end_time !== null && !e.has_clip),
+    withoutClip: (): MotionRecord[] => events.filter((e) => e.end_time !== null && !e.has_clip && e.merged_into === undefined),
     /** Retire les événements plus anciens que `before` (secondes) ; rend ceux qu'on a retirés. */
     prune: (before: number): MotionRecord[] => {
       const removed = events.filter((e) => e.start_time < before)
