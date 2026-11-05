@@ -2,12 +2,12 @@
 import type { SnapshotsRepository } from '../repositories/snapshotsRepository.ts'
 
 export const MAX_SNAPSHOT_TIMES = 20000
-/** Une image « à cet instant » peut dater d'au plus deux minutes avant ou après. */
-export const SNAPSHOT_TOLERANCE = 120
+/** Une image « à cet instant » peut dater d'au plus cinq minutes avant ou après (le plus grand intervalle d’image réglable). */
+export const SNAPSHOT_TOLERANCE = 300
 
 export const createSnapshotsService = (snapshots: SnapshotsRepository) => ({
   times: (camera: string, from: number, to: number): number[] => snapshots.times(camera, from, to, MAX_SNAPSHOT_TIMES),
-  nearestPath: (camera: string, at: number): string | null => snapshots.nearestPath(camera, Math.floor(at), SNAPSHOT_TOLERANCE),
+  nearest: (camera: string, at: number): { path: string; taken_at: number } | null => snapshots.nearest(camera, Math.floor(at), SNAPSHOT_TOLERANCE),
 })
 
 export type SnapshotsService = ReturnType<typeof createSnapshotsService>

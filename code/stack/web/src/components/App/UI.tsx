@@ -4,6 +4,7 @@ import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
 import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
+import PlugPanel from '@/components/PlugPanel'
 import { BACK_CLASS, BACK_LABEL, CAMERA_WORD, COUNTS_SEPARATOR, LAMP_WORD, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
 import { countText, eventsOf } from './helpers'
 import type { AppUIProps } from './types'
@@ -39,6 +40,7 @@ const AppUI = ({ status, message, apiKey, cameras, events, lampCount, tab, openC
             )
           ) : null}
           {tab === 'lights' ? <Lights apiKey={apiKey} /> : null}
+          {tab === 'plug' ? <PlugPanel apiKey={apiKey} /> : null}
           {tab === 'api' ? <ApiExplorer apiKey={apiKey} /> : null}
         </>
       ) : null}

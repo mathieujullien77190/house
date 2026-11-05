@@ -7,15 +7,15 @@ export const createSnapshotsRepository = (db: Database) => ({
     db
       .all<{ taken_at: number }>('SELECT taken_at FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY taken_at LIMIT ?', camera, from, to, limit)
       .map((row) => row.taken_at),
-  /** Le chemin de l'image la plus proche d'un instant, dans une tolérance. */
-  nearestPath: (camera: string, at: number, tolerance: number): string | null =>
-    db.get<{ path: string }>(
-      'SELECT path FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY ABS(taken_at - ?) LIMIT 1',
+  /** L'image la plus proche d'un instant, dans une tolérance : son chemin et son instant (son identifiant). */
+  nearest: (camera: string, at: number, tolerance: number): { path: string; taken_at: number } | null =>
+    db.get<{ path: string; taken_at: number }>(
+      'SELECT path, taken_at FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY ABS(taken_at - ?) LIMIT 1',
       camera,
       at - tolerance,
       at + tolerance,
       at,
-    )?.path ?? null,
+    ) ?? null,
 })
 
 export type SnapshotsRepository = ReturnType<typeof createSnapshotsRepository>

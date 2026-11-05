@@ -12,8 +12,10 @@ import { createCamerasService } from './services/camerasService.ts'
 import { createEventsService } from './services/eventsService.ts'
 import { createHueClient } from './lib/hueClient.ts'
 import { createPositionsStore } from './lib/positionsStore.ts'
+import { createKasaClient } from './lib/kasaClient.ts'
 import { createSwitchClient } from './lib/switchClient.ts'
 import { createHueService } from './services/hueService.ts'
+import { createPlugService } from './services/plugService.ts'
 import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
@@ -29,6 +31,7 @@ export const createApp = (config: Config): Express => {
     live,
     files: createBackupFiles(config.dataDir),
     hue: config.hue ? createHueService(createHueClient(config.hue), createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
+    plug: config.plug ? createPlugService(createKasaClient(config.plug)) : null,
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
 

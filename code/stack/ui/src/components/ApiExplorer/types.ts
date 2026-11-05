@@ -4,6 +4,8 @@ export interface ApiService {
   description: string
   /** Vrai si le service exige la clé. */
   secured: boolean
+  /** Le type du service (Caméra, Lumière, Prise…) : la liste les range sous ce titre, dans l'ordre où les types apparaissent. Absent : sans titre. */
+  group?: string
 }
 
 export interface ApiResult {

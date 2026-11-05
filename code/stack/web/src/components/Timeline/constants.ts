@@ -23,10 +23,12 @@ export const MAX_TICKS = 12
 /** La place qu'un repère de l'axe demande (son étiquette, en pixels) : une frise étroite en porte moins. */
 export const TICK_MIN_PX = 70
 export const MIN_TICKS = 2
+/** Le bloc d'un événement commence ce nombre de secondes avant le mouvement : comme le clip, qui garde 5 s d'avant. */
+export const MARKER_LEAD_SECONDS = 5
 /** Largeur minimale d'un événement sur l'axe, en % : un événement court reste cliquable. */
 export const MIN_WIDTH = 1.2
 /** Deux images à moins de ce délai (secondes) forment une même plage de couverture. */
-export const COVERAGE_GAP = 150
+export const COVERAGE_GAP = 330
 /** La fenêtre change vite (glisser, zoom, direct) : on attend ce calme (ms) avant de demander ses événements. */
 export const EVENTS_DEBOUNCE_MS = 250
 /** En direct, la fenêtre avance sans cesse : images gardées et événements ne sont redemandés que quand elle a avancé d'une dixième de sa durée (10 s au moins). */

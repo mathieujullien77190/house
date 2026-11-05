@@ -27,12 +27,14 @@ export const snapshotsRouter = (snapshots: SnapshotsService, files: BackupFiles)
       res.status(400).json({ error: 'camera and at are required' })
       return
     }
-    const path = snapshots.nearestPath(camera, at)
-    if (!path) {
+    const found = snapshots.nearest(camera, at)
+    if (!found) {
       res.status(404).json({ error: 'no snapshot near this time' })
       return
     }
-    files.send(res, path, 'image/jpeg')
+    // X-Snapshot-At : l'instant (secondes) de l'image, son identifiant ; la WebApp l'affiche sur l'image.
+    res.setHeader('X-Snapshot-At', String(found.taken_at))
+    files.send(res, found.path, 'image/jpeg')
   })
   return router
 }

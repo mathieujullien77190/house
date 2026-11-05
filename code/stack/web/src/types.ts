@@ -33,7 +33,18 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'cameras' | 'lights' | 'api'
+export type TabId = 'cameras' | 'lights' | 'plug' | 'api'
+
+/** La prise connectée (TP-Link Kasa), telle que House API la décrit. */
+export interface PlugState {
+  alias: string
+  model: string
+  on: boolean
+  /** Signal WiFi en dBm. */
+  rssi: number
+  /** Secondes depuis l'allumage, 0 éteinte. */
+  onTime: number
+}
 
 /** Une lampe du pont Hue. */
 export interface HueLight {

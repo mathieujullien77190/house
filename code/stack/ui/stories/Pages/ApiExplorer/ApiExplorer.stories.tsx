@@ -9,9 +9,11 @@ import fr from './ApiExplorer.fr.md?raw'
 import servicesCode from './Services.source.md?raw'
 
 const SERVICES = [
-  { path: '/welcome', description: 'Le service de bienvenue : l’API est là. Sans clé.', secured: false },
-  { path: '/auth', description: 'Vérifie la clé : ok si elle est bonne, 401 sinon.', secured: true },
-  { path: '/events?last=1', description: 'Le dernier événement de chaque caméra.', secured: true },
+  { path: '/welcome', description: 'Le service de bienvenue : l’API est là. Sans clé.', secured: false, group: 'Général' },
+  { path: '/auth', description: 'Vérifie la clé : ok si elle est bonne, 401 sinon.', secured: true, group: 'Général' },
+  { path: '/events?last=1', description: 'Le dernier événement de chaque caméra.', secured: true, group: 'Caméra' },
+  { path: '/hue', description: 'Les pièces du pont Philips Hue et leurs lampes.', secured: true, group: 'Lumière' },
+  { path: '/plug', description: 'La prise connectée : nom, allumée ou non, signal WiFi.', secured: true, group: 'Prise' },
 ]
 
 const ANSWERS: Record<string, ApiResult> = {

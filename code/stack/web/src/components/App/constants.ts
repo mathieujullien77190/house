@@ -6,6 +6,7 @@ export const DEFAULT_TAB: TabId = 'cameras'
 export const TABS: { id: TabId; label: string }[] = [
   { id: 'cameras', label: 'Caméras' },
   { id: 'lights', label: 'Lumière' },
+  { id: 'plug', label: 'Prise' },
   { id: 'api', label: 'API' },
 ]
 export const BACK_LABEL = '← Toutes les caméras'

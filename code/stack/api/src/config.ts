@@ -18,6 +18,8 @@ export interface Config {
   switchPoe: { url: string; user: string; password: string; ports: Record<string, number> } | null
   /** Le pont Philips Hue (réseau de la maison) et sa clé d'application ; null sans clé : hue répond 503. */
   hue: { url: string; key: string } | null
+  /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
+  plug: { host: string; port: number; mac: string } | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
   tls: { cert: string; key: string } | null
   /** Le certificat public de l'autorité de la maison, que l'API propose au téléchargement (/rootCA.crt) ; vide : pas de téléchargement. */
@@ -57,6 +59,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .filter(Boolean),
     switchPoe: parseSwitch(env),
     hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
+    plug: env.PLUG_HOST ? { host: env.PLUG_HOST, port: Number(env.PLUG_PORT ?? 9999), mac: env.PLUG_MAC ?? '' } : null,
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
     caCert: env.CA_CERT ?? '',
   }

@@ -5,6 +5,8 @@ import {
   DESCRIPTION_CLASS,
   EMPTY_CLASS,
   EMPTY_TEXT,
+  GROUP_CLASS,
+  GROUP_TITLE_CLASS,
   INTRO,
   INTRO_CLASS,
   KEY_BADGE,
@@ -18,7 +20,7 @@ import {
   STATUS_KO_CLASS,
   STATUS_OK_CLASS,
 } from './constants'
-import { isOk, serviceClass } from './helpers'
+import { groupServices, isOk, serviceClass } from './helpers'
 import type { ApiExplorerProps } from './types'
 
 /** La liste des services d'une API et la réponse de celui qu'on a appelé ; l'appel est au parent. */
@@ -28,17 +30,22 @@ const ApiExplorer = ({ services, selected, busy, result, note, onCall }: ApiExpl
       <p className={INTRO_CLASS}>{INTRO}</p>
       <div className={LAYOUT_CLASS}>
         <div>
-          <ul className={LIST_CLASS}>
-            {services.map((service) => (
-              <li key={service.path}>
-                <button type="button" className={serviceClass(service.path === selected)} onClick={() => onCall(service.path)}>
-                  <span className={PATH_CLASS}>GET {service.path}</span>
-                  {service.secured ? <span className={BADGE_CLASS}>{KEY_BADGE}</span> : null}
-                  <div className={DESCRIPTION_CLASS}>{service.description}</div>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {groupServices(services).map((group) => (
+            <section key={group.name} className={GROUP_CLASS}>
+              {group.name ? <h3 className={GROUP_TITLE_CLASS}>{group.name}</h3> : null}
+              <ul className={LIST_CLASS}>
+                {group.items.map((service) => (
+                  <li key={service.path}>
+                    <button type="button" className={serviceClass(service.path === selected)} onClick={() => onCall(service.path)}>
+                      <span className={PATH_CLASS}>GET {service.path}</span>
+                      {service.secured ? <span className={BADGE_CLASS}>{KEY_BADGE}</span> : null}
+                      <div className={DESCRIPTION_CLASS}>{service.description}</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
           {note ? <p className={NOTE_CLASS}>{note}</p> : null}
         </div>
         <div className={RESULT_CLASS}>

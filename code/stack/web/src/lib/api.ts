@@ -1,6 +1,6 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
-import type { CameraPower, CameraRow, EventRow, HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
+import type { CameraPower, CameraRow, EventRow, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -55,6 +55,17 @@ export const setCameraPower = async (key: string, camera: string, on: boolean): 
   return res.json()
 }
 
+/** L'état de la prise connectée (503 sans prise configurée, 502 si elle ne répond pas). */
+export const fetchPlug = async (key: string): Promise<PlugState> => (await request(key, '/plug')).json()
+
+/** Allume (on) ou éteint la prise connectée. */
+export const setPlug = async (key: string, on: boolean): Promise<PlugState> => {
+  const res = await fetch('/plug', { method: 'POST', headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/plug : HTTP ${res.status}`)
+  return res.json()
+}
+
 /** Les pièces du pont Hue et leurs lampes (503 sans pont configuré). */
 export const fetchLights = async (key: string): Promise<HueRoom[]> => (await request(key, '/hue')).json()
 
@@ -95,9 +106,12 @@ export const saveLampPositions = async (key: string, changes: Record<string, { x
 export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>
   (await request(key, `/snapshots?camera=${encodeURIComponent(camera)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
 
-/** L'image la plus proche d'un instant (404 s'il n'y en a pas à deux minutes près). */
-export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<Blob> =>
-  (await request(key, `/snapshot?camera=${encodeURIComponent(camera)}&at=${Math.floor(at)}`)).blob()
+/** L'image la plus proche d'un instant, avec son identifiant (son instant exact ; 404 s’il n’y en a pas à cinq minutes près). */
+export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<{ blob: Blob; takenAt: number | null }> => {
+  const res = await request(key, `/snapshot?camera=${encodeURIComponent(camera)}&at=${Math.floor(at)}`)
+  const takenAt = Number(res.headers.get('X-Snapshot-At'))
+  return { blob: await res.blob(), takenAt: Number.isFinite(takenAt) && takenAt > 0 ? takenAt : null }
+}
 /** Un service quelconque, pour l'explorateur de l'API : le statut et le corps tel quel. */
 export const callService = async (key: string, path: string): Promise<{ status: number; body: string }> => {
   const res = await fetch(path, { headers: { [KEY_HEADER]: key } })
