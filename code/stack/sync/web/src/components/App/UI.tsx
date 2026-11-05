@@ -1,5 +1,6 @@
 import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PageHeader, PieChart, SpecList, Tabs, Totals } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
+import SettingsSection from '@/components/SettingsSection'
 import KeyForm from '@/components/KeyForm'
 import MediaPanel from '@/components/MediaPanel'
 import TableSection from '@/components/TableSection'
@@ -21,6 +22,7 @@ import { buildSpecItems } from '@/lib/specs'
 import { buildCpuChart, buildMemoryChart } from '@/lib/system'
 import {
   BACKUP_TITLE,
+  SETTINGS_TITLE,
   CPU_CHART_LABEL,
   CPU_MEMORY_TITLE,
   MEMORY_CHART_LABEL,
@@ -227,6 +229,9 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
             </>
           ) : (
             <>
+              <Collapsible title={SETTINGS_TITLE}>
+                <SettingsSection />
+              </Collapsible>
               <Collapsible title={BACKUP_TITLE} detail={overview.backup.path}>
                 <ClipsSection refreshTick={refreshTick} onOpen={onOpen} />
               </Collapsible>

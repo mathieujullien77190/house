@@ -41,6 +41,8 @@ services:
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
       RETENTION_HOURS: "6"
+      # Les clips qui se recouvrent sont fusionnés en un seul quand le dernier a cet âge (minutes).
+      MERGE_DELAY_MINUTES: "30"
     volumes:
       - ./data/recordings:/recordings
       - ./data/clips:/data
@@ -78,6 +80,11 @@ services:
       # Une image par caméra et par minute, gardée 7 jours (~115 Mo par jour et par caméra).
       SNAPSHOT_INTERVAL_SECONDS: "60"
       SNAPSHOT_RETENTION_DAYS: "7"
+      # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
+      HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
+      HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
+      # go2rtc : House Sync y change la cadence des directs (curseurs de sa page).
+      GO2RTC_URL: http://go2rtc:1984
       # La consommation : la puissance du processeur (fichier de power/house-power.sh) et le PoE des caméras (House API).
       POWER_FILE: /power/cpu.json
       API_URL: https://api:8080
@@ -123,6 +130,10 @@ services:
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
       HUE_APP_KEY: ${HUE_APP_KEY:-}
+      # La prise connectée TP-Link Kasa (HS100) : son adresse sur le réseau de la maison et sa MAC. Si la box change son adresse,
+      # l'API la retrouve toute seule par un scan du réseau (une fois par minute au plus). Sans adresse, le service plug répond 503.
+      PLUG_HOST: ${PLUG_HOST:-}
+      PLUG_MAC: ${PLUG_MAC:-D8:0D:17:1C:84:E3}
       # Ce que l'API écrit : les positions des ampoules sur le plan (data/house, créé par l'utilisateur de la machine).
       STATE_DIR: /state
       # Le certificat de la maison : HTTPS pour la WebApp.

@@ -3,16 +3,16 @@ import { DataTable } from '@house/ui'
 import { fetchTable } from '@/lib/api'
 import type { Page, Row } from '@/types'
 import { renderCell } from './UI'
-import { DESCRIPTIONS, OPEN_BY_DEFAULT, PAGE_SIZE } from './constants'
+import { DESCRIPTIONS, PAGE_SIZE } from './constants'
 import type { TableSectionProps } from './types'
 
 /**
- * Une table de la base, paginée, repliée par défaut sauf events : elle ne charge sa page qu'une fois dépliée,
+ * Une table de la base, paginée, repliée par défaut (toutes les tables) : elle ne charge sa page qu'une fois dépliée,
  * et la recharge quand la page de House Sync se rafraîchit.
  */
 const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
   const [page, setPage] = useState(0)
-  const [collapsed, setCollapsed] = useState(() => !OPEN_BY_DEFAULT.includes(table.name))
+  const [collapsed, setCollapsed] = useState(true)
   const [data, setData] = useState<Page<Row> | null>(null)
 
   useEffect(() => {

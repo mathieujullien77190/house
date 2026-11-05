@@ -1,7 +1,4 @@
 export const PAGE_SIZE = 20
-/** Les tables dépliées au chargement ; les autres se déplient par leur titre. */
-export const OPEN_BY_DEFAULT = ['events']
-
 /** Ce que contient chaque table, en une phrase. */
 export const DESCRIPTIONS: Record<string, string> = {
   last_images: 'Pour chaque caméra, l’adresse de sa dernière image chez l’enregistreur.',

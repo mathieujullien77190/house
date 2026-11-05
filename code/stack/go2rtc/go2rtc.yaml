@@ -14,6 +14,35 @@ streams:
   camera2_sub_mjpeg: ffmpeg:camera2_sub#video=mjpeg
   camera2_main_mjpeg: ffmpeg:camera2_main#video=mjpeg
 
+# Le direct (4K et léger) en MJPEG avec moins d'images par seconde : House Sync change la source de <nom>_main_mjpeg et
+# <nom>_sub_mjpeg en ffmpeg:<nom>_main#video=mjpegN ou ffmpeg:<nom>_sub#video=mjpegN (N de 1 à 24) selon le curseur de sa page. Décoder reste complet, mais l'encodage JPEG et le
+# débit baissent. Ces modèles doivent exister ici : go2rtc ne les crée pas à chaud.
+ffmpeg:
+  mjpeg1: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 1"
+  mjpeg2: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 2"
+  mjpeg3: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 3"
+  mjpeg4: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 4"
+  mjpeg5: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 5"
+  mjpeg6: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 6"
+  mjpeg7: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 7"
+  mjpeg8: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 8"
+  mjpeg9: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 9"
+  mjpeg10: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 10"
+  mjpeg11: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 11"
+  mjpeg12: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 12"
+  mjpeg13: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 13"
+  mjpeg14: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 14"
+  mjpeg15: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 15"
+  mjpeg16: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 16"
+  mjpeg17: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 17"
+  mjpeg18: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 18"
+  mjpeg19: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 19"
+  mjpeg20: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 20"
+  mjpeg21: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 21"
+  mjpeg22: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 22"
+  mjpeg23: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 23"
+  mjpeg24: "-c:v mjpeg -force_duplicated_matrix:v 1 -huffman:v 0 -pix_fmt:v yuvj420p -r 24"
+
 rtsp:
   listen: ":8554"
 

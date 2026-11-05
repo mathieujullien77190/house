@@ -1,4 +1,5 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
+import type { CameraSetting } from '@/components/SettingsSection'
 import type { ClipGroup, Overview, Docker, HueBridge, NetworkInterface, Page, Power, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
@@ -27,6 +28,12 @@ export const login = async (key: string): Promise<void> => {
 export const logout = async (): Promise<void> => {
   await fetch('/logout', { method: 'POST' })
 }
+
+export const fetchSettings = async (): Promise<CameraSetting[]> => (await request('/api/settings')).json()
+
+/** Enregistre un réglage d'une caméra (clips gardés, rythme des images) ; rend les réglages à jour. */
+export const saveSetting = async (camera: string, patch: Partial<Omit<CameraSetting, 'camera'>>): Promise<CameraSetting> =>
+  (await request('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera, ...patch }) })).json()
 
 export const fetchOverview = async (): Promise<Overview> => (await request('/api/overview')).json()
 
