@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Notice, Tabs } from '@house/ui'
 import { fetchSettings, saveSetting } from '@/lib/api'
-import { CLIPS_LABEL, CLIPS_OPTIONS, DESCRIPTION, FPS_FULL_TEXT, FPS_LABEL, FPS_MAX, FPS_MIN, FPS_NOTE, FPS_UNIT, GROUP_CLASS, LABEL_CLASS, LIGHT_FPS_LABEL, NAME_CLASS, NOTE, ROW_CLASS, SLIDER_CLASS, SNAPSHOT_LABEL, SNAPSHOT_OPTIONS, VALUE_CLASS } from './constants'
+import { CLIPS_LABEL, CLIPS_OPTIONS, DESCRIPTION, FPS_FULL_TEXT, FPS_MAX, FPS_MIN, FPS_NOTE, FPS_SLIDERS, FPS_UNIT, CHOICES_CLASS, GROUP_CLASS, LABEL_CLASS, NAME_CLASS, NOTE, ROW_CLASS, SLIDER_CLASS, SLIDER_GROUP_CLASS, SLIDER_HEAD_CLASS, SLIDERS_CLASS, SNAPSHOT_LABEL, SNAPSHOT_OPTIONS, VALUE_CLASS } from './constants'
 import type { CameraSetting } from './types'
 
 /** Les réglages de la sauvegarde, caméra par caméra : les clips gardés ou non, le rythme des images. Chaque clic est enregistré tout de suite. */
@@ -26,7 +26,7 @@ const SettingsSection = () => {
     saveSetting(camera, patch)
       .then((saved) => {
         setSettings((current) => current.map((setting) => (setting.camera === camera ? saved : setting)))
-        setDraft((current) => Object.fromEntries(Object.entries(current).filter(([name]) => name !== camera && name !== `${camera}:light`)))
+        setDraft((current) => Object.fromEntries(Object.entries(current).filter(([name]) => !name.startsWith(`${camera}:`))))
       })
       .catch(() => undefined)
   }
@@ -37,48 +37,44 @@ const SettingsSection = () => {
       {settings.map((setting) => (
         <div key={setting.camera} className={ROW_CLASS}>
           <span className={NAME_CLASS}>{setting.camera}</span>
-          <div className={GROUP_CLASS}>
-            <span className={LABEL_CLASS}>{CLIPS_LABEL}</span>
-            <Tabs label={CLIPS_LABEL} options={[...CLIPS_OPTIONS]} value={setting.clips_mode} onChange={(id) => change(setting.camera, { clips_mode: id })} />
+          <div className={CHOICES_CLASS}>
+            <div className={GROUP_CLASS}>
+              <span className={LABEL_CLASS}>{CLIPS_LABEL}</span>
+              <Tabs label={CLIPS_LABEL} options={[...CLIPS_OPTIONS]} value={setting.clips_mode} onChange={(id) => change(setting.camera, { clips_mode: id })} />
+            </div>
+            <div className={GROUP_CLASS}>
+              <span className={LABEL_CLASS}>{SNAPSHOT_LABEL}</span>
+              <Tabs
+                label={SNAPSHOT_LABEL}
+                options={[...SNAPSHOT_OPTIONS]}
+                value={String(setting.snapshot_seconds)}
+                onChange={(id) => change(setting.camera, { snapshot_seconds: Number(id) })}
+              />
+            </div>
           </div>
-          <div className={GROUP_CLASS}>
-            <span className={LABEL_CLASS}>{FPS_LABEL}</span>
-            <input
-              type="range"
-              min={FPS_MIN}
-              max={FPS_MAX}
-              value={draft[setting.camera] ?? setting.live_fps}
-              aria-label={FPS_LABEL}
-              className={SLIDER_CLASS}
-              onChange={(event) => setDraft((current) => ({ ...current, [setting.camera]: Number(event.target.value) }))}
-              onPointerUp={(event) => change(setting.camera, { live_fps: Number(event.currentTarget.value) })}
-              onKeyUp={(event) => change(setting.camera, { live_fps: Number(event.currentTarget.value) })}
-            />
-            <span className={VALUE_CLASS}>{(draft[setting.camera] ?? setting.live_fps) >= FPS_MAX ? FPS_FULL_TEXT : `${draft[setting.camera] ?? setting.live_fps}${FPS_UNIT}`}</span>
-          </div>
-          <div className={GROUP_CLASS}>
-            <span className={LABEL_CLASS}>{LIGHT_FPS_LABEL}</span>
-            <input
-              type="range"
-              min={FPS_MIN}
-              max={FPS_MAX}
-              value={draft[`${setting.camera}:light`] ?? setting.light_fps}
-              aria-label={LIGHT_FPS_LABEL}
-              className={SLIDER_CLASS}
-              onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:light`]: Number(event.target.value) }))}
-              onPointerUp={(event) => change(setting.camera, { light_fps: Number(event.currentTarget.value) })}
-              onKeyUp={(event) => change(setting.camera, { light_fps: Number(event.currentTarget.value) })}
-            />
-            <span className={VALUE_CLASS}>{(draft[`${setting.camera}:light`] ?? setting.light_fps) >= FPS_MAX ? FPS_FULL_TEXT : `${draft[`${setting.camera}:light`] ?? setting.light_fps}${FPS_UNIT}`}</span>
-          </div>
-          <div className={GROUP_CLASS}>
-            <span className={LABEL_CLASS}>{SNAPSHOT_LABEL}</span>
-            <Tabs
-              label={SNAPSHOT_LABEL}
-              options={[...SNAPSHOT_OPTIONS]}
-              value={String(setting.snapshot_seconds)}
-              onChange={(id) => change(setting.camera, { snapshot_seconds: Number(id) })}
-            />
+          <div className={SLIDERS_CLASS}>
+            {FPS_SLIDERS.map(({ key, label }) => {
+              const value = draft[`${setting.camera}:${key}`] ?? setting[key]
+              return (
+                <div key={key} className={SLIDER_GROUP_CLASS}>
+                  <div className={SLIDER_HEAD_CLASS}>
+                    <span className={LABEL_CLASS}>{label}</span>
+                    <span className={VALUE_CLASS}>{value >= FPS_MAX ? FPS_FULL_TEXT : `${value}${FPS_UNIT}`}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={FPS_MIN}
+                    max={FPS_MAX}
+                    value={value}
+                    aria-label={label}
+                    className={SLIDER_CLASS}
+                    onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:${key}`]: Number(event.target.value) }))}
+                    onPointerUp={(event) => change(setting.camera, { [key]: Number(event.currentTarget.value) })}
+                    onKeyUp={(event) => change(setting.camera, { [key]: Number(event.currentTarget.value) })}
+                  />
+                </div>
+              )
+            })}
           </div>
         </div>
       ))}

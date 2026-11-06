@@ -18,10 +18,13 @@ import {
 } from './constants'
 import type { Positions } from './types'
 
-/** Toutes les lampes du pont (une seule fois chacune), dans l'ordre de leur identifiant. */
+/**
+ * Toutes les lampes du pont (une seule fois chacune), dans l'ordre de leur identifiant. Une lampe injoignable est montrée
+ * éteinte, même si le pont la croit allumée : elle est coupée à l'interrupteur, donc éteinte.
+ */
 export const allLights = (rooms: HueRoom[]): HueLight[] => {
   const byId = new Map<string, HueLight>()
-  for (const room of rooms) for (const light of room.lights) byId.set(light.id, light)
+  for (const room of rooms) for (const light of room.lights) byId.set(light.id, light.reachable ? light : { ...light, on: false })
   return [...byId.values()].sort((a, b) => Number(a.id) - Number(b.id))
 }
 

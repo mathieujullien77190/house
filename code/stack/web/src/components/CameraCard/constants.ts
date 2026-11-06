@@ -5,8 +5,8 @@
 export const CLIP_MAX_LEAD_SECONDS = 5
 export const CAMERA_TITLE_PREFIX = 'Caméra : '
 export const LIVE_CAPTION = 'Direct'
-/** La caméra dont la vue détaillée montre la température des deux capteurs de la volière (groupe « Volière » de l'onglet Lumière). */
-export const TEMPERATURE_CAMERA = 'portail'
+/** Le détecteur du pont Hue dont la température s'affiche sur la vidéo de chaque caméra (identifiants du pont) : « motion fond » et « motion porte ». */
+export const CAMERA_SENSOR: Record<string, string> = { 'perruche-fond': '54', 'perruche-porte': '57' }
 export const TEMPERATURE_LABEL = 'Température · '
 export const TEMPERATURE_UNKNOWN_TEXT = 'inconnue'
 /** Le direct est un flux MJPEG que l'API relaie depuis go2rtc (le flux léger de la caméra, recodé en JPEG). */
@@ -17,6 +17,11 @@ export const QUALITY_LABEL = 'Qualité de la vidéo'
 export const QUALITY_OPTIONS = [
   { id: 'h264', label: 'H.264 · 720p' },
   { id: 'original', label: 'H.265 · 4K' },
+] as const
+/** Sur téléphone, le commutateur est posé sur la vidéo : juste la définition, sans le codec. */
+export const QUALITY_OPTIONS_SHORT = [
+  { id: 'h264', label: '720p' },
+  { id: 'original', label: '4K' },
 ] as const
 export const LIVE_QUALITY_LABEL = 'Qualité du direct'
 export const LIVE_QUALITY_OPTIONS = [

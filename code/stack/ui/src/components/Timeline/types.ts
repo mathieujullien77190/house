@@ -31,6 +31,10 @@ export interface TimelineRange<T extends string> {
 }
 
 export interface TimelineProps<T extends string> {
+  /** Frise verticale (téléphone) : l'instant le plus récent en haut ; les positions restent en % du plus ancien (0) au plus récent (100). Horizontale par défaut. */
+  vertical?: boolean
+  /** La frise remplit la hauteur de son parent au lieu d'avoir une hauteur fixe (écran du téléphone, avec `vertical`). */
+  fill?: boolean
   ranges: TimelineRange<T>[]
   /** Le raccourci qui correspond à la fenêtre courante, ou vide. */
   range: T | ''

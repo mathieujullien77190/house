@@ -16,7 +16,7 @@ const Clip = () => {
   return (
     <div>
       <Button onClick={() => setOpen(true)}>voir</Button>
-      {open ? <MediaPanel kind="video" title="clips/portail/1792941234.588848-jlzqs5.mp4" src={SAMPLE_VIDEO} onClose={() => setOpen(false)} /> : null}
+      {open ? <MediaPanel kind="video" title="clips/perruche-fond/1792941234.588848-jlzqs5.mp4" src={SAMPLE_VIDEO} onClose={() => setOpen(false)} /> : null}
     </div>
   )
 }

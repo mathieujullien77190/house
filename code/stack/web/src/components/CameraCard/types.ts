@@ -11,4 +11,6 @@ export interface CameraCardProps {
   camera: Camera
   /** Les événements de cette caméra seulement, du plus récent au plus ancien. */
   events: EventRow[]
+  /** Le retour à la liste des caméras : le bouton fixe en haut à gauche de l'écran du téléphone. */
+  onBack?: () => void
 }

@@ -7,6 +7,12 @@ export interface MediaGesture {
 }
 
 export interface CameraCardProps {
+  /** Écran du téléphone (sous 1024 px) : vidéo sur le tiers du haut avec ses commandes dessus, frise sur les deux tiers du bas, sans titre. */
+  screen?: boolean
+  /** Le bouton retour fixe en haut à gauche de l'écran du téléphone (rien sans lui). */
+  onBack?: () => void
+  /** L'étiquette du bouton retour, une simple flèche (le nom de la caméra : infobulle et lecteurs d'écran). */
+  backLabel?: string
   name: string
   /** Légende au-dessus du média : « Dernière image », « Image à … », « Clip · … ». */
   caption: string
@@ -18,6 +24,8 @@ export interface CameraCardProps {
   actions?: ReactNode
   /** Des mesures ou des détails sous le média (température d'un capteur, par exemple), rendus par le parent ; rien par défaut. */
   details?: ReactNode
+  /** Posé sur la vidéo, en bas à gauche, en vue normale comme en vue en grand (bureau) : par exemple les températures. */
+  overlay?: ReactNode
   /** La frise, rendue par le parent. */
   timeline: ReactNode
   /** L'élément qui passe en plein écran : le parent le lit pour appeler l'API plein écran du navigateur. */

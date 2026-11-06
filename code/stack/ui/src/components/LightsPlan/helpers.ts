@@ -7,5 +7,5 @@ export const clampToPlan = (x: number, y: number): { x: number; y: number } => (
 })
 
 /** Un point de l'écran (pixels) en position du plan, d'après le rectangle que le dessin occupe à l'écran. */
-export const toPlan = (clientX: number, clientY: number, box: { left: number; top: number; width: number; height: number }): { x: number; y: number } =>
-  clampToPlan(VIEW_X + ((clientX - box.left) / box.width) * VIEW_WIDTH, VIEW_Y + ((clientY - box.top) / box.height) * VIEW_HEIGHT)
+export const toPlan = (clientX: number, clientY: number, box: { left: number; top: number; width: number; height: number }, viewWidth = VIEW_WIDTH): { x: number; y: number } =>
+  clampToPlan(VIEW_X + ((clientX - box.left) / box.width) * viewWidth, VIEW_Y + ((clientY - box.top) / box.height) * VIEW_HEIGHT)

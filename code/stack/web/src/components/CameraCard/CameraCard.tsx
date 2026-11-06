@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
-import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, SpecList, Tabs } from '@house/ui'
+import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
-import { ZONES } from '@/components/Lights/constants'
 import PowerButton from '@/components/PowerButton'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
+import { useMobile } from '@/lib/useMobile'
 import { usePinchZoom } from '@/lib/usePinchZoom'
 import { useSensors } from '@/lib/useSensors'
 import { usePower } from '@/lib/usePower'
@@ -23,7 +23,8 @@ import {
   ONGOING_CLIP_TEXT,
   QUALITY_LABEL,
   QUALITY_OPTIONS,
-  TEMPERATURE_CAMERA,
+  QUALITY_OPTIONS_SHORT,
+  CAMERA_SENSOR,
 } from './constants'
 import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
 import type { CameraCardProps, LiveQuality, Quality } from './types'
@@ -33,7 +34,9 @@ import type { CameraCardProps, LiveQuality, Quality } from './types'
  * à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis la frise.
  * La carte elle-même (@house/ui) ne sait rien de tout ça : elle reçoit le média et la frise déjà rendus.
  */
-const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
+const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
+  // Sur téléphone (sous 1024 px) : un écran fixe, la vidéo sur le tiers du haut, la frise sur le reste.
+  const mobile = useMobile()
   const [cursor, setCursor] = useState<number | null>(null)
   // L'événement cliqué ; sa version à jour (clip copié, fin du mouvement) vient de la liste relue chaque seconde.
   const [picked, setSelected] = useState<EventRow | null>(null)
@@ -58,10 +61,11 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const bigView = useBigView()
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
   const pinchZoom = usePinchZoom(bigView.big)
-  // La température des deux capteurs de la volière, sous le média de la caméra du portail.
-  const showTemperatures = camera.name === TEMPERATURE_CAMERA
+  // La température du détecteur de la caméra (« motion fond » pour perruche-fond, « motion porte » pour perruche-porte), sur la vidéo.
+  const sensorId = CAMERA_SENSOR[camera.name]
+  const showTemperatures = sensorId !== undefined
   const sensors = useSensors(apiKey, showTemperatures)
-  const temperatures = showTemperatures ? temperatureItems(sensors, ZONES.find((zone) => zone.id === 'voliere')?.sensors ?? []) : []
+  const temperatures = showTemperatures ? temperatureItems(sensors, [sensorId]) : []
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
@@ -74,7 +78,7 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
   const onReady = useCallback(() => setReadyClip(clipPath ?? ''), [clipPath])
   const onDuration = useCallback((seconds: number) => setVideoDuration(seconds), [])
   // Le direct : un flux MJPEG que l'API relaie depuis go2rtc ; une seule requête, les images arrivent toutes seules.
-  const live = liveSrc(camera.name, liveQuality === 'hd')
+  const live = liveSrc(camera.name, liveQuality === 'hd', mobile)
 
   // Changer de direct : la résolution lue à la première image n'est plus valable.
   const changeLiveQuality = (next: LiveQuality) => {
@@ -132,11 +136,14 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
 
   return (
     <CameraCardUI
+      screen={mobile}
+      onBack={onBack}
+      backLabel={camera.name}
       name={`${CAMERA_TITLE_PREFIX}${camera.name}`}
       caption={captionOf(cursor, selected, liveCaption(placeholder ? null : liveSize))}
       actions={
         <>
-          {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...QUALITY_OPTIONS]} value={quality} onChange={changeQuality} /> : null}
+          {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]} value={quality} onChange={changeQuality} /> : null}
           {selected || cursor !== null ? null : <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />}
           <PowerButton apiKey={apiKey} camera={camera.name} power={power} onPower={setPower} />
         </>
@@ -147,9 +154,12 @@ const CameraCard = ({ apiKey, camera, events }: CameraCardProps) => {
       onExpand={bigView.open}
       onCollapse={bigView.close}
       mediaGesture={pinchZoom}
-      details={temperatures.length > 0 ? <SpecList items={temperatures} /> : undefined}
+      // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
+      details={temperatures.length > 0 && mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
+      overlay={temperatures.length > 0 && !mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
       timeline={
         <Timeline
+          fill={mobile}
           apiKey={apiKey}
           camera={camera.name}
           events={events}

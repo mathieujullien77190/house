@@ -1,0 +1,1 @@
+Bare values, each in its own block, side by side: a reading without its name. The background is the page's, half transparent, so the blocks stay legible over an image (for instance at the bottom left of a camera video). Values arrive already formatted.

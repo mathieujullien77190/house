@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       REOLINK_PASSWORD: ${REOLINK_PASSWORD}
-      # La deuxième caméra (camera2) : adresse et compte, lus par go2rtc.yaml.
+      # La deuxième caméra (perruche-porte) : adresse et compte, lus par go2rtc.yaml.
       CAMERA2_IP: ${CAMERA2_IP:-}
       CAMERA2_USER: ${CAMERA2_USER:-admin}
       CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
@@ -28,7 +28,7 @@ services:
     networks:
       - sync_net
 
-  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (portail et camera2) : enregistre le flux principal
+  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (perruche-fond et perruche-porte) : enregistre le flux principal
   # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
@@ -36,7 +36,7 @@ services:
     depends_on:
       - go2rtc
     environment:
-      CAMERAS: portail,camera2
+      CAMERAS: perruche-fond,perruche-porte
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -125,7 +125,7 @@ services:
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: portail:3,camera2:4
+      SWITCH_PORTS: perruche-fond:3,perruche-porte:4
       # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}

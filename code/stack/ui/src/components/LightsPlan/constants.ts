@@ -41,7 +41,15 @@ export const KEY_STEP = 5
 
 
 export const GARDEN_CLASS = 'fill-bg stroke-line stroke-1'
-export const PLAN_CLASS = 'mt-4 block w-full touch-none select-none'
+export const FIGURE_CLASS = 'relative m-0 mt-4'
+export const PLAN_CLASS = 'block w-full touch-none select-none'
+/** Le dessin sans la zone « À placer » : le jardin et la maison, ce que montre la vue en grand. */
+export const EXPANDED_VIEW_WIDTH = VIEW_WIDTH - SIDE_WIDTH
+/** Le plus grand cadre de ces proportions qui tient dans l'écran (--big-w et --big-h : voir EXPANDED_CLASS de CameraCard). */
+export const BIG_PLAN_CLASS = 'block w-[min(var(--big-w),calc(var(--big-h)*620/380))] touch-none select-none'
+/** Le bouton retour de l'écran du téléphone : une flèche en haut à gauche, dans le cadre (qui peut être tourné). */
+export const BACK_CLASS = 'absolute left-2 top-2 z-10 cursor-pointer rounded-lg border border-line bg-bg/80 px-3 py-2 text-[0.9rem] text-fg focus-visible:outline-2 focus-visible:outline-accent'
+export const BACK_ARROW = '←'
 export const HOUSE_CLASS = 'fill-card stroke-fg stroke-[3]'
 export const WALL_CLASS = 'stroke-fg stroke-[2.5] [stroke-linecap:round]'
 /** Les séparations des pièces ont le même style que les cloisons : un mur est un mur. */
@@ -58,4 +66,6 @@ export const SIDE_LABEL_CLASS = 'pointer-events-none fill-muted text-[11px] [tex
 export const BULB_ON_CLASS = 'fill-orange stroke-fg stroke-1'
 export const BULB_OFF_CLASS = 'fill-bg stroke-muted stroke-1'
 export const BULB_GROUP_CLASS = 'cursor-grab outline-none focus-visible:[&>circle]:stroke-accent focus-visible:[&>circle]:stroke-2 active:cursor-grabbing'
-export const UNREACHABLE_CLASS = 'opacity-40'
+/** Une ampoule injoignable (coupée à l'interrupteur ?) : le même contour, d'un rouge pastel (comme un rouge grisé). */
+export const BULB_ON_UNREACHABLE_CLASS = 'fill-orange stroke-danger/50 stroke-1'
+export const BULB_OFF_UNREACHABLE_CLASS = 'fill-bg stroke-danger/50 stroke-1'

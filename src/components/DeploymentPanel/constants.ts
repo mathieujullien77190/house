@@ -41,10 +41,10 @@ export const ENTRIES: DeployEntry[] = [
   {
     id: 'cameras',
     name: 'Reolink RLC-810A × 2',
-    role: 'caméras du portail (portail et camera2)',
+    role: 'caméras de la volière (perruche-fond et perruche-porte)',
     url: '',
     account: 'admin (app Reolink), le même mot de passe',
-    note: `${CAMERA_IP} et ${CAMERA2_IP}, alimentées en PoE par le switch (portail sur le port 3, camera2 sur le 4). RTSP activé (port 554). Baux DHCP statiques sur la box. Flux rtsp://<adresse>:554/h264Preview_01_main et _sub.`,
+    note: `${CAMERA_IP} et ${CAMERA2_IP}, alimentées en PoE par le switch (perruche-fond sur le port 3, perruche-porte sur le 4). RTSP activé (port 554). Baux DHCP statiques sur la box. Flux rtsp://<adresse>:554/h264Preview_01_main et _sub.`,
   },
   {
     id: 'mini',

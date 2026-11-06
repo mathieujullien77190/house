@@ -22,8 +22,8 @@ const HARDWARE: ArchView = {
     { id: 'outside', x: 20, y: 405, w: 960, h: 120, tone: 'panel', title: 'Hors de la maison (4G ou autre WiFi)' },
   ],
   boxes: [
-    { id: 'cam1', x: 35, y: 80, w: 150, h: 90, tone: 'plain', title: 'Reolink · portail', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
-    { id: 'cam2', x: 35, y: 210, w: 150, h: 90, tone: 'plain', title: 'Reolink · camera2', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
+    { id: 'cam1', x: 35, y: 80, w: 150, h: 90, tone: 'plain', title: 'Reolink · perruche-fond', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
+    { id: 'cam2', x: 35, y: 210, w: 150, h: 90, tone: 'plain', title: 'Reolink · perruche-porte', lines: ['RLC-810A · 4K H.265', 'PoE 802.3af · 12 W'] },
     { id: 'switch', x: 250, y: 110, w: 150, h: 110, tone: 'plain', title: 'Switch ES208GP', lines: ['8 ports PoE+ · 64 W', 'administrable (page web)', 'alimentation ⚡'] },
     { id: 'mini', x: 480, y: 70, w: 280, h: 120, tone: 'plain', title: 'Mini PC · Docker Compose', lines: ['ACEMAGIC K1 · Ryzen 5 7530U · 16 Go', 'SSD M.2 1 To : système, Docker, clips', 'alimentation ⚡ · tout en conteneurs'] },
     { id: 'pc', x: 845, y: 70, w: 120, h: 80, tone: 'plain', title: 'PC', lines: ['ouvre les applications', 'WiFi'] },
@@ -73,8 +73,8 @@ const SOFTWARE: ArchView = {
     { id: 'docker-house', x: 865, y: 60, w: 270, h: 350, tone: 'warm', title: 'Docker · API + WebApp' },
   ],
   boxes: [
-    { id: 'stream1', x: 40, y: 90, w: 160, h: 80, tone: 'plain', title: 'Reolink · portail', lines: ['flux 4K principal', 'flux léger'] },
-    { id: 'stream2', x: 40, y: 190, w: 160, h: 80, tone: 'plain', title: 'Reolink · camera2', lines: ['flux 4K principal', 'flux léger'] },
+    { id: 'stream1', x: 40, y: 90, w: 160, h: 80, tone: 'plain', title: 'Reolink · perruche-fond', lines: ['flux 4K principal', 'flux léger'] },
+    { id: 'stream2', x: 40, y: 190, w: 160, h: 80, tone: 'plain', title: 'Reolink · perruche-porte', lines: ['flux 4K principal', 'flux léger'] },
     { id: 'go2rtc', x: 300, y: 105, w: 100, h: 170, tone: 'plain', title: 'go2rtc', lines: ['partage les 2 flux', 'MJPEG · image'] },
     { id: 'motion', x: 450, y: 105, w: 110, h: 170, tone: 'plain', title: 'motion', lines: ['mouvement', 'clips · 6 h', 'les 2 caméras'] },
     { id: 'webapp', x: 875, y: 90, w: 250, h: 70, tone: 'green', title: 'WebApp', lines: ['la page web', 'appelle l’API'] },
@@ -166,8 +166,8 @@ const SETTINGS: ArchView = {
     { id: 'snapout', x: 330, y: 440, w: 300, h: 80, tone: 'plain', title: 'SSD · snapshots', lines: ['une image par caméra, bande bleue de la frise', 'gardée 7 jours'] },
     { id: 'slider', x: 40, y: 585, w: 190, h: 50, tone: 'green', title: 'Curseur « Direct 4K »', lines: ['1 à 25 images/s'] },
     { id: 'slider-light', x: 40, y: 640, w: 190, h: 50, tone: 'green', title: 'Curseur « Direct léger »', lines: ['1 à 25 images/s'] },
-    { id: 'go2rtc-4k', x: 330, y: 585, w: 300, h: 50, tone: 'plain', title: 'go2rtc · portail_main_mjpeg', lines: ['flux principal 4K H.265 recodé en JPEG'] },
-    { id: 'go2rtc-light', x: 330, y: 640, w: 300, h: 50, tone: 'plain', title: 'go2rtc · portail_sub_mjpeg', lines: ['flux secondaire H.264 recodé en JPEG'] },
+    { id: 'go2rtc-4k', x: 330, y: 585, w: 300, h: 50, tone: 'plain', title: 'go2rtc · perruche-fond_main_mjpeg', lines: ['flux principal 4K H.265 recodé en JPEG'] },
+    { id: 'go2rtc-light', x: 330, y: 640, w: 300, h: 50, tone: 'plain', title: 'go2rtc · perruche-fond_sub_mjpeg', lines: ['flux secondaire H.264 recodé en JPEG'] },
   ],
   arrows: [
     { id: 'to-always', d: 'M230 190 H290 V101 H338' },

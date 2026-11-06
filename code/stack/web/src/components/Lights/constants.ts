@@ -16,8 +16,10 @@ export const ALL_KEY = 'all'
 export const PLAN_TITLE = 'Rez-de-chaussée'
 /** Le titre de la section repliable du plan. */
 export const PLAN_SECTION_TITLE = 'Plan'
-/** Le plan est ouvert au départ sur grand écran (dès 1024 px), fermé sur mobile. */
+/** Les automatisations sont ouvertes au départ sur grand écran (dès 1024 px), fermées sur mobile. */
 export const DESKTOP_QUERY = '(min-width: 1024px)'
+/** Le nom du bouton retour de l'écran du plan (téléphone), lu par les lecteurs d'écran. */
+export const BACK_LABEL = 'Retour'
 export const ERROR_TEXT = 'Le pont Hue n’a pas répondu.'
 export const NOT_CONFIGURED_TEXT = 'Le pont Hue n’est pas configuré (HUE_APP_KEY).'
 export const EMPTY_TEXT = 'Aucune lampe trouvée.'
@@ -31,7 +33,7 @@ export const ZONES: { id: string; name: string; lights: string[]; sensors?: stri
   // « SdB 2 » (lampe 1) n'est dans aucune zone : elle est dans le groupe « À placer » tant qu'on ne sait pas où la mettre.
   { id: 'sdb', name: 'SdB', lights: ['9', '10', '19', '8', '6', '4'] },
   { id: 'wc', name: 'WC', lights: ['28'] },
-  { id: 'cuisine', name: 'Cuisine', lights: ['13', '14', '3'] },
+  { id: 'cuisine', name: 'Cuisine', lights: ['13', '14', '3', '5'] },
   { id: 'couloir', name: 'Couloir', lights: ['7'] },
   { id: 'entree', name: 'Entrée', lights: ['27'] },
   { id: 'salon', name: 'Salon', lights: ['11', '16', '18', '22'] },

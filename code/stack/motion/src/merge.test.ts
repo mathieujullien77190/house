@@ -19,32 +19,32 @@ const margins = { preSeconds: 5, postSeconds: 5, segmentSeconds: 10 }
 
 test('deux clips qui se recouvrent se fusionnent, pas ceux qui sont séparés', () => {
   // Le clip du premier va jusqu'à 110 + 5 + 10 = 125 au plus : un second clip qui commence avant se recouvre.
-  const near = [event('portail', 100, 110), { ...event('portail', 140, 150), clip_start: 124 }]
-  assert.deepEqual(findMergeGroups(near, 10_000, margins, 1800), [['100-portail', '140-portail']])
-  const far = [event('portail', 100, 110), { ...event('portail', 140, 150), clip_start: 126 }]
+  const near = [event('perruche-fond', 100, 110), { ...event('perruche-fond', 140, 150), clip_start: 124 }]
+  assert.deepEqual(findMergeGroups(near, 10_000, margins, 1800), [['100-perruche-fond', '140-perruche-fond']])
+  const far = [event('perruche-fond', 100, 110), { ...event('perruche-fond', 140, 150), clip_start: 126 }]
   assert.deepEqual(findMergeGroups(far, 10_000, margins, 1800), [])
   // Sans début de clip connu, il commence au plus tôt 25 s avant l'événement.
-  assert.equal(findMergeGroups([event('portail', 100, 110), event('portail', 149, 160)], 10_000, margins, 1800).length, 1)
+  assert.equal(findMergeGroups([event('perruche-fond', 100, 110), event('perruche-fond', 149, 160)], 10_000, margins, 1800).length, 1)
 })
 
 test('une chaîne forme un seul groupe et chaque caméra a ses groupes', () => {
-  const events = [event('portail', 100, 110), event('portail', 115, 125), event('portail', 130, 140), event('camera2', 112, 118)]
-  assert.deepEqual(findMergeGroups(events, 10_000, margins, 1800), [['100-portail', '115-portail', '130-portail']])
+  const events = [event('perruche-fond', 100, 110), event('perruche-fond', 115, 125), event('perruche-fond', 130, 140), event('perruche-porte', 112, 118)]
+  assert.deepEqual(findMergeGroups(events, 10_000, margins, 1800), [['100-perruche-fond', '115-perruche-fond', '130-perruche-fond']])
 })
 
 test('rien tant que le dernier événement du groupe est trop récent ou encore en cours', () => {
-  const events = [event('portail', 100, 110), event('portail', 115, 125)]
+  const events = [event('perruche-fond', 100, 110), event('perruche-fond', 115, 125)]
   assert.deepEqual(findMergeGroups(events, 125 + 1799, margins, 1800), [])
   assert.equal(findMergeGroups(events, 125 + 1800, margins, 1800).length, 1)
-  assert.deepEqual(findMergeGroups([event('portail', 100, 110), event('portail', 115, null)], 10_000, margins, 1800), [])
+  assert.deepEqual(findMergeGroups([event('perruche-fond', 100, 110), event('perruche-fond', 115, null)], 10_000, margins, 1800), [])
 })
 
 test('merge garde le premier, étend sa fin et absorbe les autres', () => {
   const store = createEventStore(`${mkdtempSync(`${tmpdir()}/merge-`)}/events.json`)
-  const a = store.open('portail', 100)
+  const a = store.open('perruche-fond', 100)
   store.close(a.id, 110)
   store.markClip(a.id, 95)
-  const b = store.open('portail', 115)
+  const b = store.open('perruche-fond', 115)
   store.close(b.id, 125)
   store.markClip(b.id, 110)
   store.merge([a.id, b.id], 5000)

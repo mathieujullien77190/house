@@ -15,6 +15,8 @@ export interface TimelineProps {
   clipRange: { start: number; end: number } | null
   /** Position de lecture du clip ouvert (secondes absolues) : le curseur la suit ; null sinon. */
   playhead: number | null
+  /** La frise remplit la hauteur de son parent (écran du téléphone) au lieu d'avoir une hauteur fixe. */
+  fill?: boolean
 }
 
 /** Un événement posé sur l'axe (le bloc de @house/ui, plus l'événement qu'il représente). */

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Collapsible, LightsPanel, LightsPlan, Notice, SpecList } from '@house/ui'
+import { Button, Collapsible, LightsPanel, LightsPlan, Notice, SpecList } from '@house/ui'
+import { useMobile } from '@/lib/useMobile'
+import { usePinchZoom } from '@/lib/usePinchZoom'
 import { ApiError, fetchAutomations, fetchLampPositions, fetchLights, fetchSensors, saveLampPositions, setHue } from '@/lib/api'
 import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
-import { ALL_KEY, AUTOMATIONS_POLL_MS, AUTOMATIONS_TITLE, DESKTOP_QUERY, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
+import { ALL_KEY, BACK_LABEL, AUTOMATIONS_POLL_MS, AUTOMATIONS_TITLE, DESKTOP_QUERY, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
 import { allLights, buildAutomationItems, buildZones, clearLegacyPositions, defaultPositions, planLamps, readLegacyPositions } from './helpers'
 import type { LightsProps, LightsStatus, Positions } from './types'
 
@@ -12,15 +14,18 @@ import type { LightsProps, LightsStatus, Positions } from './types'
  * zone entière (lampe par lampe) ou d'une lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie).
  * Les positions des ampoules sont gardées par l'API : elles restent où on les a mises, sur tous les appareils.
  */
-const Lights = ({ apiKey }: LightsProps) => {
+const Lights = ({ apiKey, onBack }: LightsProps) => {
   const [rooms, setRooms] = useState<HueRoom[]>([])
   const [sensors, setSensors] = useState<HueSensor[]>([])
   const [automations, setAutomations] = useState<HueAutomation[]>([])
   const [status, setStatus] = useState<LightsStatus>('loading')
+  const mobile = useMobile()
+  // Le zoom au doigt de l'écran du téléphone (le plan y est toujours en grand).
+  const pinchZoom = usePinchZoom(mobile)
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
   const [positions, setPositions] = useState<Positions>({})
-  // Écran de bureau ou mobile, lu une fois au départ : sur mobile le plan commence fermé.
+  // Écran de bureau ou mobile, lu une fois au départ : sur mobile les automatisations commencent fermées (le plan est ouvert partout).
   const [planOpen] = useState(() => window.matchMedia(DESKTOP_QUERY).matches)
   // Les positions déplacées et pas encore envoyées à l'API, et le délai avant de les envoyer.
   const pending = useRef<Positions>({})
@@ -150,14 +155,23 @@ const Lights = ({ apiKey }: LightsProps) => {
     if (light?.reachable) void changeLight(id, { on: !light.on })
   }
 
-  if (status === 'unavailable') return <Notice text={NOT_CONFIGURED_TEXT} />
-  if (status === 'error') return <Notice text={ERROR_TEXT} />
-  if (status === 'loading') return <Notice text={LOADING_TEXT} />
-  if (rooms.length === 0) return <Notice text={EMPTY_TEXT} />
+  const notice = (text: string) => (
+    <>
+      {mobile && onBack ? <Button onClick={onBack}>{BACK_LABEL}</Button> : null}
+      <Notice text={text} />
+    </>
+  )
+  if (status === 'unavailable') return notice(NOT_CONFIGURED_TEXT)
+  if (status === 'error') return notice(ERROR_TEXT)
+  if (status === 'loading') return notice(LOADING_TEXT)
+  if (rooms.length === 0) return notice(EMPTY_TEXT)
+  const plan = <LightsPlan title={PLAN_TITLE} rooms={PLAN_ROOMS} walls={PLAN_WALLS} lamps={lamps} onMove={move} onToggle={toggle} screen={mobile} gesture={pinchZoom} onBack={onBack} backLabel={BACK_LABEL} />
+  // Sur téléphone (sous 1024 px) l'onglet est un écran : le plan seul, en plein écran paysage, sans titre ni menu ni liste.
+  if (mobile) return plan
   return (
     <>
-      <Collapsible title={PLAN_SECTION_TITLE} defaultOpen={planOpen}>
-        <LightsPlan title={PLAN_TITLE} rooms={PLAN_ROOMS} walls={PLAN_WALLS} lamps={lamps} onMove={move} onToggle={toggle} />
+      <Collapsible title={PLAN_SECTION_TITLE} defaultOpen>
+        {plan}
       </Collapsible>
       <LightsPanel
         rooms={zones}

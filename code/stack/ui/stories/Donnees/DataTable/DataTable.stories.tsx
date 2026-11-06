@@ -14,10 +14,10 @@ const PAGE_SIZE = 5
 /** 12 lignes inventées, paginées par 5 : les cellules sont rendues par le parent. */
 const ALL = Array.from({ length: 12 }, (_, i) => ({
   id: `179294${1000 + i}.5-abcd${i}`,
-  camera: 'portail',
+  camera: 'perruche-fond',
   label: 'person',
   started_at: 1792941000 + i * 600,
-  clip_path: i % 4 === 1 ? null : `clips/portail/179294${1000 + i}.mp4`,
+  clip_path: i % 4 === 1 ? null : `clips/perruche-fond/179294${1000 + i}.mp4`,
 }))
 
 const Events = () => {

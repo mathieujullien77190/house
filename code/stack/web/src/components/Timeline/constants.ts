@@ -22,6 +22,8 @@ export const TICK_STEPS = [5, 10, 30, MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUT
 export const MAX_TICKS = 12
 /** La place qu'un repère de l'axe demande (son étiquette, en pixels) : une frise étroite en porte moins. */
 export const TICK_MIN_PX = 70
+/** Sur la frise verticale (téléphone), un repère ne demande que la hauteur de son libellé. */
+export const TICK_MIN_PX_VERTICAL = 48
 export const MIN_TICKS = 2
 /** Le bloc d'un événement commence ce nombre de secondes avant le mouvement : comme le clip, qui garde 5 s d'avant. */
 export const MARKER_LEAD_SECONDS = 5

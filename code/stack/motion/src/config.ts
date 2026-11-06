@@ -35,7 +35,7 @@ const number = (value: string | undefined, fallback: number): number => {
 }
 
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
-  cameras: (env.CAMERAS ?? 'portail').split(',').map((name) => name.trim()).filter(Boolean),
+  cameras: (env.CAMERAS ?? 'perruche-fond').split(',').map((name) => name.trim()).filter(Boolean),
   go2rtcRtsp: (env.GO2RTC_RTSP ?? 'rtsp://go2rtc:8554').replace(/\/$/, ''),
   go2rtcApi: (env.GO2RTC_API ?? 'http://go2rtc:1984').replace(/\/$/, ''),
   fps: number(env.FPS, 5),

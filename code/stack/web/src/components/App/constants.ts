@@ -11,6 +11,7 @@ export const TABS: { id: TabId; label: string }[] = [
 ]
 export const BACK_LABEL = '← Toutes les caméras'
 export const FORGET_LABEL = 'Oublier la clé'
+export const ACTIONS_CLASS = 'flex flex-wrap gap-2'
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification de la clé…'
 export const CAMERA_WORD = 'caméra'

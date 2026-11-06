@@ -1,0 +1,1 @@
+Des valeurs seules, chacune dans son bloc, côte à côte : une mesure sans son nom. Le fond est celui de la page, à demi transparent, pour que les blocs restent lisibles posés sur une image (par exemple en bas à gauche de la vidéo d'une caméra). Les valeurs arrivent déjà mises en forme.

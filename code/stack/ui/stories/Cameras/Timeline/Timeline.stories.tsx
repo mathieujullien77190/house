@@ -7,6 +7,7 @@ import { source } from '../../source'
 import en from './Timeline.en.md?raw'
 import fr from './Timeline.fr.md?raw'
 import dayCode from './Day.source.md?raw'
+import verticalCode from './Vertical.source.md?raw'
 
 type RangeId = '10m' | '1h' | '6h' | '24h'
 
@@ -31,12 +32,13 @@ const COVERAGE = [
 ]
 
 /** La story tient la fenêtre et la sélection ; dans l'app, un hook calcule positions et graduations. */
-const Day = () => {
+const Day = ({ vertical = false }: { vertical?: boolean }) => {
   const [range, setRange] = useState<RangeId | ''>('24h')
   const [selected, setSelected] = useState('b')
   const [cursorX, setCursorX] = useState<number | null>(61)
   return (
     <Timeline
+      vertical={vertical}
       ranges={RANGES}
       range={range}
       live
@@ -74,4 +76,10 @@ export const DayStory: StoryObj<typeof Timeline> = {
   name: 'Day',
   parameters: source(dayCode),
   render: () => <Day />,
+}
+
+export const VerticalStory: StoryObj<typeof Timeline> = {
+  name: 'Vertical',
+  parameters: source(verticalCode),
+  render: () => <Day vertical />,
 }

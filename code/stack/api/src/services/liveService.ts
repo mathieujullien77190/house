@@ -3,6 +3,7 @@
 import type { CamerasRepository } from '../repositories/camerasRepository.ts'
 
 const MJPEG_SUFFIX = '_mjpeg'
+const MOBILE_SUFFIX = '_m'
 
 export interface Upstream {
   status: number
@@ -44,12 +45,13 @@ export const createLiveService = (go2rtcUrls: string[], cameras: CamerasReposito
   return {
     baseOf,
     /** Le flux MJPEG d'une caméra (multipart/x-mixed-replace), tant que le client reste connecté ; `hd` : le 4K au lieu du léger. */
-    stream: (camera: string, signal: AbortSignal, hd = false): Promise<Upstream | null> => {
+    stream: (camera: string, signal: AbortSignal, hd = false, mobile = false): Promise<Upstream | null> => {
       const light = streamOf(camera)
       // Le léger est `<nom>_sub`, le 4K `<nom>_main` : même caméra, autre flux.
       const src = light && hd ? light.replace(/_sub$/, '_main') : light
-      // go2rtc ne sert du MJPEG que pour un flux déclaré en transcodage : <flux>_mjpeg (voir go2rtc/go2rtc.yaml).
-      return src ? open(camera, `/api/stream.mjpeg?src=${encodeURIComponent(`${src}${MJPEG_SUFFIX}`)}`, signal) : Promise.resolve(null)
+      // go2rtc ne sert du MJPEG que pour un flux déclaré en transcodage : <flux>_mjpeg, ou <flux>_mjpeg_m pour un écran de moins
+      // de 1024 px, dont la cadence se règle à part (voir go2rtc/go2rtc.yaml).
+      return src ? open(camera, `/api/stream.mjpeg?src=${encodeURIComponent(`${src}${MJPEG_SUFFIX}${mobile ? MOBILE_SUFFIX : ''}`)}`, signal) : Promise.resolve(null)
     },
     /** Une image JPEG de l'instant. */
     frame: (camera: string, signal: AbortSignal): Promise<Upstream | null> => {

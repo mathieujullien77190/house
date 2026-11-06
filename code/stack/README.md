@@ -69,9 +69,9 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
    fixée par un bail DHCP statique sur la box), la deuxième caméra (`CAMERA2_*`), le compte du switch
    (`SWITCH_*`) et le pont Hue (`HUE_*`). Sans les trois derniers, la fonction correspondante est désactivée.
 2. Mettre l'adresse IP de la Reolink du portail dans `go2rtc/go2rtc.yaml` (bail DHCP statique sur la box) ;
-   celle de `camera2` vient de `CAMERA2_IP`.
+   celle de `perruche-porte` vient de `CAMERA2_IP`.
 3. `docker compose up -d --build`
-4. `docker compose logs motion` doit afficher « Enregistreur : portail », puis une ligne à chaque début et
+4. `docker compose logs motion` doit afficher « Enregistreur : perruche-fond, perruche-porte », puis une ligne à chaque début et
    chaque fin de mouvement. `docker compose logs sync` affiche, toutes les 5 secondes, le nombre de caméras
    et de nouveaux événements. Un clip arrive une vingtaine de secondes après la fin du mouvement.
 5. Installer la CA de la maison sur chaque appareil, une fois : le fichier `data/certs/rootCA.pem`, ou son

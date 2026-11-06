@@ -224,6 +224,7 @@ export const EXPLANATIONS: Record<string, string> = {
   'ui/src/components/DataTable/DataTable.tsx': 'Un tableau paginé dans une carte : titre, description, détail, colonnes, cellules déjà rendues, et le Pager ; repliable par le titre quand le parent donne onToggle (état collapsed au parent).',
   'ui/src/components/Totals/Totals.tsx': 'Des chiffres en tête de page, une carte chacun, déjà mis en forme.',
   'ui/src/components/PieChart/PieChart.tsx': 'Un camembert en anneau (SVG) et sa légende : la taille d’une part vient de sa valeur brute, l’affichage de sa valeur mise en forme, la couleur d’un jeton de la maison.',
+  'ui/src/components/ValueChips/ValueChips.tsx': 'Des valeurs seules, chacune dans son bloc, côte à côte : une mesure sans son nom (les températures posées sur la vidéo d’une caméra, sur téléphone).',
   'ui/src/components/SpecList/SpecList.tsx': 'Une liste de caractéristiques dans une carte : le nom à gauche, la valeur à droite, les retours à la ligne d’une valeur sont respectés.',
   'ui/src/components/LineChart/LineChart.tsx': 'Une courbe en direct (SVG) : titre, valeur actuelle et historique récent, qui se remplit depuis la droite. La courbe et sa surface sont calculées dans helpers.ts.',
   'ui/src/components/MediaPanel/MediaPanel.tsx': 'Un clip ou une image dans un panneau collant : la vidéo démarre à l’ouverture, Fermer retire le panneau sans déplacer ce qui est dessous.',

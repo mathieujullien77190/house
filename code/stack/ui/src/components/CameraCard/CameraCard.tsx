@@ -1,4 +1,6 @@
 import {
+  BACK_ARROW,
+  BACK_CLASS,
   BIG_MEDIA_CLASS,
   CAPTION_CLASS,
   CAPTION_ROW_CLASS,
@@ -10,6 +12,15 @@ import {
   FIGURE_CLASS,
   HEAD_CLASS,
   NAME_CLASS,
+  OVERLAY_DETAILS_CLASS,
+  OVERLAY_TOP_CLASS,
+  SCREEN_CLASS,
+  SCREEN_EXPAND_CLASS,
+  SCREEN_EXPAND_ICON,
+  SCREEN_MEDIA_CLASS,
+  SCREEN_TIMELINE_CLASS,
+  SCREEN_VIDEO_CLASS,
+  SCREEN_WARNING_CLASS,
   SECTION_CLASS,
   WARNING_CLASS,
   ZOOM_AREA_CLASS,
@@ -21,9 +32,45 @@ import type { CameraCardProps } from './types'
  * Le média peut passer en grand : plein écran, en paysage ; le parent décide quand (`expanded`) et appelle le plein
  * écran du navigateur sur `figureRef`.
  */
-const CameraCard = ({ name, caption, warning = '', actions, media, details, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
+const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, warning = '', actions, media, details, overlay, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
   // Le zoom au doigt n'existe qu'en vue en grand.
   const gesture = expanded ? mediaGesture : undefined
+  // L'écran du téléphone : la vidéo sur le tiers du haut (commandes dessus), la frise sur le reste, pas de titre ni de légende.
+  if (screen) {
+    return (
+      <section className={SCREEN_CLASS}>
+        {expanded || !onBack ? null : (
+          <button type="button" className={BACK_CLASS} aria-label={backLabel} title={backLabel} onClick={onBack}>
+            {BACK_ARROW}
+          </button>
+        )}
+        <figure ref={figureRef} className={expanded ? EXPANDED_CLASS : SCREEN_VIDEO_CLASS}>
+          <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : SCREEN_MEDIA_CLASS} {...gesture?.handlers}>
+            <div style={gesture?.style}>{media}</div>
+          </div>
+          {expanded ? (
+            onCollapse ? (
+              <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
+                {COLLAPSE_LABEL}
+              </button>
+            ) : null
+          ) : (
+            <>
+              {actions ? <div className={OVERLAY_TOP_CLASS}>{actions}</div> : null}
+              {details ? <div className={OVERLAY_DETAILS_CLASS}>{details}</div> : null}
+              {warning ? <p className={SCREEN_WARNING_CLASS}>{warning}</p> : null}
+              {onExpand ? (
+                <button type="button" className={SCREEN_EXPAND_CLASS} aria-label={EXPAND_LABEL} title={EXPAND_LABEL} onClick={onExpand}>
+                  {SCREEN_EXPAND_ICON}
+                </button>
+              ) : null}
+            </>
+          )}
+        </figure>
+        <div className={SCREEN_TIMELINE_CLASS}>{timeline}</div>
+      </section>
+    )
+  }
   return (
     <section className={SECTION_CLASS}>
       <div className={HEAD_CLASS}>
@@ -45,6 +92,7 @@ const CameraCard = ({ name, caption, warning = '', actions, media, details, time
         <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : undefined} {...gesture?.handlers}>
           <div style={gesture?.style}>{media}</div>
         </div>
+        {overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
         {expanded && onCollapse ? (
           <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
             {COLLAPSE_LABEL}

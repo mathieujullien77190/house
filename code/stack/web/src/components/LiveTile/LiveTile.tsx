@@ -1,5 +1,6 @@
 import { CameraTile, SnapshotImage as ImageBox } from '@house/ui'
 import { liveSrc } from '@/lib/live'
+import { useMobile } from '@/lib/useMobile'
 import { usePower } from '@/lib/usePower'
 import { CAPTION_OFF, CAPTION_STARTING, NAME_PREFIX, NO_IMAGE_TEXT, OFF_TEXT, STARTING_TEXT } from './constants'
 import type { LiveTileProps } from './types'
@@ -10,6 +11,7 @@ import type { LiveTileProps } from './types'
  */
 const LiveTile = ({ apiKey, camera, onOpen }: LiveTileProps) => {
   const { power } = usePower(apiKey, camera.name)
+  const mobile = useMobile()
   const off = power !== null && !power.on
   const starting = power !== null && power.on && !power.streaming
   const placeholder = off ? OFF_TEXT : starting ? STARTING_TEXT : ''
@@ -18,7 +20,7 @@ const LiveTile = ({ apiKey, camera, onOpen }: LiveTileProps) => {
     <CameraTile
       name={`${NAME_PREFIX}${camera.name}`}
       caption={caption}
-      media={<ImageBox src={placeholder ? '' : liveSrc(camera.name)} message={placeholder || NO_IMAGE_TEXT} />}
+      media={<ImageBox src={placeholder ? '' : liveSrc(camera.name, false, mobile)} message={placeholder || NO_IMAGE_TEXT} />}
       onOpen={onOpen}
     />
   )

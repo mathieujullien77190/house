@@ -10,8 +10,8 @@ const store = () => createEventStore(`${mkdtempSync(`${tmpdir()}/events-`)}/even
 
 test('un événement s’ouvre, se ferme puis reçoit son clip', () => {
   const events = store()
-  const record = events.open('portail', 1000.5)
-  assert.equal(record.id, eventId('portail', 1000.5))
+  const record = events.open('perruche-fond', 1000.5)
+  assert.equal(record.id, eventId('perruche-fond', 1000.5))
   assert.deepEqual(events.list({ inProgress: true }).map((e) => e.id), [record.id])
   events.close(record.id, 1008)
   assert.equal(events.list({ inProgress: true }).length, 0)
@@ -23,7 +23,7 @@ test('un événement s’ouvre, se ferme puis reçoit son clip', () => {
 
 test('list trie du plus récent au plus ancien et filtre par after et before', () => {
   const events = store()
-  for (const at of [100, 200, 300]) events.close(events.open('portail', at).id, at + 5)
+  for (const at of [100, 200, 300]) events.close(events.open('perruche-fond', at).id, at + 5)
   assert.deepEqual(events.list().map((e) => e.start_time), [300, 200, 100])
   assert.deepEqual(events.list({ after: 100, before: 300 }).map((e) => e.start_time), [200])
   assert.equal(events.list({ limit: 1 }).length, 1)
@@ -32,8 +32,8 @@ test('list trie du plus récent au plus ancien et filtre par after et before', (
 test('prune retire les événements trop vieux et le fichier garde le reste', () => {
   const file = `${mkdtempSync(`${tmpdir()}/events-`)}/events.json`
   const events = createEventStore(file)
-  events.open('portail', 100)
-  events.open('portail', 500)
+  events.open('perruche-fond', 100)
+  events.open('perruche-fond', 500)
   assert.equal(events.prune(300).length, 1)
   assert.deepEqual(createEventStore(file).list().map((e) => e.start_time), [500])
 })
@@ -52,9 +52,9 @@ test('selectSegments garde ceux qui recouvrent la plage, avec une marge', () => 
 test('closeOrphans ferme au démarrage les événements restés ouverts, et eux seuls', () => {
   const file = `${mkdtempSync(`${tmpdir()}/events-`)}/events.json`
   const first = createEventStore(file)
-  const finished = first.open('portail', 1000)
+  const finished = first.open('perruche-fond', 1000)
   first.close(finished.id, 1010)
-  const ghost = first.open('portail', 2000)
+  const ghost = first.open('perruche-fond', 2000)
   // Un redémarrage : le détecteur est neuf, mais le fichier garde l'événement ouvert.
   const second = createEventStore(file)
   assert.equal(second.list({ inProgress: true }).length, 1)

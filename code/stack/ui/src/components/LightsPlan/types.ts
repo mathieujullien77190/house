@@ -1,3 +1,5 @@
+import type { MediaGesture } from '../CameraCard/types'
+
 /** Une ampoule posée sur le plan, en unités du plan (540 × 300, l'origine en haut à gauche de la maison). */
 export interface PlanLamp {
   id: string
@@ -47,4 +49,14 @@ export interface LightsPlanProps {
   onMove: (id: string, x: number, y: number) => void
   /** Un clic (sans glisser) sur une ampoule : allumer ou éteindre. */
   onToggle: (id: string) => void
+  /**
+   * L'écran du téléphone (sous 1024 px) : le plan seul, en plein écran et en paysage (tourné d'un quart de tour si l'écran reste
+   * droit), sans la zone « À placer » ; les ampoules ne se déplacent pas, un toucher les allume ou les éteint.
+   */
+  screen?: boolean
+  /** Le zoom au doigt de l'écran du téléphone : les gestes de la zone et le style du dessin. */
+  gesture?: MediaGesture
+  /** Le bouton retour (une flèche, en haut à gauche de l'écran du téléphone). */
+  onBack?: () => void
+  backLabel?: string
 }

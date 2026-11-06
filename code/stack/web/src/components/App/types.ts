@@ -9,6 +9,8 @@ export interface AppUIProps {
   events: EventRow[]
   /** Le nombre de lampes des zones de la maison (sans celles à placer), ou null tant qu'il n'est pas connu. */
   lampCount: number | null
+  /** Écran de téléphone (sous 1024 px) : la vue d'une caméra prend tout l'écran, sans titre ni menu. */
+  mobile: boolean
   tab: TabId
   /** Le nom de la caméra ouverte en détail, ou null pour la mosaïque. */
   openCamera: string | null

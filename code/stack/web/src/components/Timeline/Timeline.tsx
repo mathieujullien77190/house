@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Timeline as TimelineUI } from '@house/ui'
 import { fetchEvents, fetchSnapshotTimes } from '@/lib/api'
+import { useMobile } from '@/lib/useMobile'
 import type { EventRow } from '@/types'
 import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
-import { buildCoverage, buildMarkers, buildTicks, clampWindow, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, timeAt, windowText } from './helpers'
+import { alongOf, axisLength, buildCoverage, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt, windowText } from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
@@ -14,7 +15,9 @@ const nowSeconds = () => Math.floor(Date.now() / 1000)
  * l'image d'un instant. Ce qu'on choisit (instant ou événement) remonte à la carte de la caméra.
  * Le dessin est celui de @house/ui ; ici, les calculs et les gestes.
  */
-const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange }: TimelineProps) => {
+const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange, fill = false }: TimelineProps) => {
+  // Sur téléphone (sous 1024 px) la frise est verticale, le plus récent en haut ; sur grand écran, horizontale.
+  const vertical = useMobile()
   const [seconds, setSeconds] = useState(NOW_ZOOM_SECONDS)
   const [end, setEnd] = useState(() => liveEnd(nowSeconds(), NOW_ZOOM_SECONDS))
   const [live, setLive] = useState(true)
@@ -30,11 +33,11 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   const [history, setHistory] = useState<EventRow[]>([])
   const [olderCount, setOlderCount] = useState<number | null>(null)
   const axisRef = useRef<HTMLDivElement>(null)
-  // La largeur de l'axe : sur un téléphone, il porte moins de graduations que sur un écran large.
-  const [axisWidth, setAxisWidth] = useState(0)
-  // Le glisser en cours : position de départ du pointeur et bord droit au départ.
+  // La longueur de l'axe (largeur, ou hauteur s'il est vertical) : une frise courte porte moins de graduations.
+  const [axisSize, setAxisSize] = useState(0)
+  // Le glisser en cours : position de départ du pointeur (le long de l'axe) et bord récent de la fenêtre au départ.
   const drag = useRef<{ x: number; end: number; moved: boolean } | null>(null)
-  // Les doigts posés sur l'axe (identifiant → position) et le pincement en cours : l'écart des doigts au départ, la
+  // Les doigts posés sur l'axe (identifiant → position le long de l'axe) et le pincement en cours : l'écart des doigts au départ, la
   // largeur de la fenêtre et l'instant sous le milieu des doigts, qui reste sous eux pendant qu'on zoome.
   const pointers = useRef(new Map<number, number>())
   const pinch = useRef<{ distance: number; seconds: number; anchor: number } | null>(null)
@@ -43,16 +46,16 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   // La fenêtre courante, lisible par l'écouteur de molette sans le réinstaller à chaque rendu.
   const view = useRef({ seconds, end })
 
-  // Suit la largeur de l'axe (rotation du téléphone, fenêtre redimensionnée).
+  // Suit la longueur de l'axe (rotation du téléphone, fenêtre redimensionnée).
   useEffect(() => {
     const axis = axisRef.current
     if (!axis) return
-    const update = () => setAxisWidth(axis.clientWidth)
+    const update = () => setAxisSize(axisLength(axis, vertical))
     update()
     const observer = new ResizeObserver(update)
     observer.observe(axis)
     return () => observer.disconnect()
-  }, [])
+  }, [vertical])
   useEffect(() => {
     view.current = { seconds, end }
   }, [seconds, end])
@@ -152,15 +155,14 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
       const { seconds: current, end: currentEnd } = view.current
-      const rect = axis.getBoundingClientRect()
-      const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / (rect.width || 1)))
+      const fraction = fractionAlong(alongOf(event, vertical), axis.getBoundingClientRect(), vertical)
       const anchor = timeAt(fraction, currentEnd, current)
       const next = clampWindow(event.deltaY > 0 ? current * WHEEL_FACTOR : current / WHEEL_FACTOR)
       place(anchor + (1 - fraction) * next, next)
     }
     axis.addEventListener('wheel', onWheel, { passive: false })
     return () => axis.removeEventListener('wheel', onWheel)
-  }, [])
+  }, [vertical])
 
   // Un clic sur l'axe : le curseur s'y pose, l'image de cet instant est demandée, l'événement ouvert se ferme.
   const chooseCursor = (time: number | null) => {
@@ -193,12 +195,11 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   // L'écart entre les deux premiers doigts (au moins 1 px) et la place de leur milieu sur l'axe (de 0 à 1).
   const fingers = (axis: HTMLDivElement): { distance: number; fraction: number } => {
     const [a = 0, b = 0] = [...pointers.current.values()]
-    const rect = axis.getBoundingClientRect()
-    return { distance: Math.max(1, Math.abs(a - b)), fraction: Math.min(1, Math.max(0, ((a + b) / 2 - rect.left) / (rect.width || 1))) }
+    return { distance: Math.max(1, Math.abs(a - b)), fraction: fractionAlong((a + b) / 2, axis.getBoundingClientRect(), vertical) }
   }
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    pointers.current.set(event.pointerId, event.clientX)
+    pointers.current.set(event.pointerId, alongOf(event, vertical))
     try {
       // Les doigts restent suivis même s'ils sortent de l'axe ; un pointeur déjà fini ne peut plus être capturé.
       event.currentTarget.setPointerCapture(event.pointerId)
@@ -216,11 +217,11 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
       return
     }
     gestureDone.current = false
-    drag.current = { x: event.clientX, end, moved: false }
+    drag.current = { x: alongOf(event, vertical), end, moved: false }
   }
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (pointers.current.has(event.pointerId)) pointers.current.set(event.pointerId, event.clientX)
+    if (pointers.current.has(event.pointerId)) pointers.current.set(event.pointerId, alongOf(event, vertical))
     if (pinch.current && pointers.current.size >= 2) {
       // Les doigts s'écartent : la fenêtre se resserre ; l'instant de départ reste sous le milieu des doigts, qui peut aussi se déplacer.
       const { distance, fraction } = fingers(event.currentTarget)
@@ -229,12 +230,11 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
       return
     }
     if (!drag.current) return
-    const dx = event.clientX - drag.current.x
-    if (!drag.current.moved && Math.abs(dx) < DRAG_THRESHOLD) return
+    const delta = alongOf(event, vertical) - drag.current.x
+    if (!drag.current.moved && Math.abs(delta) < DRAG_THRESHOLD) return
     drag.current.moved = true
     setDragging(true)
-    const width = event.currentTarget.clientWidth || 1
-    place(drag.current.end - (dx / width) * seconds)
+    place(drag.current.end + shiftSeconds(delta, axisLength(event.currentTarget, vertical), seconds, vertical))
   }
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
@@ -253,8 +253,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     setDragging(false)
     if (!started || started.moved) return
     // Un simple clic : le curseur se pose à cet instant, l'image correspondante est demandée.
-    const rect = event.currentTarget.getBoundingClientRect()
-    const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / (rect.width || 1)))
+    const fraction = fractionAlong(alongOf(event, vertical), event.currentTarget.getBoundingClientRect(), vertical)
     // Pas d'image dans le futur : le curseur s'arrête à maintenant.
     chooseCursor(Math.min(nowSeconds(), Math.round(timeAt(fraction, end, seconds))))
   }
@@ -273,11 +272,13 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
 
   return (
     <TimelineUI<RangeId>
+      vertical={vertical}
+      fill={fill}
       ranges={RANGES}
       range={presetOf(seconds)}
       live={live}
       windowText={windowText(seconds, end)}
-      ticks={buildTicks(seconds, end, maxTicksFor(axisWidth))}
+      ticks={buildTicks(seconds, end, maxTicksFor(axisSize, vertical))}
       markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
       nowX={nowX}

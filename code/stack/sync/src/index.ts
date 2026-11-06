@@ -123,9 +123,15 @@ if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).som
 if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).some((column) => column.name === 'light_fps')) {
   db.exec('ALTER TABLE settings ADD COLUMN light_fps INTEGER')
 }
-const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, snapshot_seconds FROM settings WHERE camera = ?')
+// La cadence des directs sur un écran de moins de 1024 px (téléphone), réglée à part de celle du PC.
+for (const name of ['live_fps_mobile', 'light_fps_mobile']) {
+  if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).some((column) => column.name === name)) {
+    db.exec(`ALTER TABLE settings ADD COLUMN ${name} INTEGER`)
+  }
+}
+const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, snapshot_seconds FROM settings WHERE camera = ?')
 const saveSettings = db.prepare(
-  'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, snapshot_seconds = excluded.snapshot_seconds',
+  'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, snapshot_seconds = excluded.snapshot_seconds',
 )
 const knownCameras = db.prepare('SELECT camera FROM last_images ORDER BY camera')
 /** Les intervalles d'image proposés (secondes) : au-delà de 5 min, « l'image à cet instant » serait trop loin. */
@@ -138,10 +144,29 @@ const NIGHT_MARGIN_SECONDS = 30 * 60
 const HOUSE_POSITION = { latitude: Number(process.env.HOUSE_LATITUDE ?? 48.6), longitude: Number(process.env.HOUSE_LONGITUDE ?? 2.7) }
 /** Images par seconde du direct 4K : de 1 à 25 (25 : toutes, au rythme de la caméra). */
 const MAX_LIVE_FPS = 25
-const cameraSettings = (camera: string): { camera: string; clips_mode: ClipMode; live_fps: number; light_fps: number; snapshot_seconds: number } => {
-  const row = settingsOf.get(camera) as { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; snapshot_seconds: number } | undefined
+interface CameraSettings {
+  camera: string
+  clips_mode: ClipMode
+  live_fps: number
+  light_fps: number
+  live_fps_mobile: number
+  light_fps_mobile: number
+  snapshot_seconds: number
+}
+const cameraSettings = (camera: string): CameraSettings => {
+  const row = settingsOf.get(camera) as
+    | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; snapshot_seconds: number }
+    | undefined
   const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
-  return { camera, clips_mode: mode, live_fps: row?.live_fps ?? MAX_LIVE_FPS, light_fps: row?.light_fps ?? MAX_LIVE_FPS, snapshot_seconds: row?.snapshot_seconds ?? SNAPSHOT_INTERVAL_SECONDS }
+  return {
+    camera,
+    clips_mode: mode,
+    live_fps: row?.live_fps ?? MAX_LIVE_FPS,
+    light_fps: row?.light_fps ?? MAX_LIVE_FPS,
+    live_fps_mobile: row?.live_fps_mobile ?? MAX_LIVE_FPS,
+    light_fps_mobile: row?.light_fps_mobile ?? MAX_LIVE_FPS,
+    snapshot_seconds: row?.snapshot_seconds ?? SNAPSHOT_INTERVAL_SECONDS,
+  }
 }
 // Le clip d'un événement qui commence à cet instant est-il à garder ?
 const keepsClip = (camera: string, startTime: number): boolean => {
@@ -368,12 +393,16 @@ const syncLiveFps = async (cameras: string[]) => {
   if (now - liveFpsCheckedAt < LIVE_FPS_CHECK_SECONDS) return
   liveFpsCheckedAt = now
   for (const camera of cameras) {
-    for (const { stream, fps } of [
-      { stream: 'main', fps: cameraSettings(camera).live_fps },
-      { stream: 'sub', fps: cameraSettings(camera).light_fps },
+    const settings = cameraSettings(camera)
+    for (const { stream, fps, suffix } of [
+      { stream: 'main', fps: settings.live_fps, suffix: '' },
+      { stream: 'sub', fps: settings.light_fps, suffix: '' },
+      // Les flux des écrans de moins de 1024 px : « _m » (voir go2rtc.yaml).
+      { stream: 'main', fps: settings.live_fps_mobile, suffix: '_m' },
+      { stream: 'sub', fps: settings.light_fps_mobile, suffix: '_m' },
     ]) {
       const wanted = fps
-      const name = `${camera}_${stream}_mjpeg`
+      const name = `${camera}_${stream}_mjpeg${suffix}`
       try {
         const info = await fetch(`${GO2RTC_URL}/api/streams?src=${name}`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
         if (!info.ok) continue
@@ -381,7 +410,7 @@ const syncLiveFps = async (cameras: string[]) => {
         if (Number(current?.[1] ?? MAX_LIVE_FPS) === wanted) continue
         const video = wanted >= MAX_LIVE_FPS ? 'mjpeg' : `mjpeg${wanted}`
         const res = await fetch(`${GO2RTC_URL}/api/streams?name=${name}&src=${encodeURIComponent(`ffmpeg:${camera}_${stream}#video=${video}`)}`, { method: 'PATCH', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
-        log(`Direct ${stream === 'main' ? '4K' : 'léger'} de ${camera} : ${wanted} images/s (go2rtc : HTTP ${res.status})`)
+        log(`Direct ${stream === 'main' ? '4K' : 'léger'}${suffix ? ' (téléphone)' : ''} de ${camera} : ${wanted} images/s (go2rtc : HTTP ${res.status})`)
         if (!res.ok) liveFpsCheckedAt = 0
       } catch {
         // go2rtc ne répond pas : on réessaie au prochain tour.
@@ -657,7 +686,7 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
   // PUT /api/settings : { camera, clips_mode?, live_fps?, light_fps?, snapshot_seconds? }, derrière la session.
   if (req.method === 'PUT' && pathname === '/api/settings') {
     if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
-    let body: { camera?: unknown; clips_mode?: unknown; live_fps?: unknown; light_fps?: unknown; snapshot_seconds?: unknown }
+    let body: { camera?: unknown; clips_mode?: unknown; live_fps?: unknown; light_fps?: unknown; live_fps_mobile?: unknown; light_fps_mobile?: unknown; snapshot_seconds?: unknown }
     try {
       body = JSON.parse(await readBody(req)) as typeof body
     } catch {
@@ -674,8 +703,13 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
     if (!Number.isInteger(fps) || fps < 1 || fps > MAX_LIVE_FPS) return sendJson(res, 400, { error: `live_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
     const light = body.light_fps === undefined ? current.light_fps : Number(body.light_fps)
     if (!Number.isInteger(light) || light < 1 || light > MAX_LIVE_FPS) return sendJson(res, 400, { error: `light_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
-    saveSettings.run(camera, mode === 'off' ? 0 : 1, mode, fps, light, seconds)
-    log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s, léger à ${light} images/s, une image toutes les ${seconds} s`)
+    const fpsMobile = body.live_fps_mobile === undefined ? current.live_fps_mobile : Number(body.live_fps_mobile)
+    if (!Number.isInteger(fpsMobile) || fpsMobile < 1 || fpsMobile > MAX_LIVE_FPS) return sendJson(res, 400, { error: `live_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    const lightMobile = body.light_fps_mobile === undefined ? current.light_fps_mobile : Number(body.light_fps_mobile)
+    if (!Number.isInteger(lightMobile) || lightMobile < 1 || lightMobile > MAX_LIVE_FPS) return sendJson(res, 400, { error: `light_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    saveSettings.run(camera, mode === 'off' ? 0 : 1, mode, fps, light, fpsMobile, lightMobile, seconds)
+    log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), une image toutes les ${seconds} s`)
+    liveFpsCheckedAt = 0
     return sendJson(res, 200, cameraSettings(camera))
   }
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })

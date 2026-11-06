@@ -19,7 +19,7 @@ const SERVICES = [
 const ANSWERS: Record<string, ApiResult> = {
   '/welcome': { path: '/welcome', status: 200, body: '{\n  "service": "house-api",\n  "message": "Welcome to House API"\n}' },
   '/auth': { path: '/auth', status: 200, body: '{\n  "ok": true\n}' },
-  '/events?last=1': { path: '/events?last=1', status: 200, body: '[\n  {\n    "id": "1792941234.588848-jlzqs5",\n    "camera": "portail",\n    "label": "person"\n  }\n]' },
+  '/events?last=1': { path: '/events?last=1', status: 200, body: '[\n  {\n    "id": "1792941234.588848-jlzqs5",\n    "camera": "perruche-fond",\n    "label": "person"\n  }\n]' },
 }
 
 /** L'appel est au parent : ici, une réponse toute faite après un court délai. */

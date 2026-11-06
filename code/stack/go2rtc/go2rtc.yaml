@@ -3,16 +3,21 @@
 # Par caméra, cinq flux : <nom>_main (4K, enregistré en copie), <nom>_sub (léger, détection),
 # <nom>_sub_mjpeg (le léger transcodé en MJPEG, que House API relaie pour le direct) et
 # <nom>_main_mjpeg (le 4K transcodé en MJPEG, pour le bouton « 4K » du direct : lourd pour le processeur).
+# Les mêmes deux flux en « _m » (<nom>_sub_mjpeg_m, <nom>_main_mjpeg_m) sont ceux des écrans de moins de 1024 px : leur cadence se règle à part.
 streams:
-  portail_main: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
-  portail_sub: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
-  portail_sub_mjpeg: ffmpeg:portail_sub#video=mjpeg
-  portail_main_mjpeg: ffmpeg:portail_main#video=mjpeg
+  perruche-fond_main: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
+  perruche-fond_sub: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
+  perruche-fond_sub_mjpeg: ffmpeg:perruche-fond_sub#video=mjpeg
+  perruche-fond_main_mjpeg: ffmpeg:perruche-fond_main#video=mjpeg
+  perruche-fond_sub_mjpeg_m: ffmpeg:perruche-fond_sub#video=mjpeg
+  perruche-fond_main_mjpeg_m: ffmpeg:perruche-fond_main#video=mjpeg
   # La deuxième caméra : adresse, compte et mot de passe viennent de .env (CAMERA2_IP, CAMERA2_USER, CAMERA2_PASSWORD).
-  camera2_main: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_main
-  camera2_sub: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_sub
-  camera2_sub_mjpeg: ffmpeg:camera2_sub#video=mjpeg
-  camera2_main_mjpeg: ffmpeg:camera2_main#video=mjpeg
+  perruche-porte_main: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_main
+  perruche-porte_sub: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_sub
+  perruche-porte_sub_mjpeg: ffmpeg:perruche-porte_sub#video=mjpeg
+  perruche-porte_main_mjpeg: ffmpeg:perruche-porte_main#video=mjpeg
+  perruche-porte_sub_mjpeg_m: ffmpeg:perruche-porte_sub#video=mjpeg
+  perruche-porte_main_mjpeg_m: ffmpeg:perruche-porte_main#video=mjpeg
 
 # Le direct (4K et léger) en MJPEG avec moins d'images par seconde : House Sync change la source de <nom>_main_mjpeg et
 # <nom>_sub_mjpeg en ffmpeg:<nom>_main#video=mjpegN ou ffmpeg:<nom>_sub#video=mjpegN (N de 1 à 24) selon le curseur de sa page. Décoder reste complet, mais l'encodage JPEG et le

@@ -4,9 +4,16 @@ import {
   ACTIVE_NAME_POSITION,
   BULB_GROUP_CLASS,
   BULB_OFF_CLASS,
+  BULB_OFF_UNREACHABLE_CLASS,
   BULB_ON_CLASS,
+  BULB_ON_UNREACHABLE_CLASS,
+  BIG_PLAN_CLASS,
   BULB_RADIUS,
   DRAG_THRESHOLD,
+  BACK_ARROW,
+  BACK_CLASS,
+  EXPANDED_VIEW_WIDTH,
+  FIGURE_CLASS,
   GARDEN,
   GARDEN_CLASS,
   GARDEN_LABEL,
@@ -28,13 +35,13 @@ import {
   SIDE_LAMP_NAME_CLASS,
   SIDE_LAMP_NAME_GAP,
   SCREEN_CLASS,
-  UNREACHABLE_CLASS,
   VIEW_HEIGHT,
   VIEW_WIDTH,
   VIEW_X,
   VIEW_Y,
   WALL_CLASS,
 } from './constants'
+import { EXPANDED_CLASS } from '../CameraCard/constants'
 import { clampToPlan, toPlan } from './helpers'
 import type { LightsPlanProps, PlanLamp } from './types'
 
@@ -46,11 +53,19 @@ interface Drag {
   moved: boolean
 }
 
+/** La classe du cercle d'une ampoule : allumée ou éteinte, et cerclée de rouge quand elle est injoignable. */
+const bulbClass = (lamp: PlanLamp): string => {
+  if (lamp.reachable) return lamp.on ? BULB_ON_CLASS : BULB_OFF_CLASS
+  return lamp.on ? BULB_ON_UNREACHABLE_CLASS : BULB_OFF_UNREACHABLE_CLASS
+}
+
 /**
  * Le plan de la maison vu de dessus (aux proportions du rez-de-chaussée du site, 540 × 300, dans son jardin) avec une ampoule
  * par lampe : on la glisse pour la placer, on la touche pour l'allumer ou l'éteindre. Les positions sont au parent.
  */
-const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlanProps) => {
+const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle, screen = false, gesture, onBack, backLabel = '' }: LightsPlanProps) => {
+  // Sur l'écran du téléphone, le dessin s'arrête avant la zone « À placer ».
+  const viewWidth = screen ? EXPANDED_VIEW_WIDTH : VIEW_WIDTH
   const svg = useRef<SVGSVGElement>(null)
   const drag = useRef<Drag | null>(null)
   const [active, setActive] = useState<string | null>(null)
@@ -66,10 +81,12 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlan
     const box = svg.current?.getBoundingClientRect()
     if (!current || !box) return
     // Le seuil se mesure en unités du plan, comme celui des caméras du site : un tremblement du doigt n'est pas un glissement.
-    const scale = VIEW_WIDTH / box.width
+    const scale = viewWidth / box.width
     if (!current.moved && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) * scale <= DRAG_THRESHOLD) return
     current.moved = true
-    const next = toPlan(event.clientX, event.clientY, box)
+    // Sur l'écran du téléphone (parfois tourné d'un quart de tour), on ne déplace pas : seul un toucher allume ou éteint.
+    if (screen) return
+    const next = toPlan(event.clientX, event.clientY, box, viewWidth)
     onMove(current.id, next.x, next.y)
   }
 
@@ -94,12 +111,12 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlan
   }
 
   const activeLamp = lamps.find((lamp) => lamp.id === active)
-  return (
-    <>
+  const plan = (
       <svg
         ref={svg}
         className={PLAN_CLASS}
-        viewBox={`${VIEW_X} ${VIEW_Y} ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+        style={screen ? gesture?.style : undefined}
+        viewBox={`${VIEW_X} ${VIEW_Y} ${viewWidth} ${VIEW_HEIGHT}`}
         role="group"
         aria-label={title}
         onPointerDown={(event) => {
@@ -112,10 +129,14 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlan
           {GARDEN_LABEL}
         </text>
         <rect className={HOUSE_CLASS} x={HOUSE_INSET} y={HOUSE_INSET} width={HOUSE_WIDTH - 2 * HOUSE_INSET} height={HOUSE_HEIGHT - 2 * HOUSE_INSET} />
-        <rect className={SIDE_CLASS} x={SIDE_ZONE.x} y={SIDE_ZONE.y} width={SIDE_ZONE.w} height={SIDE_ZONE.h} />
-        <text className={SIDE_LABEL_CLASS} x={SIDE_LABEL_POSITION.x} y={SIDE_LABEL_POSITION.y}>
-          {SIDE_LABEL}
-        </text>
+        {screen ? null : (
+          <>
+            <rect className={SIDE_CLASS} x={SIDE_ZONE.x} y={SIDE_ZONE.y} width={SIDE_ZONE.w} height={SIDE_ZONE.h} />
+            <text className={SIDE_LABEL_CLASS} x={SIDE_LABEL_POSITION.x} y={SIDE_LABEL_POSITION.y}>
+              {SIDE_LABEL}
+            </text>
+          </>
+        )}
         {rooms.map((room) => (
           <g key={room.name}>
             {room.outline ? (
@@ -134,7 +155,7 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlan
         {lamps.map((lamp) => (
           <g
             key={lamp.id}
-            className={`${BULB_GROUP_CLASS} ${lamp.reachable ? '' : UNREACHABLE_CLASS}`}
+            className={BULB_GROUP_CLASS}
             role="button"
             tabIndex={0}
             aria-label={lamp.name}
@@ -158,7 +179,7 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlan
                 {lamp.name}
               </text>
             ) : null}
-            <circle className={lamp.on ? BULB_ON_CLASS : BULB_OFF_CLASS} cx={lamp.x} cy={lamp.y} r={BULB_RADIUS} />
+            <circle className={bulbClass(lamp)} cx={lamp.x} cy={lamp.y} r={BULB_RADIUS} />
           </g>
         ))}
         {/* Le nom de l'ampoule survolée ou touchée, toujours en bas du jardin, centré. */}
@@ -166,7 +187,27 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle }: LightsPlan
           {activeLamp?.name ?? ''}
         </text>
       </svg>
-    </>
+  )
+  if (!screen) return <figure className={FIGURE_CLASS}>{plan}</figure>
+  // Un doigt sur une ampoule l'allume : seuls les gestes commencés ailleurs servent au zoom.
+  const handlers = gesture?.handlers
+  const zoom = handlers && {
+    ...handlers,
+    onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+      if (!(event.target as Element).closest('[role="button"]')) handlers.onPointerDown?.(event)
+    },
+  }
+  return (
+    <figure className={EXPANDED_CLASS}>
+      <div className={BIG_PLAN_CLASS} {...zoom}>
+        {plan}
+      </div>
+      {onBack ? (
+        <button type="button" className={BACK_CLASS} aria-label={backLabel} title={backLabel} onClick={onBack}>
+          {BACK_ARROW}
+        </button>
+      ) : null}
+    </figure>
   )
 }
 

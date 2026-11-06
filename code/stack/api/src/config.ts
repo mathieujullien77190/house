@@ -28,7 +28,7 @@ export interface Config {
 
 const MIN_KEY_LENGTH = 8
 
-/** SWITCH_PORTS : « portail:7,jardin:3 » (caméra:port du switch). */
+/** SWITCH_PORTS : « perruche-fond:7,jardin:3 » (caméra:port du switch). */
 const parseSwitch = (env: NodeJS.ProcessEnv): Config['switchPoe'] => {
   const password = env.SWITCH_PASSWORD ?? ''
   if (!password) return null
