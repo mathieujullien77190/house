@@ -26,6 +26,8 @@ export interface CameraCardProps {
   details?: ReactNode
   /** Posé sur la vidéo, en bas à gauche, en vue normale comme en vue en grand (bureau) : par exemple les températures. */
   overlay?: ReactNode
+  /** L'heure, en bas à droite de la vidéo, en vue en grand seulement (téléphone et bureau). */
+  clock?: ReactNode
   /** La frise, rendue par le parent. */
   timeline: ReactNode
   /** L'élément qui passe en plein écran : le parent le lit pour appeler l'API plein écran du navigateur. */

@@ -39,6 +39,8 @@ export const BACK_ARROW = '←'
 export const OVERLAY_TOP_CLASS = 'absolute right-2 top-2 z-10 flex flex-col items-end gap-1'
 /** En bas à gauche : les mesures (température), des blocs qui ont chacun leur fond. */
 export const OVERLAY_DETAILS_CLASS = 'absolute bottom-2 left-2 z-10'
+/** L'heure de la vue en grand : en bas à droite de la vidéo, sans gêner les gestes. */
+export const CLOCK_CLASS = 'pointer-events-none absolute right-3 bottom-3 z-10'
 /** En bas à droite : « Afficher en grand ». */
 export const SCREEN_EXPAND_CLASS = 'absolute bottom-2 right-2 z-10 cursor-pointer rounded-md border border-line bg-bg/80 px-2.5 py-1 text-[1rem] text-fg focus-visible:outline-2 focus-visible:outline-accent'
 export const SCREEN_EXPAND_ICON = '⛶'

@@ -5,6 +5,7 @@ import PowerButton from '@/components/PowerButton'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
 import { useMobile } from '@/lib/useMobile'
+import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
 import { useSensors } from '@/lib/useSensors'
 import { usePower } from '@/lib/usePower'
@@ -61,6 +62,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   const bigView = useBigView()
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
   const pinchZoom = usePinchZoom(bigView.big)
+  const now = useClock(bigView.big)
   // La température du détecteur de la caméra (« motion fond » pour perruche-fond, « motion porte » pour perruche-porte), sur la vidéo.
   const sensorId = CAMERA_SENSOR[camera.name]
   const showTemperatures = sensorId !== undefined
@@ -156,6 +158,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
       mediaGesture={pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       details={temperatures.length > 0 && mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
+      // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
+      clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
       overlay={temperatures.length > 0 && !mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
       timeline={
         <Timeline

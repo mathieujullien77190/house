@@ -4,6 +4,7 @@ import {
   BIG_MEDIA_CLASS,
   CAPTION_CLASS,
   CAPTION_ROW_CLASS,
+  CLOCK_CLASS,
   COLLAPSE_CLASS,
   COLLAPSE_LABEL,
   EXPAND_CLASS,
@@ -32,7 +33,7 @@ import type { CameraCardProps } from './types'
  * Le média peut passer en grand : plein écran, en paysage ; le parent décide quand (`expanded`) et appelle le plein
  * écran du navigateur sur `figureRef`.
  */
-const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, warning = '', actions, media, details, overlay, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
+const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, warning = '', actions, media, details, overlay, clock, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
   // Le zoom au doigt n'existe qu'en vue en grand.
   const gesture = expanded ? mediaGesture : undefined
   // L'écran du téléphone : la vidéo sur le tiers du haut (commandes dessus), la frise sur le reste, pas de titre ni de légende.
@@ -48,6 +49,7 @@ const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, war
           <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : SCREEN_MEDIA_CLASS} {...gesture?.handlers}>
             <div style={gesture?.style}>{media}</div>
           </div>
+          {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
           {expanded ? (
             onCollapse ? (
               <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
@@ -93,6 +95,7 @@ const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, war
           <div style={gesture?.style}>{media}</div>
         </div>
         {overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
+        {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
         {expanded && onCollapse ? (
           <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
             {COLLAPSE_LABEL}
