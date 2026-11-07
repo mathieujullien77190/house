@@ -28,6 +28,10 @@ jobs:
 
       - run: npm ci
 
+      # Le Storybook de @house/ui est servi par le site (public/storybook, ignore par git) : on le compile avant le site.
+      - run: npm --prefix code/stack/ui ci
+      - run: npm run build:storybook
+
       - run: npm run lint
 
       # `build` lance deja `tsc` avant `vite build` (base /house/).

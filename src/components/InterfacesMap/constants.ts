@@ -6,7 +6,7 @@ export const ARIA_LABEL =
 export const MARKER_ID = 'interfaces-arrow'
 
 /** Le Storybook de @house/ui, compilé dans public/storybook (npm run build:storybook) et servi avec le site. */
-export const STORYBOOK_URL = '/storybook/index.html'
+export const STORYBOOK_URL = `${import.meta.env.BASE_URL}storybook/index.html`
 export const STORYBOOK_LABEL = 'Ouvrir le Storybook'
 export const STORYBOOK_HINT = 'Les composants de @house/ui, un par un. Page vide ? Lance npm run build:storybook.'
 export const STORYBOOK_CLASS = 'mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[0.9rem]'
