@@ -5,7 +5,7 @@ export interface TableSummary {
   columns: string[]
   count: number
   /** Les filtres que la page propose : le choix d'une valeur (caméra, matériel Hue) et/ou la date. */
-  filters?: { match: 'camera' | 'name' | null; date: boolean }
+  filters?: { match: 'camera' | 'name' | 'cle' | null; date: boolean }
 }
 
 export interface Overview {

@@ -16,12 +16,12 @@ export interface TableSummary {
   columns: string[]
   count: number
   /** Les filtres que la page propose pour cette table : le choix d'une valeur (caméra, nom du matériel Hue) et la date. */
-  filters: { match: 'camera' | 'name' | null; date: boolean }
+  filters: { match: 'camera' | 'name' | 'cle' | null; date: boolean }
 }
 
 /** Ce qu'une table se laisse filtrer : la colonne dont on choisit une valeur, et la colonne d'horodatage (secondes) de la date. */
 interface TableFilterConfig {
-  match: 'camera' | 'name' | null
+  match: 'camera' | 'name' | 'cle' | null
   date: string | null
 }
 
@@ -30,7 +30,7 @@ export const TABLE_FILTERS: Record<string, TableFilterConfig> = {
   snapshots: { match: 'camera', date: 'taken_at' },
   merges: { match: 'camera', date: 'absorbed_started_at' },
   hue_events: { match: 'name', date: 'happened_at' },
-  guest_visits: { match: null, date: 'started_at' },
+  guest_visits: { match: 'cle', date: 'started_at' },
 }
 
 /** Le filtre demandé : une valeur de la colonne choisie, et une période [from, to[ en secondes depuis 1970. */

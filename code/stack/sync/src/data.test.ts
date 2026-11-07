@@ -14,7 +14,7 @@ const database = () => {
     CREATE TABLE hue_events (id INTEGER PRIMARY KEY, happened_at INTEGER NOT NULL, happened_ms INTEGER NOT NULL, name TEXT, resource TEXT);
     CREATE TABLE merges (absorbed_id TEXT, kept_id TEXT, camera TEXT, absorbed_started_at INTEGER, merged_at INTEGER);
     CREATE TABLE settings (camera TEXT PRIMARY KEY);
-    CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT);
+    CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT, cle TEXT);
   `)
   const insert = db.prepare('INSERT INTO events (id, camera, started_at) VALUES (?, ?, ?)')
   insert.run('a', 'voliere-interieur', 1000)
@@ -46,12 +46,14 @@ test('readTable filtre par caméra et par période, et rend les valeurs du filtr
   assert.deepEqual(readTable(db, 'events', 0, 1, { match: 'voliere-interieur' })?.items.map((row) => row.id), ['c'])
 })
 
-test('hue_events se filtre par nom du matériel et par date ; guest_visits par date seulement', () => {
+test('hue_events se filtre par nom du matériel et par date ; guest_visits par clé et par date', () => {
   const db = database()
   assert.equal(readTable(db, 'hue_events', 0, 20, { match: 'Perruche' })?.total, 2)
   assert.deepEqual(readTable(db, 'hue_events', 0, 20)?.options, ['Perruche', 'motion interieur'])
   assert.equal(readTable(db, 'hue_events', 0, 20, { from: 1500, to: 2500 })?.total, 1)
-  assert.deepEqual(readTable(db, 'guest_visits', 0, 20, { match: 'voliere-interieur' })?.options, [])
+  db.exec("INSERT INTO guest_visits (started_at, cle) VALUES (10, 'avec clé'), (20, 'sans clé'), (30, 'avec clé')")
+  assert.equal(readTable(db, 'guest_visits', 0, 20, { match: 'avec clé' })?.total, 2)
+  assert.deepEqual(readTable(db, 'guest_visits', 0, 20)?.options, ['avec clé', 'sans clé'])
 })
 
 test('une table sans filtre ignore ceux qu\'on lui donne ; summarizeTables dit ce que chaque table filtre', () => {
@@ -60,7 +62,7 @@ test('une table sans filtre ignore ceux qu\'on lui donne ; summarizeTables dit c
   const tables = Object.fromEntries(summarizeTables(db).map((table) => [table.name, table.filters]))
   assert.deepEqual(tables.events, { match: 'camera', date: true })
   assert.deepEqual(tables.hue_events, { match: 'name', date: true })
-  assert.deepEqual(tables.guest_visits, { match: null, date: true })
+  assert.deepEqual(tables.guest_visits, { match: 'cle', date: true })
   assert.deepEqual(tables.settings, { match: null, date: false })
 })
 

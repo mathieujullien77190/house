@@ -1,5 +1,7 @@
 export const EMPTY_TEXT = 'vide'
 export const EXPAND_ARIA = 'Déplier'
+export const MORE_TEXT = 'Voir le détail'
+export const LESS_TEXT = 'Masquer le détail'
 export const COLLAPSE_ARIA = 'Replier'
 
 export const CARD_CLASS = 'mt-3 rounded-xl border border-line bg-card px-3.5 py-3'
@@ -23,8 +25,11 @@ export const ROW_CLASS = 'even:bg-accent/5 max-lg:mb-2 max-lg:block max-lg:round
 export const EMPTY_CLASS = 'text-[0.85rem] text-muted'
 /** Une ligne qui se déplie au clic. */
 export const ROW_CLICK_CLASS = 'cursor-pointer hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-accent'
-export const ROW_OPEN_CLASS = 'bg-accent/10'
-export const DETAIL_ROW_CLASS = 'bg-accent/5 max-lg:mb-2 max-lg:block max-lg:rounded-lg max-lg:border max-lg:border-line'
+export const ROW_OPEN_CLASS = 'bg-accent/10 max-lg:mb-0! max-lg:rounded-b-none! max-lg:border-accent! max-lg:border-b-0!'
+export const DETAIL_ROW_CLASS = 'bg-accent/5 max-lg:mb-2 max-lg:block max-lg:rounded-t-none max-lg:rounded-b-lg max-lg:border max-lg:border-t-0 max-lg:border-accent'
 export const DETAIL_CELL_CLASS = 'border-b border-line px-2 py-2 max-lg:block max-lg:border-b-0 max-lg:px-2.5'
 /** Les filtres, sous la description. */
 export const FILTERS_CLASS = 'mb-1'
+/** Sur téléphone, une ligne qui se déplie le dit : un pied de fiche « Voir le détail ▾ » (caché dès 1024 px, où le curseur et le survol suffisent). */
+export const HINT_CELL_CLASS = 'mt-1 block border-t border-line pt-1.5 text-[0.8rem] font-semibold text-accent lg:hidden'
+export const HINT_ARROW = ['▾', '▴']

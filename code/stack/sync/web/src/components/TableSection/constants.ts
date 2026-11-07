@@ -24,7 +24,7 @@ export const NUM_CLASS = 'whitespace-normal tabular-nums lg:whitespace-nowrap'
 export const MEDIA_CLASS = 'inline-flex flex-wrap items-center gap-2'
 
 /** Ce que le filtre « valeur » choisit, selon la colonne de la table. */
-export const MATCH_LABELS: Record<'camera' | 'name', string> = { camera: 'Caméra', name: 'Matériel Hue' }
-export const MATCH_ALL: Record<'camera' | 'name', string> = { camera: 'Toutes', name: 'Tous' }
+export const MATCH_LABELS: Record<'camera' | 'name' | 'cle', string> = { camera: 'Caméra', name: 'Matériel Hue', cle: 'Clé' }
+export const MATCH_ALL: Record<'camera' | 'name' | 'cle', string> = { camera: 'Toutes', name: 'Tous', cle: 'Toutes' }
 export const DATE_LABEL = 'Date'
 export const CLEAR_LABEL = 'Effacer les filtres'

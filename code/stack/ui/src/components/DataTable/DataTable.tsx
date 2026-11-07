@@ -15,6 +15,10 @@ import {
   EMPTY_TEXT,
   EXPAND_ARIA,
   FILTERS_CLASS,
+  HINT_ARROW,
+  HINT_CELL_CLASS,
+  LESS_TEXT,
+  MORE_TEXT,
   HEAD_CELL_CLASS,
   HEAD_CLASS,
   HEAD_GROUP_CLASS,
@@ -102,6 +106,11 @@ const DataTable = ({ title, description, detail, columns, rows, keys, page, size
                           <span className={VALUE_CLASS}>{cell}</span>
                         </td>
                       ))}
+                      {clickable ? (
+                        <td colSpan={columns.length} className={HINT_CELL_CLASS} aria-hidden="true">
+                          {isOpen ? `${HINT_ARROW[1]} ${LESS_TEXT}` : `${HINT_ARROW[0]} ${MORE_TEXT}`}
+                        </td>
+                      ) : null}
                     </tr>
                     {isOpen ? (
                       <tr className={DETAIL_ROW_CLASS}>
