@@ -14,6 +14,6 @@ export const SERVICES: ApiService[] = [
   { path: '/hue/automations', description: 'Les règles d’automatisation du pont Hue en phrases : les horaires (quand, où, quoi) et les détecteurs de mouvement. 503 sans pont configuré.', secured: true, group: 'Lumière' },
   { path: '/hue/sensors', description: 'Les détecteurs de mouvement du pont Hue, avec leur température et leur luminosité. 503 sans pont configuré.', secured: true, group: 'Lumière' },
   { path: '/guest', description: 'De quoi bâtir le lien de la page invité : sa clé, son port et son adresse publique si elle existe. 503 sans page invité configurée.', secured: true, group: 'Caméra' },
-  { path: '/plug', description: 'La prise connectée TP-Link Kasa (« chauffage ») : nom, allumée ou non, signal WiFi, depuis quand. POST /plug avec {"on": true|false} l\'allume ou l\'éteint. 502 si elle ne répond pas, 503 sans prise configurée.', secured: true, group: 'Prise' },
+  { path: '/plug', description: 'La prise connectée TP-Link Kasa (« chauffage ») : nom, allumée ou non, signal WiFi, depuis quand. POST /plug avec {"on": true|false} l\'allume ou l\'éteint, et {"on": true, "minutes": 15} l\'allume 15 minutes puis la prise s\'éteint toute seule (champ timerSeconds : ce qui reste). 502 si elle ne répond pas, 503 sans prise configurée.', secured: true, group: 'Prise' },
 ]
 

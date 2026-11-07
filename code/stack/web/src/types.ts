@@ -46,6 +46,8 @@ export interface PlugState {
   rssi: number
   /** Secondes depuis l'allumage, 0 éteinte. */
   onTime: number
+  /** Secondes avant que le minuteur de la prise ne l'éteigne, null sans minuteur. */
+  timerSeconds: number | null
 }
 
 /** Une lampe du pont Hue. */

@@ -21,6 +21,12 @@ export const createPlugService = (client: KasaClient) => {
       cached = null
       return read()
     },
+    /** Allume la prise pendant `minutes` minutes : c'est la prise qui s'éteint ensuite. */
+    startTimer: async (minutes: number): Promise<PlugState> => {
+      await client.startTimer(minutes * 60)
+      cached = null
+      return read()
+    },
   }
 }
 

@@ -20,6 +20,16 @@ export interface PlugInfo {
   rssi: number
   /** Secondes depuis l'allumage ; 0 quand elle est éteinte. */
   onTime: number
+  /** Secondes avant que son minuteur ne l'éteigne, ou null s'il n'y en a pas. */
+  timerSeconds: number | null
+}
+
+/** Une règle de minuteur de la prise (count_down) : `act` 0 = éteindre au bout de `delay` secondes, `remain` ce qui reste. */
+interface CountdownRule {
+  enable?: number
+  delay?: number
+  act?: number
+  remain?: number
 }
 
 const INITIAL_KEY = 171
@@ -126,19 +136,50 @@ export const createKasaClient = (config: KasaConfig) => {
     }
   }
 
+  // Le minuteur de la prise : c'est la prise elle-même qui éteint (même si le mini PC ou l'API tombent pendant le chauffage).
+  const countdownRules = async (): Promise<CountdownRule[]> => {
+    const reply = (await send({ count_down: { get_rules: null } })) as { count_down?: { get_rules?: { rule_list?: CountdownRule[] } } }
+    return reply.count_down?.get_rules?.rule_list ?? []
+  }
+  const clearCountdown = async (): Promise<void> => {
+    await send({ count_down: { delete_all_rules: null } })
+  }
+
   return {
     info: async (): Promise<PlugInfo> => {
       const info = await withSearch(() => sysinfo())
+      // Un minuteur illisible ne doit pas empêcher de voir la prise : on dit alors « pas de minuteur ».
+      const rules = await countdownRules().catch(() => [])
+      const running = rules.find((rule) => rule.enable === 1 && rule.act === 0 && typeof rule.remain === 'number' && rule.remain > 0)
       return {
         alias: String(info.alias ?? ''),
         model: String(info.model ?? ''),
         on: info.relay_state === 1,
         rssi: Number(info.rssi ?? 0),
         onTime: Number(info.on_time ?? 0),
+        timerSeconds: running?.remain ?? null,
       }
     },
+    /** Allume ou éteint pour de bon : un minuteur en cours est annulé (sinon il éteindrait plus tard une prise qu'on vient d'allumer). */
     set: async (on: boolean): Promise<void> => {
-      await withSearch(() => send({ system: { set_relay_state: { state: on ? 1 : 0 } } }))
+      await withSearch(async () => {
+        await clearCountdown()
+        await send({ system: { set_relay_state: { state: on ? 1 : 0 } } })
+      })
+    },
+    /** Allume la prise et programme son extinction dans `seconds` secondes. Si le minuteur ne se programme pas, la prise est rééteinte : jamais allumée sans fin par accident. */
+    startTimer: async (seconds: number): Promise<void> => {
+      await withSearch(async () => {
+        await clearCountdown()
+        await send({ system: { set_relay_state: { state: 1 } } })
+        try {
+          const reply = (await send({ count_down: { add_rule: { enable: 1, delay: seconds, act: 0, name: 'house' } } })) as { count_down?: { add_rule?: { err_code?: number } } }
+          if (reply.count_down?.add_rule?.err_code !== 0) throw new Error('la prise a refusé le minuteur')
+        } catch (error) {
+          await send({ system: { set_relay_state: { state: 0 } } }).catch(() => undefined)
+          throw error
+        }
+      })
     },
   }
 }
