@@ -12,13 +12,13 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'disk', label: 'Disque' },
   { id: 'system', label: 'Machine' },
   { id: 'docker', label: 'Docker' },
+  { id: 'settings', label: 'Réglages' },
 ]
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification…'
 export const REFRESH_LABEL = 'Rafraîchir'
 export const LOGOUT_LABEL = 'Quitter'
 export const DATABASE_TITLE = 'Base SQLite'
-export const SETTINGS_TITLE = 'Réglages de la sauvegarde'
 export const BACKUP_TITLE = 'Disque backup'
 export const DISK_TITLE = 'Place sur le disque'
 export const DISK_CHART_LABEL = 'Répartition de la place sur le disque : clips, images, base, autres fichiers et espace libre'
@@ -63,3 +63,23 @@ export const LOADING_TEXT = 'Chargement…'
 export const TABS_CLASS = 'mt-4'
 /** Les graphiques l'un sous l'autre de 360 à 1024 px (mobile), côte à côte au-delà (bureau). */
 export const GRID_CLASS = 'grid grid-cols-1 gap-x-4 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,30rem),1fr))]'
+
+export const ADDRESSES_TITLE = 'Adresses IP de la maison'
+export const ADDRESSES_DETAIL = 'récapitulatif'
+export const ADDRESS_COLUMNS = ['Adresse', 'Matériel', 'Port']
+/** Une ligne par adresse : l’adresse, le matériel, le port utilisé. */
+export const ADDRESS_ROWS: string[][] = [
+  ['192.168.1.254', 'Freebox (la box)', ''],
+  ['192.168.1.139 (mini.local)', 'Mini PC ACEMAGIC K1', '22, 8080, 8081, 8090'],
+  ['192.168.1.33', 'Switch TP-Link ES208GP', '80'],
+  ['192.168.1.141', 'Caméra Reolink voliere-exterieur', '554'],
+  ['192.168.1.52', 'Caméra Reolink voliere-interieur', '554'],
+  ['192.168.1.81', 'Pont Philips Hue', '80, 443'],
+  ['192.168.1.200', 'Prise TP-Link Kasa HS100', '9999'],
+  ['192.168.1.0/24', 'Réseau de la maison (Freebox)', ''],
+  ['192.168.27.139', 'Mini PC vu du VPN WireGuard', '8080, 8081'],
+  ['192.168.27.0/24', 'Réseau du VPN WireGuard (Freebox)', ''],
+  ['100.x.y.z (<machine>.<réseau>.ts.net)', 'Mini PC vu de Tailscale : la page invité publique (Funnel)', '443 vers 8090'],
+  ['IP publique (voir Freebox OS)', 'IP publique de la Freebox', 'aucun port ouvert'],
+  ['172.17 à 172.21.x.x', 'Réseaux Docker internes du mini PC', '1984, 8554, 8080'],
+]

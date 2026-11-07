@@ -3,7 +3,7 @@ import type { Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs
 
 export type Status = 'locked' | 'checking' | 'ready'
 
-export type TabId = 'db' | 'disk' | 'system' | 'docker'
+export type TabId = 'db' | 'disk' | 'system' | 'docker' | 'settings'
 
 export interface AppUIProps {
   status: Status

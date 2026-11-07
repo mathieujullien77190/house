@@ -1,4 +1,4 @@
-import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PageHeader, PieChart, SpecList, Tabs, Totals } from '@house/ui'
+import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PageHeader, PieChart, SimpleTable, SpecList, Tabs, Totals } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
 import SettingsSection from '@/components/SettingsSection'
 import KeyForm from '@/components/KeyForm'
@@ -22,7 +22,6 @@ import { buildSpecItems } from '@/lib/specs'
 import { buildCpuChart, buildMemoryChart } from '@/lib/system'
 import {
   BACKUP_TITLE,
-  SETTINGS_TITLE,
   CPU_CHART_LABEL,
   CPU_MEMORY_TITLE,
   MEMORY_CHART_LABEL,
@@ -61,6 +60,10 @@ import {
   SPECS_MISSING_TEXT,
   SPECS_TITLE,
   LOGOUT_LABEL,
+  ADDRESS_COLUMNS,
+  ADDRESS_ROWS,
+  ADDRESSES_DETAIL,
+  ADDRESSES_TITLE,
   BRIDGE_TITLE,
   NETWORK_MISSING_TEXT,
   NETWORK_TITLE,
@@ -139,6 +142,9 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                   <SpecList items={buildBridgeItems(bridge)} />
                 </Collapsible>
               ) : null}
+              <Collapsible title={ADDRESSES_TITLE} detail={ADDRESSES_DETAIL}>
+                <SimpleTable columns={ADDRESS_COLUMNS} rows={ADDRESS_ROWS} keys={ADDRESS_ROWS.map((row) => row[0])} />
+              </Collapsible>
               <Collapsible title={LIVE_TITLE}>
                 <div className={GRID_CLASS}>
                   <LineChart
@@ -249,15 +255,12 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
               ) : null}
               <Notice text={DOCKER_NOTE} />
             </>
+          ) : tab === 'settings' ? (
+            <SettingsSection />
           ) : (
-            <>
-              <Collapsible title={SETTINGS_TITLE}>
-                <SettingsSection />
-              </Collapsible>
-              <Collapsible title={BACKUP_TITLE} detail={overview.backup.path}>
-                <ClipsSection refreshTick={refreshTick} onOpen={onOpen} />
-              </Collapsible>
-            </>
+            <Collapsible title={BACKUP_TITLE} detail={overview.backup.path}>
+              <ClipsSection refreshTick={refreshTick} onOpen={onOpen} />
+            </Collapsible>
           )}
         </>
       ) : null}

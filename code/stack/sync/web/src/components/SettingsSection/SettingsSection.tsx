@@ -1,26 +1,81 @@
 import { useEffect, useState } from 'react'
-import { Notice, Tabs } from '@house/ui'
-import { fetchSettings, saveSetting } from '@/lib/api'
-import { CLIPS_LABEL, CLIPS_OPTIONS, DESCRIPTION, FPS_FULL_TEXT, FPS_MAX, FPS_MIN, FPS_NOTE, FPS_SLIDERS, FPS_UNIT, CHOICES_CLASS, GROUP_CLASS, LABEL_CLASS, LOAD_ERROR_TEXT, NAME_CLASS, NOTE, ROW_CLASS, SAVE_ERROR_TEXT, SENSITIVITY_LABEL, SENSITIVITY_MAX, SENSITIVITY_MIN, SENSITIVITY_NOTE, SENSITIVITY_TEXTS, SLIDER_CLASS, SLIDER_GROUP_CLASS, SLIDER_HEAD_CLASS, SLIDERS_CLASS, SNAPSHOT_LABEL, SNAPSHOT_OPTIONS, VALUE_CLASS } from './constants'
+import { Collapsible, Notice, Tabs } from '@house/ui'
+import { fetchGuest, fetchRetention, fetchSettings, saveGuest, saveRetention, saveSetting } from '@/lib/api'
+import {
+  CHOICES_CLASS,
+  CLIPS_LABEL,
+  CLIPS_OPTIONS,
+  FPS_FULL_TEXT,
+  FPS_MAX,
+  FPS_MIN,
+  FPS_SLIDERS,
+  FPS_UNIT,
+  GROUP_CLASS,
+  GUEST_FPS_LABEL,
+  GUEST_POWER_LABEL,
+  GUEST_POWER_OPTIONS,
+  LABEL_CLASS,
+  LOAD_ERROR_TEXT,
+  NAME_CLASS,
+  RETENTION_LABEL,
+  RETENTION_OPTIONS,
+  ROW_CLASS,
+  SAVE_ERROR_TEXT,
+  SECTION_DETECTION,
+  SECTION_GUEST,
+  SECTION_LIVE,
+  SECTION_RECORDING,
+  SENSITIVITY_LABEL,
+  SENSITIVITY_MAX,
+  SENSITIVITY_MIN,
+  SENSITIVITY_TEXTS,
+  SLIDER_CLASS,
+  SLIDER_GROUP_CLASS,
+  SLIDER_HEAD_CLASS,
+  SLIDERS_CLASS,
+  SNAPSHOT_LABEL,
+  SNAPSHOT_OPTIONS,
+  VALUE_CLASS,
+} from './constants'
+import type { GuestSettings } from '@/lib/api'
 import type { CameraSetting } from './types'
 
-/** Les réglages de la sauvegarde, caméra par caméra : les clips gardés ou non, le rythme des images. Chaque clic est enregistré tout de suite. */
+/**
+ * Tous les réglages de House Sync, rangés par sujet : l'enregistrement (clips gardés, images de la frise, durée de garde), la détection du mouvement,
+ * le direct de la WebApp et la page invité. Chaque réglage par caméra a sa ligne ; chaque clic ou curseur relâché est enregistré tout de suite.
+ */
 const SettingsSection = () => {
   const [settings, setSettings] = useState<CameraSetting[]>([])
   // La valeur du curseur pendant qu'on le glisse, par caméra : elle n'est envoyée qu'au relâchement.
   const [draft, setDraft] = useState<Record<string, number>>({})
   // Un réglage qui ne s'enregistre pas (ou des réglages illisibles) : un message, au lieu d'un curseur qui garde une valeur jamais prise en compte.
   const [error, setError] = useState('')
+  // La durée de garde des clips (jours), la même pour toutes les caméras ; null tant qu'elle n'est pas lue.
+  const [retention, setRetention] = useState<number | null>(null)
+  // La page invité : ses images par seconde (toutes les caméras) et son interrupteur ; null tant qu’ils ne sont pas lus. Et la valeur du curseur en train de bouger.
+  const [guest, setGuest] = useState<GuestSettings | null>(null)
+  const [guestDraft, setGuestDraft] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    const failed = () => {
+      if (!cancelled) setError(LOAD_ERROR_TEXT)
+    }
+    fetchRetention()
+      .then((days) => {
+        if (!cancelled) setRetention(days)
+      })
+      .catch(failed)
+    fetchGuest()
+      .then((result) => {
+        if (!cancelled) setGuest(result)
+      })
+      .catch(failed)
     fetchSettings()
       .then((result) => {
         if (!cancelled) setSettings(result)
       })
-      .catch(() => {
-        if (!cancelled) setError(LOAD_ERROR_TEXT)
-      })
+      .catch(failed)
     return () => {
       cancelled = true
     }
@@ -49,32 +104,85 @@ const SettingsSection = () => {
     change(setting.camera, { [key]: value }, draftKey)
   }
 
+  // Le curseur de la page invité relâché : rien n’est envoyé si la valeur n’a pas changé ; en cas d’échec il revient à la valeur gardée.
+  const commitGuest = (value: number) => {
+    if (value === guest?.guest_fps) {
+      setGuestDraft(null)
+      return
+    }
+    saveGuest({ guest_fps: value })
+      .then((result) => {
+        setError('')
+        setGuest(result)
+      })
+      .catch(() => setError(SAVE_ERROR_TEXT))
+      .finally(() => setGuestDraft(null))
+  }
+
+  // L’interrupteur : un clic coupe ou remet la page invité tout de suite.
+  const switchGuest = (enabled: boolean) => {
+    saveGuest({ guest_enabled: enabled })
+      .then((result) => {
+        setError('')
+        setGuest(result)
+      })
+      .catch(() => setError(SAVE_ERROR_TEXT))
+  }
+
   return (
     <div>
-      <p className={LABEL_CLASS}>{DESCRIPTION}</p>
       {error ? <Notice text={error} /> : null}
-      {settings.map((setting) => (
-        <div key={setting.camera} className={ROW_CLASS}>
-          <span className={NAME_CLASS}>{setting.camera}</span>
-          <div className={CHOICES_CLASS}>
+
+      <Collapsible title={SECTION_RECORDING}>
+        {retention !== null ? (
+          <div className={ROW_CLASS}>
             <div className={GROUP_CLASS}>
-              <span className={LABEL_CLASS}>{CLIPS_LABEL}</span>
-              <Tabs label={CLIPS_LABEL} options={[...CLIPS_OPTIONS]} value={setting.clips_mode} onChange={(id) => change(setting.camera, { clips_mode: id })} />
-            </div>
-            <div className={GROUP_CLASS}>
-              <span className={LABEL_CLASS}>{SNAPSHOT_LABEL}</span>
+              <span className={LABEL_CLASS}>{RETENTION_LABEL}</span>
               <Tabs
-                label={SNAPSHOT_LABEL}
-                options={[...SNAPSHOT_OPTIONS]}
-                value={String(setting.snapshot_seconds)}
-                onChange={(id) => change(setting.camera, { snapshot_seconds: Number(id) })}
+                label={RETENTION_LABEL}
+                options={[...RETENTION_OPTIONS]}
+                value={String(retention)}
+                onChange={(id) => {
+                  saveRetention(Number(id))
+                    .then((days) => {
+                      setError('')
+                      setRetention(days)
+                    })
+                    .catch(() => setError(SAVE_ERROR_TEXT))
+                }}
               />
             </div>
           </div>
-          <div className={SLIDERS_CLASS}>
-            {(() => {
-              const level = draft[`${setting.camera}:motion`] ?? setting.motion_sensitivity
-              return (
+        ) : null}
+        {settings.map((setting) => (
+          <div key={setting.camera} className={ROW_CLASS}>
+            <span className={NAME_CLASS}>{setting.camera}</span>
+            <div className={CHOICES_CLASS}>
+              <div className={GROUP_CLASS}>
+                <span className={LABEL_CLASS}>{CLIPS_LABEL}</span>
+                <Tabs label={CLIPS_LABEL} options={[...CLIPS_OPTIONS]} value={setting.clips_mode} onChange={(id) => change(setting.camera, { clips_mode: id })} />
+              </div>
+              <div className={GROUP_CLASS}>
+                <span className={LABEL_CLASS}>{SNAPSHOT_LABEL}</span>
+                <Tabs
+                  label={SNAPSHOT_LABEL}
+                  options={[...SNAPSHOT_OPTIONS]}
+                  value={String(setting.snapshot_seconds)}
+                  onChange={(id) => change(setting.camera, { snapshot_seconds: Number(id) })}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </Collapsible>
+
+      <Collapsible title={SECTION_DETECTION}>
+        {settings.map((setting) => {
+          const level = draft[`${setting.camera}:motion`] ?? setting.motion_sensitivity
+          return (
+            <div key={setting.camera} className={ROW_CLASS}>
+              <span className={NAME_CLASS}>{setting.camera}</span>
+              <div className={SLIDERS_CLASS}>
                 <div className={SLIDER_GROUP_CLASS}>
                   <div className={SLIDER_HEAD_CLASS}>
                     <span className={LABEL_CLASS}>{SENSITIVITY_LABEL}</span>
@@ -85,43 +193,84 @@ const SettingsSection = () => {
                     min={SENSITIVITY_MIN}
                     max={SENSITIVITY_MAX}
                     value={level}
-                    aria-label={SENSITIVITY_LABEL}
+                    aria-label={`${SENSITIVITY_LABEL} · ${setting.camera}`}
                     className={SLIDER_CLASS}
                     onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:motion`]: Number(event.target.value) }))}
                     onPointerUp={(event) => commit(setting, 'motion_sensitivity', Number(event.currentTarget.value), `${setting.camera}:motion`)}
                     onKeyUp={(event) => commit(setting, 'motion_sensitivity', Number(event.currentTarget.value), `${setting.camera}:motion`)}
                   />
                 </div>
-              )
-            })()}
-            {FPS_SLIDERS.map(({ key, label }) => {
-              const value = draft[`${setting.camera}:${key}`] ?? setting[key]
-              return (
-                <div key={key} className={SLIDER_GROUP_CLASS}>
-                  <div className={SLIDER_HEAD_CLASS}>
-                    <span className={LABEL_CLASS}>{label}</span>
-                    <span className={VALUE_CLASS}>{value >= FPS_MAX ? FPS_FULL_TEXT : `${value}${FPS_UNIT}`}</span>
+              </div>
+            </div>
+          )
+        })}
+      </Collapsible>
+
+      <Collapsible title={SECTION_LIVE}>
+        {settings.map((setting) => (
+          <div key={setting.camera} className={ROW_CLASS}>
+            <span className={NAME_CLASS}>{setting.camera}</span>
+            <div className={SLIDERS_CLASS}>
+              {FPS_SLIDERS.map(({ key, label }) => {
+                const value = draft[`${setting.camera}:${key}`] ?? setting[key]
+                return (
+                  <div key={key} className={SLIDER_GROUP_CLASS}>
+                    <div className={SLIDER_HEAD_CLASS}>
+                      <span className={LABEL_CLASS}>{label}</span>
+                      <span className={VALUE_CLASS}>{value >= FPS_MAX ? FPS_FULL_TEXT : `${value}${FPS_UNIT}`}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={FPS_MIN}
+                      max={FPS_MAX}
+                      value={value}
+                      aria-label={`${label} · ${setting.camera}`}
+                      className={SLIDER_CLASS}
+                      onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:${key}`]: Number(event.target.value) }))}
+                      onPointerUp={(event) => commit(setting, key, Number(event.currentTarget.value), `${setting.camera}:${key}`)}
+                      onKeyUp={(event) => commit(setting, key, Number(event.currentTarget.value), `${setting.camera}:${key}`)}
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min={FPS_MIN}
-                    max={FPS_MAX}
-                    value={value}
-                    aria-label={label}
-                    className={SLIDER_CLASS}
-                    onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:${key}`]: Number(event.target.value) }))}
-                    onPointerUp={(event) => commit(setting, key, Number(event.currentTarget.value), `${setting.camera}:${key}`)}
-                    onKeyUp={(event) => commit(setting, key, Number(event.currentTarget.value), `${setting.camera}:${key}`)}
-                  />
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-      <Notice text={NOTE} />
-      <Notice text={FPS_NOTE} />
-      <Notice text={SENSITIVITY_NOTE} />
+        ))}
+      </Collapsible>
+
+      <Collapsible title={SECTION_GUEST}>
+        {guest !== null ? (
+          <div className={ROW_CLASS}>
+            <div className={GROUP_CLASS}>
+              <span className={LABEL_CLASS}>{GUEST_POWER_LABEL}</span>
+              <Tabs label={GUEST_POWER_LABEL} options={[...GUEST_POWER_OPTIONS]} value={guest.guest_enabled ? 'on' : 'off'} onChange={(id) => switchGuest(id === 'on')} />
+            </div>
+          </div>
+        ) : null}
+        {guest !== null ? (
+          <div className={ROW_CLASS}>
+            <div className={SLIDERS_CLASS}>
+              <div className={SLIDER_GROUP_CLASS}>
+                <div className={SLIDER_HEAD_CLASS}>
+                  <span className={LABEL_CLASS}>{GUEST_FPS_LABEL}</span>
+                  <span className={VALUE_CLASS}>{`${guestDraft ?? guest.guest_fps}${FPS_UNIT}`}</span>
+                </div>
+                <input
+                  type="range"
+                  min={FPS_MIN}
+                  max={FPS_MAX}
+                  value={guestDraft ?? guest.guest_fps}
+                  aria-label={GUEST_FPS_LABEL}
+                  className={SLIDER_CLASS}
+                  onChange={(event) => setGuestDraft(Number(event.target.value))}
+                  onPointerUp={(event) => commitGuest(Number(event.currentTarget.value))}
+                  onKeyUp={(event) => commitGuest(Number(event.currentTarget.value))}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Collapsible>
     </div>
   )
 }

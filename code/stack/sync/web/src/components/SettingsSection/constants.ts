@@ -1,6 +1,19 @@
-export const TITLE = 'Sauvegarde par caméra'
-export const DESCRIPTION = 'Garder ou non les clips vidéo sur le disque backup, et le rythme des images gardées pour la frise.'
+/** Les sujets de la page Réglages, dans l’ordre : chacun regroupe le même réglage pour toutes les caméras. */
+export const SECTION_RECORDING = 'Enregistrement : clips et images'
+export const SECTION_DETECTION = 'Détection du mouvement'
+export const SECTION_LIVE = 'Direct dans la WebApp'
+export const SECTION_GUEST = 'Page invité'
 export const CLIPS_LABEL = 'Clips vidéo'
+/** La durée de garde des clips, pour toutes les caméras : au-delà, un clip non sauvegardé est effacé du disque. */
+export const RETENTION_LABEL = 'Durée de garde des clips (toutes les caméras)'
+export const RETENTION_OPTIONS = [
+  { id: '7', label: '7 jours' },
+  { id: '15', label: '15 jours' },
+  { id: '30', label: '30 jours' },
+  { id: '60', label: '60 jours' },
+  { id: '90', label: '90 jours' },
+  { id: '180', label: '180 jours' },
+] as const
 export const CLIPS_OPTIONS = [
   { id: 'always', label: 'Toujours' },
   { id: 'night', label: 'La nuit' },
@@ -18,7 +31,14 @@ export const SENSITIVITY_LABEL = 'Sensibilité du mouvement'
 export const SENSITIVITY_MIN = 1
 export const SENSITIVITY_MAX = 5
 export const SENSITIVITY_TEXTS: Record<number, string> = { 1: 'faible', 2: 'moyenne −', 3: 'normale', 4: 'élevée', 5: 'très élevée' }
-export const SENSITIVITY_NOTE = 'Sensibilité du mouvement : plus elle est haute, plus un petit animal ou un mouvement peu contrasté (la nuit, de loin) déclenche un clip, mais plus il y a de faux départs (feuilles, insectes, ombres). Prends-la plus haute si une caméra rate un passage.'
+/** L'interrupteur de la page invité : coupée, elle ferme son port (injoignable de partout) ; les deux boutons la coupent et la remettent. */
+export const GUEST_POWER_LABEL = 'Page invité'
+export const GUEST_POWER_OPTIONS = [
+  { id: 'on', label: 'En ligne' },
+  { id: 'off', label: 'Coupée' },
+] as const
+/** Le curseur de la page invité : un seul réglage pour les vignettes et la caméra agrandie (4K), PC et téléphone confondus. */
+export const GUEST_FPS_LABEL = 'Page invité · images par seconde (toutes les caméras, PC et téléphone)'
 export const SAVE_ERROR_TEXT = 'Ce réglage n’a pas pu être enregistré : House Sync ne répond pas. Réessaie.'
 export const LOAD_ERROR_TEXT = 'Les réglages n’ont pas pu être lus.'
 export const FPS_MIN = 1
@@ -38,9 +58,6 @@ export const SNAPSHOT_OPTIONS = [
   { id: '120', label: '2 min' },
   { id: '300', label: '5 min' },
 ] as const
-export const FPS_NOTE =
-  'Direct (4K ou léger) : moins d’images par seconde, c’est moins de travail pour le mini PC et moins de débit ; le direct en cours repart quand on change le réglage. « Téléphone » : les écrans de moins de 1024 px ; le 4K pèse environ 17 Mb/s à 10 images/s, trop pour un téléphone en Wi-Fi ou en VPN (image à moitié grise).'
-export const NOTE = 'La nuit : de 30 min avant le coucher du soleil à 30 min après son lever (calculé pour la maison). Hors des clips gardés, les mouvements restent sur la frise, sans vidéo. Les clips déjà gardés ne sont pas effacés.'
 export const ROW_CLASS = 'flex flex-col gap-3 border-b border-line py-4 last:border-b-0'
 export const NAME_CLASS = 'font-mono font-semibold'
 export const GROUP_CLASS = 'flex flex-col items-start gap-1'

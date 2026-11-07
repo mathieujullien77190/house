@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@house/ui'
 import { formatSeconds } from '@/lib/format'
 import type { Cell, Media } from '@/types'
-import { BADGE_CLASS, CAMERA_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, NUM_CLASS, OPEN_LABEL } from './constants'
+import { BADGE_CLASS, CAMERA_CLASS, IP_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, NUM_CLASS, OPEN_LABEL } from './constants'
 import { isTimestamp, mediaOf } from './helpers'
 
 /** Une cellule : les médias deviennent un bouton, les adresses des liens, les horodatages une date (sans le nombre de secondes), les étiquettes des pastilles. */
@@ -29,5 +29,6 @@ export const renderCell = (column: string, value: Cell, onOpen: (media: Media) =
   }
   if (column === 'label') return <span className={BADGE_CLASS}>{value}</span>
   if (column === 'camera') return <span className={CAMERA_CLASS}>{value}</span>
+  if (column === 'ip') return <span className={IP_CLASS}>{value}</span>
   return String(value)
 }

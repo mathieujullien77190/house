@@ -35,6 +35,27 @@ export const fetchSettings = async (): Promise<CameraSetting[]> => (await reques
 export const saveSetting = async (camera: string, patch: Partial<Omit<CameraSetting, 'camera'>>): Promise<CameraSetting> =>
   (await request('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera, ...patch }) })).json()
 
+/** La durée de garde des clips non sauvegardés, en jours (la même pour toutes les caméras). */
+export const fetchRetention = async (): Promise<number> => ((await (await request('/api/retention')).json()) as { clip_retention_days: number }).clip_retention_days
+
+export const saveRetention = async (days: number): Promise<number> =>
+  (
+    (await (
+      await request('/api/retention', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clip_retention_days: days }) })
+    ).json()) as { clip_retention_days: number }
+  ).clip_retention_days
+
+/** La page invité : ses images par seconde (vignettes et 4K, PC et téléphone, toutes les caméras) et si elle est en ligne ou coupée (port fermé). */
+export interface GuestSettings {
+  guest_fps: number
+  guest_enabled: boolean
+}
+
+export const fetchGuest = async (): Promise<GuestSettings> => (await request('/api/guest')).json()
+
+export const saveGuest = async (patch: Partial<GuestSettings>): Promise<GuestSettings> =>
+  (await request('/api/guest', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
+
 export const fetchOverview = async (): Promise<Overview> => (await request('/api/overview')).json()
 
 export const fetchDocker = async (): Promise<Docker> => (await request('/api/docker')).json()

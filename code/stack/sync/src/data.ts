@@ -2,7 +2,7 @@
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {

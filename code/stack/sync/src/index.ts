@@ -22,6 +22,9 @@ import { createAttemptLimiter } from './attempts.ts'
 import { readNetwork } from './network.ts'
 import { readSystem } from './system.ts'
 import { isNight } from './sun.ts'
+import { readGuestEnabled, writeGuestEnabled } from './guestState.ts'
+import { createGuestVisitsTable, importGuestVisits, purgeGuestVisits } from './guestVisits.ts'
+import { readSavedIds } from './savedClips.ts'
 import { readPower, type ApiTarget } from './power.ts'
 import { groupClips, listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
 
@@ -428,23 +431,24 @@ const syncLiveFps = async (cameras: string[]) => {
   liveFpsCheckedAt.set(group, now)
   for (const camera of cameras) {
     const settings = cameraSettings(camera)
-    for (const { stream, fps, suffix } of [
-      { stream: 'main', fps: settings.live_fps, suffix: '' },
-      { stream: 'sub', fps: settings.light_fps, suffix: '' },
+    for (const { name, source, fps: wanted, label } of [
+      { name: `${camera}_main_mjpeg`, source: `${camera}_main`, fps: settings.live_fps, label: 'Direct 4K' },
+      { name: `${camera}_sub_mjpeg`, source: `${camera}_sub`, fps: settings.light_fps, label: 'Direct léger' },
       // Les flux des écrans de moins de 1024 px : « _m » (voir go2rtc.yaml).
-      { stream: 'main', fps: settings.live_fps_mobile, suffix: '_m' },
-      { stream: 'sub', fps: settings.light_fps_mobile, suffix: '_m' },
+      { name: `${camera}_main_mjpeg_m`, source: `${camera}_main`, fps: settings.live_fps_mobile, label: 'Direct 4K (téléphone)' },
+      { name: `${camera}_sub_mjpeg_m`, source: `${camera}_sub`, fps: settings.light_fps_mobile, label: 'Direct léger (téléphone)' },
+      // Les flux de la page invité : une seule cadence pour tous (PC et téléphone), voir plus bas.
+      { name: `${camera}_guest_main_mjpeg`, source: `${camera}_main`, fps: guestFps(), label: 'Page invité 4K' },
+      { name: `${camera}_guest_sub_mjpeg`, source: `${camera}_sub`, fps: guestFps(), label: 'Page invité léger' },
     ]) {
-      const wanted = fps
-      const name = `${camera}_${stream}_mjpeg${suffix}`
       try {
         const info = await fetch(`${GO2RTC_URL}/api/streams?src=${name}`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
         if (!info.ok) continue
         const current = /video(?:=|%3D)mjpeg(\d+)/.exec(await info.text())
         if (Number(current?.[1] ?? MAX_LIVE_FPS) === wanted) continue
         const video = wanted >= MAX_LIVE_FPS ? 'mjpeg' : `mjpeg${wanted}`
-        const res = await fetch(`${GO2RTC_URL}/api/streams?name=${name}&src=${encodeURIComponent(`ffmpeg:${camera}_${stream}#video=${video}`)}`, { method: 'PATCH', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
-        log(`Direct ${stream === 'main' ? '4K' : 'léger'}${suffix ? ' (téléphone)' : ''} de ${camera} : ${wanted} images/s (go2rtc : HTTP ${res.status})`)
+        const res = await fetch(`${GO2RTC_URL}/api/streams?name=${name}&src=${encodeURIComponent(`ffmpeg:${source}#video=${video}`)}`, { method: 'PATCH', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+        log(`${label} de ${camera} : ${wanted} images/s (go2rtc : HTTP ${res.status})`)
         if (!res.ok) liveFpsCheckedAt.delete(group)
       } catch {
         // go2rtc ne répond pas : on réessaie au prochain tour.
@@ -543,6 +547,83 @@ const syncWebClips = async () => {
   return copied
 }
 
+// ---- La durée de garde des clips ----
+// Un clip non sauvegardé est effacé du disque après CLIP_RETENTION_DAYS jours (réglable depuis la page : table app_settings, pour toutes les
+// caméras) ; ceux que la WebApp a marqués « sauvegardé » (la liste est un fichier écrit par l'API) ne le sont jamais. L'événement reste
+// dans la base (sans vidéo) : la frise garde sa trace. Rien n'est effacé si la liste des clips sauvegardés n'est pas lisible.
+db.exec('CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+const SAVED_CLIPS_FILE = process.env.SAVED_CLIPS_FILE ?? '/house/saved-clips.json'
+const DEFAULT_RETENTION_DAYS = 15
+const MIN_RETENTION_DAYS = 1
+const MAX_RETENTION_DAYS = 3650
+const PURGE_EVERY_SECONDS = 600
+const retentionRow = db.prepare("SELECT value FROM app_settings WHERE key = 'clip_retention_days'")
+const saveRetention = db.prepare("INSERT INTO app_settings (key, value) VALUES ('clip_retention_days', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+const clipRetentionDays = (): number => {
+  const row = retentionRow.get() as { value: string } | undefined
+  const days = Number(row?.value ?? process.env.CLIP_RETENTION_DAYS ?? DEFAULT_RETENTION_DAYS)
+  return Number.isInteger(days) && days >= MIN_RETENTION_DAYS && days <= MAX_RETENTION_DAYS ? days : DEFAULT_RETENTION_DAYS
+}
+// La cadence de la page invité (guest/) : un seul réglage, le même pour les vignettes (flux léger) et la caméra agrandie (4K), PC et téléphone confondus.
+const DEFAULT_GUEST_FPS = 2
+const GUEST_STATE_FILE = process.env.GUEST_STATE_FILE ?? '/guest/state.json'
+// Les visites de la page invité : la page les écrit dans un fichier (lecture seule ici), House Sync les importe toutes les 15 s dans la table guest_visits (onglet Base) et supprime les plus vieilles.
+const GUEST_VISITS_FILE = process.env.GUEST_VISITS_FILE ?? '/guest-visits/visits.jsonl'
+const GUEST_VISITS_DAYS = Number(process.env.GUEST_VISITS_DAYS ?? 365)
+createGuestVisitsTable(db)
+let lastVisitsPurgeAt = 0
+const syncGuestVisits = async () => {
+  try {
+    const imported = await importGuestVisits(db, GUEST_VISITS_FILE)
+    if (imported > 0) log(`Page invité : ${imported} visite(s) notée(s)`)
+    if (Date.now() - lastVisitsPurgeAt > 86_400_000) {
+      lastVisitsPurgeAt = Date.now()
+      const removed = purgeGuestVisits(db, GUEST_VISITS_DAYS)
+      if (removed > 0) log(`Page invité : ${removed} visite(s) de plus de ${GUEST_VISITS_DAYS} jours supprimée(s)`)
+    }
+  } catch (error) {
+    log(`Visites de la page invité : ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+void syncGuestVisits()
+setInterval(() => void syncGuestVisits(), 15_000)
+const guestFpsRow = db.prepare("SELECT value FROM app_settings WHERE key = 'guest_fps'")
+const saveGuestFps = db.prepare("INSERT INTO app_settings (key, value) VALUES ('guest_fps', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+const guestFps = (): number => {
+  const row = guestFpsRow.get() as { value: string } | undefined
+  const fps = Number(row?.value ?? DEFAULT_GUEST_FPS)
+  return Number.isInteger(fps) && fps >= 1 && fps <= MAX_LIVE_FPS ? fps : DEFAULT_GUEST_FPS
+}
+const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path FROM events WHERE clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
+const clearClipPaths = db.prepare('UPDATE events SET clip_path = NULL, clip_web_path = NULL WHERE id = ?')
+let lastPurgeAt = 0
+const purgeOldClips = async (): Promise<number> => {
+  const now = Math.floor(Date.now() / 1000)
+  if (now - lastPurgeAt < PURGE_EVERY_SECONDS) return 0
+  lastPurgeAt = now
+  const saved = await readSavedIds(SAVED_CLIPS_FILE)
+  if (!saved) {
+    log('Ménage des clips sauté : la liste des clips sauvegardés est illisible')
+    return 0
+  }
+  let purged = 0
+  for (const row of expiredClips.all(now - clipRetentionDays() * 86400) as { id: string; clip_path: string; clip_web_path: string | null }[]) {
+    if (saved.has(row.id)) continue
+    let failed = false
+    for (const path of [row.clip_path, row.clip_web_path]) {
+      if (!path || !/^clips\/[\w-]+\/[\w.-]+\.mp4$/.test(path)) continue
+      await unlink(`${DATA_DIR}/${path}`).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') failed = true
+      })
+    }
+    // Un fichier qui ne s'efface pas garde sa ligne : le prochain ménage réessaiera.
+    if (failed) continue
+    clearClipPaths.run(row.id)
+    purged += 1
+  }
+  return purged
+}
+
 let busy = false
 let stopping = false
 const poll = async () => {
@@ -568,8 +649,9 @@ const poll = async () => {
     }
     const repaired = (await retryMissingClips()) + (await syncWebClips())
     const snapshots = await syncSnapshots(cameras)
+    const purged = await purgeOldClips()
     log(
-      `${cameras.length} caméra(s), ${copied} nouvel(aux) événement(s)${ongoing ? `, ${ongoing} en cours` : ''}${merged ? `, ${merged} fusionné(s)` : ''}${repaired ? `, ${repaired} clip(s) récupéré(s)` : ''}${snapshots ? `, ${snapshots} image(s)` : ''}`,
+      `${cameras.length} caméra(s), ${copied} nouvel(aux) événement(s)${ongoing ? `, ${ongoing} en cours` : ''}${merged ? `, ${merged} fusionné(s)` : ''}${repaired ? `, ${repaired} clip(s) récupéré(s)` : ''}${snapshots ? `, ${snapshots} image(s)` : ''}${purged ? `, ${purged} vieux clip(s) effacé(s)` : ''}`,
     )
   } catch (error) {
     log(`Enregistreur : ${error instanceof Error ? error.message : String(error)}`)
@@ -703,6 +785,8 @@ const overview = async () => {
 
 // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
 const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
+  if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: clipRetentionDays() })
+  if (pathname === '/api/guest') return sendJson(res, 200, { guest_fps: guestFps(), guest_enabled: await readGuestEnabled(GUEST_STATE_FILE) })
   if (pathname === '/api/settings') return sendJson(res, 200, (knownCameras.all() as { camera: string }[]).map((row) => cameraSettings(row.camera)))
   if (pathname === '/api/overview') return sendJson(res, 200, await overview())
   if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(DOCKER_FILE, COMPOSE_FILE))
@@ -771,6 +855,38 @@ const route = async (req: IncomingMessage, res: ServerResponse) => {
     log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, une image toutes les ${seconds} s`)
     liveFpsCheckedAt.clear()
     return sendJson(res, 200, cameraSettings(camera))
+  }
+  // PUT /api/retention : { clip_retention_days } (de 1 à 3650), la durée de garde des clips non sauvegardés, pour toutes les caméras.
+  if (req.method === 'PUT' && pathname === '/api/retention') {
+    if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+    const body = await readJsonObject(req)
+    if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+    const days = intSetting(body.clip_retention_days, clipRetentionDays(), MIN_RETENTION_DAYS, MAX_RETENTION_DAYS)
+    if (days === null) return sendJson(res, 400, { error: `clip_retention_days must be an integer from ${MIN_RETENTION_DAYS} to ${MAX_RETENTION_DAYS}` })
+    saveRetention.run(String(days))
+    log(`Durée de garde des clips : ${days} jours`)
+    return sendJson(res, 200, { clip_retention_days: days })
+  }
+  // PUT /api/guest : { guest_fps?, guest_enabled? } : les images par seconde de la page invité (de 1 à 25 ; vignettes et 4K, PC et téléphone, toutes les caméras) et son interrupteur (false : elle ferme son port).
+  if (req.method === 'PUT' && pathname === '/api/guest') {
+    if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+    const body = await readJsonObject(req)
+    if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+    const fps = intSetting(body.guest_fps, guestFps(), 1, MAX_LIVE_FPS)
+    if (fps === null) return sendJson(res, 400, { error: `guest_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    if (body.guest_enabled !== undefined && typeof body.guest_enabled !== 'boolean') return sendJson(res, 400, { error: 'guest_enabled must be a boolean' })
+    if (typeof body.guest_enabled === 'boolean') {
+      try {
+        await writeGuestEnabled(GUEST_STATE_FILE, body.guest_enabled)
+      } catch {
+        return sendJson(res, 500, { error: 'guest state not written' })
+      }
+      log(`Page invité : ${body.guest_enabled ? 'en ligne' : 'coupée'}`)
+    }
+    saveGuestFps.run(String(fps))
+    liveFpsCheckedAt.clear()
+    if (body.guest_fps !== undefined) log(`Page invité : ${fps} images/s`)
+    return sendJson(res, 200, { guest_fps: fps, guest_enabled: await readGuestEnabled(GUEST_STATE_FILE) })
   }
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
   if (pathname.startsWith('/api/') || pathname.startsWith('/files/')) {
