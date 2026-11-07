@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useState } from 'react'
-import { DataTable } from '@house/ui'
+import { DataTable, TableFilters } from '@house/ui'
 import { fetchTable } from '@/lib/api'
-import type { Page, Row } from '@/types'
+import { NO_FILTER } from '@/lib/filter'
+import type { Filter, FilteredPage, Row } from '@/types'
 import { renderCell } from './UI'
-import { DESCRIPTIONS, DETAIL_LABEL_CLASS, DETAIL_VALUE_CLASS, DETAILS_CLASS, MAIN_COLUMNS, PAGE_SIZE } from './constants'
+import { CLEAR_LABEL, DATE_LABEL, DESCRIPTIONS, DETAIL_LABEL_CLASS, DETAIL_VALUE_CLASS, DETAILS_CLASS, MAIN_COLUMNS, MATCH_ALL, MATCH_LABELS, PAGE_SIZE } from './constants'
 import type { TableSectionProps } from './types'
 
 /**
@@ -13,14 +14,15 @@ import type { TableSectionProps } from './types'
 const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
   const [page, setPage] = useState(0)
   const [collapsed, setCollapsed] = useState(true)
-  const [data, setData] = useState<Page<Row> | null>(null)
+  const [data, setData] = useState<FilteredPage<Row> | null>(null)
+  const [filter, setFilter] = useState<Filter>(NO_FILTER)
   // La ligne dépliée (tables à colonnes principales seulement).
   const [openKey, setOpenKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (collapsed) return
     let cancelled = false
-    fetchTable(table.name, page, PAGE_SIZE)
+    fetchTable(table.name, page, PAGE_SIZE, filter)
       .then((result) => {
         if (!cancelled) setData(result)
       })
@@ -28,9 +30,21 @@ const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
     return () => {
       cancelled = true
     }
-  }, [table.name, page, refreshTick, collapsed])
+  }, [table.name, page, refreshTick, collapsed, filter])
 
   const rows = data?.items ?? []
+  const change = (patch: Partial<Filter>) => {
+    setFilter((current) => ({ ...current, ...patch }))
+    setPage(0)
+  }
+  const kinds = table.filters
+  const filters = kinds ? (
+    <TableFilters
+      match={kinds.match ? { label: MATCH_LABELS[kinds.match], allLabel: MATCH_ALL[kinds.match], value: filter.match, options: data?.options ?? [], onChange: (match) => change({ match }) } : undefined}
+      date={kinds.date ? { label: DATE_LABEL, value: filter.day, onChange: (day) => change({ day }) } : undefined}
+      clear={{ label: CLEAR_LABEL, onClear: () => change(NO_FILTER) }}
+    />
+  ) : undefined
   // Une table à colonnes principales montre celles-là (dans l'ordre de MAIN_COLUMNS) dans la ligne et le reste dans le détail, au clic.
   const main = MAIN_COLUMNS[table.name]
   const columns = main ? main.filter((column) => table.columns.includes(column)) : table.columns
@@ -40,7 +54,7 @@ const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
     <DataTable
       title={table.name}
       description={DESCRIPTIONS[table.name] ?? ''}
-      detail={`${table.count} ligne(s)`}
+      detail={`${data?.total ?? table.count} ligne(s)`}
       columns={columns}
       rows={rows.map((row) => columns.map((column) => renderCell(column, row[column] ?? null, onOpen)))}
       keys={rows.map(keyOf)}
@@ -58,6 +72,7 @@ const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
             ))
           : undefined
       }
+      filters={filters}
       openKey={openKey}
       onRowClick={(key) => setOpenKey((current) => (current === key ? null : key))}
       page={page}

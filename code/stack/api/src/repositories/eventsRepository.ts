@@ -28,6 +28,8 @@ export const createEventsRepository = (db: Database) => ({
     db.all<EventRow>(
       'SELECT * FROM events WHERE started_at = (SELECT MAX(started_at) FROM events e WHERE e.camera = events.camera) ORDER BY camera',
     ),
+  /** Le chemin du son d'un clip (<id>.aac sur le disque backup), ou null. */
+  clipAudioPath: (id: string): string | null => db.get<{ path: string | null }>('SELECT clip_audio_path AS path FROM events WHERE id = ?', id)?.path ?? null,
   clipPath: (id: string, h264 = false): string | null =>
     db.get<{ path: string | null }>(`SELECT ${h264 ? 'clip_web_path' : 'clip_path'} AS path FROM events WHERE id = ?`, id)?.path ?? null,
 })

@@ -4,6 +4,7 @@
 //   3. quand un événement est fini et que ses segments sont écrits, il en fait un clip MP4.
 // Une petite API (server.ts) rend tout cela à House Sync, sous la forme que Frigate offrait.
 import { existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
+import { audioClipPath, buildAudioClip, pruneAudio, recordAudio } from './audio.ts'
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
@@ -65,6 +66,13 @@ for (const camera of config.cameras) {
       }
     },
   )
+}
+
+// Le son des caméras de AUDIO_CAMERAS : de petits fichiers (comme les segments vidéo, gardés autant d'heures), jamais dans les segments ni les clips vidéo.
+// Il n'est conservé que pour les clips de mouvement : voir makeClips.
+const audioDirOf = (camera: string) => `${config.recordingsDir}/${camera}/audio`
+for (const camera of config.audioCameras) {
+  void recordAudio(`${config.go2rtcRtsp}/${camera}_sub`, audioDirOf(camera), config.audioSegmentSeconds, (m) => log(`${camera} (son) : ${m}`))
 }
 
 startServer(
@@ -146,6 +154,21 @@ const makeClips = async () => {
       if (built.segments > 0) {
         store.markClip(record.id, built.start)
         log(`${record.camera} : clip ${record.id} (${built.segments} segments)`)
+        // Le son du clip (caméras à son seulement), à part de la vidéo et calé sur son début ; un échec n'empêche pas le clip.
+        if (config.audioCameras.includes(record.camera)) {
+          try {
+            const sound = await buildAudioClip({
+              dir: audioDirOf(record.camera),
+              output: audioClipPath(`${config.clipsDir}/${record.id}.mp4`),
+              from: built.start,
+              to: record.end_time + config.postSeconds,
+              segmentSeconds: config.audioSegmentSeconds,
+            })
+            if (sound) store.markAudio(record.id)
+          } catch (error) {
+            log(`${record.camera} : son du clip ${record.id} impossible : ${error instanceof Error ? error.message : String(error)}`)
+          }
+        }
       }
     } catch (error) {
       failedClips.set(record.id, Date.now())
@@ -163,6 +186,7 @@ const mergeOverlaps = () => {
     for (const id of group) {
       rmSync(`${config.clipsDir}/${id}.mp4`, { force: true })
       rmSync(webClipPath(`${config.clipsDir}/${id}.mp4`), { force: true })
+      rmSync(audioClipPath(`${config.clipsDir}/${id}.mp4`), { force: true })
     }
     store.merge(group, now)
     log(`${group.length} événements fusionnés en ${group[0]}`)
@@ -174,6 +198,7 @@ setInterval(() => {
   mergeOverlaps()
   const before = Date.now() / 1000 - config.retentionSeconds
   for (const camera of config.cameras) pruneSegments(`${config.recordingsDir}/${camera}`, before)
+  for (const camera of config.audioCameras) pruneAudio(audioDirOf(camera), before)
   for (const record of store.prune(before)) {
     try {
       unlinkSync(`${config.clipsDir}/${record.id}.mp4`)
@@ -181,7 +206,9 @@ setInterval(() => {
       // pas de clip : rien à effacer
     }
     rmSync(webClipPath(`${config.clipsDir}/${record.id}.mp4`), { force: true })
+    rmSync(audioClipPath(`${config.clipsDir}/${record.id}.mp4`), { force: true })
   }
 }, PRUNE_MS)
 
 log(`Enregistreur : ${config.cameras.join(', ')} (segments de ${config.segmentSeconds} s, ${config.retentionSeconds / 3600} h gardées)`)
+if (config.audioCameras.length > 0) log(`Son des clips : ${config.audioCameras.join(', ')} (petits fichiers de ${config.audioSegmentSeconds} s gardés comme les segments, un son par clip de mouvement)`)

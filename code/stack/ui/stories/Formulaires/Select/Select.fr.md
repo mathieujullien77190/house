@@ -1,0 +1,1 @@
+Une liste déroulante à la place du `<select>` natif : un bouton qui montre le choix et une liste qui s'ouvre dessous, au clic ou au clavier (flèches, Début, Fin, Entrée, Échap). Le parent tient la valeur ; la liste se ferme d'un clic ailleurs.

@@ -15,6 +15,45 @@ export interface TableSummary {
   name: string
   columns: string[]
   count: number
+  /** Les filtres que la page propose pour cette table : le choix d'une valeur (caméra, nom du matériel Hue) et la date. */
+  filters: { match: 'camera' | 'name' | null; date: boolean }
+}
+
+/** Ce qu'une table se laisse filtrer : la colonne dont on choisit une valeur, et la colonne d'horodatage (secondes) de la date. */
+interface TableFilterConfig {
+  match: 'camera' | 'name' | null
+  date: string | null
+}
+
+export const TABLE_FILTERS: Record<string, TableFilterConfig> = {
+  events: { match: 'camera', date: 'started_at' },
+  snapshots: { match: 'camera', date: 'taken_at' },
+  merges: { match: 'camera', date: 'absorbed_started_at' },
+  hue_events: { match: 'name', date: 'happened_at' },
+  guest_visits: { match: null, date: 'started_at' },
+}
+
+/** Le filtre demandé : une valeur de la colonne choisie, et une période [from, to[ en secondes depuis 1970. */
+export interface TableFilters {
+  match?: string
+  from?: number
+  to?: number
+}
+
+const finite = (value: string | null): number | undefined => {
+  if (value === null || value === '') return undefined
+  const number = Number(value)
+  return Number.isFinite(number) ? number : undefined
+}
+
+/** Les filtres d'une demande (`match`, `from`, `to`) ; ce qui est absent ou invalide est ignoré. */
+export const filterParams = (params: URLSearchParams): TableFilters => {
+  const match = params.get('match')
+  return {
+    match: match !== null && match !== '' && match.length <= 100 ? match : undefined,
+    from: finite(params.get('from')),
+    to: finite(params.get('to')),
+  }
 }
 
 export interface Page<T> {
@@ -37,6 +76,7 @@ const columnsOf = (db: DatabaseSync, name: string): string[] =>
 /** L'ordre naturel de chaque table : les plus récents d'abord quand il y a un horodatage. */
 const orderOf = (columns: string[]): string => {
   if (columns.includes('started_at')) return 'ORDER BY started_at DESC'
+  if (columns.includes('absorbed_started_at')) return 'ORDER BY absorbed_started_at DESC'
   if (columns.includes('taken_at')) return 'ORDER BY taken_at DESC'
   if (columns.includes('happened_ms')) return 'ORDER BY happened_ms DESC, id DESC'
   return 'ORDER BY camera'
@@ -47,18 +87,46 @@ export const summarizeTables = (db: DatabaseSync): TableSummary[] =>
     name,
     columns: shown(name, columnsOf(db, name)),
     count: (db.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get() as { n: number }).n,
+    filters: { match: TABLE_FILTERS[name]?.match ?? null, date: TABLE_FILTERS[name]?.date != null },
   }))
 
-/** Une page d'une table, ou null si la table n'existe pas. */
-export const readTable = (db: DatabaseSync, name: string, page: number, size: number): Page<Record<string, unknown>> | null => {
+/**
+ * Une page d'une table, ou null si la table n'existe pas. Avec un filtre : seulement les lignes de la valeur choisie et de la période demandée
+ * (les colonnes viennent de TABLE_FILTERS, jamais de la demande ; les valeurs sont des paramètres). `options` : les valeurs possibles du filtre (pour hue_events : les lampes et les détecteurs, ni interrupteurs ni scènes).
+ */
+export const readTable = (
+  db: DatabaseSync,
+  name: string,
+  page: number,
+  size: number,
+  filter: TableFilters = {},
+): (Page<Record<string, unknown>> & { options: string[] }) | null => {
   if (!isTable(name)) return null
   const columns = columnsOf(db, name)
-  const total = (db.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get() as { n: number }).n
+  const config = TABLE_FILTERS[name]
+  const where: string[] = []
+  const args: (string | number)[] = []
+  if (config?.match && filter.match !== undefined) {
+    where.push(`${config.match} = ?`)
+    args.push(filter.match)
+  }
+  if (config?.date && filter.from !== undefined) {
+    where.push(`${config.date} >= ?`)
+    args.push(filter.from)
+  }
+  if (config?.date && filter.to !== undefined) {
+    where.push(`${config.date} < ?`)
+    args.push(filter.to)
+  }
+  const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM ${name} ${clause}`).get(...args) as { n: number }).n
   const select = shown(name, columns).join(', ')
-  const items = db.prepare(`SELECT ${select} FROM ${name} ${orderOf(columns)} LIMIT ? OFFSET ?`).all(size, page * size) as Record<string, unknown>[]
-  return { items, total, page, size }
+  const items = db.prepare(`SELECT ${select} FROM ${name} ${clause} ${orderOf(columns)} LIMIT ? OFFSET ?`).all(...args, size, page * size) as Record<string, unknown>[]
+  const options = config?.match
+    ? (db.prepare(`SELECT DISTINCT ${config.match} AS value FROM ${name} WHERE ${config.match} IS NOT NULL${name === 'hue_events' ? " AND resource IN ('light', 'motion')" : ''} ORDER BY value LIMIT 300`).all() as { value: string }[]).map((row) => row.value)
+    : []
+  return { items, total, page, size, options }
 }
-
 /** Les fichiers d'un dossier du disque backup, du plus récent au plus ancien, chemins relatifs au disque. */
 export const listBackup = async (dir: string, prefix = ''): Promise<BackupFile[]> => {
   const out: BackupFile[] = []
@@ -133,3 +201,51 @@ export const pageParams = (params: URLSearchParams): { page: number; size: numbe
   page: Math.max(0, Math.floor(Number(params.get('page') ?? 0)) || 0),
   size: Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(Number(params.get('size') ?? 20)) || 20)),
 })
+
+/** Les filtres de la liste des clips : la caméra, la période (début du clip, secondes depuis 1970) et sauvegardés ou non. */
+export interface ClipFilters {
+  camera?: string
+  from?: number
+  to?: number
+  /** `ids` : les événements sauvegardés ; `keep` vrai : seulement les sauvegardés, faux : seulement les autres. */
+  saved?: { ids: ReadonlySet<string>; keep: boolean }
+}
+
+/** La caméra d'un clip, d'après son identifiant (`clips/<caméra>/<id>`), ou null. */
+export const clipCamera = (id: string): string | null => /^clips\/([\w-]+)\//.exec(id)?.[1] ?? null
+
+/** Le début d'un clip (secondes depuis 1970), lu dans son nom (`clips/<caméra>/<secondes>.<millièmes>-<caméra>`), ou null. */
+export const clipStart = (id: string): number | null => {
+  const match = /^clips\/[\w-]+\/(\d+)(?:\.\d+)?-/.exec(id)
+  return match ? Number(match[1]) : null
+}
+
+/** L'identifiant de l'événement d'un clip : le dernier morceau de son chemin (clips/<caméra>/<id>). */
+export const clipEventId = (id: string): string => id.slice(id.lastIndexOf('/') + 1)
+
+/** Les clips qui passent les filtres, dans le même ordre. */
+export const filterClips = (groups: ClipGroup[], filter: ClipFilters): ClipGroup[] =>
+  groups.filter((group) => {
+    if (filter.camera !== undefined && clipCamera(group.id) !== filter.camera) return false
+    const start = clipStart(group.id)
+    if (filter.from !== undefined && (start === null || start < filter.from)) return false
+    if (filter.to !== undefined && (start === null || start >= filter.to)) return false
+    if (filter.saved && filter.saved.ids.has(clipEventId(group.id)) !== filter.saved.keep) return false
+    return true
+  })
+
+/** Les caméras qui ont des clips, par ordre alphabétique. */
+export const clipCameras = (groups: ClipGroup[]): string[] =>
+  [...new Set(groups.map((group) => clipCamera(group.id)).filter((camera): camera is string => camera !== null))].sort()
+
+/** Les filtres d'une demande de clips : `camera`, `from`, `to` et `saved` (`1` : les sauvegardés, `0` : les autres, absent : tous). */
+export const clipFilterParams = (params: URLSearchParams): { camera?: string; from?: number; to?: number; saved: 'saved' | 'others' | null } => {
+  const camera = params.get('camera')
+  const saved = params.get('saved')
+  return {
+    camera: camera !== null && /^[\w-]+$/.test(camera) ? camera : undefined,
+    from: finite(params.get('from')),
+    to: finite(params.get('to')),
+    saved: saved === '1' ? 'saved' : saved === '0' ? 'others' : null,
+  }
+}

@@ -45,6 +45,10 @@ services:
       RETENTION_HOURS: "6"
       # Les clips qui se recouvrent sont fusionnés en un seul quand le dernier a cet âge (minutes).
       MERGE_DELAY_MINUTES: "30"
+      # Le son de ces caméras, gardé seulement avec leurs clips de mouvement (un fichier .aac par clip, à part de la vidéo qui reste sans son) :
+      # de petits fichiers de 10 s, gardés comme les segments vidéo (6 h), dont on tire le son de chaque clip.
+      AUDIO_CAMERAS: voliere-interieur
+      AUDIO_SEGMENT_SECONDS: "10"
     volumes:
       - ./data/recordings:/recordings
       - ./data/clips:/data

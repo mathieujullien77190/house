@@ -11,6 +11,8 @@ export interface MotionRecord {
   start_time: number
   end_time: number | null
   has_clip: boolean
+  /** Le son du clip existe (fichier <id>.aac à côté du clip) : il est gardé seulement pour les clips de mouvement des caméras à son. */
+  has_audio?: boolean
   /** Secondes depuis 1970 : le début réel du clip (le segment qui précède l'événement), connu une fois le clip fait. */
   clip_start?: number
   /** Fusion : l'identifiant de l'événement qui a absorbé celui-ci (il n'a plus de clip et n'est plus listé). */
@@ -89,6 +91,14 @@ export const createEventStore = (file: string) => {
         save()
       }
     },
+    /** Le son du clip est fait. */
+    markAudio: (id: string) => {
+      const record = events.find((e) => e.id === id)
+      if (record) {
+        record.has_audio = true
+        save()
+      }
+    },
     /**
      * Fusionne des événements voisins (du plus ancien au plus récent) : le premier survit, finit à la fin du dernier et
      * perd son clip (il se refait avec la plage entière) ; les autres sont absorbés (gardés pour que House Sync les retire).
@@ -100,12 +110,14 @@ export const createEventStore = (file: string) => {
       first.end_time = Math.max(...group.map((e) => e.end_time ?? e.start_time))
       first.has_clip = false
       delete first.clip_start
+      delete first.has_audio
       first.merged_at = at
       for (const other of others) {
         other.merged_into = first.id
         other.merged_at = at
         other.has_clip = false
         delete other.clip_start
+        delete other.has_audio
       }
       save()
     },

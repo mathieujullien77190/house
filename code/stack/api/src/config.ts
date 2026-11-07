@@ -20,6 +20,8 @@ export interface Config {
   hue: { url: string; key: string } | null
   /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
   plug: { host: string; port: number; mac: string } | null
+  /** Le détecteur Hue qui éteint la prise (option « éteindre au mouvement »), par son nom chez le pont. */
+  plugMotionSensor: string
   /** La page invité (guest/) : sa clé, son port et, si elle est ouverte à internet, son adresse publique ; null sans GUEST_KEY : /guest répond 503. */
   guest: { key: string; port: number; url: string } | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
@@ -61,6 +63,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .filter(Boolean),
     switchPoe: parseSwitch(env),
     hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
+    plugMotionSensor: env.PLUG_MOTION_SENSOR ?? 'motion interieur',
     plug: env.PLUG_HOST ? { host: env.PLUG_HOST, port: Number(env.PLUG_PORT ?? 9999), mac: env.PLUG_MAC ?? '' } : null,
     guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,

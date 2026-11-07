@@ -3,6 +3,8 @@ export interface ClipPlayerProps {
   apiKey?: string
   /** Chemin du service clips (/clips/id). */
   path: string
+  /** Chemin du son du clip (/clips/id/audio), joué avec la vidéo ; absent : un clip sans son. */
+  audioSrc?: string
   /** Appelé par le bouton Fermer, montré seulement en cas d'erreur (sinon la frise a « Maintenant »). */
   onClose: () => void
   /** Appelé quand la première image de la vidéo est prête. */

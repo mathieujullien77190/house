@@ -73,8 +73,8 @@ export const setCameraPower = async (key: string, camera: string, on: boolean): 
 export const fetchPlug = async (key: string): Promise<PlugState> => (await request(key, '/plug')).json()
 
 /** Allume (on) ou éteint la prise connectée ; avec `minutes`, l'allume pour ce temps puis elle s'éteint toute seule. */
-export const setPlug = async (key: string, on: boolean, minutes?: number): Promise<PlugState> => {
-  const res = await fetch('/plug', { method: 'POST', headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' }, body: JSON.stringify(minutes === undefined ? { on } : { on, minutes }) })
+export const setPlug = async (key: string, on: boolean, minutes?: number, offOnMotion = false): Promise<PlugState> => {
+  const res = await fetch('/plug', { method: 'POST', headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' }, body: JSON.stringify({ on, ...(minutes === undefined ? {} : { minutes }), ...(offOnMotion ? { offOnMotion } : {}) }) })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/plug : HTTP ${res.status}`)
   return res.json()

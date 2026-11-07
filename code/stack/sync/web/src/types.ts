@@ -4,6 +4,8 @@ export interface TableSummary {
   name: string
   columns: string[]
   count: number
+  /** Les filtres que la page propose : le choix d'une valeur (caméra, matériel Hue) et/ou la date. */
+  filters?: { match: 'camera' | 'name' | null; date: boolean }
 }
 
 export interface Overview {
@@ -27,6 +29,17 @@ export interface Page<T> {
 }
 
 export type Row = Record<string, Cell>
+
+/** Le filtre d'un tableau : une valeur choisie (vide : toutes) et un jour (« 2026-11-07 », vide : tous). */
+export interface Filter {
+  match: string
+  day: string
+}
+
+/** Une page filtrée, avec les valeurs que le choix peut prendre. */
+export interface FilteredPage<T> extends Page<T> {
+  options: string[]
+}
 
 export interface BackupFile {
   path: string

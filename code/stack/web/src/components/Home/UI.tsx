@@ -21,7 +21,7 @@ const HomeUI = ({ apiKey, events, failed, opened, durations, onDuration, onOpen,
           {opened.camera} · {captionOf(opened, durations[opened.id])}
         </p>
         <div className={PLAYER_WRAP_CLASS}>
-          <ClipPlayer key={path} apiKey={apiKey} path={path} onClose={onBack} />
+          <ClipPlayer key={path} apiKey={apiKey} path={path} onClose={onBack} audioSrc={opened.clip_audio ?? undefined} />
         </div>
       </div>
     )

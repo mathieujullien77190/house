@@ -34,8 +34,8 @@ import type { CameraCardProps } from './types'
  * écran du navigateur sur `figureRef`.
  */
 const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, warning = '', actions, media, details, overlay, clock, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
-  // Le zoom au doigt n'existe qu'en vue en grand.
-  const gesture = expanded ? mediaGesture : undefined
+  // Le zoom au doigt existe en vue en grand et sur l'écran du téléphone (la vidéo du tiers du haut).
+  const gesture = expanded || screen ? mediaGesture : undefined
   // L'écran du téléphone : la vidéo sur le tiers du haut (commandes dessus), la frise sur le reste, pas de titre ni de légende.
   if (screen) {
     return (
@@ -46,7 +46,7 @@ const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, war
           </button>
         )}
         <figure ref={figureRef} className={expanded ? EXPANDED_CLASS : SCREEN_VIDEO_CLASS}>
-          <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : SCREEN_MEDIA_CLASS} {...gesture?.handlers}>
+          <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : gesture ? `${SCREEN_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : SCREEN_MEDIA_CLASS} {...gesture?.handlers}>
             <div style={gesture?.style}>{media}</div>
           </div>
           {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}

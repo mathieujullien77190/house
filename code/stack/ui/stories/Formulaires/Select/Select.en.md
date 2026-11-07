@@ -1,0 +1,1 @@
+A dropdown replacing the native `<select>`: a button showing the choice and a list opening below it, by click or keyboard (arrows, Home, End, Enter, Escape). The parent holds the value; the list closes on an outside click.

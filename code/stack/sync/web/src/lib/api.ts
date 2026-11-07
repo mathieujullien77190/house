@@ -1,6 +1,7 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
 import type { CameraSetting } from '@/components/SettingsSection'
-import type { ClipGroup, Overview, Docker, HueBridge, NetworkInterface, Page, Power, Row, Specs, System } from '@/types'
+import { NO_FILTER, filterQuery } from '@/lib/filter'
+import type { ClipGroup, Docker, Filter, FilteredPage, HueBridge, NetworkInterface, Overview, Page, Power, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
   status: number
@@ -56,7 +57,8 @@ export const fetchGuest = async (): Promise<GuestSettings> => (await request('/a
 export const saveGuest = async (patch: Partial<GuestSettings>): Promise<GuestSettings> =>
   (await request('/api/guest', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
 
-export const fetchOverview = async (): Promise<Overview> => (await request('/api/overview')).json()
+/** La vue d'ensemble : sans `full`, seulement la base (rapide, sans parcourir le disque backup) ; avec, aussi le disque (clips, images, place). */
+export const fetchOverview = async (full = true): Promise<Overview> => (await request(full ? '/api/overview' : '/api/overview?part=database')).json()
 
 export const fetchDocker = async (): Promise<Docker> => (await request('/api/docker')).json()
 
@@ -70,11 +72,15 @@ export const fetchSystem = async (): Promise<System> => (await request('/api/sys
 
 export const fetchPower = async (): Promise<Power> => (await request('/api/power')).json()
 
-export const fetchTable = async (name: string, page: number, size: number): Promise<Page<Row>> =>
-  (await request(`/api/table?name=${encodeURIComponent(name)}&page=${page}&size=${size}`)).json()
+export const fetchTable = async (name: string, page: number, size: number, filter: Filter = NO_FILTER): Promise<FilteredPage<Row>> =>
+  (await request(`/api/table?name=${encodeURIComponent(name)}&page=${page}&size=${size}${filterQuery(filter)}`)).json()
 
-export const fetchClips = async (page: number, size: number): Promise<Page<ClipGroup>> =>
-  (await request(`/api/clips?page=${page}&size=${size}`)).json()
+/** Les clips du disque (`saved` : les sauvegardés ou les autres), avec les caméras qui en ont. */
+export const fetchClips = async (page: number, size: number, saved: boolean, filter: Filter = NO_FILTER): Promise<FilteredPage<ClipGroup>> => {
+  const result = (await request(`/api/clips?page=${page}&size=${size}&saved=${saved ? 1 : 0}${filterQuery(filter, 'camera')}`)).json() as Promise<Page<ClipGroup> & { cameras: string[] }>
+  const { cameras, ...rest } = await result
+  return { ...rest, options: cameras }
+}
 
 /** L'adresse d'un fichier du disque backup, servie par House Sync derrière la session. */
 export const fileUrl = (path: string): string => `/files/${path}`

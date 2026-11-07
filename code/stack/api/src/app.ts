@@ -24,6 +24,16 @@ import { createSnapshotsService } from './services/snapshotsService.ts'
 export const createApp = (config: Config): Express => {
   const db = openDatabase(`${config.dataDir}/events.db`)
   const cameras = createCamerasRepository(db)
+  const hueClient = config.hue ? createHueClient(config.hue) : null
+  // Le détecteur qui éteint la prise : son état de mouvement, lu chez le pont (null si le pont ou le détecteur manque).
+  const motion = hueClient
+    ? {
+        presence: async (): Promise<boolean | null> => {
+          const found = Object.values(await hueClient.sensors()).find((sensor) => sensor.type === 'ZLLPresence' && sensor.name === config.plugMotionSensor)
+          return found?.state.presence ?? null
+        },
+      }
+    : null
   const live = createLiveService(config.go2rtcUrls, cameras)
   const services = {
     cameras: createCamerasService(cameras),
@@ -31,9 +41,9 @@ export const createApp = (config: Config): Express => {
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
     files: createBackupFiles(config.dataDir),
-    hue: config.hue ? createHueService(createHueClient(config.hue), createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
+    hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     guest: config.guest,
-    plug: config.plug ? createPlugService(createKasaClient(config.plug)) : null,
+    plug: config.plug ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json` }) : null,
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
 

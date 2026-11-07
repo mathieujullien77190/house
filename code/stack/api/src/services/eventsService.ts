@@ -25,6 +25,7 @@ const toDto = (row: EventRow, saved: ReadonlySet<string>): EventDto => ({
   ended_at: row.ended_at,
   clip: row.clip_path ? `/clips/${row.id}` : null,
   clip_h264: row.clip_web_path ? `/clips/${row.id}/h264` : null,
+  clip_audio: row.clip_audio_path ? `/clips/${row.id}/audio` : null,
   clip_started_at: row.clip_started_at,
   saved: saved.has(row.id),
 })
@@ -45,6 +46,7 @@ export const createEventsService = (events: EventsRepository, savedClips: SavedC
   },
   /** Le chemin du clip d'un événement sur le disque backup (l'original, ou la copie H.264 avec `h264`), ou null. */
   clipPath: (id: string, h264 = false): string | null => events.clipPath(id, h264),
+  clipAudioPath: (id: string): string | null => events.clipAudioPath(id),
   /** Sauvegarde (à garder pour toujours) ou libère le clip d'un événement ; false s'il n'a pas de clip (inconnu, ou déjà effacé). */
   setSaved: (id: string, saved: boolean): boolean => {
     if (!events.clipPath(id)) return false

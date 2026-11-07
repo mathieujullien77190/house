@@ -1,0 +1,1 @@
+A table's filters: a value picked from a list (camera, device…), a day, and « Clear filters » when one is active; `children` takes other controls placed before them (tabs). The parent holds the values and re-queries; `DataTable` shows them under its description through its `filters` prop.

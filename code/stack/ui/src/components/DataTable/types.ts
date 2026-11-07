@@ -21,6 +21,8 @@ export interface DataTableProps {
   openKey?: string | null
   /** Un clic (ou Entrée) sur une ligne qui a un détail : le parent la déplie ou la replie. */
   onRowClick?: (key: string) => void
+  /** Les filtres du tableau (un `TableFilters`), montrés sous la description quand il est ouvert. */
+  filters?: ReactNode
   /** Vrai quand la table est repliée (titre et description seulement) ; sans onToggle, elle est toujours ouverte. */
   collapsed?: boolean
   onToggle?: () => void

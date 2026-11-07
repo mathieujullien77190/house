@@ -1,6 +1,8 @@
 export interface ClipPlayerProps {
   /** Adresse de la vidéo (locale ou distante), vide tant qu'elle n'est pas prête. */
   src: string
+  /** Adresse du son du clip (un fichier à part de la vidéo), joué avec elle : il suit sa lecture, sa pause, ses sauts et sa vitesse ; absente : un clip sans son. */
+  audioSrc?: string
   /** Message d'erreur ; quand il est là, un bouton Fermer apparaît. */
   error: string
   /** Où démarrer (ou reprendre) la lecture, en secondes ; à chaque changement la lecture saute là. */

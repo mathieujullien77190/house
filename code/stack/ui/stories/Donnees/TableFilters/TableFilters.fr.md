@@ -1,0 +1,1 @@
+Les filtres d'un tableau : le choix d'une valeur dans une liste (caméra, matériel…), un jour, et « Effacer les filtres » quand l'un d'eux est actif ; `children` accueille d'autres commandes avant eux (des onglets). Le parent tient les valeurs et refait la requête ; `DataTable` les montre sous sa description par sa prop `filters`.

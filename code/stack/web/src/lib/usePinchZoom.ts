@@ -1,7 +1,7 @@
-// Zoom au doigt sur le média en grand : deux doigts pincent et déplacent, un doigt déplace une image déjà zoomée,
-// un double toucher zoome ou revient à la taille normale. Le zoom ne vit que tant que la vue en grand est ouverte.
-// En portrait, la vue en grand est tournée d'un quart de tour par CSS : les gestes de l'écran sont ramenés dans le
-// repère de l'élément avant tout calcul.
+// Zoom au doigt sur un média : deux doigts pincent et déplacent, un doigt déplace une image déjà zoomée,
+// un double toucher zoome ou revient à la taille normale. Le zoom ne vit que tant que `active` est vrai.
+// En portrait, la vue en grand est tournée d'un quart de tour par CSS (`rotated`) : les gestes de l'écran sont ramenés
+// dans le repère de l'élément avant tout calcul. Un média qui n'est pas tourné (l'écran fixe du téléphone) garde les gestes tels quels.
 import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type PointerEvent } from 'react'
 
 export interface PinchZoom {
@@ -48,12 +48,12 @@ const TAP_MS = 250
 const TAP_MOVE = 10
 const IDENTITY: View = { scale: 1, x: 0, y: 0 }
 
-/** Un point de l'écran dans le repère de l'élément (origine au centre), tourné si la vue en grand l'est. */
-const toLocal = (event: PointerEvent<HTMLDivElement>): Point => {
+/** Un point de l'écran dans le repère de l'élément (origine au centre), tourné si la vue en grand l'est (`rotated`, en portrait). */
+const toLocal = (event: PointerEvent<HTMLDivElement>, rotated: boolean): Point => {
   const rect = event.currentTarget.getBoundingClientRect()
   const dx = event.clientX - (rect.left + rect.width / 2)
   const dy = event.clientY - (rect.top + rect.height / 2)
-  return window.matchMedia('(orientation: portrait)').matches ? { x: dy, y: -dx } : { x: dx, y: dy }
+  return rotated && window.matchMedia('(orientation: portrait)').matches ? { x: dy, y: -dx } : { x: dx, y: dy }
 }
 
 const middle = (points: Point[]): Point => ({
@@ -71,8 +71,17 @@ const limit = (view: View, element: HTMLElement): View => {
   return { scale: view.scale, x: Math.min(maxX, Math.max(-maxX, view.x)), y: Math.min(maxY, Math.max(-maxY, view.y)) }
 }
 
-export const usePinchZoom = (active: boolean): PinchZoom => {
+/**
+ * `active` : le zoom est permis. `rotated` : le média est tourné d'un quart de tour en portrait (la vue en grand ; vrai par défaut). `resetKey` : un
+ * changement de média (direct, image, autre clip) remet le zoom à zéro.
+ */
+export const usePinchZoom = (active: boolean, rotated = true, resetKey = ''): PinchZoom => {
   const [view, setView] = useState<View>(IDENTITY)
+  const [seenKey, setSeenKey] = useState(resetKey)
+  if (seenKey !== resetKey) {
+    setSeenKey(resetKey)
+    setView(IDENTITY)
+  }
   const [pointers] = useState(() => new Map<number, Point>())
   const gestureRef = useRef<Gesture>({ anchor: null, tapStart: null, lastTap: null })
 
@@ -103,19 +112,19 @@ export const usePinchZoom = (active: boolean): PinchZoom => {
   }
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    pointers.set(event.pointerId, toLocal(event))
+    pointers.set(event.pointerId, toLocal(event, rotated))
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
     } catch {
       // sans capture, le geste continue tant que le doigt reste sur la zone
     }
-    gestureRef.current.tapStart = pointers.size === 1 ? { ...toLocal(event), at: Date.now() } : null
+    gestureRef.current.tapStart = pointers.size === 1 ? { ...toLocal(event, rotated), at: Date.now() } : null
     begin()
   }
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!pointers.has(event.pointerId)) return
-    pointers.set(event.pointerId, toLocal(event))
+    pointers.set(event.pointerId, toLocal(event, rotated))
     const { anchor } = gestureRef.current
     if (!anchor) return
     const points = [...pointers.values()]
@@ -128,7 +137,7 @@ export const usePinchZoom = (active: boolean): PinchZoom => {
   }
 
   const release = (event: PointerEvent<HTMLDivElement>, canTap: boolean) => {
-    const point = toLocal(event)
+    const point = toLocal(event, rotated)
     pointers.delete(event.pointerId)
     const gesture = gestureRef.current
     const { tapStart, lastTap } = gesture

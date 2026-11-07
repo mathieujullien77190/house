@@ -4,8 +4,8 @@ const SUMMARY_BASE =
 export const SUMMARY_CLASS = `mt-7 ${SUMMARY_BASE}`
 /** Une section serrée : moins d'espace au-dessus, pour une liste de sections qui se suivent (les groupes de lumières). */
 export const COMPACT_SUMMARY_CLASS = `mt-2 ${SUMMARY_BASE}`
-/** Le caret, le titre et le détail forment une seule ligne centrée verticalement, de même interligne (le détail est plus petit). */
-export const HEAD_CLASS = 'flex items-center gap-2 leading-none'
+/** Le caret, le titre et le détail forment une seule ligne, alignés sur le bas (flex-end), de même interligne (le détail est plus petit). */
+export const HEAD_CLASS = 'flex items-baseline gap-2 leading-none'
 export const CARET_CLASS = 'inline-block text-[0.8rem] transition-transform group-open:rotate-90'
 /**
  * Les commandes sur la ligne du titre, juste après lui (avec le texte ordinaire, pas celui du titre). Mêmes écarts que ceux d'une

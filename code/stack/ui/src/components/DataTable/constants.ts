@@ -26,3 +26,5 @@ export const ROW_CLICK_CLASS = 'cursor-pointer hover:bg-accent/10 focus-visible:
 export const ROW_OPEN_CLASS = 'bg-accent/10'
 export const DETAIL_ROW_CLASS = 'bg-accent/5 max-lg:mb-2 max-lg:block max-lg:rounded-lg max-lg:border max-lg:border-line'
 export const DETAIL_CELL_CLASS = 'border-b border-line px-2 py-2 max-lg:block max-lg:border-b-0 max-lg:px-2.5'
+/** Les filtres, sous la description. */
+export const FILTERS_CLASS = 'mb-1'

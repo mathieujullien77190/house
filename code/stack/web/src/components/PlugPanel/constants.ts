@@ -26,3 +26,9 @@ export const NOTE = 'Piloté en local par House API (protocole Kasa, port 9999),
 export const BOX_CLASS = 'mt-4 flex flex-col gap-3'
 export const HEAD_CLASS = 'flex flex-wrap items-center gap-3'
 export const NAME_CLASS = 'text-[1.1rem] font-semibold'
+
+export const MOTION_LABEL = 'Éteindre si le détecteur intérieur voit un mouvement'
+export const MOTION_ARMED_LABEL = 'Éteinte au mouvement'
+export const MOTION_ARMED_TEXT = 'oui, au prochain mouvement'
+export const MOTION_CLASS = 'flex items-center gap-2 text-[0.9rem]'
+export const MOTION_INPUT_CLASS = 'size-5 accent-accent'

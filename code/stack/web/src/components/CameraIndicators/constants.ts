@@ -1,0 +1,5 @@
+export const ROW_CLASS = 'flex items-center gap-1'
+export const LAMP_NAME = 'Perruche'
+export const LAMP_ON_TEXT = 'allumée'
+export const LAMP_OFF_TEXT = 'éteinte'
+export const LAMP_UNREACHABLE_TEXT = 'injoignable'

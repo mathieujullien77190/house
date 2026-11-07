@@ -1,0 +1,1 @@
+Le rond d'une lampe posé à côté d'une mesure, dans le même bloc que `ValueChips` : **orange** quand elle est allumée, **fond de la page et contour gris** éteinte, **contour rouge pâle** quand elle est injoignable (elle est alors montrée éteinte). C'est le dessin de l'ampoule du plan des lumières. `label` est l'infobulle et le texte pour un lecteur d'écran.

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
+import CameraIndicators from '@/components/CameraIndicators'
 import PowerButton from '@/components/PowerButton'
 import ShareButton from '@/components/ShareButton'
 import { setClipSaved } from '@/lib/api'
@@ -10,6 +11,7 @@ import { useBigView } from '@/lib/useBigView'
 import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
+import { useLamp } from '@/lib/useLamp'
 import { useSensors } from '@/lib/useSensors'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
@@ -30,6 +32,7 @@ import {
   QUALITY_OPTIONS_SHORT,
   SAVE_LABEL,
   SAVE_OPTIONS,
+  CAMERA_LAMP,
   CAMERA_SENSOR,
 } from './constants'
 import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
@@ -68,7 +71,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   // « Afficher en grand » : le média en plein écran, en paysage.
   const bigView = useBigView()
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
-  const pinchZoom = usePinchZoom(bigView.big)
+  // Zoom au doigt : en vue en grand, et sur la vidéo de l'écran du téléphone (où elle n'est pas tournée) ; un autre média (direct, image, autre clip) le remet à zéro.
+  const pinchZoom = usePinchZoom(bigView.big || mobile, bigView.big, selected?.id ?? (cursor !== null ? 'image' : 'live'))
   const now = useClock(bigView.big)
   // La température du détecteur de la caméra (« motion exterieur » pour voliere-exterieur, « motion interieur » pour voliere-interieur), sur la vidéo.
   const sensorId = CAMERA_SENSOR[camera.name]
@@ -77,6 +81,10 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   // La température ne se montre qu'en direct : pas pendant un clip ni sur l'image d'un instant passé (elle serait celle d'aujourd'hui).
   const isLive = picked === null && cursor === null
   const temperatures = showTemperatures && isLive ? temperatureItems(sensors, [sensorId]) : []
+  // Le rond de la lampe de la caméra (« Perruche » pour voliere-interieur), à côté de la température et seulement en direct comme elle.
+  const lampId = CAMERA_LAMP[camera.name]
+  const lamp = useLamp(apiKey, lampId, lampId !== undefined && isLive)
+  const indicators = isLive && (temperatures.length > 0 || lamp !== null) ? <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} /> : undefined
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
@@ -152,6 +160,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
             key={clipPath}
             apiKey={apiKey}
             path={clipPath}
+            audioSrc={selected.clip_audio ?? undefined}
             startAt={resumeAt}
             restart={plays}
             onClose={back}
@@ -190,10 +199,10 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
       mediaGesture={pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
-      details={mobile ? (selected?.clip ? (shareButton ?? undefined) : temperatures.length > 0 ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined) : undefined}
+      details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
-      overlay={temperatures.length > 0 && !mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
+      overlay={indicators && !mobile ? indicators : undefined}
       timeline={
         <Timeline
           fill={mobile}

@@ -8,6 +8,7 @@ export const SERVICES: ApiService[] = [
   { path: '/events?last=1', description: 'Le dernier événement de chaque caméra.', secured: true, group: 'Caméra' },
   { path: '/events?camera=voliere-exterieur&from=0', description: 'Les événements d’une caméra qui touchent une fenêtre (from et to en secondes ; 1000 au plus, limit pour moins) : toute l’histoire, pas seulement les 200 derniers.', secured: true, group: 'Caméra' },
   { path: '/events', description: 'Les 200 derniers événements, du plus récent au plus ancien.', secured: true, group: 'Caméra' },
+  { path: '/clips/{id}/audio', description: 'Le son du clip (AAC), à part de la vidéo : la WebApp le joue avec elle. 404 pour une caméra sans son ou un clip d’avant.', secured: true, group: 'Caméra' },
   { path: '/poe', description: 'L’alimentation de chaque caméra, lue sur le switch (PoE activé, puissance). 503 sans switch configuré.', secured: true, group: 'Caméra' },
   { path: '/snapshots?camera=voliere-exterieur', description: 'Les instants où House Sync a gardé une image de la caméra (une par minute par défaut).', secured: true, group: 'Caméra' },
   { path: '/hue', description: 'Les pièces du pont Philips Hue et leurs lampes (état, luminosité). PUT /hue/rooms/<id> ou /hue/lights/<id> avec {"on": true} et/ou {"bri": 1 à 254} les change. 503 sans pont configuré.', secured: true, group: 'Lumière' },

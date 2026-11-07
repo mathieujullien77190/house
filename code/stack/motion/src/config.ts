@@ -22,6 +22,9 @@ export interface Config {
   postSeconds: number
   /** Des clips qui se recouvrent sont fusionnés en un seul quand le dernier a cet âge (secondes). */
   mergeDelaySeconds: number
+  /** Les caméras dont le son est gardé avec leurs clips de mouvement (vide : aucune), et la durée des petits fichiers son (comme les segments vidéo). */
+  audioCameras: string[]
+  audioSegmentSeconds: number
   /** Étiquette vidéo du MP4 : hvc1 pour du H.265 (la caméra), vide pour du H.264. */
   videoTag: string
   /** L'API pour House Sync. */
@@ -49,6 +52,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   preSeconds: number(env.PRE_SECONDS, 5),
   postSeconds: number(env.POST_SECONDS, 5),
   mergeDelaySeconds: number(env.MERGE_DELAY_MINUTES, 30) * 60,
+  audioCameras: (env.AUDIO_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
+  audioSegmentSeconds: number(env.AUDIO_SEGMENT_SECONDS, 10),
   videoTag: env.VIDEO_TAG ?? 'hvc1',
   port: number(env.PORT, 8080),
   detector: {

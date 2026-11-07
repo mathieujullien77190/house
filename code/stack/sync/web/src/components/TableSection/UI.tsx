@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { Button } from '@house/ui'
-import { formatSeconds } from '@/lib/format'
+import { Button, StackedDate } from '@house/ui'
+import { splitSeconds } from '@/lib/format'
 import type { Cell, Media } from '@/types'
-import { BADGE_CLASS, CAMERA_CLASS, IP_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, NUM_CLASS, OPEN_LABEL } from './constants'
+import { BADGE_CLASS, CAMERA_CLASS, IP_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, OPEN_LABEL } from './constants'
 import { isTimestamp, mediaOf } from './helpers'
 
 /** Une cellule : les médias deviennent un bouton, les adresses des liens, les horodatages une date (sans le nombre de secondes), les étiquettes des pastilles. */
@@ -18,7 +18,7 @@ export const renderCell = (column: string, value: Cell, onOpen: (media: Media) =
     )
   }
   if (isTimestamp(column, value)) {
-    return <span className={NUM_CLASS}>{formatSeconds(value)}</span>
+    return <StackedDate {...splitSeconds(value)} />
   }
   if (column === 'url' && typeof value === 'string') {
     return (

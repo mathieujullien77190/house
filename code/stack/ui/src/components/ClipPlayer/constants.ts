@@ -8,3 +8,7 @@ export const VIDEO_CLASS =
 export const BOX_CLASS = 'flex aspect-video w-full items-center justify-center rounded-md border border-line bg-black text-[0.85rem] text-muted'
 export const ERROR_CLASS = 'text-[0.85rem] text-danger'
 export const CLOSE_CLASS = 'mt-1.5'
+/** Le son du clip suit la vidéo : un écart plus petit que ça (en secondes) n'est pas corrigé, un petit décalage n'a pas d'importance. */
+export const DRIFT_SECONDS = 0.4
+export const SOUND_LABEL = 'Activer le son'
+export const SOUND_CLASS = 'mt-1.5'

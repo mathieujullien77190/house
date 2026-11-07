@@ -2,6 +2,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { pipeline } from 'node:stream/promises'
+import { audioClipPath } from './audio.ts'
 import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
@@ -84,6 +85,15 @@ export const startServer = (config: Config, store: EventStore, detection: Detect
       // X-Clip-Start : l'instant (secondes depuis 1970) où le clip commence, pour que House Sync le garde.
       res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': statSync(path).size, 'X-Clip-Start': String(store.get(clip[1])?.clip_start ?? '') })
       // pipeline ferme le fichier si le client part ou si la lecture échoue (sans quoi le descripteur resterait ouvert).
+      return await pipeline(createReadStream(path), res)
+    }
+
+    // clip.aac : le son du clip (AAC), à part de la vidéo ; absent pour une caméra sans son et pour un clip d'avant.
+    const sound = /^\/api\/events\/([\w.-]+?)\/clip\.aac$/.exec(pathname)
+    if (sound) {
+      const path = audioClipPath(clipPath(sound[1]))
+      if (!store.get(sound[1])?.has_audio || !existsSync(path)) return json(res, 404, { error: 'sound not found' })
+      res.writeHead(200, { 'Content-Type': 'audio/aac', 'Content-Length': statSync(path).size })
       return await pipeline(createReadStream(path), res)
     }
 

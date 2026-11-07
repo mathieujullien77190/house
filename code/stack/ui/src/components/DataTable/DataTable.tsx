@@ -14,6 +14,7 @@ import {
   EMPTY_CLASS,
   EMPTY_TEXT,
   EXPAND_ARIA,
+  FILTERS_CLASS,
   HEAD_CELL_CLASS,
   HEAD_CLASS,
   HEAD_GROUP_CLASS,
@@ -29,7 +30,7 @@ import {
 import type { DataTableProps } from './types'
 
 /** Un tableau paginé dans une carte, repliable si le parent le demande : les cellules arrivent déjà rendues. Avec `details`, une ligne se déplie au clic et montre son détail dessous. */
-const DataTable = ({ title, description, detail, columns, rows, keys, page, size, total, onPage, collapsed = false, onToggle, details, openKey = null, onRowClick }: DataTableProps) => {
+const DataTable = ({ title, description, detail, columns, rows, keys, page, size, total, onPage, collapsed = false, onToggle, details, openKey = null, onRowClick, filters }: DataTableProps) => {
   const open = !onToggle || !collapsed
   const head = (
     <>
@@ -50,6 +51,7 @@ const DataTable = ({ title, description, detail, columns, rows, keys, page, size
         )}
       </div>
       <p className={DESCRIPTION_CLASS}>{description}</p>
+      {open && filters ? <div className={FILTERS_CLASS}>{filters}</div> : null}
       {!open ? null : total === 0 ? (
         <p className={EMPTY_CLASS}>{EMPTY_TEXT}</p>
       ) : (

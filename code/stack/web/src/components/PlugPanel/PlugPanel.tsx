@@ -6,6 +6,11 @@ import {
   BOX_CLASS,
   HEAD_CLASS,
   LOADING_TEXT,
+  MOTION_ARMED_LABEL,
+  MOTION_ARMED_TEXT,
+  MOTION_CLASS,
+  MOTION_INPUT_CLASS,
+  MOTION_LABEL,
   MODEL_LABEL,
   NAME_CLASS,
   NOT_CONFIGURED_TEXT,
@@ -43,6 +48,8 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   // 'loading' avant la première réponse, 'off' : prise injoignable, 'none' : pas de prise configurée (503).
   const [problem, setProblem] = useState<'loading' | 'off' | 'none' | null>('loading')
   const [busy, setBusy] = useState(false)
+  // L'option choisie : en allumant, le détecteur intérieur éteint la prise au premier mouvement.
+  const [offOnMotion, setOffOnMotion] = useState(false)
   // La durée choisie au curseur, en minutes.
   const [minutes, setMinutes] = useState<number>(TIMER_DEFAULT)
   // L'instant où le minuteur de la prise l'éteindra (déduit de ce que la prise a dit), et l'heure qui défile chaque seconde pour le décompte.
@@ -94,7 +101,7 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   const toggle = () => {
     if (!plug || busy) return
     setBusy(true)
-    setPlug(apiKey, !plug.on)
+    setPlug(apiKey, !plug.on, undefined, offOnMotion)
       .then(apply)
       .catch(() => setProblem('off'))
       .finally(() => setBusy(false))
@@ -104,7 +111,7 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   const startTimer = () => {
     if (!plug || busy) return
     setBusy(true)
-    setPlug(apiKey, true, minutes)
+    setPlug(apiKey, true, minutes, offOnMotion)
       .then(apply)
       .catch(() => setProblem('off'))
       .finally(() => setBusy(false))
@@ -127,6 +134,10 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
               {plug.on ? TURN_OFF_LABEL : TURN_ON_LABEL}
             </Button>
           </div>
+          <label className={MOTION_CLASS}>
+            <input type="checkbox" className={MOTION_INPUT_CLASS} checked={offOnMotion} onChange={(event) => setOffOnMotion(event.target.checked)} />
+            {MOTION_LABEL}
+          </label>
           <div className={TIMER_BOX_CLASS}>
             <div className={SLIDER_HEAD_CLASS}>
               <span>{TIMER_LABEL}</span>
@@ -153,6 +164,7 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
               { id: 'state', label: STATE_LABEL, value: plug.on ? ON_TEXT : OFF_TEXT },
               ...(plug.on && remaining !== null ? [{ id: 'timer', label: REMAINING_LABEL, value: countdownText(remaining) }] : []),
               ...(plug.on && elapsed !== null ? [{ id: 'since', label: SINCE_LABEL, value: elapsedText(elapsed) }] : []),
+              ...(plug.on && plug.offOnMotion ? [{ id: 'motion', label: MOTION_ARMED_LABEL, value: MOTION_ARMED_TEXT }] : []),
               { id: 'signal', label: SIGNAL_LABEL, value: signalText(plug.rssi) },
               { id: 'model', label: MODEL_LABEL, value: plug.model },
             ]}

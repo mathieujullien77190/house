@@ -8,9 +8,16 @@ import type { Status, TabId } from './types'
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
+/** Une lecture secondaire : si elle échoue la page marche quand même (null), sauf une session expirée, qui ramène au formulaire. */
+const soft = <T,>(request: Promise<T>): Promise<T | null> =>
+  request.catch((error: unknown) => {
+    if (isLoginRequired(error)) throw error
+    return null
+  })
+
 /**
- * La page de House Sync : la clé (une session par cookie), puis deux onglets, la base (tables paginées) et le
- * disque (les clips). Tout se recharge toutes les 15 s, sauf quand un média est ouvert dans le panneau.
+ * La page de House Sync : la clé (une session par cookie), puis des onglets. **Seule la page affichée est chargée** : les autres se chargent par leurs
+ * propres requêtes quand on les ouvre, et toutes les 15 s seule la page affichée est relue (sauf quand un média est ouvert dans le panneau).
  */
 const App = () => {
   const [status, setStatus] = useState<Status>('checking')
@@ -32,29 +39,41 @@ const App = () => {
 
   // Compte les déconnexions : un chargement parti avant « Quitter » ne doit pas rouvrir la page quand il finit.
   const generation = useRef(0)
+  // L'onglet affiché, lu par le rafraîchissement (qui ne change pas quand on change d'onglet).
+  const tabRef = useRef<TabId>(DEFAULT_TAB)
 
-  // Charge la vue d'ensemble ; une session absente ou expirée ramène au formulaire.
-  const refresh = useCallback(async () => {
-    const started = generation.current
-    try {
-      const next = await fetchOverview()
+  // Charge ce que la page demandée affiche, et rien d'autre ; une session absente ou expirée lève une erreur qui ramène au formulaire.
+  const loadTab = useCallback(async (target: TabId, started: number) => {
+    if (target === 'db' || target === 'disk') {
+      // Les tables (ou le dossier des clips) : la vue d'ensemble sans le parcours du disque backup, qui n'est utile qu'à l'onglet Machine.
+      const next = await fetchOverview(false)
+      if (generation.current === started) setOverview(next)
+    } else if (target === 'system') {
       // Le reste est secondaire (si une mesure ne se lit pas, la page marche quand même) et se charge en parallèle.
-      const [nextPower, nextSystem, nextSpecs, nextDocker, nextNetwork, nextBridge] = await Promise.all([
-        fetchPower().catch(() => null),
-        fetchSystem().catch(() => null),
-        fetchSpecs().catch(() => null),
-        fetchDocker().catch(() => null),
-        fetchNetwork().catch(() => null),
-        fetchHue().catch(() => null),
-      ])
+      const next = await fetchOverview(true)
+      const [nextPower, nextSystem, nextSpecs, nextNetwork, nextBridge] = await Promise.all([soft(fetchPower()), soft(fetchSystem()), soft(fetchSpecs()), soft(fetchNetwork()), soft(fetchHue())])
       if (generation.current !== started) return
       setOverview(next)
       setPower(nextPower)
       setSystem(nextSystem)
       setSpecs(nextSpecs)
-      setDocker(nextDocker)
       setNetwork(nextNetwork)
       setBridge(nextBridge)
+    } else if (target === 'docker') {
+      const next = await soft(fetchDocker())
+      if (generation.current === started) setDocker(next)
+    } else {
+      // Les réglages se lisent eux-mêmes ; on vérifie seulement que la session tient (une lecture légère).
+      await fetchOverview(false)
+    }
+  }, [])
+
+  // Charge la page affichée ; une session absente ou expirée ramène au formulaire.
+  const refresh = useCallback(async () => {
+    const started = generation.current
+    try {
+      await loadTab(tabRef.current, started)
+      if (generation.current !== started) return
       setLoadedAt(new Date().toLocaleTimeString('fr-FR'))
       setRefreshTick((tick) => tick + 1)
       setStatus('ready')
@@ -70,7 +89,7 @@ const App = () => {
         setStatus((current) => (current === 'ready' ? current : 'locked'))
       }
     }
-  }, [])
+  }, [loadTab])
 
   // Au démarrage : la session du cookie est peut-être encore valable (appel différé, hors du rendu).
   useEffect(() => {
@@ -103,6 +122,13 @@ const App = () => {
       clearInterval(timer)
     }
   }, [status, tab])
+
+  // Un autre onglet : sa page se charge tout de suite par ses propres requêtes.
+  const changeTab = (next: TabId) => {
+    tabRef.current = next
+    setTab(next)
+    void refresh()
+  }
 
   const connect = async (key: string) => {
     setStatus('checking')
@@ -141,7 +167,7 @@ const App = () => {
       media={media}
       refreshTick={refreshTick}
       tab={tab}
-      onTab={setTab}
+      onTab={changeTab}
       onConnect={connect}
       onLogout={quit}
       onRefresh={refresh}

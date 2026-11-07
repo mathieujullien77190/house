@@ -16,6 +16,8 @@ export interface EventRow {
   clip: string | null
   /** La copie légère du clip (H.264, 720p, lisible partout), ou null si elle n'existe pas encore. */
   clip_h264: string | null
+  /** Le son du clip (AAC, à part de la vidéo), joué avec elle ; null s'il n'y en a pas. */
+  clip_audio: string | null
   /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null (anciens clips). */
   clip_started_at: number | null
   /** Sauvegardé : jamais effacé par le ménage (les autres clips le sont après la durée de garde réglée dans House Sync). */
@@ -48,6 +50,8 @@ export interface PlugState {
   onTime: number
   /** Secondes avant que le minuteur de la prise ne l'éteigne, null sans minuteur. */
   timerSeconds: number | null
+  /** L'option « éteindre si le détecteur intérieur voit un mouvement » est armée. */
+  offOnMotion: boolean
 }
 
 /** Une lampe du pont Hue. */

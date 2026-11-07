@@ -10,6 +10,8 @@ export interface EventRow {
   clip_started_at: number | null
   /** La copie légère du clip (H.264, 720p), absente tant que l'enregistreur ne l'a pas faite. */
   clip_web_path: string | null
+  /** Le son du clip (AAC), à part de la vidéo ; null sans son (caméra sans micro, clip d'avant, pas encore copié). */
+  clip_audio_path: string | null
 }
 
 export interface CameraRow {
@@ -28,6 +30,8 @@ export interface EventDto {
   clip: string | null
   /** La copie légère (H.264, 720p), lisible partout ; null si elle n'existe pas (clip ancien ou pas encore fait). */
   clip_h264: string | null
+  /** Le son du clip (AAC, à part de la vidéo), joué avec elle ; null s'il n'y en a pas. */
+  clip_audio: string | null
   /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null. */
   clip_started_at: number | null
   /** Sauvegardé : House Sync ne l'efface jamais (les autres le sont après la durée de garde). */

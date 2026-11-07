@@ -37,9 +37,9 @@ export const NOW_MARK_VERTICAL_CLASS = 'absolute right-1.5 top-0.5 whitespace-no
 export const COVERAGE_VERTICAL_CLASS = 'pointer-events-none absolute left-14 w-1.5 rounded-sm bg-accent/30'
 export const TICK_VERTICAL_CLASS = 'pointer-events-none absolute left-0 w-full border-t border-line'
 export const TICK_LABEL_VERTICAL_CLASS = 'absolute left-1 top-0.5 whitespace-nowrap text-[0.7rem] text-muted'
-export const CLIP_SPAN_VERTICAL_CLASS = 'pointer-events-none absolute left-16 right-2 rounded border border-dashed border-accent bg-accent/15'
+export const CLIP_SPAN_VERTICAL_CLASS = 'pointer-events-none absolute left-[3.75rem] w-[7.5rem] rounded border border-dashed border-accent bg-accent/15'
 /** Un événement court reste assez haut pour le doigt (16 px). */
-export const MARKER_VERTICAL_CLASS = 'absolute left-16 right-3 min-h-4 cursor-pointer rounded border p-0 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-accent'
+export const MARKER_VERTICAL_CLASS = 'absolute left-16 w-28 min-h-4 cursor-pointer rounded border p-0 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-accent'
 /**
  * La frise qui remplit sa place (écran du téléphone) : le bloc prend toute la hauteur du parent, l'axe tout ce qui reste
  * sous les commandes (« Maintenant » et les durées sont dans la frise).

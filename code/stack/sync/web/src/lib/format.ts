@@ -14,3 +14,12 @@ export const formatDateMs = (ms: number): string => new Date(ms).toLocaleString(
 
 /** Un horodatage de l'enregistreur (secondes) en date lisible. */
 export const formatSeconds = (seconds: number): string => formatDateMs(seconds * 1000)
+
+/** Un horodatage de l'enregistreur (secondes) en deux textes : le jour, puis l'heure. */
+export const splitSeconds = (seconds: number): { date: string; time: string } => splitMs(seconds * 1000)
+
+/** Un instant (millisecondes) en deux textes : le jour, puis l'heure. */
+export const splitMs = (ms: number): { date: string; time: string } => {
+  const date = new Date(ms)
+  return { date: date.toLocaleDateString('fr-FR', { dateStyle: 'short' }), time: date.toLocaleTimeString('fr-FR', { timeStyle: 'medium' }) }
+}

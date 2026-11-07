@@ -26,7 +26,7 @@ import { readGuestEnabled, writeGuestEnabled } from './guestState.ts'
 import { createGuestVisitsTable, importGuestVisits, purgeGuestVisits } from './guestVisits.ts'
 import { readSavedIds } from './savedClips.ts'
 import { readPower, type ApiTarget } from './power.ts'
-import { groupClips, listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
+import { clipCameras, clipFilterParams, filterClips, filterParams, groupClips, listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
 
 // L'enregistreur (conteneur motion) : son API est interne, sans mot de passe, jamais publiée.
 // Les enregistreurs à interroger (un par machine) : RECORDER_URLS, séparés par des virgules ; RECORDER_URL pour un seul.
@@ -196,10 +196,13 @@ const upsertLive = db.prepare(
 addColumn('events', 'clip_started_at', 'INTEGER')
 // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).
 addColumn('events', 'clip_web_path', 'TEXT')
+// Idem pour le son du clip (AAC, à part de la vidéo), pour les caméras à son.
+addColumn('events', 'clip_audio_path', 'TEXT')
 const findEvent = db.prepare('SELECT ended_at FROM events WHERE id = ?')
 // Le journal des fusions : un événement absorbé par un autre (ses clips se recouvraient) est noté ici avant d'être retiré de events.
 const insertMerge = db.prepare('INSERT OR IGNORE INTO merges (absorbed_id, kept_id, camera, absorbed_started_at, absorbed_ended_at, merged_at) VALUES (?, ?, ?, ?, ?, ?)')
 const clearWebClip = db.prepare('UPDATE events SET clip_web_path = NULL WHERE id = ?')
+const clearAudioClip = db.prepare('UPDATE events SET clip_audio_path = NULL WHERE id = ?')
 // Un événement en cours est inséré sans fin ni clip ; une fois terminé, la même ligne reçoit sa fin et son clip.
 const upsertEvent = db.prepare(
   'INSERT INTO events (id, camera, label, started_at, ended_at, clip_path, clip_started_at) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
@@ -214,6 +217,9 @@ const eventsWithoutClip = db.prepare(
 const updateClip = db.prepare('UPDATE events SET clip_path = ?, clip_started_at = ? WHERE id = ?')
 const clipsWithoutWeb = db.prepare('SELECT id, camera, clip_path FROM events WHERE clip_path IS NOT NULL AND clip_web_path IS NULL AND started_at > ?')
 const updateWebClip = db.prepare('UPDATE events SET clip_web_path = ? WHERE id = ?')
+// Le son se demande quand la copie légère est là : l'enregistreur a alors tout fait (clip, son, copie légère).
+const clipsWithoutAudio = db.prepare('SELECT id, camera, clip_path FROM events WHERE clip_path IS NOT NULL AND clip_web_path IS NOT NULL AND clip_audio_path IS NULL AND started_at > ?')
+const updateAudioClip = db.prepare('UPDATE events SET clip_audio_path = ? WHERE id = ?')
 // Un clip peut ne pas être prêt au moment de la copie : on réessaie tant que l'enregistreur garde ses enregistrements.
 const CLIP_RETRY_SECONDS = 6 * 3600
 // L'enregistreur écrit ses enregistrements par segments de 10 s : un clip demandé trop tôt après la fin de l'événement
@@ -498,7 +504,7 @@ const syncMerges = async (base: string, cameras: string[]) => {
       if (!known) continue
       insertMerge.run(event.id, event.merged_into, event.camera, Math.floor(event.start_time), event.end_time === null ? null : Math.floor(event.end_time), Math.floor(event.merged_at ?? Date.now() / 1000))
       deleteEvent.run(event.id)
-      for (const suffix of ['.mp4', '.h264.mp4']) await unlink(`${DATA_DIR}/clips/${event.camera}/${event.id}${suffix}`).catch(() => undefined)
+      for (const suffix of ['.mp4', '.h264.mp4', '.aac']) await unlink(`${DATA_DIR}/clips/${event.camera}/${event.id}${suffix}`).catch(() => undefined)
       changed += 1
       continue
     }
@@ -507,6 +513,7 @@ const syncMerges = async (base: string, cameras: string[]) => {
     if (!clip) continue
     upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), Math.floor(event.end_time), clip.path, clip.start)
     clearWebClip.run(event.id)
+    clearAudioClip.run(event.id)
     changed += 1
   }
   return changed
@@ -542,6 +549,33 @@ const syncWebClips = async () => {
       copied += 1
     } catch (error) {
       log(`Copie légère ${row.id} non copiée : ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  return copied
+}
+
+// Le son des clips (<id>.aac, à part de la vidéo) : l'enregistreur le fabrique avec le clip pour ses caméras à son (AUDIO_CAMERAS). On le récupère
+// une fois la copie légère faite. Un clip sans son (caméra sans micro, clip d'avant) répond 404 : on ne le redemande plus jusqu'au prochain démarrage.
+const noAudio = new Set<string>()
+const syncAudioClips = async () => {
+  const now = Math.floor(Date.now() / 1000)
+  let copied = 0
+  for (const row of clipsWithoutAudio.all(now - CLIP_RETRY_SECONDS) as { id: string; camera: string; clip_path: string }[]) {
+    if (noAudio.has(row.id) || !/^[\w.-]+$/.test(row.id) || !/^[\w-]+$/.test(row.camera)) continue
+    try {
+      const res = await recorder(row.camera, `/api/events/${row.id}/clip.aac`, CLIP_TIMEOUT_MS)
+      if (res.status === 404) {
+        noAudio.add(row.id)
+        void res.body?.cancel().catch(() => undefined)
+        continue
+      }
+      if (!res.ok) continue
+      const path = row.clip_path.replace(/\.mp4$/, '.aac')
+      await saveResponse(res, `${DATA_DIR}/${path}`)
+      updateAudioClip.run(path, row.id)
+      copied += 1
+    } catch (error) {
+      log(`Son ${row.id} non copié : ${error instanceof Error ? error.message : String(error)}`)
     }
   }
   return copied
@@ -594,8 +628,8 @@ const guestFps = (): number => {
   const fps = Number(row?.value ?? DEFAULT_GUEST_FPS)
   return Number.isInteger(fps) && fps >= 1 && fps <= MAX_LIVE_FPS ? fps : DEFAULT_GUEST_FPS
 }
-const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path FROM events WHERE clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
-const clearClipPaths = db.prepare('UPDATE events SET clip_path = NULL, clip_web_path = NULL WHERE id = ?')
+const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path, clip_audio_path FROM events WHERE clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
+const clearClipPaths = db.prepare('UPDATE events SET clip_path = NULL, clip_web_path = NULL, clip_audio_path = NULL WHERE id = ?')
 let lastPurgeAt = 0
 const purgeOldClips = async (): Promise<number> => {
   const now = Math.floor(Date.now() / 1000)
@@ -607,11 +641,11 @@ const purgeOldClips = async (): Promise<number> => {
     return 0
   }
   let purged = 0
-  for (const row of expiredClips.all(now - clipRetentionDays() * 86400) as { id: string; clip_path: string; clip_web_path: string | null }[]) {
+  for (const row of expiredClips.all(now - clipRetentionDays() * 86400) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null }[]) {
     if (saved.has(row.id)) continue
     let failed = false
-    for (const path of [row.clip_path, row.clip_web_path]) {
-      if (!path || !/^clips\/[\w-]+\/[\w.-]+\.mp4$/.test(path)) continue
+    for (const path of [row.clip_path, row.clip_web_path, row.clip_audio_path]) {
+      if (!path || !/^clips\/[\w-]+\/[\w.-]+\.(mp4|aac)$/.test(path)) continue
       await unlink(`${DATA_DIR}/${path}`).catch((error: NodeJS.ErrnoException) => {
         if (error.code !== 'ENOENT') failed = true
       })
@@ -647,7 +681,7 @@ const poll = async () => {
         log(`Enregistreur ${base} : ${error instanceof Error ? error.message : String(error)}`)
       }
     }
-    const repaired = (await retryMissingClips()) + (await syncWebClips())
+    const repaired = (await retryMissingClips()) + (await syncWebClips()) + (await syncAudioClips())
     const snapshots = await syncSnapshots(cameras)
     const purged = await purgeOldClips()
     log(
@@ -765,13 +799,14 @@ const sendBackupFile = async (res: ServerResponse, relativePath: string, rangeHe
   }
 }
 
-// Ce que la page affiche : la base (tables, nombre de lignes, taille) et le disque backup (clips, images par minute).
-const overview = async () => {
-  const files = await listBackup(DATA_DIR)
+// Ce que la page affiche : la base (tables, nombre de lignes, taille) et le disque backup (clips, images par minute). Sans `full`, le disque backup
+// n'est pas parcouru (des milliers de fichiers) : seuls le chemin et la base sont rendus, les chiffres du disque sont à zéro.
+const overview = async (full = true) => {
+  const files = full ? await listBackup(DATA_DIR) : []
   const clips = files.filter((f) => f.path.startsWith('clips/'))
   const snapshots = files.filter((f) => f.path.startsWith('snapshots/'))
   const dbSize = await stat(`${DATA_DIR}/events.db`).then((s) => s.size).catch(() => 0)
-  const disk = await readDiskSpace(DATA_DIR)
+  const disk = full ? await readDiskSpace(DATA_DIR) : { total: 0, free: 0, reserved: 0 }
   return {
     database: { path: `${DATA_DIR}/events.db`, size: dbSize, tables: summarizeTables(db) },
     backup: {
@@ -788,7 +823,7 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
   if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: clipRetentionDays() })
   if (pathname === '/api/guest') return sendJson(res, 200, { guest_fps: guestFps(), guest_enabled: await readGuestEnabled(GUEST_STATE_FILE) })
   if (pathname === '/api/settings') return sendJson(res, 200, (knownCameras.all() as { camera: string }[]).map((row) => cameraSettings(row.camera)))
-  if (pathname === '/api/overview') return sendJson(res, 200, await overview())
+  if (pathname === '/api/overview') return sendJson(res, 200, await overview(params.get('part') !== 'database'))
   if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(DOCKER_FILE, COMPOSE_FILE))
   if (pathname === '/api/specs') return sendJson(res, 200, await readSpecs())
   if (pathname === '/api/hue') return sendJson(res, 200, await readHueBridge())
@@ -798,13 +833,17 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
   if (pathname === '/api/power') return sendJson(res, 200, await readPower(POWER_FILE, apiTarget()))
   if (pathname === '/api/table') {
     const { page, size } = pageParams(params)
-    const result = readTable(db, params.get('name') ?? '', page, size)
+    const result = readTable(db, params.get('name') ?? '', page, size, filterParams(params))
     return result ? sendJson(res, 200, result) : sendJson(res, 404, { error: 'unknown table' })
   }
   if (pathname === '/api/clips') {
     const { page, size } = pageParams(params)
-    const clips = (await listBackup(DATA_DIR)).filter((f) => f.path.startsWith('clips/'))
-    return sendJson(res, 200, paginate(groupClips(clips), page, size))
+    const all = groupClips((await listBackup(DATA_DIR)).filter((f) => f.path.startsWith('clips/')))
+    const wanted = clipFilterParams(params)
+    // Sauvegardés ou non : la liste écrite par l'API ; illisible, elle compte pour vide (rien n'est montré comme sauvegardé).
+    const saved = wanted.saved ? { ids: (await readSavedIds(SAVED_CLIPS_FILE)) ?? new Set<string>(), keep: wanted.saved === 'saved' } : undefined
+    const shown = filterClips(all, { camera: wanted.camera, from: wanted.from, to: wanted.to, saved })
+    return sendJson(res, 200, { ...paginate(shown, page, size), cameras: clipCameras(all) })
   }
   const file = BACKUP_FILE.exec(pathname)
   if (file) return sendBackupFile(res, file[1], rangeHeader)

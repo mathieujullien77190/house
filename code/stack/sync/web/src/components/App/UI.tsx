@@ -102,22 +102,22 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
       />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
-      {ready && !overview ? <Notice text={LOADING_TEXT} /> : null}
-
-      {ready && overview ? (
+      {ready ? (
         <>
           <div className={TABS_CLASS}>
             <Tabs label={TABS_LABEL} options={TABS} value={tab} onChange={onTab} />
           </div>
           {media ? <MediaPanel media={media} onClose={onClose} /> : null}
           {tab === 'db' ? (
-            <>
+            overview ? (
               <Collapsible title={DATABASE_TITLE} detail={overview.database.path}>
                 {overview.database.tables.map((table) => (
                   <TableSection key={table.name} table={table} refreshTick={refreshTick} onOpen={onOpen} />
                 ))}
               </Collapsible>
-            </>
+            ) : (
+              <Notice text={LOADING_TEXT} />
+            )
           ) : tab === 'system' ? (
             <>
               <div className={GRID_CLASS}>
@@ -128,7 +128,7 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
                 </section>
                 {diskChart ? (
                   <section>
-                    <Collapsible title={DISK_TITLE} detail={overview.backup.path}>
+                    <Collapsible title={DISK_TITLE} detail={overview?.backup.path}>
                       <PieChart slices={diskChart.slices} centerValue={diskChart.centerValue} centerLabel={diskChart.centerLabel} label={DISK_CHART_LABEL} />
                     </Collapsible>
                   </section>
@@ -258,7 +258,7 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
           ) : tab === 'settings' ? (
             <SettingsSection />
           ) : (
-            <Collapsible title={BACKUP_TITLE} detail={overview.backup.path}>
+            <Collapsible title={BACKUP_TITLE} detail={overview?.backup.path}>
               <ClipsSection refreshTick={refreshTick} onOpen={onOpen} />
             </Collapsible>
           )}

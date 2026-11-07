@@ -7,6 +7,8 @@ export const CAMERA_TITLE_PREFIX = 'Caméra : '
 export const LIVE_CAPTION = 'Direct'
 /** Le détecteur du pont Hue dont la température s'affiche sur la vidéo de chaque caméra (identifiants du pont) : « motion exterieur » (57) pour voliere-exterieur, « motion interieur » (54) pour voliere-interieur. */
 export const CAMERA_SENSOR: Record<string, string> = { 'voliere-exterieur': '57', 'voliere-interieur': '54' }
+/** La lampe dont le rond s'affiche à côté de la température sur la vidéo d'une caméra (identifiant du pont) : « Perruche » pour voliere-interieur. */
+export const CAMERA_LAMP: Record<string, string> = { 'voliere-interieur': '26' }
 export const TEMPERATURE_LABEL = 'Température · '
 export const TEMPERATURE_UNKNOWN_TEXT = 'inconnue'
 /** Le direct est un flux MJPEG que l'API relaie depuis go2rtc (le flux léger de la caméra, recodé en JPEG). */

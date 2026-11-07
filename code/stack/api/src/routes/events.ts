@@ -52,5 +52,12 @@ export const eventsRouter = (events: EventsService, files: BackupFiles): Router 
   })
   router.get('/clips/:id', sendClip(false))
   router.get('/clips/:id/h264', sendClip(true))
+  // Le son du clip (AAC), à part de la vidéo : la WebApp le joue avec elle. 404 sans son (caméra sans micro, clip d'avant).
+  router.get('/clips/:id/audio', (req, res) => {
+    const id = String(req.params.id)
+    const path = EVENT_ID.test(id) ? events.clipAudioPath(id) : null
+    if (!path) return void res.status(404).json({ error: 'sound not found' })
+    files.send(res, path, 'audio/aac')
+  })
   return router
 }

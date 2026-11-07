@@ -1,0 +1,1 @@
+A lamp's dot placed next to a measurement, in the same block as `ValueChips`: **orange** when on, **page background with a grey outline** when off, **pale red outline** when unreachable (it is then shown off). It is the bulb drawing of the lights plan. `label` is the tooltip and the screen reader text.
