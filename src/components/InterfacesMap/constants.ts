@@ -76,6 +76,22 @@ export const FRAMES: Frame[] = [
       { text: 'sert sa page sur le port 8081', y: API_Y + 98 },
     ],
   },
+  {
+    id: 'guest',
+    x: 890,
+    y: API_Y + 180,
+    w: 260,
+    h: 150,
+    role: 'ext',
+    title: 'Page invité · guest/',
+    sub: 'une page HTML sans script, sans @house/ui',
+    notes: [
+      { text: 'direct seulement, lien secret', y: API_Y + 258 },
+      { text: 'port 8090, à la demande', y: API_Y + 278 },
+      { text: 'coupée par un bouton de House Sync', y: API_Y + 298 },
+      { text: 'journal des visites', y: API_Y + 318 },
+    ],
+  },
 ]
 
 export const COLUMNS: Column[] = [
