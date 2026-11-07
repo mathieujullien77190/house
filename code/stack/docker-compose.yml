@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       REOLINK_PASSWORD: ${REOLINK_PASSWORD}
-      # La deuxième caméra (perruche-porte) : adresse et compte, lus par go2rtc.yaml.
+      # La deuxième caméra (voliere-interieur) : adresse et compte, lus par go2rtc.yaml.
       CAMERA2_IP: ${CAMERA2_IP:-}
       CAMERA2_USER: ${CAMERA2_USER:-admin}
       CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
@@ -27,8 +27,10 @@ services:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
     networks:
       - sync_net
+      # Le réseau de la page invité : elle ne voit que go2rtc.
+      - guest_net
 
-  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (perruche-fond et perruche-porte) : enregistre le flux principal
+  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (voliere-exterieur et voliere-interieur) : enregistre le flux principal
   # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
@@ -36,9 +38,7 @@ services:
     depends_on:
       - go2rtc
     environment:
-      CAMERAS: perruche-fond,perruche-porte
-      # Un mouvement sur l'une des deux donne un clip des deux, sur la même durée.
-      LINKED_CAMERAS: perruche-fond,perruche-porte
+      CAMERAS: voliere-exterieur,voliere-interieur
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -82,6 +82,13 @@ services:
       # Une image par caméra (une par minute par défaut, réglable depuis la page), gardée 7 jours.
       SNAPSHOT_INTERVAL_SECONDS: "60"
       SNAPSHOT_RETENTION_DAYS: "7"
+      # Les clips non sauvegardés sont effacés du disque backup après ce nombre de jours (réglable depuis la page, qui prend le dessus) ;
+      # les clips sauvegardés depuis la WebApp (liste écrite par l'API dans data/house) ne le sont jamais.
+      CLIP_RETENTION_DAYS: ${CLIP_RETENTION_DAYS:-15}
+      SAVED_CLIPS_FILE: /house/saved-clips.json
+      GUEST_STATE_FILE: /guest/state.json
+      # Les visites de la page invité (une ligne JSON par visite, importée toutes les 15 s dans la table guest_visits), lues dans le dossier que la page remplit.
+      GUEST_VISITS_FILE: /guest-visits/visits.jsonl
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
@@ -98,6 +105,13 @@ services:
       - ./data/backup:/data
       - ./data/certs:/certs:ro
       - ./data/power:/power:ro
+      # La liste des clips sauvegardés, écrite par l'API : lue seulement, avant d'effacer les vieux clips.
+      - ./data/house:/house:ro
+      # L'interrupteur de la page invité (bouton « En ligne / Coupée » des réglages) : le seul fichier que House Sync écrit pour elle, hors du disque backup.
+      # Le dossier data/guest doit exister, créé par l'utilisateur de la machine (sinon Docker le crée pour root et House Sync ne peut pas y écrire).
+      - ./data/guest:/guest
+      # Le journal des visites que la page invité écrit : lu seulement (le dossier data/guest-visits doit exister, créé par l'utilisateur de la machine).
+      - ./data/guest-visits:/guest-visits:ro
       # Le nom et le système de la machine (le conteneur a les siens) : deux fichiers de l'hôte, en lecture seule.
       # Le docker-compose.yml tel qu'il est lancé (références ${VARIABLE} seulement, pas de secret) : l'onglet Docker le montre.
       - ./docker-compose.yml:/host/docker-compose.yml:ro
@@ -127,7 +141,7 @@ services:
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: perruche-fond:3,perruche-porte:4
+      SWITCH_PORTS: voliere-exterieur:3,voliere-interieur:4
       # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
@@ -136,7 +150,11 @@ services:
       # l'API la retrouve toute seule par un scan du réseau (une fois par minute au plus). Sans adresse, le service plug répond 503.
       PLUG_HOST: ${PLUG_HOST:-}
       PLUG_MAC: ${PLUG_MAC:-D8:0D:17:1C:84:E3}
-      # Ce que l'API écrit : les positions des ampoules sur le plan (data/house, créé par l'utilisateur de la machine).
+      # La page invité (guest/) : la WebApp en affiche le lien (clé comprise) et un bouton « Copier » (GET /guest, derrière la clé de l'API). GUEST_PUBLIC_URL : son adresse publique
+      # si elle est ouverte à internet (sinon la WebApp prend son propre hôte et le port 8090).
+      GUEST_KEY: ${GUEST_KEY:-}
+      GUEST_PUBLIC_URL: ${GUEST_PUBLIC_URL:-}
+      # Ce que l'API écrit : les positions des ampoules sur le plan et la liste des clips sauvegardés (data/house, créé par l'utilisateur de la machine).
       STATE_DIR: /state
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
@@ -155,6 +173,51 @@ services:
       # Pour joindre go2rtc (go2rtc:1984), qui n'est jamais publié.
       - sync_net
 
+  # La page invité (voir guest/CLAUDE.md) : le direct léger des caméras, pour quelqu'un à qui on donne un lien. Éteinte par défaut (profil
+  # « guest » : un « docker compose up -d » ne la lance pas). Allumer : docker compose up -d --build guest. Éteindre complètement :
+  # docker compose stop guest (elle reste éteinte après un redémarrage de la machine). Un conteneur à part : pas de disque, pas de base,
+  # un réseau à elle avec go2rtc seulement, et rien d'autre ne dépend d'elle.
+  guest:
+    profiles: [guest]
+    build: ./guest
+    restart: unless-stopped
+    depends_on:
+      go2rtc:
+        condition: service_started
+      certs:
+        condition: service_completed_successfully
+    environment:
+      # La clé du lien (https://<adresse>:8090/?k=<clé>), 16 caractères au moins, dans .env : sans elle la page ne démarre pas.
+      GUEST_KEY: ${GUEST_KEY:-}
+      GUEST_CAMERAS: ${GUEST_CAMERAS:-voliere-exterieur,voliere-interieur}
+      # Le nombre de personnes qui regardent en même temps au plus, et la durée d'un flux (minutes).
+      GUEST_MAX_VIEWERS: ${GUEST_MAX_VIEWERS:-5}
+      GUEST_MAX_MINUTES: ${GUEST_MAX_MINUTES:-30}
+      GO2RTC_URL: http://go2rtc:1984
+      PORT: "8090"
+      # L'interrupteur écrit par House Sync (lecture seule) : « Coupée », la page ferme son port.
+      GUEST_STATE_FILE: /guest/state.json
+      # Le journal des visites (qui vient, quand, ce qu'il regarde) : le seul dossier où la page écrit, House Sync l'importe.
+      GUEST_VISITS_FILE: /visits/visits.jsonl
+      TLS_CERT: /certs/cert.pem
+      TLS_KEY: /certs/key.pem
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./data/certs/cert.pem:/certs/cert.pem:ro
+      - ./data/certs/key.pem:/certs/key.pem:ro
+      - ./data/guest:/guest:ro
+      - ./data/guest-visits:/visits
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    networks:
+      - guest_net
+
 networks:
   sync_net:
   web_net:
+  guest_net:

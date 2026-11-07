@@ -5,19 +5,25 @@
 # <nom>_main_mjpeg (le 4K transcodé en MJPEG, pour le bouton « 4K » du direct : lourd pour le processeur).
 # Les mêmes deux flux en « _m » (<nom>_sub_mjpeg_m, <nom>_main_mjpeg_m) sont ceux des écrans de moins de 1024 px : leur cadence se règle à part.
 streams:
-  perruche-fond_main: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
-  perruche-fond_sub: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
-  perruche-fond_sub_mjpeg: ffmpeg:perruche-fond_sub#video=mjpeg
-  perruche-fond_main_mjpeg: ffmpeg:perruche-fond_main#video=mjpeg
-  perruche-fond_sub_mjpeg_m: ffmpeg:perruche-fond_sub#video=mjpeg
-  perruche-fond_main_mjpeg_m: ffmpeg:perruche-fond_main#video=mjpeg
+  voliere-exterieur_main: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_main
+  voliere-exterieur_sub: rtsp://admin:${REOLINK_PASSWORD}@192.168.1.141:554/h264Preview_01_sub
+  voliere-exterieur_sub_mjpeg: ffmpeg:voliere-exterieur_sub#video=mjpeg
+  voliere-exterieur_main_mjpeg: ffmpeg:voliere-exterieur_main#video=mjpeg
+  voliere-exterieur_sub_mjpeg_m: ffmpeg:voliere-exterieur_sub#video=mjpeg
+  voliere-exterieur_main_mjpeg_m: ffmpeg:voliere-exterieur_main#video=mjpeg
+  # Les deux flux de la page invité (guest/) : le léger pour les vignettes, le 4K pour la caméra agrandie. Leur cadence est réglée à part (House Sync :
+  # « Page invité », un seul réglage pour tous), pour que les invités ne changent rien au direct de la maison. 2 images/s au démarrage (mjpeg2).
+  voliere-exterieur_guest_sub_mjpeg: ffmpeg:voliere-exterieur_sub#video=mjpeg2
+  voliere-exterieur_guest_main_mjpeg: ffmpeg:voliere-exterieur_main#video=mjpeg2
   # La deuxième caméra : adresse, compte et mot de passe viennent de .env (CAMERA2_IP, CAMERA2_USER, CAMERA2_PASSWORD).
-  perruche-porte_main: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_main
-  perruche-porte_sub: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_sub
-  perruche-porte_sub_mjpeg: ffmpeg:perruche-porte_sub#video=mjpeg
-  perruche-porte_main_mjpeg: ffmpeg:perruche-porte_main#video=mjpeg
-  perruche-porte_sub_mjpeg_m: ffmpeg:perruche-porte_sub#video=mjpeg
-  perruche-porte_main_mjpeg_m: ffmpeg:perruche-porte_main#video=mjpeg
+  voliere-interieur_main: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_main
+  voliere-interieur_sub: rtsp://${CAMERA2_USER}:${CAMERA2_PASSWORD}@${CAMERA2_IP}:554/h264Preview_01_sub
+  voliere-interieur_sub_mjpeg: ffmpeg:voliere-interieur_sub#video=mjpeg
+  voliere-interieur_main_mjpeg: ffmpeg:voliere-interieur_main#video=mjpeg
+  voliere-interieur_sub_mjpeg_m: ffmpeg:voliere-interieur_sub#video=mjpeg
+  voliere-interieur_main_mjpeg_m: ffmpeg:voliere-interieur_main#video=mjpeg
+  voliere-interieur_guest_sub_mjpeg: ffmpeg:voliere-interieur_sub#video=mjpeg2
+  voliere-interieur_guest_main_mjpeg: ffmpeg:voliere-interieur_main#video=mjpeg2
 
 # Le direct (4K et léger) en MJPEG avec moins d'images par seconde : House Sync change la source de <nom>_main_mjpeg et
 # <nom>_sub_mjpeg en ffmpeg:<nom>_main#video=mjpegN ou ffmpeg:<nom>_sub#video=mjpegN (N de 1 à 24) selon le curseur de sa page. Décoder reste complet, mais l'encodage JPEG et le
