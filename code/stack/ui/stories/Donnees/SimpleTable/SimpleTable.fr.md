@@ -1,0 +1,1 @@
+Un tableau quadrillé tout simple : les titres des colonnes et des lignes déjà rendues (du texte ou n'importe quel élément), sans carte, ni titre, ni pagination. Dès 1024 px un vrai tableau (il défile de côté s'il est large), en dessous une fiche par ligne avec le nom de chaque colonne. Pour un tableau paginé ou dont les lignes se déplient, voir `DataTable`.

@@ -6,8 +6,8 @@ import { CameraCard, SnapshotImage, Timeline } from '@house/ui'
 <CameraCard
   screen
   onBack={backToList}
-  backLabel="perruche-fond"
-  name="perruche-fond"
+  backLabel="voliere-exterieur"
+  name="voliere-exterieur"
   caption="Direct"
   actions={<LiveQualityTabs />}
   details={<SpecList items={temperatures} />}

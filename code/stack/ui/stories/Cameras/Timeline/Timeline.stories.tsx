@@ -42,13 +42,11 @@ const Day = ({ vertical = false }: { vertical?: boolean }) => {
       ranges={RANGES}
       range={range}
       live
-      windowText="24/10/2026 16:00 → 25/10/2026 16:00 · 24 h"
       ticks={TICKS}
       markers={MARKERS.map((marker) => ({ ...marker, selected: marker.id === selected }))}
       coverage={COVERAGE}
       nowX={87}
       cursorX={cursorX}
-      older={4}
       onRange={setRange}
       onNow={() => {
         setSelected('')

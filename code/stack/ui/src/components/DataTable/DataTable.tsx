@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import Pager from '../Pager'
 import {
   BODY_CLASS,
@@ -7,7 +8,9 @@ import {
   CHEVRON_OPEN_CLASS,
   COLLAPSE_ARIA,
   DESCRIPTION_CLASS,
+  DETAIL_CELL_CLASS,
   DETAIL_CLASS,
+  DETAIL_ROW_CLASS,
   EMPTY_CLASS,
   EMPTY_TEXT,
   EXPAND_ARIA,
@@ -15,6 +18,8 @@ import {
   HEAD_CLASS,
   HEAD_GROUP_CLASS,
   ROW_CLASS,
+  ROW_CLICK_CLASS,
+  ROW_OPEN_CLASS,
   TABLE_CLASS,
   TITLE_CLASS,
   TOGGLE_CLASS,
@@ -23,8 +28,8 @@ import {
 } from './constants'
 import type { DataTableProps } from './types'
 
-/** Un tableau paginé dans une carte, repliable si le parent le demande : les cellules arrivent déjà rendues. */
-const DataTable = ({ title, description, detail, columns, rows, keys, page, size, total, onPage, collapsed = false, onToggle }: DataTableProps) => {
+/** Un tableau paginé dans une carte, repliable si le parent le demande : les cellules arrivent déjà rendues. Avec `details`, une ligne se déplie au clic et montre son détail dessous. */
+const DataTable = ({ title, description, detail, columns, rows, keys, page, size, total, onPage, collapsed = false, onToggle, details, openKey = null, onRowClick }: DataTableProps) => {
   const open = !onToggle || !collapsed
   const head = (
     <>
@@ -60,15 +65,52 @@ const DataTable = ({ title, description, detail, columns, rows, keys, page, size
               </tr>
             </thead>
             <tbody className={BODY_CLASS}>
-              {rows.map((cells, index) => (
-                <tr key={keys[index]} className={ROW_CLASS}>
-                  {cells.map((cell, column) => (
-                    <td key={columns[column]} data-label={columns[column]} className={CELL_CLASS}>
-                      <span className={VALUE_CLASS}>{cell}</span>
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {rows.map((cells, index) => {
+                const detail = details?.[index] ?? null
+                const clickable = onRowClick !== undefined && detail !== null
+                const isOpen = clickable && openKey === keys[index]
+                return (
+                  <Fragment key={keys[index]}>
+                    <tr
+                      className={`${ROW_CLASS}${clickable ? ` ${ROW_CLICK_CLASS}` : ''}${isOpen ? ` ${ROW_OPEN_CLASS}` : ''}`}
+                      tabIndex={clickable ? 0 : undefined}
+                      aria-expanded={clickable ? isOpen : undefined}
+                      onClick={
+                        clickable
+                          ? (event) => {
+                              // Un lien ou un bouton de la ligne garde son propre clic.
+                              if ((event.target as HTMLElement).closest('a, button')) return
+                              onRowClick(keys[index])
+                            }
+                          : undefined
+                      }
+                      onKeyDown={
+                        clickable
+                          ? (event) => {
+                              if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault()
+                                onRowClick(keys[index])
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      {cells.map((cell, column) => (
+                        <td key={columns[column]} data-label={columns[column]} className={CELL_CLASS}>
+                          <span className={VALUE_CLASS}>{cell}</span>
+                        </td>
+                      ))}
+                    </tr>
+                    {isOpen ? (
+                      <tr className={DETAIL_ROW_CLASS}>
+                        <td colSpan={columns.length} className={DETAIL_CELL_CLASS}>
+                          {detail}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>

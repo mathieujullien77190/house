@@ -11,7 +11,6 @@
   --accent: #2f7de1;
   --green: #1f9d6b;
   --orange: #d98a1c;
-  --yellow: #e8c21a;
   --danger: #d64545;
 }
 
@@ -25,7 +24,6 @@
     --accent: #5b9bf0;
     --green: #3fc590;
     --orange: #f0a940;
-    --yellow: #f7d54a;
     --danger: #f06a6a;
   }
 }
@@ -39,6 +37,5 @@
   --color-accent: var(--accent);
   --color-green: var(--green);
   --color-orange: var(--orange);
-  --color-yellow: var(--yellow);
   --color-danger: var(--danger);
 }

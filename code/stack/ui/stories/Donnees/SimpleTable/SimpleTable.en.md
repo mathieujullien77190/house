@@ -1,0 +1,1 @@
+A plain gridded table: the column titles and already-rendered rows (text or any element), with no card, title or pagination. From 1024 px it is a real table (it scrolls sideways if wide), below that one card per row with each column name. For a paginated table or one whose rows expand, see `DataTable`.

@@ -2,7 +2,9 @@ export const CLOSE_LABEL = 'Fermer'
 export const LOADING_TEXT = 'Téléchargement du clip…'
 
 export const PLAYER_CLASS = 'w-full'
-export const VIDEO_CLASS = 'block aspect-video w-full rounded-md border border-line bg-black object-contain'
+/** Les commandes natives du navigateur sans le son, l'agrandissement ni le menu « ⋮ » (télécharger, vitesse, image dans l'image…) : il ne reste que lecture et barre de temps. */
+export const VIDEO_CLASS =
+  'block aspect-video w-full rounded-md border border-line bg-black object-contain [&::-webkit-media-controls-fullscreen-button]:hidden [&::-webkit-media-controls-mute-button]:hidden [&::-webkit-media-controls-overflow-button]:hidden [&::-webkit-media-controls-volume-slider]:hidden'
 export const BOX_CLASS = 'flex aspect-video w-full items-center justify-center rounded-md border border-line bg-black text-[0.85rem] text-muted'
 export const ERROR_CLASS = 'text-[0.85rem] text-danger'
 export const CLOSE_CLASS = 'mt-1.5'

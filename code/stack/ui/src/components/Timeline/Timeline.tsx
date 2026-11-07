@@ -10,8 +10,6 @@ import {
   CONTROLS_CLASS,
   COVERAGE_CLASS,
   COVERAGE_VERTICAL_CLASS,
-  LAMP_CLASS,
-  LAMP_VERTICAL_CLASS,
   CURSOR_CLASS,
   CURSOR_VERTICAL_CLASS,
   FUTURE_CLASS,
@@ -24,14 +22,11 @@ import {
   NOW_MARK,
   NOW_MARK_CLASS,
   NOW_MARK_VERTICAL_CLASS,
-  OLDER_PREFIX,
-  OLDER_SUFFIX,
   RANGE_LABEL,
   TICK_CLASS,
   TICK_LABEL_CLASS,
   TICK_LABEL_VERTICAL_CLASS,
   TICK_VERTICAL_CLASS,
-  WINDOW_CLASS,
   WRAP_CLASS,
   WRAP_FILL_CLASS,
 } from './constants'
@@ -48,15 +43,12 @@ const Timeline = <T extends string>({
   ranges,
   range,
   live,
-  windowText,
   ticks,
   markers,
   coverage,
-  lamp = [],
   nowX = null,
   clipSpan = null,
   cursorX,
-  older,
   axisRef,
   onRange,
   onNow,
@@ -75,13 +67,6 @@ const Timeline = <T extends string>({
           <Tabs label={RANGE_LABEL} options={ranges} value={range} onChange={onRange} />
         </div>
       </div>
-      {/* Sur la frise verticale (téléphone), ni la plage de dates ni le nombre d'événements plus anciens ne sont écrits. */}
-      {vertical ? null : (
-        <div className={WINDOW_CLASS}>
-          {windowText}
-          {older > 0 ? ` · ${OLDER_PREFIX}${older}${OLDER_SUFFIX}` : ''}
-        </div>
-      )}
       <div
         ref={axisRef}
         className={vertical ? (fill ? AXIS_FILL_CLASS : AXIS_VERTICAL_CLASS) : AXIS_CLASS}
@@ -93,9 +78,6 @@ const Timeline = <T extends string>({
         {nowX !== null ? <div className={vertical ? FUTURE_VERTICAL_CLASS : FUTURE_CLASS} style={vertical ? { height: `${100 - nowX}%` } : { left: `${nowX}%` }} /> : null}
         {coverage.map((segment) => (
           <div key={segment.x} className={vertical ? COVERAGE_VERTICAL_CLASS : COVERAGE_CLASS} style={spanStyle(segment.x, segment.width, vertical)} />
-        ))}
-        {lamp.map((segment) => (
-          <div key={`lamp-${segment.x}`} className={vertical ? LAMP_VERTICAL_CLASS : LAMP_CLASS} style={spanStyle(segment.x, segment.width, vertical)} />
         ))}
         {ticks.map((tick) => (
           <div key={tick.x} className={vertical ? TICK_VERTICAL_CLASS : TICK_CLASS} style={pointStyle(tick.x, vertical)}>
@@ -113,6 +95,8 @@ const Timeline = <T extends string>({
             className={markerClass(marker, vertical)}
             style={spanStyle(marker.x, marker.width, vertical)}
             onPointerDown={(event) => event.stopPropagation()}
+            // Le relâchement d'un clic sur un bloc ne doit pas être pris par l'axe (il y poserait le curseur et fermerait le clip).
+            onPointerUp={(event) => event.stopPropagation()}
             onClick={() => onSelect(marker.id)}
           />
         ))}

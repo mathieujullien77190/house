@@ -39,6 +39,9 @@ const ClipPlayer = ({ src, error, startAt, restart = 0, onClose, onReady, onFail
           className={VIDEO_CLASS}
           src={src}
           controls
+          // Ni agrandir, ni télécharger, ni vitesse, ni diffusion, ni image dans l'image : les commandes ne gardent que lecture et barre de temps (voir VIDEO_CLASS).
+          controlsList="nofullscreen nodownload noremoteplayback noplaybackrate"
+          disablePictureInPicture
           // Les clips n'ont pas de son : démarrer en sourdine est la seule façon que les téléphones acceptent de lancer la lecture tout seuls.
           muted
           playsInline

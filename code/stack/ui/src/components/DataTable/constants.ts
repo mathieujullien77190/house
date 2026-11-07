@@ -21,3 +21,8 @@ export const CELL_CLASS =
 export const VALUE_CLASS = 'flex min-w-0 flex-wrap items-baseline gap-x-2 [overflow-wrap:anywhere]'
 export const ROW_CLASS = 'even:bg-accent/5 max-lg:mb-2 max-lg:block max-lg:rounded-lg max-lg:border max-lg:border-line max-lg:px-2.5 max-lg:py-1.5'
 export const EMPTY_CLASS = 'text-[0.85rem] text-muted'
+/** Une ligne qui se déplie au clic. */
+export const ROW_CLICK_CLASS = 'cursor-pointer hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-accent'
+export const ROW_OPEN_CLASS = 'bg-accent/10'
+export const DETAIL_ROW_CLASS = 'bg-accent/5 max-lg:mb-2 max-lg:block max-lg:rounded-lg max-lg:border max-lg:border-line'
+export const DETAIL_CELL_CLASS = 'border-b border-line px-2 py-2 max-lg:block max-lg:border-b-0 max-lg:px-2.5'
