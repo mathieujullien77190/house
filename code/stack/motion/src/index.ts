@@ -7,7 +7,6 @@ import { existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
-import { wantsEvent } from './linked.ts'
 import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
 import { detectorForLevel, DEFAULT_SENSITIVITY } from './sensitivity.ts'
@@ -34,25 +33,6 @@ const detectors = new Map<string, typeof config.detector>(config.cameras.map((ca
 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
-// Les caméras dont le détecteur voit du mouvement en ce moment (le mouvement propre, pas celui d'une caméra liée).
-const active = new Set<string>()
-
-// Ouvre ou ferme l'événement de chaque caméra selon ce que voient elle et ses caméras liées (voir linked.ts) : à `at` (secondes).
-const reconcile = (at: number, endedAfter = 0) => {
-  for (const camera of config.cameras) {
-    const wanted = wantsEvent(camera, active, config.linkedCameras, detecting)
-    const id = open.get(camera)
-    if (wanted && !id) {
-      const record = store.open(camera, at)
-      open.set(camera, record.id)
-      log(`${camera} : mouvement ${record.id}${active.has(camera) ? '' : ' (caméra liée)'}`)
-    } else if (!wanted && id) {
-      store.close(id, at)
-      open.delete(camera)
-      log(`${camera} : fin de mouvement ${id}${endedAfter > 0 ? ` (${endedAfter.toFixed(1)} s)` : ''}`)
-    }
-  }
-}
 
 for (const camera of config.cameras) {
   mkdirSync(`${config.recordingsDir}/${camera}`, { recursive: true })
@@ -62,19 +42,27 @@ for (const camera of config.cameras) {
     { ...config, detector: detectors.get(camera) ?? config.detector },
     (event) => {
       if (event.type === 'start') {
-        active.add(camera)
-        reconcile(event.at)
+        const record = store.open(camera, event.at)
+        open.set(camera, record.id)
+        log(`${camera} : mouvement ${record.id}`)
       } else {
-        active.delete(camera)
-        reconcile(event.startedAt + event.durationSeconds, event.durationSeconds)
+        const id = open.get(camera)
+        if (id) {
+          store.close(id, event.startedAt + event.durationSeconds)
+          open.delete(camera)
+          log(`${camera} : fin de mouvement ${id} (${event.durationSeconds.toFixed(1)} s)`)
+        }
       }
     },
     (m) => log(`${camera} : ${m}`),
     () => detecting.get(camera) !== false,
     () => {
-      // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là (et celui des caméras liées qui n'ont plus de raison de rester ouvert).
-      active.delete(camera)
-      reconcile(Date.now() / 1000)
+      // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là.
+      const id = open.get(camera)
+      if (id) {
+        store.close(id, Date.now() / 1000)
+        open.delete(camera)
+      }
     },
   )
 }
@@ -86,8 +74,6 @@ startServer(
     set: (camera, enabled) => {
       if (detecting.get(camera) !== enabled) log(`${camera} : détection ${enabled ? 'allumée' : 'éteinte'}`)
       detecting.set(camera, enabled)
-      // Détection éteinte : un événement ouvert seulement par un mouvement lié se ferme.
-      reconcile(Date.now() / 1000)
     },
     setSensitivity: (camera, level) => {
       const seuils = detectors.get(camera)
