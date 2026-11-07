@@ -14,7 +14,7 @@ export const TIMER_START_LABEL = 'Allumer pendant'
 /** Le curseur de la durée, de 1 à 30 minutes par pas de 1 : la prise s'éteint toute seule ensuite. */
 export const TIMER_MIN = 1
 export const TIMER_MAX = 30
-export const TIMER_DEFAULT = 15
+export const TIMER_DEFAULT = 5
 export const TIMER_UNIT = 'min'
 export const TIMER_BOX_CLASS = 'flex flex-col items-start gap-2 lg:max-w-sm'
 export const SLIDER_HEAD_CLASS = 'flex w-full items-baseline justify-between gap-2'

@@ -1,4 +1,5 @@
 import type { Status } from '@/lib/useHouse'
+import type { NotifyState } from '@/lib/useMotionNotifications'
 import type { Camera, EventRow, TabId } from '@/types'
 
 export interface AppUIProps {
@@ -11,6 +12,9 @@ export interface AppUIProps {
   lampCount: number | null
   /** Écran de téléphone (sous 1024 px) : la vue d'une caméra prend tout l'écran, sans titre ni menu. */
   mobile: boolean
+  /** Les notifications de mouvement : non prises en charge, bloquées par le navigateur, coupées ou activées. */
+  notify: NotifyState
+  onNotify: () => void
   tab: TabId
   /** Le nom de la caméra ouverte en détail, ou null pour la mosaïque. */
   openCamera: string | null

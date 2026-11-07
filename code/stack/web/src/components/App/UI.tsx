@@ -6,11 +6,11 @@ import Home from '@/components/Home'
 import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
-import { BACK_CLASS, BACK_LABEL, CAMERA_WORD, COUNTS_SEPARATOR, LAMP_WORD, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_LABEL, TITLE } from './constants'
+import { BACK_CLASS, NOTIFY_LABEL, BACK_LABEL, CAMERA_WORD, COUNTS_SEPARATOR, LAMP_WORD, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_LABEL, TITLE } from './constants'
 import { countText, eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, apiKey, cameras, events, lampCount, mobile, tab, openCamera, onOpenCamera, tabs, onTab, onConnect, onForget }: AppUIProps) => {
+const AppUI = ({ status, message, apiKey, cameras, events, lampCount, mobile, notify, onNotify, tab, openCamera, onOpenCamera, tabs, onTab, onConnect, onForget }: AppUIProps) => {
   const ready = status === 'ready'
   // La caméra ouverte en détail, si elle existe encore ; sinon la mosaïque.
   const current = cameras.find((camera) => camera.name === openCamera)
@@ -31,7 +31,18 @@ const AppUI = ({ status, message, apiKey, cameras, events, lampCount, mobile, ta
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
         tabs={ready ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
-        actions={ready ? <Button onClick={onForget}>{FORGET_LABEL}</Button> : undefined}
+        actions={
+          ready ? (
+            <>
+              {notify === 'unsupported' ? null : (
+                <Button variant={notify === 'on' ? 'active' : 'default'} disabled={notify === 'denied'} onClick={onNotify}>
+                  {NOTIFY_LABEL[notify]}
+                </Button>
+              )}
+              <Button onClick={onForget}>{FORGET_LABEL}</Button>
+            </>
+          ) : undefined
+        }
       />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}

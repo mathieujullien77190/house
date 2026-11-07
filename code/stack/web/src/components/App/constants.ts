@@ -21,3 +21,4 @@ export const COUNTS_SEPARATOR = ' / '
 export const NO_CAMERA_TEXT = 'Aucune caméra : House Sync n’a encore rien écrit.'
 
 export const BACK_CLASS = 'mt-4'
+export const NOTIFY_LABEL = { unsupported: '', denied: '🔔 Bloquées par le navigateur', off: '🔔 Notifications', on: '🔔 Notifications activées' } as const

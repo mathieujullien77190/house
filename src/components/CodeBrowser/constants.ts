@@ -258,6 +258,8 @@ export const EXPLANATIONS: Record<string, string> = {
   'sync/src/http.ts': 'Les petits outils HTTP de House Sync : lire un corps JSON borné, répondre en JSON, valider un entier de réglage.',
   'sync/web/src/lib/useFilter.ts': 'Le filtre d’un tableau (valeur et jour) : chaque changement revient à la première page ; partagé par les tables et les clips.',
   'ui/src/components/TopBar/TopBar.tsx': 'La barre du haut des deux apps, collée en haut de l’écran quand on défile : le titre (cliquable dans la WebApp), les onglets, l’état et les boutons à droite.',
+  'web/src/lib/useMotionNotifications.ts': 'Les notifications de mouvement : tant que la WebApp est ouverte (même cachée), chaque nouvel événement affiche une notification du système, par le service worker ou en direct ; rien pour ceux d’avant l’activation.',
+  'web/public/sw.js': 'Le service worker de la WebApp : il affiche les notifications de mouvement (obligatoire sur Android) et ramène sur la WebApp au clic. Aucun cache.',
   'ui/src/components/Select/Select.tsx': 'Une liste déroulante stylée à la place du select natif : un bouton qui montre le choix, une liste dessous, clavier (flèches, Entrée, Échap) et clic ailleurs pour fermer.',
   'ui/src/components/TableFilters/TableFilters.tsx': 'Les filtres d’un tableau : une liste de valeurs (caméra, matériel Hue), un jour, « Effacer les filtres », et des commandes en plus avant eux (onglets).',
   'ui/src/components/StackedDate/StackedDate.tsx': 'Une date et son heure sur deux lignes, pour que les colonnes de dates des tableaux restent étroites.',
