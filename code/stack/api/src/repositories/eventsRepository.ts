@@ -20,6 +20,9 @@ export const createEventsRepository = (db: Database) => ({
       query.to ?? 0,
       limit,
     ),
+  /** Les événements de ces identifiants, plus récents d'abord (ceux qui n'existent plus sont ignorés). */
+  byIds: (ids: string[]): EventRow[] =>
+    ids.length === 0 ? [] : db.all<EventRow>(`SELECT * FROM events WHERE id IN (${ids.map(() => '?').join(', ')}) ORDER BY started_at DESC`, ...ids),
   /** Le dernier événement de chaque caméra. */
   lastPerCamera: (): EventRow[] =>
     db.all<EventRow>(

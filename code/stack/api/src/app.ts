@@ -6,19 +6,18 @@ import { createBackupFiles } from './lib/backupFiles.ts'
 import { errorHandler, notFound } from './middleware/errorHandler.ts'
 import { createCamerasRepository } from './repositories/camerasRepository.ts'
 import { createEventsRepository } from './repositories/eventsRepository.ts'
-import { createLampRepository } from './repositories/lampRepository.ts'
 import { createSnapshotsRepository } from './repositories/snapshotsRepository.ts'
 import { createRoutes } from './routes/index.ts'
 import { createCamerasService } from './services/camerasService.ts'
 import { createEventsService } from './services/eventsService.ts'
 import { createHueClient } from './lib/hueClient.ts'
 import { createPositionsStore } from './lib/positionsStore.ts'
+import { createSavedClipsStore } from './lib/savedClipsStore.ts'
 import { createKasaClient } from './lib/kasaClient.ts'
 import { createSwitchClient } from './lib/switchClient.ts'
 import { createHueService } from './services/hueService.ts'
 import { createPlugService } from './services/plugService.ts'
 import { createPoeService } from './services/poeService.ts'
-import { createLampService } from './services/lampService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
 
@@ -28,12 +27,12 @@ export const createApp = (config: Config): Express => {
   const live = createLiveService(config.go2rtcUrls, cameras)
   const services = {
     cameras: createCamerasService(cameras),
-    events: createEventsService(createEventsRepository(db)),
+    events: createEventsService(createEventsRepository(db), createSavedClipsStore(`${config.stateDir}/saved-clips.json`)),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
-    lamp: createLampService(createLampRepository(db)),
     files: createBackupFiles(config.dataDir),
     hue: config.hue ? createHueService(createHueClient(config.hue), createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
+    guest: config.guest,
     plug: config.plug ? createPlugService(createKasaClient(config.plug)) : null,
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }

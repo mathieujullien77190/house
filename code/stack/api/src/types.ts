@@ -30,4 +30,6 @@ export interface EventDto {
   clip_h264: string | null
   /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null. */
   clip_started_at: number | null
+  /** Sauvegardé : House Sync ne l'efface jamais (les autres le sont après la durée de garde). */
+  saved: boolean
 }
