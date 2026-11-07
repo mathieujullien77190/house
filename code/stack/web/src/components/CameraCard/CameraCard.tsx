@@ -59,7 +59,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   // Le clip que l'appareil n'arrive pas à lire : son message (et « Fermer ») doivent se voir, pas rester dans le lecteur caché.
   const [failedClip, setFailedClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
-  const { power, setPower } = usePower(apiKey, camera.name)
+  const { power, setPower, failed: powerFailed } = usePower(apiKey, camera.name)
   // « Afficher en grand » : le média en plein écran, en paysage.
   const bigView = useBigView()
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
@@ -152,7 +152,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
         <>
           {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]} value={quality} onChange={changeQuality} /> : null}
           {selected || cursor !== null ? null : <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />}
-          <PowerButton apiKey={apiKey} camera={camera.name} power={power} onPower={setPower} />
+          <PowerButton apiKey={apiKey} camera={camera.name} power={power} unavailable={powerFailed} hideOff={mobile} onPower={setPower} />
         </>
       }
       media={media}

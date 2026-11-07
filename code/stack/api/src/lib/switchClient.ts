@@ -27,6 +27,9 @@ const CLASS_4_WATTS = 30
 const CLASS_4_OPTION = 4
 const MANUAL_OPTION = 5
 const TIMEOUT_MS = 8000
+/** Après un refus de connexion, le switch n'est pas relancé pendant ce temps : on répond le même refus sans le déranger. */
+const REFUSED_COOLDOWN_MS = 60_000
+const REFUSED_TEXT = 'switch : connexion refusée (compte ou mot de passe)'
 
 const arrayOf = (script: string, name: string): number[] => {
   const match = new RegExp(`${name}:\\s*\\[([^\\]]*)\\]`).exec(script)
@@ -92,11 +95,17 @@ export const createSwitchClient = (config: SwitchConfig) => {
       request.end()
     })
 
+  let refusedUntil = 0
   const login = async (): Promise<string> => {
+    if (Date.now() < refusedUntil) throw new Error(REFUSED_TEXT)
     const body = new URLSearchParams({ username: config.user, password: config.password, logon: 'Login' }).toString()
     const reply = await send('/logon.cgi', '', body)
     // La page de réponse porte « allow = 1 » quand la connexion est acceptée.
-    if (!/allow\s*=\s*1/.test(reply.text)) throw new Error('switch : connexion refusée (compte ou mot de passe)')
+    if (!/allow\s*=\s*1/.test(reply.text)) {
+      refusedUntil = Date.now() + REFUSED_COOLDOWN_MS
+      throw new Error(REFUSED_TEXT)
+    }
+    refusedUntil = 0
     return reply.cookies.join('; ')
   }
 

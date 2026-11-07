@@ -1,19 +1,30 @@
 import { useState } from 'react'
 import { Button } from '@house/ui'
 import { setCameraPower } from '@/lib/api'
-import { ERROR_TEXT, LABELS, STATUS_CLASS, WRAP_CLASS } from './constants'
+import { ERROR_TEXT, LABELS, STATUS_CLASS, UNAVAILABLE_LABEL, UNAVAILABLE_TEXT, WRAP_CLASS } from './constants'
 import { statusText } from './helpers'
 import type { PowerButtonProps } from './types'
 
 /**
  * Allume ou éteint une caméra : House API coupe ou rend le PoE de son port sur le switch. Un clic suffit, dans
- * les deux sens. Sans switch configuré (503), rien ne s'affiche.
+ * les deux sens. Sans switch configuré (503), rien ne s'affiche ; si le switch ne répond pas, un bouton grisé le dit.
  */
-const PowerButton = ({ apiKey, camera, power, onPower }: PowerButtonProps) => {
+const PowerButton = ({ apiKey, camera, power, unavailable = false, hideOff = false, onPower }: PowerButtonProps) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  if (!power) return null
+  if (!power) {
+    // Sans état connu : rien (pas de switch configuré), ou un bouton grisé qui dit pourquoi (le switch ne répond pas).
+    if (!unavailable) return null
+    return (
+      <div className={WRAP_CLASS}>
+        <Button disabled>{UNAVAILABLE_LABEL}</Button>
+        <span className={STATUS_CLASS}>{UNAVAILABLE_TEXT}</span>
+      </div>
+    )
+  }
+
+  if (hideOff && power.on) return null
 
   const change = async (on: boolean) => {
     setBusy(true)
