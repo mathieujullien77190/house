@@ -18,6 +18,8 @@ export interface EventRow {
   clip_h264: string | null
   /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null (anciens clips). */
   clip_started_at: number | null
+  /** Sauvegardé : jamais effacé par le ménage (les autres clips le sont après la durée de garde réglée dans House Sync). */
+  saved: boolean
 }
 
 /** L'alimentation d'une caméra, lue sur le switch (service poe). */
@@ -33,7 +35,7 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'cameras' | 'lights' | 'plug' | 'api'
+export type TabId = 'home' | 'cameras' | 'lights' | 'plug' | 'api'
 
 /** La prise connectée (TP-Link Kasa), telle que House API la décrit. */
 export interface PlugState {
@@ -96,4 +98,12 @@ export interface HueState {
 /** Une caméra avec tout ce que la page sait d'elle. */
 export interface Camera {
   name: string
+}
+
+/** De quoi bâtir le lien de la page invité (GET /guest). */
+export interface GuestInfo {
+  key: string
+  port: number
+  /** L'adresse publique, vide tant que la page n'est pas ouverte à internet. */
+  url: string
 }

@@ -1,6 +1,6 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
-import type { CameraPower, CameraRow, EventRow, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
+import type { CameraPower, CameraRow, EventRow, GuestInfo, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -41,6 +41,20 @@ export const fetchEvents = async (key: string, window?: EventsWindow): Promise<E
   }
   return (await request(key, query.size > 0 ? `/events?${query.toString()}` : '/events')).json()
 }
+/** Sauvegarde (à garder pour toujours) ou libère le clip d'un événement. */
+export const setClipSaved = async (key: string, id: string, saved: boolean): Promise<void> => {
+  const res = await fetch(`/clips/${encodeURIComponent(id)}/saved`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ saved }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/clips : HTTP ${res.status}`)
+}
+/** Les clips sauvegardés (à garder pour toujours), les plus récents d'abord. */
+export const fetchSavedEvents = async (key: string): Promise<EventRow[]> => (await request(key, '/events?saved=1')).json()
+/** De quoi bâtir le lien de la page invité (sa clé, son port, son adresse publique) ; échoue (503) sans page invité configurée. */
+export const fetchGuest = async (key: string): Promise<GuestInfo> => (await request(key, '/guest')).json()
 export const fetchPower = async (key: string): Promise<CameraPower[]> => (await request(key, '/poe')).json()
 
 /** Allume (on) ou éteint une caméra : House API coupe ou rend le PoE de son port sur le switch. */
@@ -105,17 +119,6 @@ export const saveLampPositions = async (key: string, changes: Record<string, { x
 /** Les instants (secondes) où House Sync a gardé une image de cette caméra, entre from et to. */
 export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>
   (await request(key, `/snapshots?camera=${encodeURIComponent(camera)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
-
-/** Une plage où une lampe était allumée (secondes) ; `open` : elle l'est encore. */
-export interface LampPeriod {
-  from: number
-  to: number
-  open?: boolean
-}
-
-/** Les plages où la lampe de ce nom était allumée entre from et to, d'après le journal de House Sync. */
-export const fetchLampPeriods = async (key: string, name: string, from: number, to: number): Promise<LampPeriod[]> =>
-  (await request(key, `/lamp-history?name=${encodeURIComponent(name)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
 
 /** L'image la plus proche d'un instant, avec son identifiant (son instant exact ; 404 s’il n’y en a pas à cinq minutes près). */
 export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<{ blob: Blob; takenAt: number | null }> => {

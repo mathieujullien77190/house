@@ -5,8 +5,8 @@
 export const CLIP_MAX_LEAD_SECONDS = 5
 export const CAMERA_TITLE_PREFIX = 'Caméra : '
 export const LIVE_CAPTION = 'Direct'
-/** Le détecteur du pont Hue dont la température s'affiche sur la vidéo de chaque caméra (identifiants du pont) : « motion fond » et « motion porte ». */
-export const CAMERA_SENSOR: Record<string, string> = { 'perruche-fond': '54', 'perruche-porte': '57' }
+/** Le détecteur du pont Hue dont la température s'affiche sur la vidéo de chaque caméra (identifiants du pont) : « motion exterieur » (57) pour voliere-exterieur, « motion interieur » (54) pour voliere-interieur. */
+export const CAMERA_SENSOR: Record<string, string> = { 'voliere-exterieur': '57', 'voliere-interieur': '54' }
 export const TEMPERATURE_LABEL = 'Température · '
 export const TEMPERATURE_UNKNOWN_TEXT = 'inconnue'
 /** Le direct est un flux MJPEG que l'API relaie depuis go2rtc (le flux léger de la caméra, recodé en JPEG). */
@@ -22,6 +22,11 @@ export const QUALITY_OPTIONS = [
 export const QUALITY_OPTIONS_SHORT = [
   { id: 'h264', label: '720p' },
   { id: 'original', label: '4K' },
+] as const
+export const SAVE_LABEL = 'Sauvegarder le clip (jamais effacé)'
+export const SAVE_OPTIONS = [
+  { id: 'no', label: 'Non sauvegardé' },
+  { id: 'yes', label: 'Sauvegardé' },
 ] as const
 export const LIVE_QUALITY_LABEL = 'Qualité du direct'
 export const LIVE_QUALITY_OPTIONS = [

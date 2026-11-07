@@ -2,6 +2,9 @@ import { useCallback, useState } from 'react'
 import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
 import PowerButton from '@/components/PowerButton'
+import ShareButton from '@/components/ShareButton'
+import { setClipSaved } from '@/lib/api'
+import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
 import { useMobile } from '@/lib/useMobile'
@@ -25,6 +28,8 @@ import {
   QUALITY_LABEL,
   QUALITY_OPTIONS,
   QUALITY_OPTIONS_SHORT,
+  SAVE_LABEL,
+  SAVE_OPTIONS,
   CAMERA_SENSOR,
 } from './constants'
 import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
@@ -52,8 +57,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   const [resumeAt, setResumeAt] = useState(0)
   // La résolution réelle du direct, lue dans l'image du navigateur à la première image reçue.
   const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null)
-  // Le direct léger par défaut ; le 4K est recodé en MJPEG par le mini PC, donc seulement sur demande.
-  const [liveQuality, setLiveQuality] = useState<LiveQuality>('light')
+  // Le direct en 4K par défaut (le 4K est recodé en MJPEG par le mini PC : lourd) ; « Léger » reste au choix.
+  const [liveQuality, setLiveQuality] = useState<LiveQuality>('hd')
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
   const [readyClip, setReadyClip] = useState('')
   // Le clip que l'appareil n'arrive pas à lire : son message (et « Fermer ») doivent se voir, pas rester dans le lecteur caché.
@@ -65,11 +70,13 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
   const pinchZoom = usePinchZoom(bigView.big)
   const now = useClock(bigView.big)
-  // La température du détecteur de la caméra (« motion fond » pour perruche-fond, « motion porte » pour perruche-porte), sur la vidéo.
+  // La température du détecteur de la caméra (« motion exterieur » pour voliere-exterieur, « motion interieur » pour voliere-interieur), sur la vidéo.
   const sensorId = CAMERA_SENSOR[camera.name]
   const showTemperatures = sensorId !== undefined
   const sensors = useSensors(apiKey, showTemperatures)
-  const temperatures = showTemperatures ? temperatureItems(sensors, [sensorId]) : []
+  // La température ne se montre qu'en direct : pas pendant un clip ni sur l'image d'un instant passé (elle serait celle d'aujourd'hui).
+  const isLive = picked === null && cursor === null
+  const temperatures = showTemperatures && isLive ? temperatureItems(sensors, [sensorId]) : []
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
@@ -97,6 +104,24 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
     setResumeAt(playhead !== null && selected ? Math.max(0, playhead - (selected.started_at - lead)) : 0)
     setQuality(next)
   }
+
+  // Le clip sauvegardé : l'état de la liste d'événements, ou celui qu'on vient de choisir (la liste se relit plus tard). Un échec remet l'état d'avant.
+  const [savedChoice, setSavedChoice] = useState<Record<string, boolean>>({})
+  const isSaved = selected ? (savedChoice[selected.id] ?? selected.saved) : false
+  const changeSaved = (next: string) => {
+    if (!selected || (next === 'yes') === isSaved) return
+    const id = selected.id
+    const before = isSaved
+    setSavedChoice((current) => ({ ...current, [id]: next === 'yes' }))
+    setClipSaved(apiKey, id, next === 'yes').catch(() => setSavedChoice((current) => ({ ...current, [id]: before })))
+  }
+
+  // L'interrupteur « Sauvegardé » n'existe que sur grand écran : sur téléphone on ne sauvegarde pas un clip (seul le partage d'un clip déjà sauvegardé reste).
+  const saveToggle = <Tabs label={SAVE_LABEL} options={[...SAVE_OPTIONS]} value={isSaved ? 'yes' : 'no'} onChange={changeSaved} />
+
+  // Un clip sauvegardé se partage : le menu de partage du système sur téléphone, le téléchargement ailleurs.
+  const sharePath = selected ? (selected.clip_h264 ?? selected.clip) : null
+  const shareButton = isSaved && selected && sharePath ? <ShareButton path={sharePath} name={selected.id} title={describeEvent(selected)} /> : null
 
   const back = () => {
     setFailedClip('')
@@ -150,6 +175,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
       caption={captionOf(cursor, selected, liveCaption(placeholder ? null : liveSize))}
       actions={
         <>
+          {selected?.clip && !mobile ? saveToggle : null}
+          {!mobile ? shareButton : null}
           {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]} value={quality} onChange={changeQuality} /> : null}
           {selected || cursor !== null ? null : <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />}
           <PowerButton apiKey={apiKey} camera={camera.name} power={power} unavailable={powerFailed} hideOff={mobile} onPower={setPower} />
@@ -162,7 +189,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
       onCollapse={bigView.close}
       mediaGesture={pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
-      details={temperatures.length > 0 && mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
+      // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
+      details={mobile ? (selected?.clip ? (shareButton ?? undefined) : temperatures.length > 0 ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
       overlay={temperatures.length > 0 && !mobile ? <ValueChips values={temperatures.map((item) => item.value)} /> : undefined}
@@ -177,11 +205,12 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
           clipRange={clipRange}
           onCursor={setCursor}
           onEvent={(event, at) => {
+            // Le même clip rouvert garde sa durée (son lecteur ne la relit pas) ; un autre événement l'oublie.
+            if (event?.id !== picked?.id) setVideoDuration(null)
             setSelected(event)
             setPlays((count) => count + 1)
             setResumeAt(0)
             setPlayhead(at)
-            setVideoDuration(null)
           }}
         />
       }

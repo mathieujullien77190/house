@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Timeline as TimelineUI } from '@house/ui'
-import { fetchEvents, fetchLampPeriods, fetchSnapshotTimes, type LampPeriod } from '@/lib/api'
+import { fetchEvents, fetchSnapshotTimes } from '@/lib/api'
 import { useMobile } from '@/lib/useMobile'
 import type { EventRow } from '@/types'
-import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, LAMP_NAME, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
-import { alongOf, axisLength, buildCoverage, buildLampSpans, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt, windowText } from './helpers'
+import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
+import { alongOf, axisLength, buildCoverage, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt } from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
@@ -24,10 +24,10 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   const [selectedId, setSelectedId] = useState('')
   // La carte a fermé l'événement (bouton « Fermer » du lecteur) : la sélection de la frise suit, sinon le curseur resterait figé.
   if (selectedEventId === '' && selectedId !== '') setSelectedId('')
+  // Le clip ouvert reste choisi dans la frise (un reclic sur son bloc ne le désélectionne pas).
+  if (selectedEventId && selectedId !== selectedEventId) setSelectedId(selectedEventId)
   const [cursor, setCursor] = useState<number | null>(null)
   const [times, setTimes] = useState<number[]>([])
-  // Les plages où la lampe de la volière était allumée, pour la fenêtre affichée (trait jaune).
-  const [lampPeriods, setLampPeriods] = useState<LampPeriod[]>([])
   const bucket = fetchBucket(end, seconds)
   // L'instant de la dernière image demandée au parent et l'heure du dernier pas : le curseur avance en temps réel.
   const reported = useRef<number | null>(null)
@@ -35,7 +35,6 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   const [dragging, setDragging] = useState(false)
   // Les événements de la fenêtre (demandés avec from et to : l'historique, pas seulement les 200 derniers) et le nombre de plus anciens.
   const [history, setHistory] = useState<EventRow[]>([])
-  const [olderCount, setOlderCount] = useState<number | null>(null)
   const axisRef = useRef<HTMLDivElement>(null)
   // La longueur de l'axe (largeur, ou hauteur s'il est vertical) : une frise courte porte moins de graduations.
   const [axisSize, setAxisSize] = useState(0)
@@ -87,32 +86,14 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, camera, bucket, seconds, dragging])
 
-  // Les plages d'allumage de la lampe, relues comme les instants d'image (même cadence).
-  useEffect(() => {
-    if (dragging) return
-    let cancelled = false
-    fetchLampPeriods(apiKey, LAMP_NAME, end - seconds, end)
-      .then((list) => {
-        if (!cancelled) setLampPeriods(list)
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-    // Comme pour les images : seul bucket relance la requête.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, bucket, seconds, dragging])
-
   // Les événements de la fenêtre affichée, demandés à l'API une fois la fenêtre posée (glisser et zoom changent vite).
   useEffect(() => {
     let cancelled = false
     const timer = setTimeout(() => {
       const start = end - seconds
-      Promise.all([fetchEvents(apiKey, { camera, from: start, to: end }), fetchEvents(apiKey, { camera, to: start })])
-        .then(([inWindow, before]) => {
-          if (cancelled) return
-          setHistory(inWindow)
-          setOlderCount(before.filter((event) => (event.ended_at ?? event.started_at) < start).length)
+      fetchEvents(apiKey, { camera, from: start, to: end })
+        .then((inWindow) => {
+          if (!cancelled) setHistory(inWindow)
         })
         .catch(() => undefined)
     }, EVENTS_DEBOUNCE_MS)
@@ -202,6 +183,12 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     const event = events.find((e) => e.id === id) ?? null
     // Un clic sur un événement lit son clip depuis le début de la vidéo : le curseur se place là, pas à l'endroit cliqué.
     const at = event ? (event.clip_started_at ?? event.started_at) : null
+    // Reclic sur le clip déjà ouvert : il repart du début, rien d'autre ne change (ni la fenêtre, ni l'image).
+    if (event && id === selectedId) {
+      lastStep.current = nowSeconds() * 1000
+      onEvent(event, at)
+      return
+    }
     setSelectedId(event ? id : '')
     lastStep.current = nowSeconds() * 1000
     onEvent(event, at)
@@ -279,8 +266,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     chooseCursor(Math.min(nowSeconds(), Math.round(timeAt(fraction, end, seconds))))
   }
 
-  const { markers, older: olderKnown } = buildMarkers(events, seconds, end, selectedId, nowSeconds())
-  const older = olderCount ?? olderKnown
+  const { markers } = buildMarkers(events, seconds, end, selectedId, nowSeconds())
   // Pendant la lecture d'un clip, le curseur suit la vidéo.
   const shownCursor = selectedId && playhead !== null ? playhead : cursor
   const nowPosition = positionOf(nowSeconds(), end, seconds)
@@ -298,15 +284,12 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
       ranges={RANGES}
       range={presetOf(seconds)}
       live={live}
-      windowText={windowText(seconds, end)}
       ticks={buildTicks(seconds, end, maxTicksFor(axisSize, vertical))}
       markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
-      lamp={buildLampSpans(lampPeriods, seconds, end, nowSeconds())}
       nowX={nowX}
       clipSpan={clipSpan}
       cursorX={cursorX !== null && cursorX >= 0 && cursorX <= 100 ? cursorX : null}
-      older={older}
       axisRef={axisRef}
       onRange={(id) => {
         place(live ? Infinity : end, secondsOf(id))

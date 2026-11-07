@@ -1,6 +1,5 @@
 import type { TimelineSegment, TimelineTick } from '@house/ui'
-import type { LampPeriod } from '@/lib/api'
-import { describeEvent, formatTime } from '@/lib/format'
+import { describeEvent } from '@/lib/format'
 import type { EventRow } from '@/types'
 import { COVERAGE_GAP, FUTURE_SHARE, MARKER_LEAD_SECONDS, MAX_REFRESH_MS, MAX_TICKS, MAX_WINDOW, MIN_REFETCH_SECONDS, MIN_REFRESH_MS, MIN_TICKS, REFETCH_DIVISOR, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_MIN_PX, TICK_MIN_PX_VERTICAL, TICK_STEPS } from './constants'
 import type { Marker, RangeId } from './types'
@@ -71,7 +70,7 @@ export const mergeEvents = (recent: EventRow[], history: EventRow[]): EventRow[]
 }
 
 /** Les événements qui touchent la fenêtre, posés sur l'axe, et le nombre de ceux qui sont plus anciens. */
-export const buildMarkers = (events: EventRow[], seconds: number, end: number, selectedId: string, now: number): { markers: Marker[]; older: number } => {
+export const buildMarkers = (events: EventRow[], seconds: number, end: number, selectedId: string, now: number): { markers: Marker[] } => {
   const start = end - seconds
   // Un événement en cours s'arrête à maintenant, jamais dans le futur.
   const until = Math.min(end, now)
@@ -90,7 +89,7 @@ export const buildMarkers = (events: EventRow[], seconds: number, end: number, s
       ongoing: event.ended_at === null,
     }
   })
-  return { markers, older: events.filter((event) => (event.ended_at ?? event.started_at) < start).length }
+  return { markers }
 }
 
 /** Les plages couvertes par des images (instants rapprochés), en % de la fenêtre. */
@@ -114,23 +113,6 @@ export const buildCoverage = (times: number[], seconds: number, end: number): Ti
   push()
   return segments
 }
-
-/** Les plages où la lampe était allumée, en % de la fenêtre (rognées à ses bords) ; une plage ouverte va jusqu'à `now`. */
-export const buildLampSpans = (periods: LampPeriod[], seconds: number, end: number, now: number): TimelineSegment[] =>
-  periods.flatMap((period) => {
-    const x = Math.max(0, positionOf(period.from, end, seconds))
-    const right = Math.min(100, positionOf(period.open ? now : period.to, end, seconds))
-    return right > x ? [{ x, width: right - x }] : []
-  })
-
-const formatWindow = (seconds: number): string => {
-  if (seconds < 120) return `${seconds} s`
-  if (seconds < 7200) return `${Math.round(seconds / 60)} min`
-  if (seconds < 2 * 86400) return `${(seconds / 3600).toFixed(seconds % 3600 ? 1 : 0)} h`
-  return `${(seconds / 86400).toFixed(seconds % 86400 ? 1 : 0)} j`
-}
-
-export const windowText = (seconds: number, end: number): string => `${formatTime(end - seconds)} → ${formatTime(end)} · ${formatWindow(seconds)}`
 
 /** La fenêtre qui met un événement au centre, sa durée occupant une part donnée de l'axe. */
 export const focusOn = (event: EventRow, share: number, now: number): { seconds: number; end: number } => {

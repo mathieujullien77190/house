@@ -3,8 +3,6 @@ import type { RangeId } from './types'
 const MINUTE = 60
 const HOUR = 3600
 const DAY = 86400
-/** La lampe dont la frise montre les plages allumées (trait jaune) : celle de la volière, son nom dans le pont Hue. */
-export const LAMP_NAME = 'Lampe cage perruche'
 /** Les raccourcis de fenêtre, en secondes. */
 export const RANGES: { id: RangeId; label: string; seconds: number }[] = [
   { id: '10m', label: '10 min', seconds: 10 * MINUTE },

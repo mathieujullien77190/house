@@ -2,6 +2,7 @@ import { Button, Notice, Page, PageHeader, Tabs } from '@house/ui'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
+import Home from '@/components/Home'
 import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
@@ -24,7 +25,7 @@ const AppUI = ({ status, message, apiKey, cameras, events, lampCount, mobile, ta
   }
   return (
     <Page>
-      <PageHeader title={TITLE} status={message || statusText} tone={message ? 'error' : 'muted'} actions={
+      <PageHeader title={TITLE} onTitle={ready ? () => onTab('home') : undefined} status={message || statusText} tone={message ? 'error' : 'muted'} actions={
           ready ? (
             <div className={ACTIONS_CLASS}>
               <Button onClick={onForget}>{FORGET_LABEL}</Button>
@@ -40,6 +41,7 @@ const AppUI = ({ status, message, apiKey, cameras, events, lampCount, mobile, ta
           <div className={TABS_CLASS}>
             <Tabs label={TABS_LABEL} options={tabs} value={tab} onChange={onTab} />
           </div>
+          {tab === 'home' ? <Home apiKey={apiKey} /> : null}
           {tab === 'cameras' ? (
             cameras.length === 0 ? (
               <Notice text={NO_CAMERA_TEXT} />
