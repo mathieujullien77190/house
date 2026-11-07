@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
 import { fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
 import type { Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
@@ -30,27 +30,44 @@ const App = () => {
   const [refreshTick, setRefreshTick] = useState(0)
   const [tab, setTab] = useState<TabId>(DEFAULT_TAB)
 
+  // Compte les déconnexions : un chargement parti avant « Quitter » ne doit pas rouvrir la page quand il finit.
+  const generation = useRef(0)
+
   // Charge la vue d'ensemble ; une session absente ou expirée ramène au formulaire.
   const refresh = useCallback(async () => {
+    const started = generation.current
     try {
-      setOverview(await fetchOverview())
-      // La consommation est secondaire : si elle ne se lit pas, le reste de la page marche quand même.
-      setPower(await fetchPower().catch(() => null))
-      setSystem(await fetchSystem().catch(() => null))
-      setSpecs(await fetchSpecs().catch(() => null))
-      setDocker(await fetchDocker().catch(() => null))
-      setNetwork(await fetchNetwork().catch(() => null))
-      setBridge(await fetchHue().catch(() => null))
+      const next = await fetchOverview()
+      // Le reste est secondaire (si une mesure ne se lit pas, la page marche quand même) et se charge en parallèle.
+      const [nextPower, nextSystem, nextSpecs, nextDocker, nextNetwork, nextBridge] = await Promise.all([
+        fetchPower().catch(() => null),
+        fetchSystem().catch(() => null),
+        fetchSpecs().catch(() => null),
+        fetchDocker().catch(() => null),
+        fetchNetwork().catch(() => null),
+        fetchHue().catch(() => null),
+      ])
+      if (generation.current !== started) return
+      setOverview(next)
+      setPower(nextPower)
+      setSystem(nextSystem)
+      setSpecs(nextSpecs)
+      setDocker(nextDocker)
+      setNetwork(nextNetwork)
+      setBridge(nextBridge)
       setLoadedAt(new Date().toLocaleTimeString('fr-FR'))
       setRefreshTick((tick) => tick + 1)
       setStatus('ready')
       setMessage('')
     } catch (error) {
+      if (generation.current !== started) return
       if (isLoginRequired(error)) {
         setStatus('locked')
         setOverview(null)
       } else {
         setMessage(errorMessage(error))
+        // Jamais bloqué sur « Vérification… » : sans page déjà affichée, le formulaire revient (avec le message) pour réessayer.
+        setStatus((current) => (current === 'ready' ? current : 'locked'))
       }
     }
   }, [])
@@ -100,6 +117,7 @@ const App = () => {
   }
 
   const quit = async () => {
+    generation.current += 1
     await logout()
     setOverview(null)
     setMedia(null)

@@ -4,7 +4,7 @@ import { useMobile } from '@/lib/useMobile'
 import { usePinchZoom } from '@/lib/usePinchZoom'
 import { ApiError, fetchAutomations, fetchLampPositions, fetchLights, fetchSensors, saveLampPositions, setHue } from '@/lib/api'
 import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
-import { ALL_KEY, BACK_LABEL, AUTOMATIONS_POLL_MS, AUTOMATIONS_TITLE, DESKTOP_QUERY, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
+import { ALL_KEY, BACK_LABEL, AUTOMATIONS_POLL_MS, AUTOMATIONS_TITLE, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
 import { allLights, buildAutomationItems, buildZones, clearLegacyPositions, defaultPositions, planLamps, readLegacyPositions } from './helpers'
 import type { LightsProps, LightsStatus, Positions } from './types'
 
@@ -25,8 +25,6 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
   const [positions, setPositions] = useState<Positions>({})
-  // Écran de bureau ou mobile, lu une fois au départ : sur mobile les automatisations commencent fermées (le plan est ouvert partout).
-  const [planOpen] = useState(() => window.matchMedia(DESKTOP_QUERY).matches)
   // Les positions déplacées et pas encore envoyées à l'API, et le délai avant de les envoyer.
   const pending = useRef<Positions>({})
   const timer = useRef<number | undefined>(undefined)
@@ -128,27 +126,30 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
 
   const changeLight = (id: string, state: HueState) => run(`light:${id}`, () => setHue(apiKey, 'lights', id, state))
 
-  // Une zone se commande lampe par lampe (le pont ne connaît pas nos zones) : seules les lampes qui répondent sont touchées.
-  const changeZone = (id: string, state: HueState) =>
-    run(`room:${id}`, async () => {
-      let list: HueRoom[] | null = null
-      for (const light of zones.find((zone) => zone.id === id)?.lights ?? []) {
-        if (light.reachable) list = await setHue(apiKey, 'lights', light.id, state)
+  // Commande des lampes une par une (le pont ne connaît pas nos zones) : seules celles qui répondent sont touchées. Une lampe qui échoue
+  // ne bloque pas les suivantes, et l'écran montre toujours ce qui a changé ; l'erreur est rendue à la fin.
+  const eachLight = async (targets: { id: string; reachable: boolean }[], state: HueState): Promise<HueRoom[] | null> => {
+    let list: HueRoom[] | null = null
+    let failure: unknown = null
+    for (const light of targets) {
+      if (!light.reachable) continue
+      try {
+        list = await setHue(apiKey, 'lights', light.id, state)
+      } catch (error) {
+        failure = error
       }
-      return list
-    })
+    }
+    if (list) setRooms(list)
+    if (failure) throw failure
+    return list
+  }
+
+  // Une zone se commande lampe par lampe.
+  const changeZone = (id: string, state: HueState) => run(`room:${id}`, () => eachLight(zones.find((zone) => zone.id === id)?.lights ?? [], state))
 
   // Tout allumer ou tout éteindre : les lampes des zones (pas les lampes à placer, pas la volière) qui répondent, une par une.
   const changeAll = (on: boolean) =>
-    run(ALL_KEY, async () => {
-      let list: HueRoom[] | null = null
-      for (const zone of zones.filter((item) => !item.ungrouped && !EXCLUDED_FROM_ALL.includes(item.id))) {
-        for (const light of zone.lights) {
-          if (light.reachable) list = await setHue(apiKey, 'lights', light.id, { on })
-        }
-      }
-      return list
-    })
+    run(ALL_KEY, () => eachLight(zones.filter((item) => !item.ungrouped && !EXCLUDED_FROM_ALL.includes(item.id)).flatMap((zone) => zone.lights), { on }))
 
   const toggle = (id: string) => {
     const light = lights.find((item) => item.id === id)
@@ -161,15 +162,18 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
       <Notice text={text} />
     </>
   )
-  if (status === 'unavailable') return notice(NOT_CONFIGURED_TEXT)
-  if (status === 'error') return notice(ERROR_TEXT)
-  if (status === 'loading') return notice(LOADING_TEXT)
-  if (rooms.length === 0) return notice(EMPTY_TEXT)
+  if (rooms.length === 0) {
+    if (status === 'unavailable') return notice(NOT_CONFIGURED_TEXT)
+    if (status === 'error') return notice(ERROR_TEXT)
+    if (status === 'loading') return notice(LOADING_TEXT)
+    return notice(EMPTY_TEXT)
+  }
   const plan = <LightsPlan title={PLAN_TITLE} rooms={PLAN_ROOMS} walls={PLAN_WALLS} lamps={lamps} onMove={move} onToggle={toggle} screen={mobile} gesture={pinchZoom} onBack={onBack} backLabel={BACK_LABEL} />
   // Sur téléphone (sous 1024 px) l'onglet est un écran : le plan seul, en plein écran paysage, sans titre ni menu ni liste.
   if (mobile) return plan
   return (
     <>
+      {status === 'error' ? <Notice text={ERROR_TEXT} /> : null}
       <Collapsible title={PLAN_SECTION_TITLE} defaultOpen>
         {plan}
       </Collapsible>
@@ -183,7 +187,7 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
         onDraft={(key, percent) => setDrafts((current) => ({ ...current, [key]: percent }))}
       />
       {automations.length > 0 ? (
-        <Collapsible title={AUTOMATIONS_TITLE} detail={`${automations.filter((automation) => automation.enabled).length}/${automations.length} actives`} defaultOpen={planOpen}>
+        <Collapsible title={AUTOMATIONS_TITLE} detail={`${automations.filter((automation) => automation.enabled).length}/${automations.length} actives`} defaultOpen={!mobile}>
           <SpecList items={buildAutomationItems(automations)} />
         </Collapsible>
       ) : null}

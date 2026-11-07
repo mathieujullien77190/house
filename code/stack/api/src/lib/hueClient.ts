@@ -74,6 +74,9 @@ export const createHueClient = (config: HueConfig): HueClient => {
           let body = ''
           res.setEncoding('utf8')
           res.on('data', (chunk: string) => (body += chunk))
+          res.on('close', () => {
+            if (!res.complete) reject(new Error('pont Hue v2 : réponse coupée'))
+          })
           res.on('end', () => {
             if (res.statusCode !== 200) return reject(new Error(`pont Hue v2 : HTTP ${res.statusCode}`))
             try {

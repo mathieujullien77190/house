@@ -27,6 +27,8 @@ const RETRY_MIN_MS = 2000
 const RETRY_MAX_MS = 60_000
 /** Sans un octet pendant ce temps (le pont envoie un signe de vie régulier), on considère le flux mort. */
 const IDLE_MS = 5 * 60_000
+/** Un message du pont ne dépasse pas quelques Ko : sans fin de ligne au-delà, le flux est abandonné au lieu de grossir sans fin. */
+const MAX_BUFFER = 1_000_000
 
 /** Découpe un flux « text/event-stream » : appelle `onData` avec le texte de chaque message complet (lignes `data:`). */
 export const createSseParser = (onData: (data: string) => void) => {
@@ -34,6 +36,11 @@ export const createSseParser = (onData: (data: string) => void) => {
   let lines: string[] = []
   return (chunk: string): void => {
     buffer += chunk
+    if (buffer.length > MAX_BUFFER && !buffer.includes('\n')) {
+      buffer = ''
+      lines = []
+      return
+    }
     let end = buffer.indexOf('\n')
     while (end !== -1) {
       const line = buffer.slice(0, end).replace(/\r$/, '')

@@ -4,11 +4,13 @@
 // Seul House Sync écrit dans cette base ; House API la lit. Il sert aussi sa propre page (port 8081, HTTPS,
 // derrière la clé) qui montre la base et les fichiers du disque backup : l'API n'expose jamais la base brute.
 import { timingSafeEqual } from 'node:crypto'
-import { createReadStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer } from 'node:https'
 import { extname, resolve, sep } from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { readDocker } from './docker.ts'
 import { readSpecs } from './specs.ts'
@@ -31,6 +33,8 @@ const RECORDERS = (process.env.RECORDER_URLS ?? process.env.RECORDER_URL ?? 'htt
   .filter(Boolean)
 // La page de House Sync (une petite app React, dossier web) : sa clé (la même que l'API), son port et le certificat.
 const HOUSE_KEY = process.env.HOUSE_KEY ?? ''
+/** Une clé plus courte n'ouvre aucune session : la page reste fermée tant que HOUSE_KEY n'est pas réglée. */
+const MIN_KEY_LENGTH = 8
 const PAGE_PORT = Number(process.env.PAGE_PORT ?? 8081)
 const WEB_DIR = resolve(process.env.WEB_DIR ?? './web')
 const TLS_CERT = process.env.TLS_CERT ?? ''
@@ -112,26 +116,22 @@ db.exec(`
     merged_at INTEGER NOT NULL
   );
 `)
-// Les réglages de la sauvegarde, par caméra (réglés depuis la page) : garder ou non les clips, une image toutes les N secondes.
-// Les bases créées avant le mode « la nuit » ont `clips_enabled` seul.
-if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).some((column) => column.name === 'clips_mode')) {
-  db.exec('ALTER TABLE settings ADD COLUMN clips_mode TEXT')
-}
-if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).some((column) => column.name === 'live_fps')) {
-  db.exec('ALTER TABLE settings ADD COLUMN live_fps INTEGER')
-}
-if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).some((column) => column.name === 'light_fps')) {
-  db.exec('ALTER TABLE settings ADD COLUMN light_fps INTEGER')
-}
-// La cadence des directs sur un écran de moins de 1024 px (téléphone), réglée à part de celle du PC.
-for (const name of ['live_fps_mobile', 'light_fps_mobile']) {
-  if (!(db.prepare('PRAGMA table_info(settings)').all() as { name: string }[]).some((column) => column.name === name)) {
-    db.exec(`ALTER TABLE settings ADD COLUMN ${name} INTEGER`)
+/** Ajoute une colonne à une table qui existe déjà (les bases créées avant elle ne l'ont pas). */
+const addColumn = (table: string, column: string, type: string) => {
+  if (!(db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((existing) => existing.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
   }
 }
-const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, snapshot_seconds FROM settings WHERE camera = ?')
+// Les réglages de la sauvegarde, par caméra (réglés depuis la page) : garder ou non les clips, une image toutes les N secondes.
+// Les bases créées avant le mode « la nuit » ont `clips_enabled` seul.
+addColumn('settings', 'clips_mode', 'TEXT')
+addColumn('settings', 'live_fps', 'INTEGER')
+addColumn('settings', 'light_fps', 'INTEGER')
+// La cadence des directs sur un écran de moins de 1024 px (téléphone), réglée à part de celle du PC.
+for (const column of ['live_fps_mobile', 'light_fps_mobile', 'motion_sensitivity']) addColumn('settings', column, 'INTEGER')
+const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds FROM settings WHERE camera = ?')
 const saveSettings = db.prepare(
-  'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, snapshot_seconds = excluded.snapshot_seconds',
+  'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, motion_sensitivity = excluded.motion_sensitivity, snapshot_seconds = excluded.snapshot_seconds',
 )
 const knownCameras = db.prepare('SELECT camera FROM last_images ORDER BY camera')
 /** Les intervalles d'image proposés (secondes) : au-delà de 5 min, « l'image à cet instant » serait trop loin. */
@@ -144,6 +144,10 @@ const NIGHT_MARGIN_SECONDS = 30 * 60
 const HOUSE_POSITION = { latitude: Number(process.env.HOUSE_LATITUDE ?? 48.6), longitude: Number(process.env.HOUSE_LONGITUDE ?? 2.7) }
 /** Images par seconde du direct 4K : de 1 à 25 (25 : toutes, au rythme de la caméra). */
 const MAX_LIVE_FPS = 25
+/** La sensibilité de la détection de mouvement : de 1 (petits mouvements ignorés) à 5 (très sensible) ; 3 : les seuils de base. */
+const MIN_SENSITIVITY = 1
+const MAX_SENSITIVITY = 5
+const DEFAULT_SENSITIVITY = 3
 interface CameraSettings {
   camera: string
   clips_mode: ClipMode
@@ -151,11 +155,13 @@ interface CameraSettings {
   light_fps: number
   live_fps_mobile: number
   light_fps_mobile: number
+  /** La sensibilité de la détection de mouvement, de 1 à 5 (3 : les seuils de base de l'enregistreur). */
+  motion_sensitivity: number
   snapshot_seconds: number
 }
 const cameraSettings = (camera: string): CameraSettings => {
   const row = settingsOf.get(camera) as
-    | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; snapshot_seconds: number }
+    | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; snapshot_seconds: number }
     | undefined
   const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
   return {
@@ -165,6 +171,7 @@ const cameraSettings = (camera: string): CameraSettings => {
     light_fps: row?.light_fps ?? MAX_LIVE_FPS,
     live_fps_mobile: row?.live_fps_mobile ?? MAX_LIVE_FPS,
     light_fps_mobile: row?.light_fps_mobile ?? MAX_LIVE_FPS,
+    motion_sensitivity: row?.motion_sensitivity ?? DEFAULT_SENSITIVITY,
     snapshot_seconds: row?.snapshot_seconds ?? SNAPSHOT_INTERVAL_SECONDS,
   }
 }
@@ -183,13 +190,9 @@ const upsertLive = db.prepare(
   'INSERT INTO live_streams (camera, url) VALUES (?, ?) ON CONFLICT(camera) DO UPDATE SET url = excluded.url',
 )
 // Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
-if (!(db.prepare('PRAGMA table_info(events)').all() as { name: string }[]).some((column) => column.name === 'clip_started_at')) {
-  db.exec('ALTER TABLE events ADD COLUMN clip_started_at INTEGER')
-}
+addColumn('events', 'clip_started_at', 'INTEGER')
 // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).
-if (!(db.prepare('PRAGMA table_info(events)').all() as { name: string }[]).some((column) => column.name === 'clip_web_path')) {
-  db.exec('ALTER TABLE events ADD COLUMN clip_web_path TEXT')
-}
+addColumn('events', 'clip_web_path', 'TEXT')
 const findEvent = db.prepare('SELECT ended_at FROM events WHERE id = ?')
 // Le journal des fusions : un événement absorbé par un autre (ses clips se recouvraient) est noté ici avant d'être retiré de events.
 const insertMerge = db.prepare('INSERT OR IGNORE INTO merges (absorbed_id, kept_id, camera, absorbed_started_at, absorbed_ended_at, merged_at) VALUES (?, ?, ?, ?, ?, ?)')
@@ -302,6 +305,20 @@ const syncSnapshots = async (cameras: string[]) => {
 
 type CopiedClip = { path: string; start: number | null }
 
+// Écrit la réponse dans un fichier : en flux (un clip 4K ne tient pas tout entier en mémoire), dans un fichier temporaire renommé à la fin
+// (une coupure ne laisse jamais un clip tronqué sous son vrai nom).
+const saveResponse = async (res: Response, path: string) => {
+  if (!res.body) throw new Error('réponse sans corps')
+  const partial = `${path}.part`
+  try {
+    await pipeline(Readable.fromWeb(res.body), createWriteStream(partial))
+    await rename(partial, path)
+  } catch (error) {
+    await unlink(partial).catch(() => undefined)
+    throw error
+  }
+}
+
 // Copie le clip d'un événement dans DATA_DIR/clips/<caméra>/<id>.mp4 et renvoie ce chemin relatif et le début réel du clip.
 // Trop tôt après la fin de l'événement (segments pas tous écrits), on ne copie pas : la reprise le fera.
 const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
@@ -310,16 +327,22 @@ const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
   // Clips désactivés pour cette caméra (réglage de la page) : l'événement est gardé, sans vidéo.
   if (!keepsClip(event.camera, event.start_time)) return null
   if (event.end_time !== null && Date.now() / 1000 - event.end_time < CLIP_SETTLE_SECONDS) return null
-  const res = await recorder(event.camera, `/api/events/${event.id}/clip.mp4`, CLIP_TIMEOUT_MS)
-  if (!res.ok) {
-    log(`Clip ${event.id} indisponible (HTTP ${res.status})`)
+  // Un clip qui n'arrive pas (délai, coupure, disque) est sauté et sera retenté : il ne doit pas bloquer le tour des autres.
+  try {
+    const res = await recorder(event.camera, `/api/events/${event.id}/clip.mp4`, CLIP_TIMEOUT_MS)
+    if (!res.ok) {
+      log(`Clip ${event.id} indisponible (HTTP ${res.status})`)
+      return null
+    }
+    mkdirSync(`${DATA_DIR}/clips/${event.camera}`, { recursive: true })
+    const path = `clips/${event.camera}/${event.id}.mp4`
+    await saveResponse(res, `${DATA_DIR}/${path}`)
+    const start = Number(res.headers.get('X-Clip-Start'))
+    return { path, start: Number.isFinite(start) && start > 0 ? start : null }
+  } catch (error) {
+    log(`Clip ${event.id} non copié : ${error instanceof Error ? error.message : String(error)}`)
     return null
   }
-  mkdirSync(`${DATA_DIR}/clips/${event.camera}`, { recursive: true })
-  const path = `clips/${event.camera}/${event.id}.mp4`
-  await writeFile(`${DATA_DIR}/${path}`, Buffer.from(await res.arrayBuffer()))
-  const start = Number(res.headers.get('X-Clip-Start'))
-  return { path, start: Number.isFinite(start) && start > 0 ? start : null }
 }
 
 // Les événements terminés qui ont un clip depuis un instant, par pages du plus récent au plus ancien :
@@ -335,6 +358,7 @@ const fetchEventsSince = async (base: string, after: number): Promise<RecorderEv
     all.push(...events)
     if (events.length < EVENTS_PER_POLL) break
     before = `&before=${events[events.length - 1].start_time}`
+    if (page === MAX_PAGES - 1) log(`Plus de ${MAX_PAGES * EVENTS_PER_POLL} événements à rattraper : les plus anciens attendront`)
   }
   return all
 }
@@ -371,14 +395,23 @@ const syncEvents = async (base: string, cameras: string[]) => {
 // l'état change, et toutes les minutes au cas où il aurait redémarré (il allume la détection par défaut).
 const DETECTION_REFRESH_SECONDS = 60
 const detectionSent = new Map<string, { enabled: boolean; at: number }>()
+// La sensibilité de la détection : envoyée de la même façon (quand elle change, et chaque minute au cas où l'enregistreur aurait redémarré).
+const sensitivitySent = new Map<string, { level: number; at: number }>()
 const syncDetection = async (base: string, cameras: string[]) => {
   const now = Math.floor(Date.now() / 1000)
   for (const camera of cameras) {
     const enabled = keepsClip(camera, now)
     const sent = detectionSent.get(camera)
-    if (sent && sent.enabled === enabled && now - sent.at < DETECTION_REFRESH_SECONDS) continue
-    const res = await fetch(`${base}/api/cameras/${camera}/detection?enabled=${enabled ? 1 : 0}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
-    if (res?.ok) detectionSent.set(camera, { enabled, at: now })
+    if (!sent || sent.enabled !== enabled || now - sent.at >= DETECTION_REFRESH_SECONDS) {
+      const res = await fetch(`${base}/api/cameras/${camera}/detection?enabled=${enabled ? 1 : 0}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+      if (res?.ok) detectionSent.set(camera, { enabled, at: now })
+    }
+    const level = cameraSettings(camera).motion_sensitivity
+    const levelSent = sensitivitySent.get(camera)
+    if (!levelSent || levelSent.level !== level || now - levelSent.at >= DETECTION_REFRESH_SECONDS) {
+      const res = await fetch(`${base}/api/cameras/${camera}/sensitivity?level=${level}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+      if (res?.ok) sensitivitySent.set(camera, { level, at: now })
+    }
   }
 }
 
@@ -387,11 +420,12 @@ const syncDetection = async (base: string, cameras: string[]) => {
 // bonne (go2rtc qui redémarre revient à 25 images par seconde). Changer la source coupe le direct 4K en cours : il reprend seul.
 const GO2RTC_URL = (process.env.GO2RTC_URL ?? 'http://go2rtc:1984').replace(/\/$/, '')
 const LIVE_FPS_CHECK_SECONDS = 60
-let liveFpsCheckedAt = 0
+const liveFpsCheckedAt = new Map<string, number>()
 const syncLiveFps = async (cameras: string[]) => {
   const now = Math.floor(Date.now() / 1000)
-  if (now - liveFpsCheckedAt < LIVE_FPS_CHECK_SECONDS) return
-  liveFpsCheckedAt = now
+  const group = cameras.join(',')
+  if (now - (liveFpsCheckedAt.get(group) ?? 0) < LIVE_FPS_CHECK_SECONDS) return
+  liveFpsCheckedAt.set(group, now)
   for (const camera of cameras) {
     const settings = cameraSettings(camera)
     for (const { stream, fps, suffix } of [
@@ -411,7 +445,7 @@ const syncLiveFps = async (cameras: string[]) => {
         const video = wanted >= MAX_LIVE_FPS ? 'mjpeg' : `mjpeg${wanted}`
         const res = await fetch(`${GO2RTC_URL}/api/streams?name=${name}&src=${encodeURIComponent(`ffmpeg:${camera}_${stream}#video=${video}`)}`, { method: 'PATCH', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
         log(`Direct ${stream === 'main' ? '4K' : 'léger'}${suffix ? ' (téléphone)' : ''} de ${camera} : ${wanted} images/s (go2rtc : HTTP ${res.status})`)
-        if (!res.ok) liveFpsCheckedAt = 0
+        if (!res.ok) liveFpsCheckedAt.delete(group)
       } catch {
         // go2rtc ne répond pas : on réessaie au prochain tour.
       }
@@ -495,19 +529,24 @@ const syncWebClips = async () => {
   let copied = 0
   for (const row of clipsWithoutWeb.all(now - CLIP_RETRY_SECONDS) as { id: string; camera: string; clip_path: string }[]) {
     if (!/^[\w.-]+$/.test(row.id) || !/^[\w-]+$/.test(row.camera)) continue
-    const res = await recorder(row.camera, `/api/events/${row.id}/clip.h264.mp4`, CLIP_TIMEOUT_MS)
-    if (!res.ok) continue
-    const path = row.clip_path.replace(/\.mp4$/, '.h264.mp4')
-    await writeFile(`${DATA_DIR}/${path}`, Buffer.from(await res.arrayBuffer()))
-    updateWebClip.run(path, row.id)
-    copied += 1
+    try {
+      const res = await recorder(row.camera, `/api/events/${row.id}/clip.h264.mp4`, CLIP_TIMEOUT_MS)
+      if (!res.ok) continue
+      const path = row.clip_path.replace(/\.mp4$/, '.h264.mp4')
+      await saveResponse(res, `${DATA_DIR}/${path}`)
+      updateWebClip.run(path, row.id)
+      copied += 1
+    } catch (error) {
+      log(`Copie légère ${row.id} non copiée : ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
   return copied
 }
 
 let busy = false
+let stopping = false
 const poll = async () => {
-  if (busy) return
+  if (busy || stopping) return
   busy = true
   try {
     const byRecorder = await syncCameras()
@@ -542,7 +581,7 @@ const poll = async () => {
 // ---- La page de House Sync ----
 
 // Les sessions : un cookie signé avec la clé et daté (session.ts), rien en mémoire.
-const hasSession = (token: string): boolean => isValidToken(HOUSE_KEY, token, Math.floor(Date.now() / 1000))
+const hasSession = (token: string): boolean => HOUSE_KEY.length >= MIN_KEY_LENGTH && isValidToken(HOUSE_KEY, token, Math.floor(Date.now() / 1000))
 
 /** Les essais de clé ratés sur la page : 10 par adresse et par 15 minutes, puis 429. */
 const loginAttempts = createAttemptLimiter()
@@ -550,7 +589,7 @@ const loginAttempts = createAttemptLimiter()
 const hasValidKey = (given: string): boolean => {
   const a = Buffer.from(given)
   const b = Buffer.from(HOUSE_KEY)
-  return HOUSE_KEY.length >= 8 && a.length === b.length && timingSafeEqual(a, b)
+  return HOUSE_KEY.length >= MIN_KEY_LENGTH && a.length === b.length && timingSafeEqual(a, b)
 }
 
 const sessionOf = (req: IncomingMessage): string => {
@@ -558,14 +597,39 @@ const sessionOf = (req: IncomingMessage): string => {
   return cookie ? cookie.slice(SESSION_COOKIE.length + 1) : ''
 }
 
+/** Les corps reçus sont des petits JSON (une clé, des réglages) : au-delà, on coupe. */
+const MAX_BODY_BYTES = 16 * 1024
 const readBody = (req: IncomingMessage): Promise<string> =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
     let body = ''
+    let size = 0
     req.on('data', (chunk: Buffer) => {
+      size += chunk.length
+      if (size > MAX_BODY_BYTES) {
+        reject(new Error('corps trop gros'))
+        req.destroy()
+        return
+      }
       body += chunk.toString()
     })
     req.on('end', () => resolve(body))
+    req.on('error', reject)
+    req.on('close', () => reject(new Error('connexion coupée')))
   })
+
+/** Le corps d'une requête en objet JSON ; null s'il n'est pas du JSON, ou si ce n'est pas un objet (null, nombre, tableau). */
+const readJsonObject = async (req: IncomingMessage): Promise<Record<string, unknown> | null> => {
+  try {
+    const parsed: unknown = JSON.parse(await readBody(req))
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+/** Un entier de min à max : la valeur envoyée si c'en est un, la valeur actuelle si elle manque, null sinon (un booléen, un texte ou un tableau ne passent pas). */
+const intSetting = (sent: unknown, current: number, min: number, max: number): number | null =>
+  sent === undefined ? current : typeof sent === 'number' && Number.isInteger(sent) && sent >= min && sent <= max ? sent : null
 
 const sendJson = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...headers })
@@ -608,12 +672,14 @@ const sendBackupFile = async (res: ServerResponse, relativePath: string, rangeHe
     }
     if (range) {
       res.writeHead(206, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${range.start}-${range.end}/${size}`, 'Content-Length': range.end - range.start + 1 })
-      return void createReadStream(path, { start: range.start, end: range.end }).pipe(res)
+      return await pipeline(createReadStream(path, { start: range.start, end: range.end }), res)
     }
     res.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': size })
-    createReadStream(path).pipe(res)
+    await pipeline(createReadStream(path), res)
   } catch {
-    sendJson(res, 404, { error: 'not found' })
+    // Avant l'en-tête : introuvable ; après (lecture coupée, client parti) : on ferme, il n'y a plus rien à dire.
+    if (res.headersSent) res.destroy()
+    else sendJson(res, 404, { error: 'not found' })
   }
 }
 
@@ -661,18 +727,14 @@ const service = async (res: ServerResponse, pathname: string, params: URLSearchP
   sendJson(res, 404, { error: 'not found' })
 }
 
-const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
+const route = async (req: IncomingMessage, res: ServerResponse) => {
   const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost')
   if (req.method === 'POST' && pathname === '/login') {
     const ip = req.socket.remoteAddress ?? ''
     if (loginAttempts.isBlocked(ip)) return sendJson(res, 429, { error: 'too many attempts' })
     // La clé arrive en JSON ({ key }) ; la session est un cookie signé de 30 jours, la clé n'est pas gardée par le navigateur.
-    let key: string
-    try {
-      key = String((JSON.parse(await readBody(req)) as { key?: unknown }).key ?? '')
-    } catch {
-      key = ''
-    }
+    const login = await readJsonObject(req)
+    const key = typeof login?.key === 'string' ? login.key : ''
     if (!hasValidKey(key)) {
       loginAttempts.fail(ip)
       return sendJson(res, 401, { error: 'invalid key' })
@@ -683,33 +745,31 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
   if (req.method === 'POST' && pathname === '/logout') {
     return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, '') })
   }
-  // PUT /api/settings : { camera, clips_mode?, live_fps?, light_fps?, snapshot_seconds? }, derrière la session.
+  // PUT /api/settings : { camera, clips_mode?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, snapshot_seconds? }, derrière la session.
   if (req.method === 'PUT' && pathname === '/api/settings') {
     if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
-    let body: { camera?: unknown; clips_mode?: unknown; live_fps?: unknown; light_fps?: unknown; live_fps_mobile?: unknown; light_fps_mobile?: unknown; snapshot_seconds?: unknown }
-    try {
-      body = JSON.parse(await readBody(req)) as typeof body
-    } catch {
-      return sendJson(res, 400, { error: 'invalid JSON' })
-    }
-    const camera = String(body.camera ?? '')
+    const body = await readJsonObject(req)
+    if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+    const camera = typeof body.camera === 'string' ? body.camera : ''
     if (!(knownCameras.all() as { camera: string }[]).some((row) => row.camera === camera)) return sendJson(res, 404, { error: 'unknown camera' })
     const current = cameraSettings(camera)
-    const mode = body.clips_mode === undefined ? current.clips_mode : String(body.clips_mode)
-    if (!CLIP_MODES.includes(mode)) return sendJson(res, 400, { error: `clips_mode must be one of ${CLIP_MODES.join(', ')}` })
-    const seconds = body.snapshot_seconds === undefined ? current.snapshot_seconds : Number(body.snapshot_seconds)
-    if (!SNAPSHOT_CHOICES.includes(seconds)) return sendJson(res, 400, { error: `snapshot_seconds must be one of ${SNAPSHOT_CHOICES.join(', ')}` })
-    const fps = body.live_fps === undefined ? current.live_fps : Number(body.live_fps)
-    if (!Number.isInteger(fps) || fps < 1 || fps > MAX_LIVE_FPS) return sendJson(res, 400, { error: `live_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
-    const light = body.light_fps === undefined ? current.light_fps : Number(body.light_fps)
-    if (!Number.isInteger(light) || light < 1 || light > MAX_LIVE_FPS) return sendJson(res, 400, { error: `light_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
-    const fpsMobile = body.live_fps_mobile === undefined ? current.live_fps_mobile : Number(body.live_fps_mobile)
-    if (!Number.isInteger(fpsMobile) || fpsMobile < 1 || fpsMobile > MAX_LIVE_FPS) return sendJson(res, 400, { error: `live_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
-    const lightMobile = body.light_fps_mobile === undefined ? current.light_fps_mobile : Number(body.light_fps_mobile)
-    if (!Number.isInteger(lightMobile) || lightMobile < 1 || lightMobile > MAX_LIVE_FPS) return sendJson(res, 400, { error: `light_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
-    saveSettings.run(camera, mode === 'off' ? 0 : 1, mode, fps, light, fpsMobile, lightMobile, seconds)
-    log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), une image toutes les ${seconds} s`)
-    liveFpsCheckedAt = 0
+    const mode = body.clips_mode === undefined ? current.clips_mode : body.clips_mode
+    if (typeof mode !== 'string' || !CLIP_MODES.includes(mode)) return sendJson(res, 400, { error: `clips_mode must be one of ${CLIP_MODES.join(', ')}` })
+    const seconds = body.snapshot_seconds === undefined ? current.snapshot_seconds : body.snapshot_seconds
+    if (typeof seconds !== 'number' || !SNAPSHOT_CHOICES.includes(seconds)) return sendJson(res, 400, { error: `snapshot_seconds must be one of ${SNAPSHOT_CHOICES.join(', ')}` })
+    const fps = intSetting(body.live_fps, current.live_fps, 1, MAX_LIVE_FPS)
+    if (fps === null) return sendJson(res, 400, { error: `live_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    const light = intSetting(body.light_fps, current.light_fps, 1, MAX_LIVE_FPS)
+    if (light === null) return sendJson(res, 400, { error: `light_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    const fpsMobile = intSetting(body.live_fps_mobile, current.live_fps_mobile, 1, MAX_LIVE_FPS)
+    if (fpsMobile === null) return sendJson(res, 400, { error: `live_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    const lightMobile = intSetting(body.light_fps_mobile, current.light_fps_mobile, 1, MAX_LIVE_FPS)
+    if (lightMobile === null) return sendJson(res, 400, { error: `light_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
+    const sensitivity = intSetting(body.motion_sensitivity, current.motion_sensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY)
+    if (sensitivity === null) return sendJson(res, 400, { error: `motion_sensitivity must be an integer from ${MIN_SENSITIVITY} to ${MAX_SENSITIVITY}` })
+    saveSettings.run(camera, mode === 'off' ? 0 : 1, mode, fps, light, fpsMobile, lightMobile, sensitivity, seconds)
+    log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, une image toutes les ${seconds} s`)
+    liveFpsCheckedAt.clear()
     return sendJson(res, 200, cameraSettings(camera))
   }
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
@@ -718,6 +778,15 @@ const handlePage = async (req: IncomingMessage, res: ServerResponse) => {
     return service(res, pathname, searchParams, req.headers.range)
   }
   sendStatic(res, pathname)
+}
+
+// Une erreur dans une requête (fichier système illisible, base occupée…) répond 500 et reste dans le journal : elle ne doit pas arrêter House Sync.
+const handlePage = (req: IncomingMessage, res: ServerResponse) => {
+  route(req, res).catch((error: unknown) => {
+    log(`Page : ${error instanceof Error ? error.message : String(error)}`)
+    if (res.headersSent) res.destroy()
+    else sendJson(res, 500, { error: 'internal error' })
+  })
 }
 
 const secure = existsSync(TLS_CERT) && existsSync(TLS_KEY)
@@ -731,12 +800,19 @@ hueLog.start()
 await poll()
 const timer = setInterval(poll, INTERVAL_MS)
 
-const stop = () => {
+const STOP_WAIT_MS = 5000
+const stop = async () => {
+  stopping = true
   clearInterval(timer)
   hueLog.stop()
+  page.closeAllConnections()
   page.close()
+  // Le tour de polling en cours finit avant la fermeture de la base (sinon ses écritures échouent).
+  for (let waited = 0; busy && waited < STOP_WAIT_MS; waited += 100) await new Promise((done) => setTimeout(done, 100))
   db.close()
   process.exit(0)
 }
-process.on('SIGTERM', stop)
-process.on('SIGINT', stop)
+// Une promesse rejetée oubliée est notée dans le journal : elle ne tue pas House Sync.
+process.on('unhandledRejection', (reason) => log(`Erreur non gérée : ${reason instanceof Error ? reason.message : String(reason)}`))
+process.on('SIGTERM', () => void stop())
+process.on('SIGINT', () => void stop())

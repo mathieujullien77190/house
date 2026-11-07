@@ -2,6 +2,7 @@
 // quelques secondes, nommés par leur heure de début (secondes depuis 1970). On n'en garde que `retention` secondes.
 import { spawn } from 'node:child_process'
 import { mkdirSync, readdirSync, unlinkSync } from 'node:fs'
+import { isStopping, track } from './shutdown.ts'
 
 const RETRY_SECONDS = 5
 
@@ -43,6 +44,10 @@ export const pruneSegments = (dir: string, before: number): number => {
 }
 
 /** Enregistre en continu le flux d'une caméra ; relance ffmpeg s'il s'arrête. Ne rend jamais. */
+/** Un segment qui n'arrive plus (flux figé, caméra débranchée) : ffmpeg est arrêté au bout de ce nombre de durées de segment, puis relancé. */
+const STALL_SEGMENTS = 3
+const WATCH_MS = 10_000
+
 export const recordSegments = async (url: string, dir: string, segmentSeconds: number, log: (message: string) => void): Promise<never> => {
   mkdirSync(dir, { recursive: true })
   for (;;) {
@@ -64,11 +69,26 @@ export const recordSegments = async (url: string, dir: string, segmentSeconds: n
         ],
         { stdio: ['ignore', 'ignore', 'inherit'] },
       )
-      ffmpeg.on('error', (error) => resolve(`ffmpeg impossible à lancer : ${error.message}`))
-      ffmpeg.on('close', (code) => resolve(`enregistrement arrêté (code ${code})`))
-      process.once('SIGTERM', () => ffmpeg.kill())
-      process.once('SIGINT', () => ffmpeg.kill())
+      track(ffmpeg)
+      const startedAt = Date.now() / 1000
+      let stalled = false
+      const watchdog = setInterval(() => {
+        const newest = Math.max(startedAt, ...listSegmentStarts(dir))
+        if (Date.now() / 1000 - newest > Math.max(30, STALL_SEGMENTS * segmentSeconds)) {
+          stalled = true
+          ffmpeg.kill()
+        }
+      }, WATCH_MS)
+      ffmpeg.on('error', (error) => {
+        clearInterval(watchdog)
+        resolve(`ffmpeg impossible à lancer : ${error.message}`)
+      })
+      ffmpeg.on('close', (code) => {
+        clearInterval(watchdog)
+        resolve(stalled ? 'enregistrement sans nouveau segment' : `enregistrement arrêté (code ${code})`)
+      })
     })
+    if (isStopping()) await new Promise<never>(() => undefined)
     log(`${reason} : nouvel essai dans ${RETRY_SECONDS} s`)
     await new Promise((resolve) => setTimeout(resolve, RETRY_SECONDS * 1000))
   }

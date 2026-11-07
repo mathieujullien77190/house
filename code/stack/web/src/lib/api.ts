@@ -106,6 +106,17 @@ export const saveLampPositions = async (key: string, changes: Record<string, { x
 export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>
   (await request(key, `/snapshots?camera=${encodeURIComponent(camera)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
 
+/** Une plage où une lampe était allumée (secondes) ; `open` : elle l'est encore. */
+export interface LampPeriod {
+  from: number
+  to: number
+  open?: boolean
+}
+
+/** Les plages où la lampe de ce nom était allumée entre from et to, d'après le journal de House Sync. */
+export const fetchLampPeriods = async (key: string, name: string, from: number, to: number): Promise<LampPeriod[]> =>
+  (await request(key, `/lamp-history?name=${encodeURIComponent(name)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
+
 /** L'image la plus proche d'un instant, avec son identifiant (son instant exact ; 404 s’il n’y en a pas à cinq minutes près). */
 export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<{ blob: Blob; takenAt: number | null }> => {
   const res = await request(key, `/snapshot?camera=${encodeURIComponent(camera)}&at=${Math.floor(at)}`)

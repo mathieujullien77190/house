@@ -1,4 +1,4 @@
-// L'enregistreur de la maison : à la place de Frigate. Pour chaque caméra, trois choses :
+// L'enregistreur de la maison. Pour chaque caméra, trois choses :
 //   1. il enregistre le flux principal par segments (copie sans transcodage, gardés quelques heures) ;
 //   2. il surveille le flux léger et ouvre un événement au début d'un mouvement, le ferme à sa fin ;
 //   3. quand un événement est fini et que ses segments sont écrits, il en fait un clip MP4.
@@ -7,8 +7,10 @@ import { existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
+import { wantsEvent } from './linked.ts'
 import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
+import { detectorForLevel, DEFAULT_SENSITIVITY } from './sensitivity.ts'
 import { startServer } from './server.ts'
 import { watchMotion } from './watcher.ts'
 
@@ -27,38 +29,52 @@ const SETTLE_SECONDS = config.segmentSeconds + 3
 // La détection de chaque caméra : allumée par défaut, éteinte par House Sync quand les clips de la caméra ne sont pas gardés.
 const detecting = new Map<string, boolean>()
 
+// Les seuils de détection de chaque caméra : un objet à elle, que la sensibilité (House Sync) modifie sur place, et que le détecteur relit à chaque image.
+const detectors = new Map<string, typeof config.detector>(config.cameras.map((camera) => [camera, { ...config.detector }]))
+
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
+// Les caméras dont le détecteur voit du mouvement en ce moment (le mouvement propre, pas celui d'une caméra liée).
+const active = new Set<string>()
+
+// Ouvre ou ferme l'événement de chaque caméra selon ce que voient elle et ses caméras liées (voir linked.ts) : à `at` (secondes).
+const reconcile = (at: number, endedAfter = 0) => {
+  for (const camera of config.cameras) {
+    const wanted = wantsEvent(camera, active, config.linkedCameras, detecting)
+    const id = open.get(camera)
+    if (wanted && !id) {
+      const record = store.open(camera, at)
+      open.set(camera, record.id)
+      log(`${camera} : mouvement ${record.id}${active.has(camera) ? '' : ' (caméra liée)'}`)
+    } else if (!wanted && id) {
+      store.close(id, at)
+      open.delete(camera)
+      log(`${camera} : fin de mouvement ${id}${endedAfter > 0 ? ` (${endedAfter.toFixed(1)} s)` : ''}`)
+    }
+  }
+}
 
 for (const camera of config.cameras) {
   mkdirSync(`${config.recordingsDir}/${camera}`, { recursive: true })
   void recordSegments(`${config.go2rtcRtsp}/${camera}_main`, `${config.recordingsDir}/${camera}`, config.segmentSeconds, (m) => log(`${camera} : ${m}`))
   void watchMotion(
     `${config.go2rtcRtsp}/${camera}_sub`,
-    config,
+    { ...config, detector: detectors.get(camera) ?? config.detector },
     (event) => {
       if (event.type === 'start') {
-        const record = store.open(camera, event.at)
-        open.set(camera, record.id)
-        log(`${camera} : mouvement ${record.id}`)
+        active.add(camera)
+        reconcile(event.at)
       } else {
-        const id = open.get(camera)
-        if (id) {
-          store.close(id, event.startedAt + event.durationSeconds)
-          open.delete(camera)
-          log(`${camera} : fin de mouvement ${id} (${event.durationSeconds.toFixed(1)} s)`)
-        }
+        active.delete(camera)
+        reconcile(event.startedAt + event.durationSeconds, event.durationSeconds)
       }
     },
     (m) => log(`${camera} : ${m}`),
     () => detecting.get(camera) !== false,
     () => {
-      // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là.
-      const id = open.get(camera)
-      if (id) {
-        store.close(id, Date.now() / 1000)
-        open.delete(camera)
-      }
+      // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là (et celui des caméras liées qui n'ont plus de raison de rester ouvert).
+      active.delete(camera)
+      reconcile(Date.now() / 1000)
     },
   )
 }
@@ -70,6 +86,17 @@ startServer(
     set: (camera, enabled) => {
       if (detecting.get(camera) !== enabled) log(`${camera} : détection ${enabled ? 'allumée' : 'éteinte'}`)
       detecting.set(camera, enabled)
+      // Détection éteinte : un événement ouvert seulement par un mouvement lié se ferme.
+      reconcile(Date.now() / 1000)
+    },
+    setSensitivity: (camera, level) => {
+      const seuils = detectors.get(camera)
+      if (!seuils) return
+      const next = detectorForLevel(config.detector, level)
+      if (seuils.pixelThreshold !== next.pixelThreshold || seuils.areaThreshold !== next.areaThreshold) {
+        log(`${camera} : sensibilité ${level}${level === DEFAULT_SENSITIVITY ? ' (réglage de base)' : ''} : écart ${next.pixelThreshold}, surface ${(next.areaThreshold * 100).toFixed(2)} %`)
+      }
+      Object.assign(seuils, next)
     },
   },
   log,
@@ -101,11 +128,26 @@ const makeWebClips = async () => {
   }
 }
 
-// Toutes les 5 s : les événements finis dont tous les segments sont écrits reçoivent leur clip.
+// Toutes les 5 s : les événements finis dont tous les segments sont écrits reçoivent leur clip. Un seul tour à la fois (un clip long
+// ou une copie H.264 peut dépasser 5 s), et un clip qui échoue attend une minute avant un nouvel essai.
+const CLIP_RETRY_MS = 60_000
+const failedClips = new Map<string, number>()
+let building = false
 setInterval(async () => {
+  if (building) return
+  building = true
+  try {
+    await makeClips()
+  } finally {
+    building = false
+  }
+}, TICK_MS)
+
+const makeClips = async () => {
   const now = Date.now() / 1000
   for (const record of store.withoutClip()) {
     if (record.end_time === null || now < record.end_time + config.postSeconds + SETTLE_SECONDS) continue
+    if (Date.now() - (failedClips.get(record.id) ?? 0) < CLIP_RETRY_MS) continue
     try {
       const built = await buildClip({
         cameraDir: `${config.recordingsDir}/${record.camera}`,
@@ -120,11 +162,12 @@ setInterval(async () => {
         log(`${record.camera} : clip ${record.id} (${built.segments} segments)`)
       }
     } catch (error) {
+      failedClips.set(record.id, Date.now())
       log(`${record.camera} : clip ${record.id} impossible : ${error instanceof Error ? error.message : String(error)}`)
     }
   }
   await makeWebClips()
-}, TICK_MS)
+}
 
 // Les événements dont les clips se recouvrent (un mouvement qui reprend à quelques secondes d'écart) et dont le dernier a
 // `mergeDelaySeconds` sont fusionnés en un seul : les anciens clips sont effacés, celui du survivant se refait au prochain tour.

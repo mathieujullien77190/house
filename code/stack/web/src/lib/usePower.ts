@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchPower } from '@/lib/api'
 import type { CameraPower } from '@/types'
 
-/** Lecture de l'alimentation de chaque caméra ; null sans switch configuré (503) ou en cas d'erreur. */
+/** Lecture de l'alimentation de chaque caméra ; null sans switch configuré (503). Une erreur passagère garde le dernier état connu. */
 const POLL_MS = 10_000
 /** Pendant un démarrage ou une extinction, on relit plus souvent pour voir la fin. */
 const TRANSITION_POLL_MS = 3000
@@ -20,7 +20,7 @@ export const usePower = (apiKey: string, camera: string) => {
           if (!cancelled) setPower(list.find((item) => item.camera === camera) ?? null)
         })
         .catch(() => {
-          if (!cancelled) setPower(null)
+          // Le dernier état reste (une lecture ratée ne doit pas faire croire que la caméra est coupée ni cacher son bouton).
         })
     load()
     const timer = setInterval(load, changing ? TRANSITION_POLL_MS : POLL_MS)

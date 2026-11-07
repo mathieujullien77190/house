@@ -12,10 +12,10 @@ const LIMIT = 5000
 const MAX_ENTRIES = 200
 
 /** Des positions valides (identifiants de lampe, x et y finis, arrondis) ; null si le corps n'a pas cette forme. */
-export const parsePositions = (body: unknown): LampPositions | null => {
+export const parsePositions = (body: unknown, maxEntries = MAX_ENTRIES): LampPositions | null => {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return null
   const entries = Object.entries(body as Record<string, unknown>)
-  if (entries.length === 0 || entries.length > MAX_ENTRIES) return null
+  if (entries.length === 0 || entries.length > maxEntries) return null
   const positions: LampPositions = {}
   for (const [id, value] of entries) {
     if (!ID.test(id) || typeof value !== 'object' || value === null) return null
@@ -29,7 +29,7 @@ export const parsePositions = (body: unknown): LampPositions | null => {
 export const createPositionsStore = (file: string) => {
   const read = (): LampPositions => {
     try {
-      return parsePositions(JSON.parse(readFileSync(file, 'utf8'))) ?? {}
+      return parsePositions(JSON.parse(readFileSync(file, 'utf8')), Infinity) ?? {}
     } catch {
       return {}
     }

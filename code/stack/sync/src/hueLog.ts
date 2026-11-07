@@ -122,7 +122,11 @@ const bridgeGet = <T>(host: string, key: string, path: string): Promise<T[]> =>
     const request = https.get({ host, path: `/clip/v2/resource/${path}`, headers: { 'hue-application-key': key }, rejectUnauthorized: false, timeout: TIMEOUT_MS }, (res) => {
       let body = ''
       res.setEncoding('utf8')
-      res.on('data', (chunk: string) => (body += chunk))
+      res.on('data', (chunk: string) => {
+        body += chunk
+        // La fiche du pont fait quelques dizaines de Ko : au-delà de 5 Mo, c'est autre chose, on coupe.
+        if (body.length > 5_000_000) request.destroy(new Error('réponse du pont trop grosse'))
+      })
       res.on('end', () => {
         if (res.statusCode !== 200) return reject(new Error(`pont Hue v2 : HTTP ${res.statusCode}`))
         try {
@@ -238,7 +242,7 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
       if (typeof config.timezone === 'string' && config.timezone !== '') timeZone = config.timezone
       localClock(now(), timeZone)
     } catch (error) {
-      timeZone = 'UTC'
+      // On garde le fuseau déjà connu : un délai dépassé ne doit pas le remplacer par UTC jusqu'au prochain rechargement.
       log(`Hue : règles à heure fixe non rechargées (${error instanceof Error ? error.message : String(error)})`)
     }
   }
@@ -296,7 +300,14 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
 
   let stream: HueStream | null = null
   const timers: NodeJS.Timeout[] = []
-  const prune = (): void => void purge.run(Math.floor(now() / 1000) - days * DAY_SECONDS)
+  // Une erreur de SQLite pendant le nettoyage quotidien reste dans le journal : elle ne doit pas arrêter House Sync.
+  const prune = (): void => {
+    try {
+      purge.run(Math.floor(now() / 1000) - days * DAY_SECONDS)
+    } catch (error) {
+      log(`Hue : nettoyage du journal impossible (${error instanceof Error ? error.message : String(error)})`)
+    }
+  }
 
   return {
     status,

@@ -1,7 +1,7 @@
 // Un clip = les segments qui recouvrent l'événement (avec un peu avant et après), mis bout à bout sans
 // transcodage dans un MP4 H.265 4K (l'original) ; une copie H.264 720p (`buildWebClip`) se lit sur tous les appareils.
 import { spawn } from 'node:child_process'
-import { mkdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { listSegmentStarts, selectSegments } from './segments.ts'
 
@@ -40,17 +40,17 @@ export const buildClip = (request: ClipRequest): Promise<ClipResult> =>
       stdio: ['ignore', 'ignore', 'inherit'],
     })
     ffmpeg.on('error', (error) => {
-      unlinkSync(list)
+      rmSync(list, { force: true })
       reject(error)
     })
     ffmpeg.on('close', (code) => {
-      try {
-        unlinkSync(list)
-      } catch {
-        // déjà parti
-      }
+      rmSync(list, { force: true })
       if (code === 0) resolve({ segments: starts.length, start: starts[0] })
-      else reject(new Error(`ffmpeg a rendu ${code}`))
+      else {
+        // Un clip à moitié écrit ne reste pas sous son vrai nom : on le jette, il sera refait.
+        rmSync(request.output, { force: true })
+        reject(new Error(`ffmpeg a rendu ${code}`))
+      }
     })
   })
 

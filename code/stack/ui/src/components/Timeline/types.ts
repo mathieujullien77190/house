@@ -45,6 +45,8 @@ export interface TimelineProps<T extends string> {
   ticks: TimelineTick[]
   markers: TimelineMarker[]
   coverage: TimelineSegment[]
+  /** Les plages où la lampe était allumée, en % : un trait jaune au-dessus de la couverture ; absent : rien. */
+  lamp?: TimelineSegment[]
   /** Position de « maintenant » en %, ou null quand le futur n'est pas dans la fenêtre : ce qui est à droite est le futur, vide. */
   nowX?: number | null
   /** L'étendue de la vidéo de l'événement ouvert (le clip déborde de l'événement : marges et segments), en %, ou null. */

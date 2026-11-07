@@ -10,7 +10,7 @@ Des conteneurs Docker (`docker-compose.yml`) sur le mini PC de la maison (ACEMAG
 | `sync` | House Sync : copie les clips et les images sur le disque backup (selon les réglages de sa page : clips toujours, la nuit ou jamais, rythme des images, cadence des directs), écrit SQLite, sert sa page | 8081 |
 | `api` | House API (Express) + la WebApp compilée | 8080 |
 
-**Deux caméras, une seule unité.** Un seul `go2rtc` et un seul `motion` s'occupent des deux Reolink (`perruche-fond` et `perruche-porte`) : `CAMERAS: perruche-fond,perruche-porte` dans le compose, les six flux (`<nom>_main`, `<nom>_sub`, `<nom>_sub_mjpeg`) déclarés dans `go2rtc/go2rtc.yaml`, l'adresse et le compte de `perruche-porte` dans `.env` (`CAMERA2_IP`, `CAMERA2_USER`, `CAMERA2_PASSWORD`). Les segments et les clips des deux caméras sont dans les mêmes dossiers (`data/recordings/<caméra>`, `data/clips`). House Sync sait en revanche interroger **plusieurs** enregistreurs (`RECORDER_URLS`) et l'API relayer plusieurs go2rtc (`GO2RTC_URLS`) : une unité `go2rtc` + `motion` par machine, pour le jour où il y aura d'autres Pi.
+**Deux caméras, une seule unité.** Un seul `go2rtc` et un seul `motion` s'occupent des deux Reolink (`perruche-fond` et `perruche-porte`) : `CAMERAS: perruche-fond,perruche-porte` dans le compose, les flux de chacune (six par caméra : voir `go2rtc/CLAUDE.md`) déclarés dans `go2rtc/go2rtc.yaml`, l'adresse et le compte de `perruche-porte` dans `.env` (`CAMERA2_IP`, `CAMERA2_USER`, `CAMERA2_PASSWORD`). Les segments et les clips des deux caméras sont dans les mêmes dossiers (`data/recordings/<caméra>`, `data/clips`). House Sync sait en revanche interroger **plusieurs** enregistreurs (`RECORDER_URLS`) et l'API relayer plusieurs go2rtc (`GO2RTC_URLS`) : une unité `go2rtc` + `motion` par machine, pour le jour où il y aura d'autres machines. `LINKED_CAMERAS` (compose) lie les deux caméras : un mouvement sur l'une donne un clip des deux (voir `motion/CLAUDE.md`).
 
 Sur l'hôte (hors Docker), `power/` : deux services systemd (la puissance du processeur par RAPL, l'état des conteneurs Docker) qui écrivent un fichier que House Sync lit.
 
@@ -23,7 +23,7 @@ Un CLAUDE.md par dossier : `certs/`, `power/`, `go2rtc/`, `motion/`, `sync/`, `s
 
 ## Règles
 
-- **Seul House Sync écrit** dans la base (SQLite `data/backup/events.db`, clips, images). L'enregistreur écrit ses propres segments et clips (`data/recordings`, `data/clips`). L'API lit en lecture seule, relaie go2rtc (pour le direct) et ne parle au switch que pour couper ou rendre le PoE d'une caméra. L'API n'expose jamais la base brute : c'est la page de House Sync qui la montre.
+- **Seul House Sync écrit** dans la base (SQLite `data/backup/events.db`, clips, images). L'enregistreur écrit ses propres segments et clips (`data/recordings`, `data/clips`). L'API n'écrit jamais la base ni le disque backup : elle les lit, relaie go2rtc (pour le direct), garde les positions des ampoules (`data/house`) et commande le switch (PoE), le pont Hue et la prise. L'API n'expose jamais la base brute : c'est la page de House Sync qui la montre.
 - **Une seule clé** : `API_KEY` (en-tête `X-House-Key`) pour l'API et la page de House Sync. La saisie de la clé ouvre une **session par cookie** (`GET /auth` pour l'API, `POST /login` pour House Sync) : un jeton signé avec la clé (HMAC) et daté, valable **30 jours**, HttpOnly et Secure, rien en mémoire (il survit à un redémarrage). Le navigateur ne garde jamais la clé : une page rouverte se reconnecte avec le cookie, sans qu'on la ressaisisse. Changer `API_KEY` invalide tous les cookies ; « Oublier la clé » ou « Quitter » efface celui du navigateur. Le cookie sert aussi à ce qu'une balise `<img>` ou `<video>` charge sans en-tête, dont le direct.
 - **Le direct** : House API relaie go2rtc (`go2rtc:1984`, jamais publié) : `/stream` (MJPEG, un seul ffmpeg tant qu'un onglet regarde) et `/frame`. Le flux go2rtc `<flux>_mjpeg` est déclaré dans `go2rtc/go2rtc.yaml`. Pour cela l'API rejoint le réseau `sync_net`.
 - **Rien n'est publié** à part l'API (8080) et la page de House Sync (8081) : go2rtc et l'API de l'enregistreur n'ont pas de mot de passe et ne sont joignables que par les autres conteneurs.
@@ -47,15 +47,15 @@ Une session Claude Code tourne en permanence sur le mini PC (utilisateur `claude
 ```
 docker compose up -d --build          # tout (re)construire et démarrer
 docker compose up -d --build api      # après un changement dans api/ ou web/
-docker compose up -d --build sync     # après un changement dans sync/ ou sync/web/
+docker compose up -d --build --no-deps sync   # après un changement dans sync/ ou sync/web/ (sans --no-deps, motion redémarre aussi)
 docker compose up -d --build motion   # après un changement dans motion/
 docker compose restart go2rtc         # après un changement de go2rtc/go2rtc.yaml
 docker compose logs -f motion         # les débuts et fins de mouvement, les clips
 docker compose logs -f sync           # ce que fait House Sync
 ```
 
-Vérifications : `npm run typecheck` dans `api/`, `npm run typecheck && npm test` dans `motion/`, `npm run typecheck && npm run lint && npm run build` dans `web/` et `sync/web/`, `npm run typecheck && npm run lint && npm run build-storybook` dans `ui/`. Les deux apps ont le même style : même `PageHeader`, mêmes `Tabs`, mêmes composants de `@house/ui`.
+Vérifications : `npm run typecheck && npm run lint` dans `api/` et `sync/`, `npm run typecheck && npm run lint && npm test` dans `motion/`, `npm run typecheck && npm run lint && npm run build` dans `web/` et `sync/web/`, `npm run typecheck && npm run lint && npm run build-storybook` dans `ui/`. Les deux apps ont le même style : même `PageHeader`, mêmes `Tabs`, mêmes composants de `@house/ui`.
 
-## Réglages (docker-compose.yml et .env)
+## Réglages
 
-`POLL_INTERVAL_SECONDS` (5 s, House Sync vers l'enregistreur), `SNAPSHOT_INTERVAL_SECONDS` (60 s), `SNAPSHOT_RETENTION_DAYS` (7), `RETENTION_HOURS` (6, l'enregistreur), `MERGE_DELAY_MINUTES` (30, la fusion des clips qui se recouvrent), `HOUSE_LATITUDE` et `HOUSE_LONGITUDE` (48,6 et 2,7 : le soleil du mode « La nuit »), `GO2RTC_URL` (House Sync vers go2rtc, pour la cadence des directs), `PLUG_HOST` et `PLUG_MAC` (la prise connectée TP-Link Kasa, lue par l'API), `CERT_HOSTS` (hôtes du certificat), `API_KEY`, `REOLINK_PASSWORD`, `SWITCH_USER` et `SWITCH_PASSWORD` (le compte de la page web du switch, pour couper le PoE d'une caméra), `CAMERA2_IP`, `CAMERA2_USER` et `CAMERA2_PASSWORD` (la deuxième caméra), `HUE_BRIDGE_IP` et `HUE_APP_KEY` (le pont Hue, lus par l'API et par House Sync), `HUE_LOG_DAYS` (jours gardés par le journal des lampes, 365). Le modèle de toutes les variables : `.env.example`. Les seuils de la détection de mouvement : `PIXEL_THRESHOLD`, `AREA_THRESHOLD`, `START_FRAMES`, `END_SECONDS` (voir `motion/CLAUDE.md`).
+Toutes les variables sont dans `docker-compose.yml` (valeurs par défaut commentées) et `.env.example` (secrets). Les seuils de détection : `motion/CLAUDE.md` ; les images, les clips et la cadence du direct : `sync/CLAUDE.md`.

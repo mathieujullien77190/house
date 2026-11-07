@@ -56,6 +56,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   const [liveQuality, setLiveQuality] = useState<LiveQuality>('light')
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
   const [readyClip, setReadyClip] = useState('')
+  // Le clip que l'appareil n'arrive pas à lire : son message (et « Fermer ») doivent se voir, pas rester dans le lecteur caché.
+  const [failedClip, setFailedClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
   const { power, setPower } = usePower(apiKey, camera.name)
   // « Afficher en grand » : le média en plein écran, en paysage.
@@ -97,6 +99,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   }
 
   const back = () => {
+    setFailedClip('')
     setCursor(null)
     setSelected(null)
     setPlayhead(null)
@@ -105,6 +108,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   // Ce qui est montré en haut, dans l'ordre de priorité : le clip, l'événement en cours, l'image d'un instant, la dernière image.
   const ongoing = selected !== null && selected.ended_at === null
   const clipReady = clipPath !== null && clipPath === readyClip
+  const clipFailed = clipPath !== null && clipPath === failedClip
   // Un événement choisi dont la vidéo n'est pas encore là (en cours, ou fini mais pas encore copié) : un cadre noir et ce qu'on attend.
   const pendingText = selected && !selected.clip ? (ongoing ? ONGOING_CLIP_TEXT : NO_CLIP_TEXT) : ''
   const still = pendingText ? (
@@ -118,7 +122,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   const media = (
     <>
       {selected && clipPath ? (
-        <div className={clipReady ? undefined : HIDDEN_PLAYER_CLASS}>
+        <div className={clipReady || clipFailed ? undefined : HIDDEN_PLAYER_CLASS}>
           <ClipPlayer
             key={clipPath}
             apiKey={apiKey}
@@ -127,12 +131,13 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
             restart={plays}
             onClose={back}
             onReady={onReady}
+            onFailure={() => setFailedClip(clipPath)}
             onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
             onDuration={onDuration}
           />
         </div>
       ) : null}
-      {clipReady ? null : still}
+      {clipReady || clipFailed ? null : still}
     </>
   )
 
@@ -167,6 +172,7 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
           apiKey={apiKey}
           camera={camera.name}
           events={events}
+          selectedEventId={selected?.id ?? ''}
           playhead={playhead}
           clipRange={clipRange}
           onCursor={setCursor}

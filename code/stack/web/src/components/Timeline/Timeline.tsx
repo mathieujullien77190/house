@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Timeline as TimelineUI } from '@house/ui'
-import { fetchEvents, fetchSnapshotTimes } from '@/lib/api'
+import { fetchEvents, fetchLampPeriods, fetchSnapshotTimes, type LampPeriod } from '@/lib/api'
 import { useMobile } from '@/lib/useMobile'
 import type { EventRow } from '@/types'
-import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
-import { alongOf, axisLength, buildCoverage, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt, windowText } from './helpers'
+import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, LAMP_NAME, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
+import { alongOf, axisLength, buildCoverage, buildLampSpans, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt, windowText } from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
@@ -15,15 +15,19 @@ const nowSeconds = () => Math.floor(Date.now() / 1000)
  * l'image d'un instant. Ce qu'on choisit (instant ou événement) remonte à la carte de la caméra.
  * Le dessin est celui de @house/ui ; ici, les calculs et les gestes.
  */
-const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange, fill = false }: TimelineProps) => {
+const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange, selectedEventId, fill = false }: TimelineProps) => {
   // Sur téléphone (sous 1024 px) la frise est verticale, le plus récent en haut ; sur grand écran, horizontale.
   const vertical = useMobile()
   const [seconds, setSeconds] = useState(NOW_ZOOM_SECONDS)
   const [end, setEnd] = useState(() => liveEnd(nowSeconds(), NOW_ZOOM_SECONDS))
   const [live, setLive] = useState(true)
   const [selectedId, setSelectedId] = useState('')
+  // La carte a fermé l'événement (bouton « Fermer » du lecteur) : la sélection de la frise suit, sinon le curseur resterait figé.
+  if (selectedEventId === '' && selectedId !== '') setSelectedId('')
   const [cursor, setCursor] = useState<number | null>(null)
   const [times, setTimes] = useState<number[]>([])
+  // Les plages où la lampe de la volière était allumée, pour la fenêtre affichée (trait jaune).
+  const [lampPeriods, setLampPeriods] = useState<LampPeriod[]>([])
   const bucket = fetchBucket(end, seconds)
   // L'instant de la dernière image demandée au parent et l'heure du dernier pas : le curseur avance en temps réel.
   const reported = useRef<number | null>(null)
@@ -82,6 +86,22 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     // end change à chaque seconde en direct : seul bucket (la fenêtre a assez avancé) relance la requête.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, camera, bucket, seconds, dragging])
+
+  // Les plages d'allumage de la lampe, relues comme les instants d'image (même cadence).
+  useEffect(() => {
+    if (dragging) return
+    let cancelled = false
+    fetchLampPeriods(apiKey, LAMP_NAME, end - seconds, end)
+      .then((list) => {
+        if (!cancelled) setLampPeriods(list)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+    // Comme pour les images : seul bucket relance la requête.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, bucket, seconds, dragging])
 
   // Les événements de la fenêtre affichée, demandés à l'API une fois la fenêtre posée (glisser et zoom changent vite).
   useEffect(() => {
@@ -183,6 +203,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     // Un clic sur un événement lit son clip depuis le début de la vidéo : le curseur se place là, pas à l'endroit cliqué.
     const at = event ? (event.clip_started_at ?? event.started_at) : null
     setSelectedId(event ? id : '')
+    lastStep.current = nowSeconds() * 1000
     onEvent(event, at)
     setCursor(at)
     onCursor(null)
@@ -281,6 +302,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
       ticks={buildTicks(seconds, end, maxTicksFor(axisSize, vertical))}
       markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
+      lamp={buildLampSpans(lampPeriods, seconds, end, nowSeconds())}
       nowX={nowX}
       clipSpan={clipSpan}
       cursorX={cursorX !== null && cursorX >= 0 && cursorX <= 100 ? cursorX : null}

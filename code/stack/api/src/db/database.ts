@@ -20,6 +20,7 @@ export const openDatabase = (path: string): Database => {
     if (db) return db
     try {
       db = new DatabaseSync(path, { readOnly: true })
+      db.exec('PRAGMA busy_timeout = 3000')
       return db
     } catch {
       throw new DatabaseNotReady()

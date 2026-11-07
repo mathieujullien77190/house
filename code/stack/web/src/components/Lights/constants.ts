@@ -16,8 +16,6 @@ export const ALL_KEY = 'all'
 export const PLAN_TITLE = 'Rez-de-chaussée'
 /** Le titre de la section repliable du plan. */
 export const PLAN_SECTION_TITLE = 'Plan'
-/** Les automatisations sont ouvertes au départ sur grand écran (dès 1024 px), fermées sur mobile. */
-export const DESKTOP_QUERY = '(min-width: 1024px)'
 /** Le nom du bouton retour de l'écran du plan (téléphone), lu par les lecteurs d'écran. */
 export const BACK_LABEL = 'Retour'
 export const ERROR_TEXT = 'Le pont Hue n’a pas répondu.'

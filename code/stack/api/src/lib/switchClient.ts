@@ -79,6 +79,10 @@ export const createSwitchClient = (config: SwitchConfig) => {
           let text = ''
           res.setEncoding('utf8')
           res.on('data', (chunk: string) => (text += chunk))
+          // Réponse coupée en route : on échoue (sinon la file des demandes au switch attendrait pour toujours).
+          res.on('close', () => {
+            if (!res.complete) reject(new Error('switch : réponse coupée'))
+          })
           res.on('end', () => resolve({ status: res.statusCode ?? 0, cookies: (res.headers['set-cookie'] ?? []).map((c) => c.split(';')[0]), text }))
         },
       )

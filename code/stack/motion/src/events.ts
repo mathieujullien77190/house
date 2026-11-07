@@ -1,6 +1,6 @@
 // Les événements de mouvement : un petit magasin en mémoire, écrit dans un fichier JSON à chaque changement
 // (il survit à un redémarrage). Un événement s'ouvre au début du mouvement, se ferme à sa fin, reçoit son clip ensuite.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export interface MotionRecord {
@@ -38,11 +38,23 @@ export const createEventStore = (file: string) => {
     try {
       events = JSON.parse(readFileSync(file, 'utf8')) as MotionRecord[]
     } catch {
+      // Fichier abîmé (coupure en pleine écriture) : on le met de côté au lieu de l'écraser par une liste vide.
+      renameSync(file, `${file}.corrupt-${Date.now()}`)
+      console.error(`${file} illisible : mis de côté`)
       events = []
     }
   }
   mkdirSync(dirname(file), { recursive: true })
-  const save = () => writeFileSync(file, JSON.stringify(events))
+  // Écrit dans un fichier temporaire puis le renomme (jamais un fichier tronqué), et une erreur (disque plein) ne fait pas tomber l'enregistreur : la prochaine écriture réessaie.
+  const save = () => {
+    try {
+      const partial = `${file}.tmp`
+      writeFileSync(partial, JSON.stringify(events))
+      renameSync(partial, file)
+    } catch (error) {
+      console.error(`${file} non écrit : ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 
   return {
     open: (camera: string, startTime: number): MotionRecord => {

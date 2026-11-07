@@ -26,6 +26,8 @@ const relay = async (req: Request, res: Response, open: (camera: string, signal:
     return
   }
   if (upstream.status !== 200 || !upstream.body) {
+    // Le corps qu'on ne lit pas est libéré (sinon la connexion vers go2rtc reste ouverte).
+    void upstream.body?.cancel().catch(() => undefined)
     res.status(502).json({ error: `go2rtc answered ${upstream.status}` })
     return
   }

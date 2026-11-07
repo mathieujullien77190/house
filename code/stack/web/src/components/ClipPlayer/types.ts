@@ -7,6 +7,8 @@ export interface ClipPlayerProps {
   onClose: () => void
   /** Appelé quand la première image de la vidéo est prête. */
   onReady?: () => void
+  /** Appelé quand l'appareil n'arrive pas à lire la vidéo (le message est alors dans le lecteur). */
+  onFailure?: () => void
   /** Position de lecture, en secondes depuis le début du clip, à chaque avancée de la vidéo. */
   onTime?: (seconds: number) => void
   /** La durée de la vidéo, connue une fois ses métadonnées chargées. */

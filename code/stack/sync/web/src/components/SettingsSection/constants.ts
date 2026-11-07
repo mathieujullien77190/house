@@ -13,6 +13,14 @@ export const FPS_SLIDERS = [
   { key: 'light_fps', label: 'Direct léger · PC' },
   { key: 'light_fps_mobile', label: 'Direct léger · téléphone' },
 ] as const
+/** Le curseur de sensibilité du mouvement : de 1 (les petits mouvements sont ignorés) à 5 (très sensible : un chat, un oiseau, la nuit). */
+export const SENSITIVITY_LABEL = 'Sensibilité du mouvement'
+export const SENSITIVITY_MIN = 1
+export const SENSITIVITY_MAX = 5
+export const SENSITIVITY_TEXTS: Record<number, string> = { 1: 'faible', 2: 'moyenne −', 3: 'normale', 4: 'élevée', 5: 'très élevée' }
+export const SENSITIVITY_NOTE = 'Sensibilité du mouvement : plus elle est haute, plus un petit animal ou un mouvement peu contrasté (la nuit, de loin) déclenche un clip, mais plus il y a de faux départs (feuilles, insectes, ombres). Prends-la plus haute si une caméra rate un passage.'
+export const SAVE_ERROR_TEXT = 'Ce réglage n’a pas pu être enregistré : House Sync ne répond pas. Réessaie.'
+export const LOAD_ERROR_TEXT = 'Les réglages n’ont pas pu être lus.'
 export const FPS_MIN = 1
 export const FPS_MAX = 25
 export const FPS_UNIT = ' images/s'

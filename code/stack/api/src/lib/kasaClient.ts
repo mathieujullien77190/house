@@ -69,6 +69,8 @@ export const createKasaClient = (config: KasaConfig) => {
       }
       socket.setTimeout(timeoutMs, () => fail(new Error('la prise ne répond pas')))
       socket.on('error', fail)
+      // Fermée avant la réponse complète : la demande échoue (sans effet une fois la réponse reçue).
+      socket.on('close', () => fail(new Error('la prise a fermé la connexion')))
       socket.on('connect', () => socket.write(encrypt(JSON.stringify(command))))
       socket.on('data', (chunk: Buffer) => {
         chunks.push(chunk)

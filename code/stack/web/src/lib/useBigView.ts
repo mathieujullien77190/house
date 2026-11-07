@@ -22,20 +22,29 @@ const unlockOrientation = () => {
 export const useBigView = (): BigView => {
   const ref = useRef<HTMLElement>(null)
   const [big, setBig] = useState(false)
+  // Vrai tant que la vue est demandée : une fermeture pendant que le plein écran se négocie annule la suite.
+  const wanted = useRef(false)
 
   const close = useCallback(() => {
+    wanted.current = false
     setBig(false)
     unlockOrientation()
     if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined)
   }, [])
 
   const open = useCallback(() => {
+    wanted.current = true
     setBig(true)
     const enter = async () => {
       try {
         await ref.current?.requestFullscreen()
       } catch {
         // iPhone, ou plein écran refusé : la vue en grand de la page suffit
+      }
+      if (!wanted.current) {
+        // Fermée pendant l'attente : on défait ce qui vient de s'ouvrir.
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined)
+        return
       }
       try {
         await screen.orientation.lock('landscape')

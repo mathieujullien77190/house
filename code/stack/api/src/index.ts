@@ -1,5 +1,5 @@
-// House API, en lecture seule : elle lit la base SQLite et les clips écrits par House Sync, et relaie le direct
-// et l'image à l'instant depuis go2rtc (réseau Docker).
+// House API : elle lit la base SQLite et les clips écrits par House Sync (jamais elle n'y écrit), relaie le direct
+// et l'image à l'instant depuis go2rtc (réseau Docker), et commande le pont Hue, la prise et le PoE du switch.
 // Services : auth (clé → cookie de session), direct, image, events, clips, snapshots, snapshot, stream, frame,
 // derrière la clé X-House-Key ou la session (voir routes/). HTTPS avec le certificat de la maison.
 // poe : allume ou éteint une caméra en coupant le PoE de son port sur le switch (page web du switch, SWITCH_*).
@@ -17,6 +17,10 @@ const server = config.tls
 
 server.listen(config.port, () => console.log(`House API en ${config.tls ? 'HTTPS' : 'HTTP'} sur le port ${config.port}`))
 
-const stop = () => server.close(() => process.exit(0))
+// Les flux du direct restent ouverts : sans les fermer, l'arrêt attendrait qu'un onglet les quitte.
+const stop = () => {
+  server.close(() => process.exit(0))
+  server.closeAllConnections()
+}
 process.on('SIGTERM', stop)
 process.on('SIGINT', stop)

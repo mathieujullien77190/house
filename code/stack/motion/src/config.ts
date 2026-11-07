@@ -17,6 +17,8 @@ export interface Config {
   stateFile: string
   segmentSeconds: number
   retentionSeconds: number
+  /** Les caméras liées : un mouvement sur l'une donne un événement (donc un clip) sur toutes, sur la même durée. Vide : aucune. */
+  linkedCameras: string[]
   /** Un clip commence `preSeconds` avant l'événement et finit `postSeconds` après. */
   preSeconds: number
   postSeconds: number
@@ -41,6 +43,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   fps: number(env.FPS, 5),
   width: number(env.WIDTH, 160),
   height: number(env.HEIGHT, 90),
+  linkedCameras: (env.LINKED_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
   recordingsDir: env.RECORDINGS_DIR ?? '/recordings',
   clipsDir: env.CLIPS_DIR ?? '/data/clips',
   stateFile: env.STATE_FILE ?? '/data/events.json',

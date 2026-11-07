@@ -7,20 +7,20 @@ stack/
 ├── docker-compose.yml   les conteneurs, plus l'éphémère des certificats
 ├── .env.example         les variables à copier dans .env
 ├── certs/               la CA de la maison et le certificat du mini PC (make-certs.sh)
-├── go2rtc/              go2rtc.yaml : les flux de la caméra (principal, léger, léger en MJPEG)
+├── go2rtc/              go2rtc.yaml : les flux de chaque caméra (principal, léger, MJPEG ; voir go2rtc/CLAUDE.md)
 ├── motion/              l'enregistreur : segments, détection de mouvement, clips, petite API pour House Sync
 ├── sync/                House Sync (lit l'enregistreur, copie les clips, images par minute, SQLite)
 │   └── web/             sa page : projet Vite + React + TypeScript (tables paginées, clips)
-├── api/                 House API : Express (config, middlewares, routes, services, dépôts), lecture seule
+├── api/                 House API : Express (config, middlewares, routes, services, dépôts) ; n'écrit jamais la base
 ├── ui/                  @house/ui : les composants dumb des deux apps, avec un Storybook
-└── web/                 WebApp : projet Vite + React + TypeScript (la clé, puis deux onglets)
+└── web/                 WebApp : projet Vite + React + TypeScript (la clé, puis quatre onglets)
 ```
 
 ## WebApp
 
-Trois onglets après la clé : **Caméras** (mosaïque du direct, puis par caméra : direct MJPEG, frise des
+Quatre onglets après la clé : **Caméras** (mosaïque du direct, puis par caméra : direct MJPEG, frise des
 événements qu'on fait glisser, clip de l'événement cliqué, image gardée à l'instant cliqué, bouton PoE),
-**Lumière** (les lampes Philips Hue, le plan de la maison, les automatisations du pont) et
+**Lumière** (les lampes Philips Hue, le plan de la maison, les automatisations du pont), **Prise** (la prise connectée) et
 **API** (chaque service, un clic montre sa réponse JSON). Détail : `web/CLAUDE.md`.
 
 ## Page de House Sync
@@ -64,11 +64,11 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
 
 ## Démarrage
 
-1. Copier `.env.example` en `.env` et remplir les valeurs : mot de passe de la Reolink du portail
+1. Copier `.env.example` en `.env` et remplir les valeurs : mot de passe de la Reolink `perruche-fond`
    (`REOLINK_PASSWORD`), clé secrète de l'API (`API_KEY`), hôtes du certificat (`CERT_HOSTS` : l'IP du mini PC,
    fixée par un bail DHCP statique sur la box), la deuxième caméra (`CAMERA2_*`), le compte du switch
-   (`SWITCH_*`) et le pont Hue (`HUE_*`). Sans les trois derniers, la fonction correspondante est désactivée.
-2. Mettre l'adresse IP de la Reolink du portail dans `go2rtc/go2rtc.yaml` (bail DHCP statique sur la box) ;
+   (`SWITCH_*`) et le pont Hue (`HUE_*`). Sans la deuxième caméra, le switch, la prise ou le pont Hue, la fonction correspondante est désactivée.
+2. Mettre l'adresse IP de la Reolink `perruche-fond` dans `go2rtc/go2rtc.yaml` (bail DHCP statique sur la box) ;
    celle de `perruche-porte` vient de `CAMERA2_IP`.
 3. `docker compose up -d --build`
 4. `docker compose logs motion` doit afficher « Enregistreur : perruche-fond, perruche-porte », puis une ligne à chaque début et
@@ -89,21 +89,21 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
   l'enregistreur (8080 interne) ne sont jamais publiés.
 - Une seule clé : celle de l'API (en-tête `X-House-Key`, puis un cookie de session pour le direct, que
   l'API relaie depuis go2rtc).
-- L'API ne lit que SQLite et le disque backup. House Sync est le seul à écrire dans la base.
+- L'API ne lit que SQLite et le disque backup (elle ne les écrit jamais) et commande le pont Hue, la prise et le switch. House Sync est le seul à écrire dans la base.
 - Le direct : `/stream?camera=` est un flux MJPEG (une requête qui ne se termine pas, les images arrivent
-  toutes seules, ~5 par seconde, flux léger), relayé par l'API depuis go2rtc (`go2rtc:1984`, interne). Le
+  toutes seules ; la cadence se règle dans House Sync, pour le PC et pour le téléphone), relayé par l'API depuis go2rtc (`go2rtc:1984`, interne). Le
   flux `<flux>_mjpeg` est déclaré dans `go2rtc/go2rtc.yaml`.
 - Les certificats : `data/certs` contient la CA (`rootCA.pem`, sa clé `rootCA-key.pem` qui ne sort jamais du
   PC) et le certificat du mini PC, signé par elle, que l'API et House Sync servent. Sans la CA installée, le
   navigateur affiche un avertissement ; avec, le cadenas est vert. Le certificat est refait automatiquement si
   `CERT_HOSTS` change ou à moins de 30 jours de son expiration (`docker compose up -d`).
 - Les données sont dans `data/` (ignoré par git) : `data/recordings` (les segments de l'enregistreur, 6 h),
-  `data/clips` (les clips et l'état des événements de l'enregistreur), `data/backup` pour la base `events.db`,
+  `data/clips` (les clips de l'enregistreur, dans `clips/`, et son état des événements `events.json`), `data/backup` pour la base `events.db`,
   les clips copiés (`clips/<caméra>/<id>.mp4`) et les images par minute (`snapshots/<caméra>/<t>.jpg`). Ces
   données sont irremplaçables : House Sync ajoute lui-même les colonnes manquantes à une base existante, donc
   **ne supprime jamais `events.db`** sans en avoir fait une copie.
 - L'enregistreur garde 6 h de segments (le 4K en continu ferait ~65 Go par jour) : si House Sync est arrêté, il
   rattrape tout au redémarrage tant que les clips existent (les clips aussi sont gardés 6 h). Entre deux
-  événements, c'est l'image par minute de House Sync qu'on voit (~60 Mo par jour et par caméra, 7 jours
+  événements, c'est l'image de House Sync qu'on voit (une par minute par défaut, réglable ; 7 jours
   gardés : `SNAPSHOT_INTERVAL_SECONDS`, `SNAPSHOT_RETENTION_DAYS` dans docker-compose.yml). Les images de la
   période d'arrêt, elles, sont perdues.

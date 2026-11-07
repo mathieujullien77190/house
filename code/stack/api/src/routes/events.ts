@@ -25,7 +25,8 @@ export const eventsRouter = (events: EventsService, files: BackupFiles): Router 
       res.status(400).json({ error: 'bad query' })
       return
     }
-    res.json(events.list({ lastOnly: req.query.last === '1', camera, from, to, limit }))
+    // LIMIT de SQLite veut un entier : « 1.5 » devient 1.
+    res.json(events.list({ lastOnly: req.query.last === '1', camera, from, to, limit: limit === undefined ? undefined : Math.floor(limit) }))
   })
   // L'original (H.265, 4K) et, à côté, la copie légère (H.264, 720p) que tous les navigateurs lisent.
   const sendClip = (h264: boolean): RequestHandler => (req, res) => {

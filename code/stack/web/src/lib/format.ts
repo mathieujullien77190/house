@@ -14,12 +14,3 @@ export const formatDuration = (event: EventRow): string =>
 export const describeEvent = (event: EventRow): string =>
   [event.label, formatTime(event.started_at), formatDuration(event)].filter(Boolean).join(' · ')
 
-/** L'origine (scheme + hôte + port) d'une adresse, pour un lien ; vide si l'adresse est invalide. */
-export const originOf = (url: string | null): string => {
-  if (!url) return ''
-  try {
-    return new URL(url).origin
-  } catch {
-    return ''
-  }
-}

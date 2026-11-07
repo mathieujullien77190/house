@@ -12,7 +12,7 @@ services:
     volumes:
       - ./data/certs:/certs
 
-  # go2rtc : une seule connexion RTSP vers la caméra, qu'il partage (RTSP interne, MJPEG, image à l'instant).
+  # go2rtc : une seule connexion RTSP vers chaque caméra, qu'il partage (RTSP interne, MJPEG, image à l'instant).
   # Ni son RTSP (8554) ni son API (1984) ne sont publiés : seuls les autres conteneurs les voient.
   go2rtc:
     image: alexxit/go2rtc:latest
@@ -37,6 +37,8 @@ services:
       - go2rtc
     environment:
       CAMERAS: perruche-fond,perruche-porte
+      # Un mouvement sur l'une des deux donne un clip des deux, sur la même durée.
+      LINKED_CAMERAS: perruche-fond,perruche-porte
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -77,7 +79,7 @@ services:
       TLS_KEY: /certs/key.pem
       DATA_DIR: /data
       POLL_INTERVAL_SECONDS: "5"
-      # Une image par caméra et par minute, gardée 7 jours (~115 Mo par jour et par caméra).
+      # Une image par caméra (une par minute par défaut, réglable depuis la page), gardée 7 jours.
       SNAPSHOT_INTERVAL_SECONDS: "60"
       SNAPSHOT_RETENTION_DAYS: "7"
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.

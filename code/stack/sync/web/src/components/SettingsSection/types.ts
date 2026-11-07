@@ -11,6 +11,8 @@ export interface CameraSetting {
   /** Les mêmes deux cadences sur un écran de moins de 1024 px (téléphone). */
   live_fps_mobile: number
   light_fps_mobile: number
+  /** La sensibilité de la détection de mouvement, de 1 à 5 (3 : le réglage de base). */
+  motion_sensitivity: number
   /** Une image gardée toutes les N secondes. */
   snapshot_seconds: number
 }

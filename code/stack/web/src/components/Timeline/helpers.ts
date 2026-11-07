@@ -1,4 +1,5 @@
 import type { TimelineSegment, TimelineTick } from '@house/ui'
+import type { LampPeriod } from '@/lib/api'
 import { describeEvent, formatTime } from '@/lib/format'
 import type { EventRow } from '@/types'
 import { COVERAGE_GAP, FUTURE_SHARE, MARKER_LEAD_SECONDS, MAX_REFRESH_MS, MAX_TICKS, MAX_WINDOW, MIN_REFETCH_SECONDS, MIN_REFRESH_MS, MIN_TICKS, REFETCH_DIVISOR, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_MIN_PX, TICK_MIN_PX_VERTICAL, TICK_STEPS } from './constants'
@@ -113,6 +114,14 @@ export const buildCoverage = (times: number[], seconds: number, end: number): Ti
   push()
   return segments
 }
+
+/** Les plages où la lampe était allumée, en % de la fenêtre (rognées à ses bords) ; une plage ouverte va jusqu'à `now`. */
+export const buildLampSpans = (periods: LampPeriod[], seconds: number, end: number, now: number): TimelineSegment[] =>
+  periods.flatMap((period) => {
+    const x = Math.max(0, positionOf(period.from, end, seconds))
+    const right = Math.min(100, positionOf(period.open ? now : period.to, end, seconds))
+    return right > x ? [{ x, width: right - x }] : []
+  })
 
 const formatWindow = (seconds: number): string => {
   if (seconds < 120) return `${seconds} s`

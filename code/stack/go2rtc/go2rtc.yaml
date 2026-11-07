@@ -1,6 +1,6 @@
 # go2rtc : une seule connexion RTSP vers chaque caméra, partagée avec l'enregistreur (motion) et la WebApp.
 # Le mot de passe de la caméra vient de la variable d'environnement REOLINK_PASSWORD (.env), jamais d'ici.
-# Par caméra, cinq flux : <nom>_main (4K, enregistré en copie), <nom>_sub (léger, détection),
+# Par caméra, six flux : <nom>_main (4K, enregistré en copie), <nom>_sub (léger, détection),
 # <nom>_sub_mjpeg (le léger transcodé en MJPEG, que House API relaie pour le direct) et
 # <nom>_main_mjpeg (le 4K transcodé en MJPEG, pour le bouton « 4K » du direct : lourd pour le processeur).
 # Les mêmes deux flux en « _m » (<nom>_sub_mjpeg_m, <nom>_main_mjpeg_m) sont ceux des écrans de moins de 1024 px : leur cadence se règle à part.

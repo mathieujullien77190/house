@@ -97,6 +97,12 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle, screen = fal
     if (current && !current.moved) onToggle(current.id)
   }
 
+  // Le navigateur reprend le geste (défilement, pincement) : ce n'est pas un toucher, rien ne s'allume.
+  const cancel = (event: PointerEvent<SVGGElement>) => {
+    drag.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
   // Au clavier : Entrée ou espace allume, les flèches déplacent.
   const key = (event: KeyboardEvent<SVGGElement>, lamp: PlanLamp) => {
     const step = { ArrowLeft: [-KEY_STEP, 0], ArrowRight: [KEY_STEP, 0], ArrowUp: [0, -KEY_STEP], ArrowDown: [0, KEY_STEP] }[event.key]
@@ -163,7 +169,7 @@ const LightsPlan = ({ title, rooms, walls, lamps, onMove, onToggle, screen = fal
             onPointerDown={(event) => down(event, lamp)}
             onPointerMove={move}
             onPointerUp={up}
-            onPointerCancel={up}
+            onPointerCancel={cancel}
             onPointerEnter={() => setActive(lamp.id)}
             onPointerLeave={(event) => {
               // La souris quitte l'ampoule : son nom part (sauf pendant un glissement).

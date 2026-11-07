@@ -10,13 +10,13 @@ import {
   CONTROLS_CLASS,
   COVERAGE_CLASS,
   COVERAGE_VERTICAL_CLASS,
+  LAMP_CLASS,
+  LAMP_VERTICAL_CLASS,
   CURSOR_CLASS,
   CURSOR_VERTICAL_CLASS,
   FUTURE_CLASS,
   FUTURE_VERTICAL_CLASS,
   HEAD_CLASS,
-  HINT,
-  HINT_CLASS,
   NOW_BUTTON_CLASS,
   NOW_LABEL,
   NOW_LINE_CLASS,
@@ -52,6 +52,7 @@ const Timeline = <T extends string>({
   ticks,
   markers,
   coverage,
+  lamp = [],
   nowX = null,
   clipSpan = null,
   cursorX,
@@ -67,7 +68,6 @@ const Timeline = <T extends string>({
   return (
     <div className={fill ? WRAP_FILL_CLASS : WRAP_CLASS}>
       <div className={HEAD_CLASS}>
-        <span className={HINT_CLASS}>{HINT}</span>
         <div className={CONTROLS_CLASS}>
           <Button variant={live ? 'active' : 'default'} className={NOW_BUTTON_CLASS} onClick={onNow}>
             {NOW_LABEL}
@@ -93,6 +93,9 @@ const Timeline = <T extends string>({
         {nowX !== null ? <div className={vertical ? FUTURE_VERTICAL_CLASS : FUTURE_CLASS} style={vertical ? { height: `${100 - nowX}%` } : { left: `${nowX}%` }} /> : null}
         {coverage.map((segment) => (
           <div key={segment.x} className={vertical ? COVERAGE_VERTICAL_CLASS : COVERAGE_CLASS} style={spanStyle(segment.x, segment.width, vertical)} />
+        ))}
+        {lamp.map((segment) => (
+          <div key={`lamp-${segment.x}`} className={vertical ? LAMP_VERTICAL_CLASS : LAMP_CLASS} style={spanStyle(segment.x, segment.width, vertical)} />
         ))}
         {ticks.map((tick) => (
           <div key={tick.x} className={vertical ? TICK_VERTICAL_CLASS : TICK_CLASS} style={pointStyle(tick.x, vertical)}>

@@ -26,13 +26,14 @@ export const createRequireKey = (apiKey: string, sessions: Sessions, limiter: At
     const ip = req.ip ?? ''
     // Un en-tête vide est la page qui essaie son cookie : ce n'est pas un essai de clé.
     const tried = (req.header(KEY_HEADER) ?? '') !== ''
-    if (tried && limiter.isBlocked(ip)) {
-      res.status(429).json({ error: 'too many attempts' })
-      return
-    }
+    // La bonne clé passe toujours (même depuis une adresse bloquée, que partagent le VPN ou la box) : le blocage ne vise que les essais ratés.
     if (hasKey(req)) {
       limiter.clear(ip)
       next()
+      return
+    }
+    if (tried && limiter.isBlocked(ip)) {
+      res.status(429).json({ error: 'too many attempts' })
       return
     }
     if (tried) limiter.fail(ip)

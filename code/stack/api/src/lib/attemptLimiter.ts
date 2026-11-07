@@ -27,7 +27,8 @@ export const createAttemptLimiter = (max = 10, windowMs = 15 * 60_000, now: () =
   return {
     isBlocked: (ip) => recent(ip).length >= max,
     fail: (ip) => {
-      if (failures.size >= MAX_TRACKED && !failures.has(ip)) failures.clear()
+      // Table pleine : on oublie la plus ancienne adresse, jamais tout (sinon des adresses qui changent effaceraient les blocages en cours).
+      if (failures.size >= MAX_TRACKED && !failures.has(ip)) failures.delete(failures.keys().next().value as string)
       const list = recent(ip)
       list.push(now())
       failures.set(ip, list)

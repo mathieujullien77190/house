@@ -3,13 +3,12 @@ export const NOW_LABEL = 'Maintenant'
 export const NOW_MARK = 'maintenant'
 export const OLDER_PREFIX = '+ '
 export const OLDER_SUFFIX = ' plus ancien(s) avant'
-export const HINT = 'Glisse l’axe pour te déplacer, molette pour zoomer. Clique un instant pour voir l’image, un événement pour voir son clip (en haut).'
 
 /** Le bouton « Maintenant » : se soulève au survol, s'enfonce au clic (et retombe en douceur). */
 export const NOW_BUTTON_CLASS =
   'transition duration-150 hover:enabled:-translate-y-0.5 hover:enabled:shadow-md hover:enabled:brightness-110 active:enabled:translate-y-0 active:enabled:scale-95 active:enabled:shadow-none active:enabled:brightness-90'
 export const WRAP_CLASS = 'mt-3'
-export const HEAD_CLASS = 'flex flex-wrap items-center justify-between gap-2 text-[0.85rem] text-muted'
+export const HEAD_CLASS = 'flex flex-wrap items-center justify-end gap-2 text-[0.85rem] text-muted'
 export const CONTROLS_CLASS = 'flex flex-wrap items-center gap-2'
 export const WINDOW_CLASS = 'mt-1 text-[0.8rem] text-muted'
 export const AXIS_CLASS = 'relative mt-2 h-16 cursor-grab touch-none select-none overflow-hidden rounded-lg border border-line bg-card active:cursor-grabbing'
@@ -17,6 +16,9 @@ export const FUTURE_CLASS = 'pointer-events-none absolute inset-y-0 right-0 bg-[
 export const NOW_LINE_CLASS = 'pointer-events-none absolute z-10 top-0 h-full w-0.5 -translate-x-1/2 bg-accent'
 export const NOW_MARK_CLASS = 'absolute top-0.5 right-1.5 whitespace-nowrap text-[0.7rem] font-semibold text-accent'
 export const COVERAGE_CLASS = 'pointer-events-none absolute bottom-5 h-1.5 rounded-sm bg-accent/30'
+/** La plage où la lampe de la volière était allumée : un trait jaune juste au-dessus de la bande de couverture bleue. */
+export const LAMP_CLASS = 'pointer-events-none absolute bottom-8 h-1.5 rounded-sm bg-yellow'
+export const LAMP_VERTICAL_CLASS = 'pointer-events-none absolute left-[4.5rem] w-1.5 rounded-sm bg-yellow'
 export const TICK_CLASS = 'pointer-events-none absolute top-0 h-full border-l border-line'
 export const TICK_LABEL_CLASS = 'absolute bottom-0.5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] text-muted'
 export const CLIP_SPAN_CLASS = 'pointer-events-none absolute top-1 h-9 rounded border border-dashed border-accent bg-accent/15'
@@ -28,7 +30,6 @@ export const MARKER_ONGOING_CLASS = 'border-danger bg-[repeating-linear-gradient
 export const CURSOR_CLASS = 'pointer-events-none absolute z-20 top-0 h-full w-0.5 -translate-x-1/2 bg-danger'
 
 /** Le conseil d'usage tient trop de place sur un téléphone : il n'est écrit qu'à partir de 1024 px. */
-export const HINT_CLASS = 'hidden lg:inline'
 
 /**
  * La frise verticale (téléphone, sous 1024 px) : l'instant le plus récent est en haut, comme un fil. Les graduations

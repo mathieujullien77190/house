@@ -41,7 +41,7 @@ export const KEY_STEP = 5
 
 
 export const GARDEN_CLASS = 'fill-bg stroke-line stroke-1'
-export const FIGURE_CLASS = 'relative m-0 mt-4'
+export const FIGURE_CLASS = 'relative mt-4'
 export const PLAN_CLASS = 'block w-full touch-none select-none'
 /** Le dessin sans la zone « À placer » : le jardin et la maison, ce que montre la vue en grand. */
 export const EXPANDED_VIEW_WIDTH = VIEW_WIDTH - SIDE_WIDTH

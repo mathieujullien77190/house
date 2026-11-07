@@ -2,7 +2,7 @@
 // un double toucher zoome ou revient à la taille normale. Le zoom ne vit que tant que la vue en grand est ouverte.
 // En portrait, la vue en grand est tournée d'un quart de tour par CSS : les gestes de l'écran sont ramenés dans le
 // repère de l'élément avant tout calcul.
-import { useRef, useState, type CSSProperties, type HTMLAttributes, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type PointerEvent } from 'react'
 
 export interface PinchZoom {
   /** À poser sur la zone du média. */
@@ -78,6 +78,12 @@ export const usePinchZoom = (active: boolean): PinchZoom => {
 
   // La vue en grand se ferme : le zoom repart de zéro.
   if (!active && view !== IDENTITY) setView(IDENTITY)
+  // Et les doigts oubliés (posés pendant la fermeture) ne faussent pas le prochain geste.
+  useEffect(() => {
+    if (active) return
+    pointers.clear()
+    gestureRef.current = { anchor: null, tapStart: null, lastTap: null }
+  }, [active, pointers])
 
   // Les doigts ont changé : le geste repart de là où ils sont, sans saut.
   const begin = () => {

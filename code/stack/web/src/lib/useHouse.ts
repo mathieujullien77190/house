@@ -78,17 +78,30 @@ export const useHouse = (): HouseState => {
   // Les événements, à intervalle régulier tant que la page est connectée.
   useEffect(() => {
     if (status !== 'ready') return
+    // Un seul appel à la fois (un lien lent n'empile pas les requêtes), et plus rien après le départ de l'écran.
+    let busy = false
+    let cancelled = false
     const refresh = async () => {
+      if (busy) return
+      busy = true
       try {
-        setEvents(await fetchEvents(key))
+        const rows = await fetchEvents(key)
+        if (cancelled) return
+        setEvents(rows)
         setMessage('')
       } catch (error) {
+        if (cancelled) return
         setMessage(errorMessage(error))
         if (isKeyRefused(error)) forget()
+      } finally {
+        busy = false
       }
     }
     const timer = setInterval(refresh, EVENTS_REFRESH_MS)
-    return () => clearInterval(timer)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
   }, [status, key, forget])
 
   return { status, message, cameras, events, key, connect, forget }

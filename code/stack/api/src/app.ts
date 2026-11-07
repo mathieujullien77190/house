@@ -6,6 +6,7 @@ import { createBackupFiles } from './lib/backupFiles.ts'
 import { errorHandler, notFound } from './middleware/errorHandler.ts'
 import { createCamerasRepository } from './repositories/camerasRepository.ts'
 import { createEventsRepository } from './repositories/eventsRepository.ts'
+import { createLampRepository } from './repositories/lampRepository.ts'
 import { createSnapshotsRepository } from './repositories/snapshotsRepository.ts'
 import { createRoutes } from './routes/index.ts'
 import { createCamerasService } from './services/camerasService.ts'
@@ -17,6 +18,7 @@ import { createSwitchClient } from './lib/switchClient.ts'
 import { createHueService } from './services/hueService.ts'
 import { createPlugService } from './services/plugService.ts'
 import { createPoeService } from './services/poeService.ts'
+import { createLampService } from './services/lampService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
 
@@ -29,6 +31,7 @@ export const createApp = (config: Config): Express => {
     events: createEventsService(createEventsRepository(db)),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
+    lamp: createLampService(createLampRepository(db)),
     files: createBackupFiles(config.dataDir),
     hue: config.hue ? createHueService(createHueClient(config.hue), createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     plug: config.plug ? createPlugService(createKasaClient(config.plug)) : null,

@@ -68,8 +68,9 @@ export const createPoeService = (client: SwitchClient, ports: Record<string, num
       return value
     },
     set: async (camera: string, on: boolean): Promise<CameraPower> => {
+      // Object.hasOwn : « constructor » ou « toString » ne sont pas des caméras (ports[camera] y trouverait une fonction).
+      if (!Object.hasOwn(ports, camera)) throw new UnknownCamera(camera)
       const port = ports[camera]
-      if (port === undefined) throw new UnknownCamera(camera)
       const status = await client.setPoe(port, on)
       cache = null
       return toPower(camera, status, await isStreaming(camera))
