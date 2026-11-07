@@ -1,4 +1,4 @@
-import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PageHeader, PieChart, SimpleTable, SpecList, Tabs, Totals } from '@house/ui'
+import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PieChart, SimpleTable, SpecList, Totals, TopBar } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
 import SettingsSection from '@/components/SettingsSection'
 import KeyForm from '@/components/KeyForm'
@@ -67,15 +67,13 @@ import {
   BRIDGE_TITLE,
   NETWORK_MISSING_TEXT,
   NETWORK_TITLE,
-  REFRESH_LABEL,
   TABS,
-  TABS_CLASS,
   TABS_LABEL,
   TITLE,
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, power, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onRefresh, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, power, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
@@ -87,26 +85,17 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : loadedAt ? `mis à jour ${loadedAt}` : ''
   return (
     <Page>
-      <PageHeader
+      <TopBar
         title={TITLE}
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
-        actions={
-          ready ? (
-            <>
-              <Button onClick={onRefresh}>{REFRESH_LABEL}</Button>
-              <Button onClick={onLogout}>{LOGOUT_LABEL}</Button>
-            </>
-          ) : null
-        }
+        tabs={ready ? { label: TABS_LABEL, options: TABS, value: tab, onChange: onTab } : undefined}
+        actions={ready ? <Button onClick={onLogout}>{LOGOUT_LABEL}</Button> : undefined}
       />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
       {ready ? (
         <>
-          <div className={TABS_CLASS}>
-            <Tabs label={TABS_LABEL} options={TABS} value={tab} onChange={onTab} />
-          </div>
           {media ? <MediaPanel media={media} onClose={onClose} /> : null}
           {tab === 'db' ? (
             overview ? (

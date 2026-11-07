@@ -12,7 +12,6 @@ export const TABS: { id: TabId; label: string }[] = [
 ]
 export const BACK_LABEL = '← Toutes les caméras'
 export const FORGET_LABEL = 'Oublier la clé'
-export const ACTIONS_CLASS = 'flex flex-wrap gap-2'
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification de la clé…'
 export const CAMERA_WORD = 'caméra'
@@ -21,5 +20,4 @@ export const LAMP_WORD = 'lampe'
 export const COUNTS_SEPARATOR = ' / '
 export const NO_CAMERA_TEXT = 'Aucune caméra : House Sync n’a encore rien écrit.'
 
-export const TABS_CLASS = 'mt-4'
 export const BACK_CLASS = 'mt-4'

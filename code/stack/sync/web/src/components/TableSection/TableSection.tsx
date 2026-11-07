@@ -2,7 +2,8 @@ import { Fragment, useEffect, useState } from 'react'
 import { DataTable, TableFilters } from '@house/ui'
 import { fetchTable } from '@/lib/api'
 import { NO_FILTER } from '@/lib/filter'
-import type { Filter, FilteredPage, Row } from '@/types'
+import { useFilter } from '@/lib/useFilter'
+import type { FilteredPage, Row } from '@/types'
 import { renderCell } from './UI'
 import { CLEAR_LABEL, DATE_LABEL, DESCRIPTIONS, DETAIL_LABEL_CLASS, DETAIL_VALUE_CLASS, DETAILS_CLASS, MAIN_COLUMNS, MATCH_ALL, MATCH_LABELS, PAGE_SIZE } from './constants'
 import type { TableSectionProps } from './types'
@@ -15,7 +16,7 @@ const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
   const [page, setPage] = useState(0)
   const [collapsed, setCollapsed] = useState(true)
   const [data, setData] = useState<FilteredPage<Row> | null>(null)
-  const [filter, setFilter] = useState<Filter>(NO_FILTER)
+  const { filter, change } = useFilter(() => setPage(0))
   // La ligne dépliée (tables à colonnes principales seulement).
   const [openKey, setOpenKey] = useState<string | null>(null)
 
@@ -33,10 +34,6 @@ const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
   }, [table.name, page, refreshTick, collapsed, filter])
 
   const rows = data?.items ?? []
-  const change = (patch: Partial<Filter>) => {
-    setFilter((current) => ({ ...current, ...patch }))
-    setPage(0)
-  }
   const kinds = table.filters
   const filters = kinds ? (
     <TableFilters

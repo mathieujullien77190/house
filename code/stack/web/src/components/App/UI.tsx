@@ -1,4 +1,4 @@
-import { Button, Notice, Page, PageHeader, Tabs } from '@house/ui'
+import { Button, Notice, Page, TopBar } from '@house/ui'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
@@ -6,7 +6,7 @@ import Home from '@/components/Home'
 import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
-import { ACTIONS_CLASS, BACK_CLASS, BACK_LABEL, CAMERA_WORD, COUNTS_SEPARATOR, LAMP_WORD, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_CLASS, TABS_LABEL, TITLE } from './constants'
+import { BACK_CLASS, BACK_LABEL, CAMERA_WORD, COUNTS_SEPARATOR, LAMP_WORD, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_LABEL, TITLE } from './constants'
 import { countText, eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
@@ -25,22 +25,19 @@ const AppUI = ({ status, message, apiKey, cameras, events, lampCount, mobile, ta
   }
   return (
     <Page>
-      <PageHeader title={TITLE} onTitle={ready ? () => onTab('home') : undefined} status={message || statusText} tone={message ? 'error' : 'muted'} actions={
-          ready ? (
-            <div className={ACTIONS_CLASS}>
-              <Button onClick={onForget}>{FORGET_LABEL}</Button>
-            </div>
-          ) : null
-        }
+      <TopBar
+        title={TITLE}
+        onTitle={ready ? () => onTab('home') : undefined}
+        status={message || statusText}
+        tone={message ? 'error' : 'muted'}
+        tabs={ready ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
+        actions={ready ? <Button onClick={onForget}>{FORGET_LABEL}</Button> : undefined}
       />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
 
       {ready ? (
         <>
-          <div className={TABS_CLASS}>
-            <Tabs label={TABS_LABEL} options={tabs} value={tab} onChange={onTab} />
-          </div>
           {tab === 'home' ? <Home apiKey={apiKey} /> : null}
           {tab === 'cameras' ? (
             cameras.length === 0 ? (

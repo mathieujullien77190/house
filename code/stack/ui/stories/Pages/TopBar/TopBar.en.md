@@ -1,0 +1,1 @@
+A page's top bar, stuck to the top of the screen on scroll: the title, the tabs, the status and the buttons from 1024 px. Below that only the title and a "burger" button at the top right remain; it opens a menu with the pages, the status and the buttons, and an error stays visible under the title.

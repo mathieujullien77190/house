@@ -25,6 +25,8 @@ export interface Config {
   /** Les caméras dont le son est gardé avec leurs clips de mouvement (vide : aucune), et la durée des petits fichiers son (comme les segments vidéo). */
   audioCameras: string[]
   audioSegmentSeconds: number
+  /** Le gain en dB du son des clips (AUDIO_GAIN_DB, 24 par défaut) : le micro des Reolink donne un son très faible. */
+  audioGainDb: number
   /** Étiquette vidéo du MP4 : hvc1 pour du H.265 (la caméra), vide pour du H.264. */
   videoTag: string
   /** L'API pour House Sync. */
@@ -54,6 +56,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   mergeDelaySeconds: number(env.MERGE_DELAY_MINUTES, 30) * 60,
   audioCameras: (env.AUDIO_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
   audioSegmentSeconds: number(env.AUDIO_SEGMENT_SECONDS, 10),
+  audioGainDb: number(env.AUDIO_GAIN_DB, 24),
   videoTag: env.VIDEO_TAG ?? 'hvc1',
   port: number(env.PORT, 8080),
   detector: {

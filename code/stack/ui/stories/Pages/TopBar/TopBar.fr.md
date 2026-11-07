@@ -1,0 +1,1 @@
+La barre du haut d'une page, collée en haut de l'écran quand on défile : le titre, les onglets, l'état et les boutons dès 1024 px. En dessous, il ne reste que le titre et un bouton « sandwich » en haut à droite, qui ouvre un menu avec les pages, l'état et les boutons ; une erreur reste visible sous le titre.

@@ -1,5 +1,5 @@
-// plug : l'état de la prise connectée (GET /plug) et son changement (POST /plug, corps {"on": true|false}, ou {"on": true, "minutes": 15} : allumée
-// pendant ce temps, puis la prise s'éteint toute seule). Avec "offOnMotion": true (en allumant), le détecteur de mouvement intérieur
+// plug : l'état de la prise connectée (GET /plug) et son changement (POST /plug, corps {"on": false}, ou {"on": true, "minutes": 15} : allumée
+// pendant ce temps, puis la prise s'éteint toute seule ; allumer sans durée est refusé). Avec "offOnMotion": true (en allumant), le détecteur de mouvement intérieur
 // (PLUG_MOTION_SENSOR) éteint aussi la prise au premier mouvement qu'il voit.
 // Sans prise configurée (PLUG_HOST absent), le service répond 503 ; une prise qui ne répond pas, 502.
 import express, { Router } from 'express'
@@ -25,6 +25,8 @@ export const plugRouter = (plug: PlugService | null): Router => {
     if (body.minutes !== undefined && (body.on !== true || !Number.isInteger(body.minutes) || (body.minutes as number) < 1 || (body.minutes as number) > MAX_TIMER_MINUTES)) {
       return void res.status(400).json({ error: `minutes must be an integer from 1 to ${MAX_TIMER_MINUTES}, with "on": true` })
     }
+    // Jamais allumée sans fin : allumer demande une durée.
+    if (body.on === true && body.minutes === undefined) return void res.status(400).json({ error: '"on": true needs "minutes" (the plug never stays on without an end)' })
     if (body.offOnMotion !== undefined && (typeof body.offOnMotion !== 'boolean' || body.on !== true)) {
       return void res.status(400).json({ error: '"offOnMotion" must be a boolean, with "on": true' })
     }

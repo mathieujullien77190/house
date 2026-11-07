@@ -163,6 +163,7 @@ const makeClips = async () => {
               from: built.start,
               to: record.end_time + config.postSeconds,
               segmentSeconds: config.audioSegmentSeconds,
+              gainDb: config.audioGainDb,
             })
             if (sound) store.markAudio(record.id)
           } catch (error) {

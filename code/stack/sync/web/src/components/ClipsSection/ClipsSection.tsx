@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { Button, DataTable, StackedDate, Tabs, TableFilters } from '@house/ui'
 import { fetchClips } from '@/lib/api'
 import { NO_FILTER } from '@/lib/filter'
+import { useFilter } from '@/lib/useFilter'
 import { formatSize, splitMs } from '@/lib/format'
-import type { BackupFile, ClipGroup, Filter, FilteredPage } from '@/types'
+import type { BackupFile, ClipGroup, FilteredPage } from '@/types'
 import {
   CAMERA_ALL,
   CAMERA_LABEL,
@@ -33,7 +34,7 @@ const ClipsSection = ({ refreshTick, onOpen }: ClipsSectionProps) => {
   const [data, setData] = useState<FilteredPage<ClipGroup> | null>(null)
   // Deux vues d'une seule table : les clips sauvegardés depuis la WebApp, et les autres.
   const [view, setView] = useState<'saved' | 'others'>('saved')
-  const [filter, setFilter] = useState<Filter>(NO_FILTER)
+  const { filter, change } = useFilter(() => setPage(0))
 
   useEffect(() => {
     let cancelled = false
@@ -48,10 +49,6 @@ const ClipsSection = ({ refreshTick, onOpen }: ClipsSectionProps) => {
   }, [page, refreshTick, view, filter])
 
   const clips = data?.items ?? []
-  const change = (patch: Partial<Filter>) => {
-    setFilter((current) => ({ ...current, ...patch }))
-    setPage(0)
-  }
   const filters = (
     <TableFilters
       match={{

@@ -3,6 +3,7 @@
 // l'adresse de la dernière image et l'adresse iframe du direct de chaque caméra.
 // Seul House Sync écrit dans cette base ; House API la lit. Il sert aussi sa propre page (port 8081, HTTPS,
 // derrière la clé) qui montre la base et les fichiers du disque backup : l'API n'expose jamais la base brute.
+import { intSetting, readJsonObject, sendJson } from './http.ts'
 import { timingSafeEqual } from 'node:crypto'
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
@@ -711,45 +712,6 @@ const hasValidKey = (given: string): boolean => {
 const sessionOf = (req: IncomingMessage): string => {
   const cookie = (req.headers.cookie ?? '').split(';').map((c) => c.trim()).find((c) => c.startsWith(`${SESSION_COOKIE}=`))
   return cookie ? cookie.slice(SESSION_COOKIE.length + 1) : ''
-}
-
-/** Les corps reçus sont des petits JSON (une clé, des réglages) : au-delà, on coupe. */
-const MAX_BODY_BYTES = 16 * 1024
-const readBody = (req: IncomingMessage): Promise<string> =>
-  new Promise((resolve, reject) => {
-    let body = ''
-    let size = 0
-    req.on('data', (chunk: Buffer) => {
-      size += chunk.length
-      if (size > MAX_BODY_BYTES) {
-        reject(new Error('corps trop gros'))
-        req.destroy()
-        return
-      }
-      body += chunk.toString()
-    })
-    req.on('end', () => resolve(body))
-    req.on('error', reject)
-    req.on('close', () => reject(new Error('connexion coupée')))
-  })
-
-/** Le corps d'une requête en objet JSON ; null s'il n'est pas du JSON, ou si ce n'est pas un objet (null, nombre, tableau). */
-const readJsonObject = async (req: IncomingMessage): Promise<Record<string, unknown> | null> => {
-  try {
-    const parsed: unknown = JSON.parse(await readBody(req))
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
-}
-
-/** Un entier de min à max : la valeur envoyée si c'en est un, la valeur actuelle si elle manque, null sinon (un booléen, un texte ou un tableau ne passent pas). */
-const intSetting = (sent: unknown, current: number, min: number, max: number): number | null =>
-  sent === undefined ? current : typeof sent === 'number' && Number.isInteger(sent) && sent >= min && sent <= max ? sent : null
-
-const sendJson = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...headers })
-  res.end(JSON.stringify(body))
 }
 
 // Les fichiers de la page React compilée (dossier web), publics : les données, elles, sont derrière la session.

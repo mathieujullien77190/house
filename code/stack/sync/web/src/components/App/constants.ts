@@ -16,7 +16,6 @@ export const TABS: { id: TabId; label: string }[] = [
 ]
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification…'
-export const REFRESH_LABEL = 'Rafraîchir'
 export const LOGOUT_LABEL = 'Quitter'
 export const DATABASE_TITLE = 'Base SQLite'
 export const BACKUP_TITLE = 'Disque backup'
@@ -60,7 +59,6 @@ export const POWER_TITLE = 'Consommation électrique'
 export const POWER_MISSING_TEXT = 'Consommation indisponible.'
 export const LOADING_TEXT = 'Chargement…'
 
-export const TABS_CLASS = 'mt-4'
 /** Les graphiques l'un sous l'autre de 360 à 1024 px (mobile), côte à côte au-delà (bureau). */
 export const GRID_CLASS = 'grid grid-cols-1 gap-x-4 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,30rem),1fr))]'
 

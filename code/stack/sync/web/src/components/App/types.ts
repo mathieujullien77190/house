@@ -34,7 +34,6 @@ export interface AppUIProps {
   onTab: (tab: TabId) => void
   onConnect: (key: string) => void
   onLogout: () => void
-  onRefresh: () => void
   onOpen: (media: Media) => void
   onClose: () => void
 }

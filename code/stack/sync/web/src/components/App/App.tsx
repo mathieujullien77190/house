@@ -170,7 +170,6 @@ const App = () => {
       onTab={changeTab}
       onConnect={connect}
       onLogout={quit}
-      onRefresh={refresh}
       onOpen={setMedia}
       onClose={() => setMedia(null)}
     />

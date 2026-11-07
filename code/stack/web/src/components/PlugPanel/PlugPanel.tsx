@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Notice, SectionTitle, SpecList } from '@house/ui'
+import { Button, Checkbox, Notice, SectionTitle, SpecList } from '@house/ui'
 import { ApiError, fetchPlug, setPlug } from '@/lib/api'
 import type { PlugState } from '@/types'
 import {
@@ -8,8 +8,6 @@ import {
   LOADING_TEXT,
   MOTION_ARMED_LABEL,
   MOTION_ARMED_TEXT,
-  MOTION_CLASS,
-  MOTION_INPUT_CLASS,
   MOTION_LABEL,
   MODEL_LABEL,
   NAME_CLASS,
@@ -32,7 +30,6 @@ import {
   TIMER_UNIT,
   TITLE,
   TURN_OFF_LABEL,
-  TURN_ON_LABEL,
   UNAVAILABLE_TEXT,
   VALUE_CLASS,
 } from './constants'
@@ -48,8 +45,8 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   // 'loading' avant la première réponse, 'off' : prise injoignable, 'none' : pas de prise configurée (503).
   const [problem, setProblem] = useState<'loading' | 'off' | 'none' | null>('loading')
   const [busy, setBusy] = useState(false)
-  // L'option choisie : en allumant, le détecteur intérieur éteint la prise au premier mouvement.
-  const [offOnMotion, setOffOnMotion] = useState(false)
+  // L'option choisie, cochée au départ : en allumant, le détecteur intérieur éteint la prise au premier mouvement.
+  const [offOnMotion, setOffOnMotion] = useState(true)
   // La durée choisie au curseur, en minutes.
   const [minutes, setMinutes] = useState<number>(TIMER_DEFAULT)
   // L'instant où le minuteur de la prise l'éteindra (déduit de ce que la prise a dit), et l'heure qui défile chaque seconde pour le décompte.
@@ -98,10 +95,11 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
     return () => clearInterval(tick)
   }, [running])
 
-  const toggle = () => {
+  // Éteindre : la prise ne s'allume jamais sans fin (seulement pour un temps donné), donc ce bouton ne sert qu'à l'éteindre.
+  const turnOff = () => {
     if (!plug || busy) return
     setBusy(true)
-    setPlug(apiKey, !plug.on, undefined, offOnMotion)
+    setPlug(apiKey, false)
       .then(apply)
       .catch(() => setProblem('off'))
       .finally(() => setBusy(false))
@@ -130,14 +128,13 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
         <>
           <div className={HEAD_CLASS}>
             <span className={NAME_CLASS}>{plug.alias}</span>
-            <Button variant={plug.on ? 'active' : 'default'} disabled={busy} onClick={toggle}>
-              {plug.on ? TURN_OFF_LABEL : TURN_ON_LABEL}
-            </Button>
+            {plug.on ? (
+              <Button variant="active" disabled={busy} onClick={turnOff}>
+                {TURN_OFF_LABEL}
+              </Button>
+            ) : null}
           </div>
-          <label className={MOTION_CLASS}>
-            <input type="checkbox" className={MOTION_INPUT_CLASS} checked={offOnMotion} onChange={(event) => setOffOnMotion(event.target.checked)} />
-            {MOTION_LABEL}
-          </label>
+          <Checkbox label={MOTION_LABEL} checked={offOnMotion} onChange={setOffOnMotion} />
           <div className={TIMER_BOX_CLASS}>
             <div className={SLIDER_HEAD_CLASS}>
               <span>{TIMER_LABEL}</span>

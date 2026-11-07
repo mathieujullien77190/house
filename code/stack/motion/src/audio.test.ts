@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { audioClipPath, audioStart, buildAudioClip, listAudioStarts, pruneAudio, selectAudio } from './audio.ts'
+import { audioClipPath, audioStart, buildAudioClip, encodeArgs, listAudioStarts, pruneAudio, selectAudio } from './audio.ts'
 
 test('audioStart lit l’heure de début dans le nom d’un fichier son, et refuse le reste', () => {
   assert.equal(audioStart('1794071400.aac'), 1794071400)
@@ -58,4 +58,11 @@ test('sans aucun fichier son sur la plage, aucun son n’est écrit', async () =
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('encodeArgs : sans gain le son est copié, avec un gain il est amplifié (limiteur) et recodé', () => {
+  assert.deepEqual(encodeArgs(0), ['-c:a', 'copy'])
+  const args = encodeArgs(24)
+  assert.ok(args.includes('volume=24dB,alimiter=limit=0.95'))
+  assert.ok(args.includes('aac'))
 })

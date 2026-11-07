@@ -105,7 +105,13 @@ export interface AudioClipRequest {
   from: number
   to: number
   segmentSeconds: number
+  /** Le gain en dB appliqué au son du clip (le micro des caméras est très faible) ; 0 : le son tel quel, sans le recoder. */
+  gainDb?: number
 }
+
+/** Les options d'ffmpeg pour le son d'un clip : copié tel quel sans gain ; avec un gain, amplifié puis recodé en AAC, un limiteur évitant la saturation. */
+export const encodeArgs = (gainDb: number): string[] =>
+  gainDb > 0 ? ['-af', `volume=${gainDb}dB,alimiter=limit=0.95`, '-c:a', 'aac', '-b:a', '64k', '-ar', '16000'] : ['-c:a', 'copy']
 
 /**
  * Fabrique le son d'un clip : les petits fichiers qui le recouvrent, mis bout à bout (concaténation d'octets, le format ADTS le permet sans décalage),
@@ -130,7 +136,7 @@ export const buildAudioClip = async (request: AudioClipRequest): Promise<boolean
   const duration = Math.max(1, request.to - Math.max(request.from, first))
   try {
     await new Promise<void>((resolve, reject) => {
-      const ffmpeg = spawn('ffmpeg', ['-loglevel', 'error', '-y', '-i', joined, '-ss', String(offset), '-t', String(duration), '-c:a', 'copy', '-f', 'adts', partial], {
+      const ffmpeg = spawn('ffmpeg', ['-loglevel', 'error', '-y', '-i', joined, '-ss', String(offset), '-t', String(duration), ...encodeArgs(request.gainDb ?? 0), '-f', 'adts', partial], {
         stdio: ['ignore', 'ignore', 'inherit'],
       })
       ffmpeg.on('error', reject)

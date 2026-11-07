@@ -49,6 +49,8 @@ services:
       # de petits fichiers de 10 s, gardés comme les segments vidéo (6 h), dont on tire le son de chaque clip.
       AUDIO_CAMERAS: voliere-interieur
       AUDIO_SEGMENT_SECONDS: "10"
+      # Le micro des Reolink est très faible (environ -55 dB) : le son des clips est amplifié de ce gain, en dB (0 : tel quel).
+      AUDIO_GAIN_DB: "24"
     volumes:
       - ./data/recordings:/recordings
       - ./data/clips:/data
