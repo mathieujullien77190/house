@@ -159,6 +159,8 @@ services:
       PLUG_MAC: ${PLUG_MAC:-D8:0D:17:1C:84:E3}
       # La page invité (guest/) : la WebApp en affiche le lien (clé comprise) et un bouton « Copier » (GET /guest, derrière la clé de l'API). GUEST_PUBLIC_URL : son adresse publique
       # si elle est ouverte à internet (sinon la WebApp prend son propre hôte et le port 8090).
+      # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API.
+      RECORDER_URL: http://motion:8080
       GUEST_KEY: ${GUEST_KEY:-}
       GUEST_PUBLIC_URL: ${GUEST_PUBLIC_URL:-}
       # Ce que l'API écrit : les positions des ampoules sur le plan et la liste des clips sauvegardés (data/house, créé par l'utilisateur de la machine).

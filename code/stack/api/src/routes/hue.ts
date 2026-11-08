@@ -1,9 +1,9 @@
-// hue : les pièces et leurs lampes (GET /hue), les règles d'automatisation du pont (GET /hue/automations), les détecteurs de mouvement (GET /hue/sensors), les positions des ampoules sur le plan (GET et PUT /hue/positions) ; PUT /hue/rooms/:id et PUT /hue/lights/:id avec {"on": true|false} et/ou {"bri": 1..254}.
+// hue : les pièces et leurs lampes (GET /hue), l'extinction en douceur d'une lampe (GET, POST, DELETE /hue/lights/:id/fade), les règles d'automatisation du pont (GET /hue/automations), les détecteurs de mouvement (GET /hue/sensors), les positions des ampoules sur le plan (GET et PUT /hue/positions) ; PUT /hue/rooms/:id et PUT /hue/lights/:id avec {"on": true|false} et/ou {"bri": 1..254}.
 // Sans pont configuré (HUE_APP_KEY absente), le service répond 503.
 import express, { Router } from 'express'
 import type { HueService } from '../services/hueService.ts'
 import { parsePositions } from '../lib/positionsStore.ts'
-import { parseState, UnknownHueId } from '../services/hueService.ts'
+import { FadeImpossible, parseState, UnknownHueId } from '../services/hueService.ts'
 
 export const hueRouter = (hue: HueService | null): Router => {
   const router = Router()
@@ -42,6 +42,25 @@ export const hueRouter = (hue: HueService | null): Router => {
     try {
       res.json(hue.setPositions(changes))
     } catch (error) {
+      next(error)
+    }
+  })
+  // GET, POST et DELETE /hue/lights/:id/fade : l'extinction en douceur d'une lampe (sa luminosité descend au minimum en {"minutes": 15} par défaut, de 1 à 60, puis elle s'éteint) ; GET dit si elle est en cours et quand elle finit.
+  router.all('/hue/lights/:id/fade', express.json({ limit: '1kb' }), async (req, res, next) => {
+    if (!hue) return void res.status(503).json({ error: 'hue bridge not configured' })
+    const id = String(req.params.id)
+    try {
+      if (req.method === 'GET') return void res.json(await hue.fade.status(id))
+      if (req.method === 'DELETE') return void res.json(await hue.fade.cancel(id))
+      if (req.method !== 'POST') return void res.status(405).json({ error: 'method not allowed' })
+      const minutes = (req.body as { minutes?: unknown } | undefined)?.minutes ?? 15
+      if (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes < 1 || minutes > 60) {
+        return void res.status(400).json({ error: 'minutes must be a number from 1 to 60' })
+      }
+      res.json(await hue.fade.start(id, minutes))
+    } catch (error) {
+      if (error instanceof UnknownHueId) return void res.status(404).json({ error: 'unknown id' })
+      if (error instanceof FadeImpossible) return void res.status(409).json({ error: 'the light is off or unreachable' })
       next(error)
     }
   })

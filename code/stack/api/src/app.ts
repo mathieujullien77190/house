@@ -39,14 +39,17 @@ export const createApp = (config: Config): Express => {
       }
     : null
   const live = createLiveService(config.go2rtcUrls, cameras)
+  const savedClips = createSavedClipsStore(`${config.stateDir}/saved-clips.json`)
   const services = {
     cameras: createCamerasService(cameras),
-    events: createEventsService(createEventsRepository(db), createSavedClipsStore(`${config.stateDir}/saved-clips.json`)),
+    events: createEventsService(createEventsRepository(db), savedClips),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
     files: createBackupFiles(config.dataDir),
     zones: createZonesStore(`${config.stateDir}/zones.json`),
     plan: createPlanStore(`${config.stateDir}/plan.json`),
+    recorderUrl: config.recorderUrl,
+    savedClips,
     hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     guest: config.guest,
     plug: config.plug ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json` }) : null,

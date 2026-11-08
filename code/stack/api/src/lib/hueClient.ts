@@ -34,6 +34,18 @@ export interface HueState {
   on?: boolean
   /** Luminosité, de 1 à 254. */
   bri?: number
+  /** La durée de la transition, en dixièmes de seconde (jusqu'à 65535, soit 1 h 49) : le pont la fait tout seul. */
+  transition?: number
+}
+
+/** Une programmation du pont (API v1 : /schedules) : ici un minuteur qui fait une chose une seule fois. */
+export interface HueSchedule {
+  name: string
+  description?: string
+  /** Pour un minuteur : « PThh:mm:ss ». */
+  localtime?: string
+  /** Quand le minuteur a été lancé (UTC, « 2026-11-08T15:00:00 »). */
+  starttime?: string
 }
 
 export interface HueClient {
@@ -45,13 +57,20 @@ export interface HueClient {
   /** Change l'état d'une lampe ou d'une pièce : { on?, bri? }. */
   setLight: (id: string, state: HueState) => Promise<void>
   setGroup: (id: string, state: HueState) => Promise<void>
+  /** Les programmations du pont, par identifiant. */
+  schedules: () => Promise<Record<string, HueSchedule>>
+  /** Crée un minuteur qui fera `command` une fois : { address, method, body }, dans `localtime` (« PThh:mm:ss ») ; efface sa propre programmation après. Rend son identifiant. */
+  createTimer: (timer: { name: string; description: string; localtime: string; command: { address: string; method: 'PUT'; body: unknown } }) => Promise<string>
+  deleteSchedule: (id: string) => Promise<void>
+  /** Le début de l'adresse d'une commande programmée : /api/<clé> (la commande s'exécute dans le pont). */
+  commandBase: string
 }
 
 const TIMEOUT_MS = 5000
 
 export const createHueClient = (config: HueConfig): HueClient => {
   const base = `${config.url.replace(/\/$/, '')}/api/${config.key}`
-  const call = async <T>(method: 'GET' | 'PUT', path: string, body?: unknown): Promise<T> => {
+  const call = async <T>(method: 'GET' | 'PUT' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> => {
     const res = await fetch(`${base}${path}`, {
       method,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
@@ -95,7 +114,19 @@ export const createHueClient = (config: HueConfig): HueClient => {
     sensors: () => call<Record<string, HueSensor>>('GET', '/sensors'),
     lights: () => call<Record<string, HueLight>>('GET', '/lights'),
     groups: () => call<Record<string, HueGroup>>('GET', '/groups'),
-    setLight: async (id, state) => void (await call('PUT', `/lights/${id}/state`, state)),
+    setLight: async (id, state) => {
+      const { transition, ...rest } = state
+      await call('PUT', `/lights/${id}/state`, transition === undefined ? rest : { ...rest, transitiontime: transition })
+    },
     setGroup: async (id, state) => void (await call('PUT', `/groups/${id}/action`, state)),
+    schedules: () => call<Record<string, HueSchedule>>('GET', '/schedules'),
+    createTimer: async (timer) => {
+      const answer = await call<{ success?: { id?: string } }[]>('POST', '/schedules', { ...timer, status: 'enabled', autodelete: true })
+      const id = answer.find((item) => item.success?.id)?.success?.id
+      if (!id) throw new Error('pont Hue : minuteur non créé')
+      return id
+    },
+    deleteSchedule: async (id) => void (await call('DELETE', `/schedules/${id}`)),
+    commandBase: `/api/${config.key}`,
   }
 }

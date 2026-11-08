@@ -28,6 +28,7 @@ const toDto = (row: EventRow, saved: ReadonlySet<string>): EventDto => ({
   clip_audio: row.clip_audio_path ? `/clips/${row.id}/audio` : null,
   clip_started_at: row.clip_started_at,
   saved: saved.has(row.id),
+  orientation: row.orientation === 'portrait' ? 'portrait' : 'landscape',
 })
 
 export const createEventsService = (events: EventsRepository, savedClips: SavedClipsStore) => ({

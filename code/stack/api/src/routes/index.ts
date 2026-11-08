@@ -2,6 +2,7 @@
 import { Router } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import type { PlanStore } from '../lib/planStore.ts'
+import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
 import type { ZonesStore } from '../lib/zonesStore.ts'
 import { createRequireKey } from '../middleware/requireKey.ts'
 import { createSessions } from '../middleware/session.ts'
@@ -24,6 +25,7 @@ import { poeRouter } from './poe.ts'
 import { snapshotsRouter } from './snapshots.ts'
 import { welcomeRouter } from './welcome.ts'
 import { planRouter } from './plan.ts'
+import { recordRouter } from './record.ts'
 import { zonesRouter } from './zones.ts'
 
 export interface Services {
@@ -44,6 +46,10 @@ export interface Services {
   zones: ZonesStore
   /** Le plan de la maison (la carte de la WebApp). */
   plan: PlanStore
+  /** L'adresse de l'enregistreur (motion), ou null : /record répond 503. */
+  recorderUrl: string | null
+  /** La liste des clips sauvegardés (un clip enregistré à la main en fait partie d'office). */
+  savedClips: SavedClipsStore
 }
 
 /** Les chemins derrière la clé ; tout le reste (welcome, logout, le certificat public, les fichiers de la WebApp) est public. */
@@ -63,6 +69,7 @@ export const SECURED_PATHS = [
   '/guest',
   '/zones',
   '/plan',
+  '/record',
 ]
 
 export const createRoutes = (apiKey: string, services: Services, caCert = ''): Router => {
@@ -82,5 +89,6 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(guestRouter(services.guest))
   router.use(zonesRouter(services.zones))
   router.use(planRouter(services.plan))
+  router.use(recordRouter(services.recorderUrl, services.savedClips))
   return router
 }

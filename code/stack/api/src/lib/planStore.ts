@@ -1,12 +1,14 @@
 // Le plan de la maison (la carte de la WebApp) : arbres, haies, cage, chemin du garage et portes, positions de la lampe et de la prise, caméras du plan et leur lien avec les vraies
 // caméras. Gardé par l'API (STATE_DIR/plan.json) pour qu'il soit le même sur tous les appareils ; House Sync le lit (en lecture seule) et l'importe dans SQLite (table `plan`).
-// Un document : seules les parties connues et bien formées sont gardées, le reste est jeté.
+// Positions en longitude et latitude (version 2). Un document : seules les parties connues et bien formées sont gardées, le reste est jeté.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 type Point = [number, number]
 
 export interface PlanDocument {
+  /** 2 : les positions sont des longitudes et latitudes, les tailles des mètres, les angles des caps (degrés depuis le nord). Absent ou 1 : l'ancien plan, en unités du dessin. */
+  version: number
   trees: { id: string; x: number; y: number; r: number }[]
   hedges: { id: string; points: Point[] }[]
   cage: { x: number; y: number } | null
@@ -24,7 +26,8 @@ const MAX_ITEMS = 200
 const MAX_POINTS = 400
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const round = (value: number): number => Math.round(value * 100) / 100
+/** Arrondi à 7 décimales : une longitude ou une latitude garde son centimètre. */
+const round = (value: number): number => Math.round(value * 1e7) / 1e7
 const record = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value.slice(0, MAX_ITEMS) : [])
@@ -34,7 +37,16 @@ const text = (value: unknown, max = 120): string | null =>
 /** Le document tel qu'on le garde : ce qui est bien formé, arrondi ; un document vide est valable (tout reste au dessin de départ). */
 export const parsePlan = (value: unknown): PlanDocument => {
   const raw = record(value)
-  const plan: PlanDocument = { trees: [], hedges: [], cage: null, offsets: {}, items: {}, cameras: [], links: {} }
+  const plan: PlanDocument = {
+    version: finite(raw.version) ? Math.round(raw.version) : 1,
+    trees: [],
+    hedges: [],
+    cage: null,
+    offsets: {},
+    items: {},
+    cameras: [],
+    links: {},
+  }
   for (const item of list(raw.trees)) {
     const tree = record(item)
     const id = text(tree.id)

@@ -25,6 +25,17 @@ export interface RoomDto {
 export class UnknownHueId extends Error {}
 
 const ID = /^\d+$/
+/** Le minuteur du pont éteint la lampe un peu après la fin de la transition (la lampe est alors au minimum). */
+const FADE_END_MARGIN_SECONDS = 5
+/** Le nom du minuteur de l'extinction en douceur d'une lampe, dans le pont. */
+const fadeName = (id: string): string => `house-fade-${id}`
+/** Quand le minuteur d'extinction sonnera (secondes depuis 1970) : son début (UTC) plus sa durée « PThh:mm:ss ». */
+const fadeEnd = (schedule: { localtime?: string; starttime?: string }): number | null => {
+  const duration = /^PT(\d+):(\d+):(\d+)$/.exec(schedule.localtime ?? '')
+  if (!duration || !schedule.starttime) return null
+  const start = Date.parse(`${schedule.starttime}Z`)
+  return Number.isNaN(start) ? null : Math.round(start / 1000) + Number(duration[1]) * 3600 + Number(duration[2]) * 60 + Number(duration[3])
+}
 const MIN_BRI = 1
 const MAX_BRI = 254
 
@@ -96,6 +107,16 @@ export const toSensors = (raw: Record<string, HueSensor>): SensorDto[] => {
 }
 
 export const createHueService = (hue: HueClient, positions: PositionsStore) => {
+  /** Retire le minuteur d'extinction d'une lampe ; avec `restore`, la lampe retrouve la luminosité qu'elle avait (écrite dans la description du minuteur). */
+  const cancelFade = async (id: string, restore = false): Promise<void> => {
+    const schedules = await hue.schedules()
+    for (const [scheduleId, schedule] of Object.entries(schedules)) {
+      if (schedule.name !== fadeName(id)) continue
+      await hue.deleteSchedule(scheduleId)
+      const before = Number(/^bri=(\d+)$/.exec(schedule.description ?? '')?.[1])
+      if (restore && Number.isInteger(before) && before >= 1) await hue.setLight(id, { bri: before, transition: 20 })
+    }
+  }
   const list = async (): Promise<RoomDto[]> => {
     const [lights, groups] = await Promise.all([hue.lights(), hue.groups()])
     const toLight = (id: string): LightDto | null => {
@@ -148,6 +169,40 @@ export const createHueService = (hue: HueClient, positions: PositionsStore) => {
       await hue.setGroup(id, state)
       return list()
     },
+    /**
+     * L'extinction en douceur d'une lampe : sa luminosité descend au minimum en `minutes` minutes (transition du pont), puis un minuteur du pont l'éteint et lui rend sa luminosité d'avant (pour
+     * le prochain allumage). Le pont fait tout seul : l'API peut s'arrêter entre-temps. Une seule à la fois par lampe.
+     */
+    fade: {
+      status: async (id: string): Promise<{ fading: boolean; ends_at: number | null }> => {
+        if (!ID.test(id)) throw new UnknownHueId()
+        const found = Object.values(await hue.schedules()).find((schedule) => schedule.name === fadeName(id))
+        return found ? { fading: true, ends_at: fadeEnd(found) } : { fading: false, ends_at: null }
+      },
+      start: async (id: string, minutes: number): Promise<{ fading: boolean; ends_at: number | null }> => {
+        if (!ID.test(id)) throw new UnknownHueId()
+        const light = (await hue.lights())[id]
+        if (!light) throw new UnknownHueId()
+        if (!light.state.on || !light.state.reachable) throw new FadeImpossible()
+        await cancelFade(id)
+        const before = light.state.bri ?? 254
+        await hue.setLight(id, { bri: 1, transition: Math.min(65535, Math.round(minutes * 600)) })
+        const seconds = Math.round(minutes * 60) + FADE_END_MARGIN_SECONDS
+        await hue.createTimer({
+          name: fadeName(id),
+          description: `bri=${before}`,
+          localtime: `PT${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`,
+          command: { address: `${hue.commandBase}/lights/${id}/state`, method: 'PUT', body: { on: false, bri: before, transitiontime: 0 } },
+        })
+        return { fading: true, ends_at: Math.floor(Date.now() / 1000) + seconds }
+      },
+      /** Annule : la luminosité revient (en 2 s) à ce qu'elle était. */
+      cancel: async (id: string): Promise<{ fading: boolean; ends_at: number | null }> => {
+        if (!ID.test(id)) throw new UnknownHueId()
+        await cancelFade(id, true)
+        return { fading: false, ends_at: null }
+      },
+    },
     /** Allume, éteint ou règle une lampe ; rend l'état à jour. */
     setLight: async (id: string, state: HueState): Promise<RoomDto[]> => {
       if (!ID.test(id)) throw new UnknownHueId()
@@ -156,5 +211,8 @@ export const createHueService = (hue: HueClient, positions: PositionsStore) => {
     },
   }
 }
+
+/** On ne peut pas éteindre en douceur une lampe éteinte ou injoignable. */
+export class FadeImpossible extends Error {}
 
 export type HueService = ReturnType<typeof createHueService>

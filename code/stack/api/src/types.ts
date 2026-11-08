@@ -12,11 +12,17 @@ export interface EventRow {
   clip_web_path: string | null
   /** Le son du clip (AAC), à part de la vidéo ; null sans son (caméra sans micro, clip d'avant, pas encore copié). */
   clip_audio_path: string | null
+  /** Paysage ou portrait (caméra posée de côté) : celui qu'avait la caméra au début de l'événement ; null pour une base d'avant. */
+  orientation: string | null
 }
+
+export type Orientation = 'landscape' | 'portrait'
 
 export interface CameraRow {
   camera: string
   url: string
+  /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire) ; réglé dans House Sync. */
+  orientation?: Orientation
 }
 
 /** Un événement tel que l'API le renvoie : le chemin du clip devient une adresse de service. */
@@ -36,4 +42,6 @@ export interface EventDto {
   clip_started_at: number | null
   /** Sauvegardé : House Sync ne l'efface jamais (les autres le sont après la durée de garde). */
   saved: boolean
+  /** Paysage ou portrait (caméra posée de côté) au début de l'événement : en portrait, la vidéo se lit tournée d'un quart de tour horaire. */
+  orientation: Orientation
 }
