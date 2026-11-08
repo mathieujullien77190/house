@@ -29,6 +29,15 @@ export interface Detection {
   setZone: (camera: string, points: Point[] | null) => void
 }
 
+/** L'enregistrement lancé à la main, caméra par caméra : un mouvement fictif qu'on ouvre puis qu'on ferme, dont le clip se fait comme les autres. */
+export interface Recording {
+  status: (camera: string) => { recording: boolean; id: string | null; started_at: number | null }
+  /** Commence (sans effet si la caméra enregistre déjà : rend l'enregistrement en cours). */
+  start: (camera: string) => { id: string; started_at: number }
+  /** Arrête ; null si la caméra n'enregistrait pas. */
+  stop: (camera: string) => { id: string; started_at: number; ended_at: number } | null
+}
+
 /** La taille maximale du corps d'une demande de zone (32 sommets tiennent dans moins de 1 Ko). */
 const MAX_BODY = 4096
 
@@ -49,7 +58,13 @@ const readBody = (req: IncomingMessage): Promise<string | null> =>
     req.on('error', () => resolve(null))
   })
 
-export const startServer = (config: Config, store: EventStore, detection: Detection, log: (message: string) => void) => {
+export const startServer = (
+  config: Config,
+  store: EventStore,
+  detection: Detection,
+  recording: Recording,
+  log: (message: string) => void,
+) => {
   const clipPath = (id: string): string => `${config.clipsDir}/${id}.mp4`
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
@@ -94,6 +109,18 @@ export const startServer = (config: Config, store: EventStore, detection: Detect
         return json(res, 400, { error: 'points must be null or 3 to 32 [x, y] pairs between 0 and 1' })
       detection.setZone(zone[1], points)
       return json(res, 200, { camera: zone[1], points })
+    }
+    // GET, POST et DELETE /api/cameras/<caméra>/record : l'état de l'enregistrement lancé à la main, son début, son arrêt (le clip se fait ensuite comme celui d'un mouvement).
+    const record = /^\/api\/cameras\/([\w-]+)\/record$/.exec(pathname)
+    if (record) {
+      if (!config.cameras.includes(record[1])) return json(res, 404, { error: 'unknown camera' })
+      if (req.method === 'GET') return json(res, 200, recording.status(record[1]))
+      if (req.method === 'POST') return json(res, 200, { recording: true, ...recording.start(record[1]) })
+      if (req.method === 'DELETE') {
+        const stopped = recording.stop(record[1])
+        return stopped ? json(res, 200, { recording: false, ...stopped }) : json(res, 409, { error: 'not recording' })
+      }
+      return json(res, 405, { error: 'method not allowed' })
     }
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
 

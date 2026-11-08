@@ -40,6 +40,22 @@ const zones = new Map<string, { points: Point[] | null; mask: Uint8Array | null 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
 
+// Les enregistrements lancés à la main (bouton « Enregistrer »), par caméra : un mouvement fictif de l'appui à l'arrêt. Au plus MAX_MANUAL_SECONDS (on oublie vite un enregistrement).
+const MAX_MANUAL_SECONDS = 180
+const manual = new Map<string, { id: string; startedAt: number }>()
+const stopManual = (camera: string) => {
+  const current = manual.get(camera)
+  if (!current) return null
+  const endedAt = Date.now() / 1000
+  store.close(current.id, endedAt)
+  manual.delete(camera)
+  log(`${camera} : enregistrement manuel ${current.id} arrêté (${Math.round(endedAt - current.startedAt)} s)`)
+  return { id: current.id, started_at: current.startedAt, ended_at: endedAt }
+}
+setInterval(() => {
+  for (const [camera, current] of manual) if (Date.now() / 1000 - current.startedAt > MAX_MANUAL_SECONDS) stopManual(camera)
+}, 5_000)
+
 for (const camera of config.cameras) {
   mkdirSync(`${config.recordingsDir}/${camera}`, { recursive: true })
   void recordSegments(`${config.go2rtcRtsp}/${camera}_main`, `${config.recordingsDir}/${camera}`, config.segmentSeconds, (m) =>
@@ -110,6 +126,22 @@ startServer(
       }
       Object.assign(seuils, next)
     },
+  },
+  {
+    status: (camera) => {
+      const current = manual.get(camera)
+      return { recording: current !== undefined, id: current?.id ?? null, started_at: current?.startedAt ?? null }
+    },
+    start: (camera) => {
+      const current = manual.get(camera)
+      if (current) return { id: current.id, started_at: current.startedAt }
+      const startedAt = Date.now() / 1000
+      const record = store.open(camera, startedAt, true)
+      manual.set(camera, { id: record.id, startedAt })
+      log(`${camera} : enregistrement manuel ${record.id}`)
+      return { id: record.id, started_at: startedAt }
+    },
+    stop: stopManual,
   },
   log,
 )

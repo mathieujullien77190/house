@@ -82,3 +82,13 @@ test('markAudio note le son d’un clip, et la fusion l’efface (il sera refait
   assert.equal(events.get(a.id)?.has_audio, undefined)
   assert.equal(events.get(b.id)?.has_audio, undefined)
 })
+
+test('un événement lancé à la main porte manual et se ferme comme les autres', () => {
+  const events = store()
+  const record = events.open('cam', 100, true)
+  assert.equal(record.manual, true)
+  assert.equal(events.open('cam', 200).manual, undefined)
+  events.close(record.id, 130)
+  assert.equal(events.get(record.id)?.end_time, 130)
+  assert.equal(events.withoutClip().some((e) => e.id === record.id), true)
+})

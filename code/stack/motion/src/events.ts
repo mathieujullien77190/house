@@ -11,6 +11,8 @@ export interface MotionRecord {
   start_time: number
   end_time: number | null
   has_clip: boolean
+  /** Lancé à la main (bouton « Enregistrer » de la WebApp) : un mouvement fictif, qui dure de l'appui à l'arrêt. */
+  manual?: boolean
   /** Le son du clip existe (fichier <id>.aac à côté du clip) : il est gardé seulement pour les clips de mouvement des caméras à son. */
   has_audio?: boolean
   /** Secondes depuis 1970 : le début réel du clip (le segment qui précède l'événement), connu une fois le clip fait. */
@@ -59,8 +61,16 @@ export const createEventStore = (file: string) => {
   }
 
   return {
-    open: (camera: string, startTime: number): MotionRecord => {
-      const record: MotionRecord = { id: eventId(camera, startTime), camera, label: 'motion', start_time: startTime, end_time: null, has_clip: false }
+    open: (camera: string, startTime: number, manual = false): MotionRecord => {
+      const record: MotionRecord = {
+        id: eventId(camera, startTime),
+        camera,
+        label: 'motion',
+        start_time: startTime,
+        end_time: null,
+        has_clip: false,
+      }
+      if (manual) record.manual = true
       events.push(record)
       save()
       return record
@@ -126,7 +136,9 @@ export const createEventStore = (file: string) => {
     list: (query: EventQuery = {}): MotionRecord[] =>
       events
         .filter((e) => (query.mergedAfter === undefined ? e.merged_into === undefined : (e.merged_at ?? 0) > query.mergedAfter))
-        .filter((e) => (query.after === undefined || e.start_time > query.after) && (query.before === undefined || e.start_time < query.before))
+        .filter(
+          (e) => (query.after === undefined || e.start_time > query.after) && (query.before === undefined || e.start_time < query.before),
+        )
         .filter((e) => query.hasClip === undefined || e.has_clip === query.hasClip)
         .filter((e) => query.inProgress === undefined || (e.end_time === null) === query.inProgress)
         .sort((a, b) => b.start_time - a.start_time)
