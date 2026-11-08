@@ -8,39 +8,64 @@ import {
   ALL_ROW_CLASS,
   BRIGHTNESS_LABEL,
   BUSY_LABEL,
-  BUTTON_CLASS,
+  DIMMABLE_LIST_CLASS,
+  DIMMABLE_ROW_CLASS,
+  GRID_CLASS,
   GROUP_CLASS,
-  LAMPS_CLASS,
   LIST_CLASS,
   MOTION_OFF_CLASS,
   MOTION_ON_CLASS,
   MUTED_CLASS,
   NAME_CLASS,
+  OFF_LABEL,
+  ON_LABEL,
   PERCENT_CLASS,
   ROW_CLASS,
+  SENSORS_CLASS,
   SLIDER_CLASS,
-  TURN_OFF_LABEL,
-  TURN_ON_LABEL,
+  TILE_BUTTON_CLASS,
+  TILE_CLASS,
+  TILE_NAME_CLASS,
+  TILE_OFF_CLASS,
+  TILE_ON_CLASS,
+  TILE_STATE_CLASS,
   UNREACHABLE_TEXT,
+  ZONE_BUTTON_CLASS,
 } from './constants'
-import { briOf, countText, percentOf } from './helpers'
-import type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
+import { briOf, countText, MAX_BRI, percentOf } from './helpers'
+import type { LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
-/** Les lumières : une section repliable par pièce, un bouton et un curseur de luminosité pour la pièce et pour chaque lampe. */
-const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lampExtra }: LightsPanelProps) => {
-  // Un bouton et un curseur : le même rendu pour une pièce entière et pour une lampe. Le curseur envoie au relâchement.
-  const controls = (key: string, on: boolean, bri: number | null, disabled: boolean, change: (change: LightsChange) => void) => {
-    const percent = drafts[key] ?? (bri === null ? null : percentOf(bri))
+/** Les lumières : un rectangle par zone, une petite case ON / OFF par lampe (allumer = puissance max), un curseur seulement pour les lampes `dimmable`. */
+const LightsPanel = ({ rooms, busy, drafts, dimmable = [], onAll, onRoom, onLight, onDraft, lampExtra }: LightsPanelProps) => {
+  // Une case : un bouton qui bascule la lampe. Allumer envoie toujours la puissance max.
+  const tile = (light: LightsLamp) => {
+    const key = `light:${light.id}`
     return (
-      <>
-        <Button
-          className={BUTTON_CLASS}
-          variant={on ? 'danger' : 'active'}
-          disabled={disabled || busy === key}
-          onClick={() => change({ on: !on })}
+      <li key={light.id} className={TILE_CLASS}>
+        <button
+          type="button"
+          className={`${TILE_BUTTON_CLASS} ${light.on ? TILE_ON_CLASS : TILE_OFF_CLASS}`}
+          aria-pressed={light.on}
+          aria-label={`${light.name} ${light.on ? ON_LABEL : OFF_LABEL}`}
+          disabled={!light.reachable || busy === key}
+          onClick={() => onLight(light.id, light.on ? { on: false } : { on: true, bri: MAX_BRI })}
         >
-          {busy === key ? BUSY_LABEL : on ? TURN_OFF_LABEL : TURN_ON_LABEL}
-        </Button>
+          <span className={TILE_NAME_CLASS} title={light.name}>
+            {light.name}
+          </span>
+          <span className={TILE_STATE_CLASS}>{busy === key ? BUSY_LABEL : light.reachable ? (light.on ? ON_LABEL : OFF_LABEL) : UNREACHABLE_TEXT}</span>
+        </button>
+        {dimmable.includes(light.id) ? null : lampExtra?.(light)}
+      </li>
+    )
+  }
+
+  // Une lampe à curseur : nom, curseur (envoi au relâchement), pourcentage, et ce que le parent ajoute.
+  const dimmableRow = (light: LightsLamp) => {
+    const percent = drafts[`light:${light.id}`] ?? (light.bri === null ? null : percentOf(light.bri))
+    return (
+      <li key={light.id} className={DIMMABLE_ROW_CLASS}>
+        <span className={NAME_CLASS}>{light.name}</span>
         {percent === null ? null : (
           <>
             <input
@@ -48,30 +73,20 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
               min={1}
               max={100}
               value={percent}
-              disabled={disabled}
-              aria-label={BRIGHTNESS_LABEL}
+              disabled={!light.reachable}
+              aria-label={`${BRIGHTNESS_LABEL} ${light.name}`}
               className={SLIDER_CLASS}
-              onChange={(event) => onDraft(key, Number(event.target.value))}
-              onPointerUp={(event) => change({ bri: briOf(Number(event.currentTarget.value)) })}
-              onKeyUp={(event) => change({ bri: briOf(Number(event.currentTarget.value)) })}
+              onChange={(event) => onDraft(`light:${light.id}`, Number(event.target.value))}
+              onPointerUp={(event) => onLight(light.id, { bri: briOf(Number(event.currentTarget.value)) })}
+              onKeyUp={(event) => onLight(light.id, { bri: briOf(Number(event.currentTarget.value)) })}
             />
             <span className={PERCENT_CLASS}>{percent} %</span>
           </>
         )}
-      </>
+        {lampExtra?.(light)}
+      </li>
     )
   }
-
-  const lamp = (light: LightsLamp) => (
-    <li key={light.id} className={ROW_CLASS}>
-      <span className={NAME_CLASS}>
-        {light.name}
-        {light.reachable ? null : <span className={MUTED_CLASS}> · {UNREACHABLE_TEXT}</span>}
-      </span>
-      {controls(`light:${light.id}`, light.on, light.bri, !light.reachable, (change) => onLight(light.id, change))}
-      {lampExtra?.(light)}
-    </li>
-  )
 
   const sensor = (item: LightsSensor) => (
     <li key={`sensor:${item.id}`} className={ROW_CLASS}>
@@ -88,25 +103,41 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
     </li>
   )
 
-  const room = (item: LightsRoom) => (
-    <div key={item.id} className={GROUP_CLASS}>
-      <Collapsible
-        title={item.name}
-        detail={countText(item)}
-        compact
-        // Le titre a la largeur du nom d'une lampe : le bouton et le curseur du groupe tombent dans les colonnes de ceux de ses lampes.
-        headClass={NAME_CLASS}
-        // Tous les groupes sont ouverts au départ, allumés ou non ; seules les lampes à placer (sans commande groupée) restent repliées.
-        defaultOpen={!item.ungrouped}
-        actions={item.ungrouped ? null : controls(`room:${item.id}`, item.on, item.bri, false, (change) => onRoom(item.id, change))}
-      >
-        <ul className={LAMPS_CLASS}>
-          {item.lights.map(lamp)}
-          {(item.sensors ?? []).map(sensor)}
-        </ul>
-      </Collapsible>
-    </div>
-  )
+  // Les deux petits boutons de la zone : ON (puissance max) et OFF.
+  const zoneButtons = (item: LightsRoom) => {
+    const key = `room:${item.id}`
+    return (
+      <>
+        <Button className={ZONE_BUTTON_CLASS} variant="active" disabled={busy === key} onClick={() => onRoom(item.id, { on: true, bri: MAX_BRI })}>
+          {ON_LABEL}
+        </Button>
+        <Button className={ZONE_BUTTON_CLASS} variant="danger" disabled={busy === key} onClick={() => onRoom(item.id, { on: false })}>
+          {OFF_LABEL}
+        </Button>
+      </>
+    )
+  }
+
+  const room = (item: LightsRoom) => {
+    const sliders = item.lights.filter((light) => dimmable.includes(light.id))
+    const sensors = item.sensors ?? []
+    return (
+      <div key={item.id} className={GROUP_CLASS}>
+        <Collapsible
+          title={item.name}
+          detail={countText(item)}
+          compact
+          // Toutes les zones sont ouvertes au départ ; seules les lampes à placer (sans commande groupée) restent repliées.
+          defaultOpen={!item.ungrouped}
+          actions={item.ungrouped ? null : zoneButtons(item)}
+        >
+          <ul className={GRID_CLASS}>{item.lights.map(tile)}</ul>
+          {sliders.length === 0 ? null : <ul className={DIMMABLE_LIST_CLASS}>{sliders.map(dimmableRow)}</ul>}
+          {sensors.length === 0 ? null : <ul className={SENSORS_CLASS}>{sensors.map(sensor)}</ul>}
+        </Collapsible>
+      </div>
+    )
+  }
 
   return (
     <div className={LIST_CLASS}>

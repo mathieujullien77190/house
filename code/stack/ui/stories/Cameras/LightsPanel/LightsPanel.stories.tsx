@@ -15,7 +15,7 @@ const ROOMS: LightsRoom[] = [
     on: true,
     bri: 180,
     lights: [
-      { id: '1', name: 'Lampe canapé', on: true, bri: 180, reachable: true },
+      { id: '1', name: 'Lampe canapé', on: true, bri: 254, reachable: true },
       { id: '2', name: 'Lampe étagère', on: false, bri: 127, reachable: true },
       { id: '3', name: 'Lampe coin', on: false, bri: 127, reachable: false },
     ],
@@ -38,6 +38,7 @@ const Rooms = () => {
     <LightsPanel
       rooms={rooms}
       busy=""
+      dimmable={['2']}
       drafts={drafts}
       onAll={(on) => apply(() => true, { on })}
       onRoom={(id, change) => apply((lampId) => rooms.find((room) => room.id === id)?.lights.some((light) => light.id === lampId) ?? false, change)}

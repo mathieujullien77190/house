@@ -17,6 +17,7 @@ import {
   EXCLUDED_FROM_ALL,
   ERROR_TEXT,
   LOADING_TEXT,
+  MAX_BRI,
   NOT_CONFIGURED_TEXT,
   PLAN_SECTION_TITLE,
   POLL_MS,
@@ -129,13 +130,13 @@ const Lights = ({ apiKey }: LightsProps) => {
     run(ALL_KEY, () =>
       eachLight(
         zones.filter((item) => !item.ungrouped && !EXCLUDED_FROM_ALL.includes(item.id)).flatMap((zone) => zone.lights),
-        { on },
+        on ? { on, bri: MAX_BRI } : { on },
       ),
     )
 
   const toggle = (id: string) => {
     const light = lights.find((item) => item.id === id)
-    if (light?.reachable) void changeLight(id, { on: !light.on })
+    if (light?.reachable) void changeLight(id, light.on ? { on: false } : { on: true, bri: MAX_BRI })
   }
 
   const notice = (text: string) => <Notice text={text} />
@@ -170,6 +171,8 @@ const Lights = ({ apiKey }: LightsProps) => {
       <LightsPanel
         rooms={zones}
         busy={busy}
+        // Seule la lampe de la perruche garde un curseur de luminosité ; les autres n'ont que ON (puissance max) et OFF.
+        dimmable={[CAMERA_LAMP['voliere-interieur']]}
         drafts={drafts}
         // La lampe de la perruche a en plus son bouton d'extinction en douceur (15 min), comme dans le détail de sa caméra.
         lampExtra={(light) =>

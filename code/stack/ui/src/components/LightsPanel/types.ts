@@ -47,8 +47,10 @@ export interface LightsChange {
 
 export interface LightsPanelProps {
   rooms: LightsRoom[]
-  /** Quelque chose en plus au bout de la ligne d'une lampe (un bouton d'action), ou rien. Le parent y met ce qu'il veut : le panneau ne sait rien de plus. */
+  /** Quelque chose en plus pour une lampe (un bouton d'action), sous sa case ou dans sa ligne à curseur, ou rien. Le parent y met ce qu'il veut : le panneau ne sait rien de plus. */
   lampExtra?: (light: LightsLamp) => ReactNode
+  /** Les identifiants des lampes qui gardent un curseur de luminosité (une ligne sous la grille de leur zone) ; les autres n'ont que ON / OFF, à puissance max. */
+  dimmable?: string[]
   /** Ce qui est en cours de changement : « all », « room:<id> » ou « light:<id> » ; son bouton est désactivé. */
   busy: string
   /** La luminosité en pourcentage pendant que le curseur bouge, par « room:<id> » ou « light:<id> ». */

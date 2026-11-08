@@ -254,6 +254,31 @@ describe('Lights : commandes', () => {
         .mock.calls.map((c) => c[2])
         .sort(),
     ).toEqual(['15', '9'])
+    expect(vi.mocked(api.setHue).mock.calls.every((c) => c[3].on === true && c[3].bri === 254)).toBe(true)
+  })
+
+  it('tout éteindre : seulement { on: false }', async () => {
+    vi.mocked(api.setHue).mockImplementation(async (_k, _kind, id) => rooms(light(id)))
+    render(<Lights apiKey="k" />)
+    await settle()
+    act(() => ui.panel.onAll(false))
+    await settle()
+    expect(vi.mocked(api.setHue).mock.calls.map((c) => c[3])).toEqual([{ on: false }, { on: false }])
+  })
+
+  it('éteindre une ampoule allumée du plan envoie { on: false }', async () => {
+    vi.mocked(api.setHue).mockResolvedValue(rooms(light('9')))
+    render(<Lights apiKey="k" />)
+    await settle()
+    act(() => ui.plan.onToggleLamp('9'))
+    await settle()
+    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '9', { on: false })
+  })
+
+  it('seule la lampe de la perruche garde le curseur', async () => {
+    render(<Lights apiKey="k" />)
+    await settle()
+    expect(ui.panel.dimmable).toEqual(['26'])
   })
 
   it('toucher une ampoule du plan bascule la lampe joignable seulement', async () => {
@@ -262,7 +287,7 @@ describe('Lights : commandes', () => {
     await settle()
     act(() => ui.plan.onToggleLamp('15'))
     await settle()
-    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true })
+    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true, bri: 254 })
     vi.mocked(api.setHue).mockClear()
     act(() => ui.plan.onToggleLamp('999'))
     act(() => ui.plan.onToggleLamp('inconnue'))

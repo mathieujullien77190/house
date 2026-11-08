@@ -20,6 +20,8 @@ export const PLAN_SECTION_TITLE = 'Plan'
 export const ERROR_TEXT = 'Le pont Hue n’a pas répondu.'
 export const NOT_CONFIGURED_TEXT = 'Le pont Hue n’est pas configuré (HUE_APP_KEY).'
 export const EMPTY_TEXT = 'Aucune lampe trouvée.'
+/** La puissance max du pont : allumer une lampe envoie toujours cette luminosité. */
+export const MAX_BRI = 254
 export const LOADING_TEXT = 'Chargement des lumières…'
 /**
  * Les zones de la maison et leurs lampes, par identifiant de lampe du pont (leurs noms peuvent changer, pas leur identifiant) :

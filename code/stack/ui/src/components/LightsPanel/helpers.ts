@@ -1,7 +1,8 @@
 import { COUNT_SUFFIX } from './constants'
 import type { LightsRoom } from './types'
 
-const MAX_BRI = 254
+/** La puissance max du pont : « allumer » envoie toujours cette luminosité. */
+export const MAX_BRI = 254
 
 /** La luminosité du pont (1 à 254) en pourcentage (1 à 100). */
 export const percentOf = (bri: number): number => Math.max(1, Math.round((bri / MAX_BRI) * 100))

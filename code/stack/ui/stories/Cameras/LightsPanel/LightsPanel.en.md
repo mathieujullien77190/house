@@ -1,2 +1,2 @@
-The lights: a foldable section per room, with a button and a brightness slider for the whole room and for each lamp. A lamp that does not answer is greyed out.
-The slider only changes its draft while it is dragged: the value is sent on release (`onRoom` or `onLight` with `bri`), so the bridge is not flooded.
+The lights: a foldable rectangle per zone, with small ON and OFF buttons for the whole zone and a grid of small ON/OFF tiles, one per lamp. A lamp that does not answer is greyed out.
+The slider only changes its draft while it is dragged: the value is sent on release (`onRoom` or `onLight` with `bri`), so the bridge is not flooded. ON means full power (`bri` 254); only the lamps listed in `dimmable` get a slider, in a full-width row under the grid.

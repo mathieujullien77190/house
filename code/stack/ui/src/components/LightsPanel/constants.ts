@@ -1,5 +1,5 @@
-export const TURN_OFF_LABEL = 'Éteindre'
-export const TURN_ON_LABEL = 'Allumer'
+export const ON_LABEL = 'ON'
+export const OFF_LABEL = 'OFF'
 export const BUSY_LABEL = '…'
 export const UNREACHABLE_TEXT = 'injoignable'
 export const BRIGHTNESS_LABEL = 'Luminosité'
@@ -10,18 +10,33 @@ export const ALL_KEY = 'all'
 export const COUNT_SUFFIX = ' allumée(s)'
 
 export const LIST_CLASS = 'mt-3 flex flex-col gap-2'
-/** Le cadre autour d'un groupe de lampes. */
-export const GROUP_CLASS = 'rounded-lg border border-line bg-card px-3 pb-2'
-/** Un trait entre le nom du groupe et ses lampes. */
-export const LAMPS_CLASS = 'mt-1 border-t border-line'
+/** Le rectangle d'une zone. */
+export const GROUP_CLASS = 'rounded-lg border border-line bg-card px-3 pb-3'
+/** Les deux petits boutons ON / OFF de la zone, sur la ligne de son nom. */
+export const ZONE_BUTTON_CLASS = 'w-14 px-2 py-1 text-center'
+/** La grille des cases : 3 par ligne sur téléphone, 4 dès `sm:`, 6 dès `lg:`. */
+export const GRID_CLASS = 'mt-2 grid grid-cols-3 gap-2 border-t border-line pt-3 sm:grid-cols-4 lg:grid-cols-6'
+/** Une case : la lampe et, dessous, ce que le parent ajoute (lampExtra) pour une lampe sans curseur. */
+export const TILE_CLASS = 'flex min-w-0 flex-col gap-1'
+/** Le bouton d'une case : nom court (tronqué) puis ON / OFF. */
+export const TILE_BUTTON_CLASS =
+  'flex w-full min-w-0 cursor-pointer flex-col items-start gap-0.5 rounded-lg border px-2 py-2 text-left disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+/** Allumée : fond orange, comme un mouvement détecté ; éteinte : fond neutre bordé. */
+export const TILE_ON_CLASS = 'border-orange bg-orange text-bg'
+export const TILE_OFF_CLASS = 'border-line bg-bg text-fg hover:enabled:border-accent'
+export const TILE_NAME_CLASS = 'w-full truncate text-[0.85rem]'
+export const TILE_STATE_CLASS = 'text-[0.8rem] font-semibold'
+/** Les lampes à curseur : une ligne pleine largeur sous la grille. */
+export const DIMMABLE_LIST_CLASS = 'mt-2 border-t border-line'
+export const DIMMABLE_ROW_CLASS = 'flex flex-wrap items-center gap-x-3 gap-y-2 py-2'
+/** Un trait entre les cases et les détecteurs. */
+export const SENSORS_CLASS = 'mt-2 border-t border-line'
 /** Un mouvement détecté : une pastille pleine ; calme : du texte discret. */
 export const MOTION_ON_CLASS = 'rounded-md bg-orange px-2 py-0.5 text-[0.85rem] font-semibold text-bg'
 export const MOTION_OFF_CLASS = 'text-[0.85rem] text-muted'
 export const ROW_CLASS = 'flex flex-wrap items-center gap-x-3 gap-y-2 py-2 lg:gap-x-4'
-/** Le nom d'une lampe : une colonne de largeur fixe (sur grand écran) pour que le bouton et le curseur soient alignés d'une ligne à l'autre. */
+/** Le nom d'une lampe à curseur ou d'un détecteur : une colonne de largeur fixe (sur grand écran). */
 export const NAME_CLASS = 'w-full lg:w-56 lg:shrink-0'
-/** Le bouton a toujours la même largeur, quel que soit son texte (Allumer, Éteindre, …). */
-export const BUTTON_CLASS = 'w-24 text-center'
 /** « Tout allumer » et « Tout éteindre » : en haut de la liste, côte à côte. */
 export const ALL_ROW_CLASS = 'flex flex-wrap gap-2'
 export const ALL_BUTTON_CLASS = 'w-36 text-center'
