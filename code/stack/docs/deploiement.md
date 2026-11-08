@@ -18,7 +18,7 @@ Depuis `code/stack` (Git Bash) :
 Ce qu'il fait, dans l'ordre :
 
 1. Choisit les services : `web` et `ui` passent par `api` (la WebApp est compilée dans son image), `ui` aussi par `sync`. Sans argument, il compare le commit déployé (`.deployed-commit` sur le mini PC) au dépôt local, fichiers non suivis compris.
-2. Lance typecheck, lint, tests (et build pour les apps) de chaque paquet concerné ; un script absent est ignoré.
+2. Lance typecheck, lint, tests (la couverture à 100 % quand le paquet en a une) et build pour les apps, de chaque paquet concerné, `ui` compris ; un script absent est ignoré, un échec arrête tout.
 3. Envoie par `tar` les dossiers des services, **sans** `data/`, `.env`, `node_modules`, `dist`, `coverage`, `storybook-static`. `sync/web` part avec `sync`.
 4. Reconstruit dans l'ordre sync, motion, go2rtc, api, guest (`docker compose up -d --build --no-deps <service>` : `--no-deps` évite de redémarrer `motion` pour rien ; `go2rtc` est seulement relancé).
 5. Contrôle l'état de chaque conteneur et les erreurs des 30 dernières secondes ; sort en erreur sinon.

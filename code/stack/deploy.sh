@@ -80,9 +80,10 @@ if [ "${#TODO[@]}" -eq 0 ]; then echo "Rien à déployer."; exit 0; fi
 echo "Services : ${TODO[*]}"
 
 # 2. Vérifications locales (mêmes commandes que dans CLAUDE.md).
-check() { # check <dossier> <script>...
+check() { # check <dossier> <script>...  ("test" devient "test:coverage" quand il existe : le seuil de 100 % bloque)
   local dir="$1"; shift
   for script in "$@"; do
+    if [ "$script" = test ] && node -e "process.exit(require('./$dir/package.json').scripts?.['test:coverage'] ? 0 : 1)"; then script=test:coverage; fi
     if node -e "process.exit(require('./$dir/package.json').scripts?.['$script'] ? 0 : 1)"; then
       echo "→ $dir : npm run $script"
       (cd "$dir" && npm run --silent "$script")
@@ -92,9 +93,10 @@ check() { # check <dossier> <script>...
 if [ "$SKIP" = 0 ]; then
   for s in "${TODO[@]}"; do
     case "$s" in
-      api) check api typecheck lint test; check web typecheck lint test build ;;
-      sync) check sync typecheck lint test; check sync/web typecheck lint test build ;;
+      api) check api typecheck lint test; check web typecheck lint test build; check ui typecheck lint test ;;
+      sync) check sync typecheck lint test; check sync/web typecheck lint test build; check ui typecheck lint test ;;
       motion) check motion typecheck lint test ;;
+      guest) check guest typecheck lint test ;;
     esac
   done
 fi
