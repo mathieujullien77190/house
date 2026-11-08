@@ -1,6 +1,7 @@
 // Tests des caractéristiques de la machine (faux /proc et /sys dans un dossier temporaire).
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { test } from 'node:test'
 import { parseCpuInfo, parseOsRelease, readSpecs } from './specs.ts'
 import { tempDir } from './testing.ts'
@@ -20,7 +21,7 @@ test('parseCpuInfo : modèle, cœurs et threads', () => {
 
 const write = (root: string, files: Record<string, string>) => {
   for (const [name, content] of Object.entries(files)) {
-    mkdirSync(`${root}/${name}/..`, { recursive: true })
+    mkdirSync(dirname(`${root}/${name}`), { recursive: true })
     writeFileSync(`${root}/${name}`, content)
   }
 }

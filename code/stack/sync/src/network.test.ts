@@ -1,6 +1,7 @@
 // Tests de la lecture du réseau (un faux /sys dans un dossier temporaire).
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { test } from 'node:test'
 import { parseSignal, parseSpeed, readNetwork } from './network.ts'
 import { tempDir } from './testing.ts'
@@ -24,7 +25,7 @@ const card = (root: string, name: string, files: Record<string, string>, dirs: s
   mkdirSync(base, { recursive: true })
   for (const dir of dirs) mkdirSync(`${base}/${dir}`, { recursive: true })
   for (const [file, content] of Object.entries(files)) {
-    mkdirSync(`${base}/${file}/..`, { recursive: true })
+    mkdirSync(dirname(`${base}/${file}`), { recursive: true })
     writeFileSync(`${base}/${file}`, content)
   }
 }
