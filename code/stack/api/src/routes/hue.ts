@@ -53,7 +53,8 @@ export const hueRouter = (hue: HueService | null): Router => {
       if (req.method === 'GET') return void res.json(await hue.fade.status(id))
       if (req.method === 'DELETE') return void res.json(await hue.fade.cancel(id))
       if (req.method !== 'POST') return void res.status(405).json({ error: 'method not allowed' })
-      const minutes = (req.body as { minutes?: unknown } | undefined)?.minutes ?? 15
+      const asked = (req.body as { minutes?: unknown } | undefined)?.minutes
+      const minutes = asked === undefined ? 15 : asked
       if (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes < 1 || minutes > 60) {
         return void res.status(400).json({ error: 'minutes must be a number from 1 to 60' })
       }

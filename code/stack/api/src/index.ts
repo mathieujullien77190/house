@@ -3,24 +3,16 @@
 // Services : auth (clé → cookie de session), direct, image, events, clips, snapshots, snapshot, stream, frame,
 // derrière la clé X-House-Key ou la session (voir routes/). HTTPS avec le certificat de la maison.
 // poe : allume ou éteint une caméra en coupant le PoE de son port sur le switch (page web du switch, SWITCH_*).
-import { readFileSync } from 'node:fs'
-import { createServer as createHttpServer } from 'node:http'
-import { createServer as createHttpsServer } from 'node:https'
+// Point d'entrée : il ouvre le port et écoute les signaux, donc il n'est pas mesuré par les tests ; la logique est dans app.ts et server.ts.
 import { createApp } from './app.ts'
 import { loadConfig } from './config.ts'
+import { createAppServer, stopServer } from './server.ts'
 
 const config = loadConfig()
-const app = createApp(config)
-const server = config.tls
-  ? createHttpsServer({ cert: readFileSync(config.tls.cert), key: readFileSync(config.tls.key) }, app)
-  : createHttpServer(app)
+const server = createAppServer(config, createApp(config))
 
 server.listen(config.port, () => console.log(`House API en ${config.tls ? 'HTTPS' : 'HTTP'} sur le port ${config.port}`))
 
-// Les flux du direct restent ouverts : sans les fermer, l'arrêt attendrait qu'un onglet les quitte.
-const stop = () => {
-  server.close(() => process.exit(0))
-  server.closeAllConnections()
-}
+const stop = () => stopServer(server, process.exit)
 process.on('SIGTERM', stop)
 process.on('SIGINT', stop)

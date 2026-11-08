@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.ts",
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/testing/**\" --test-coverage-exclude=\"src/index.ts\" --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100",
     "typecheck": "tsc",
     "lint": "eslint .",
     "format": "prettier --write .",

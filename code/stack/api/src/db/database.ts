@@ -12,6 +12,8 @@ export interface Database {
   all: <T>(sql: string, ...params: (string | number)[]) => T[]
   /** La première ligne, ou undefined. */
   get: <T>(sql: string, ...params: (string | number)[]) => T | undefined
+  /** Ferme la connexion si elle est ouverte (elle se rouvre au besoin) : les tests en ont besoin pour supprimer le fichier sous Windows. */
+  close: () => void
 }
 
 export const openDatabase = (path: string): Database => {
@@ -27,7 +29,17 @@ export const openDatabase = (path: string): Database => {
     }
   }
   return {
-    all: <T>(sql: string, ...params: (string | number)[]) => connection().prepare(sql).all(...params) as T[],
-    get: <T>(sql: string, ...params: (string | number)[]) => connection().prepare(sql).get(...params) as T | undefined,
+    all: <T>(sql: string, ...params: (string | number)[]) =>
+      connection()
+        .prepare(sql)
+        .all(...params) as T[],
+    get: <T>(sql: string, ...params: (string | number)[]) =>
+      connection()
+        .prepare(sql)
+        .get(...params) as T | undefined,
+    close: () => {
+      db?.close()
+      db = null
+    },
   }
 }

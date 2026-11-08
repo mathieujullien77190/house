@@ -22,7 +22,13 @@ export const recordRouter = (recorderUrl: string | null, savedClips: SavedClipsS
       })
       const body = (await upstream.json()) as { id?: unknown }
       // Un clip enregistré à la main est sauvegardé d'office : House Sync ne l'efface jamais (c'est un clip qu'on a voulu). On le note dès le début, il vaut aussi pour l'arrêt automatique.
-      if (req.method === 'POST' && upstream.ok && typeof body.id === 'string') savedClips.set(body.id, true)
+      if (req.method === 'POST' && upstream.ok && typeof body.id === 'string') {
+        try {
+          savedClips.set(body.id, true)
+        } catch {
+          // Un identifiant que la liste refuse ne doit pas faire croire que l'enregistrement n'a pas commencé.
+        }
+      }
       res.status(upstream.status).json(body)
     } catch {
       res.status(502).json({ error: 'recorder does not answer' })

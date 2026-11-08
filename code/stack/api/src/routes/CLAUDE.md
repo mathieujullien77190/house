@@ -1,0 +1,53 @@
+# api/src/routes – les services de House API
+
+Vue d'ensemble, fichiers et tests : `../../CLAUDE.md`. Clé, session par cookie, certificat : `../../../docs/securite.md`. Ici, ce que chaque route rend et les équipements derrière.
+
+## Qui passe sans clé
+
+`GET /welcome`, `GET /rootCA.crt` (le certificat **public** de l'autorité de la maison, `CA_CERT`) et `/logout` (ferme la session). Tout le reste est derrière la clé ou la session (`SECURED_PATHS`, `routes/index.ts`). `/auth` vérifie la clé et ouvre la session par cookie (renouvelée à chaque appel).
+
+## Caméras, événements, images
+
+- `/direct`, `/image`. Chaque ligne de `GET /direct` porte l'orientation actuelle de la caméra (réglage de House Sync, paysage par défaut).
+- `/events` : sans paramètre, les 200 derniers ; `?last=1` ; `?saved=1` : les clips sauvegardés ; `?camera=&from=&to=` en secondes : les événements qui touchent cette fenêtre, 1000 au plus, `&limit=` pour moins.
+- Chaque événement porte `saved`, `clip` (`/clips/id`, l'original H.265 4K), `clip_h264` (`/clips/id/h264`, la copie légère H.264 720p lisible partout ; null si elle n'existe pas), `clip_audio` (`/clips/<id>/audio` ou null) et `orientation` (`landscape` ou `portrait`, celle qu'avait sa caméra à son début ; null d'une base d'avant = paysage). En portrait la vidéo se lit tournée d'un quart de tour horaire.
+- `GET /clips/:id` (l'original), `/clips/:id/h264`, `/clips/:id/audio` (AAC, à part de la vidéo ; chemin lu dans `events.clip_audio_path`, écrit par House Sync ; 404 sans son). `PUT /clips/:id/saved` avec `{"saved": true|false}` : sauvegarde le clip (House Sync ne l'efface jamais, les autres le sont après la durée de garde ; 404 s'il n'a pas de clip). Le fichier `saved-clips.json` est lu par House Sync avant le ménage.
+- `/snapshots?camera=&from=&to=` ; `/snapshot?camera=&at=` (l'image la plus proche, tolérance 5 min ; l'en-tête `X-Snapshot-At` donne son instant exact, son identifiant).
+- `/stream?camera=` : le direct MJPEG, relayé de go2rtc tant que le client reste connecté. `&quality=hd` : le 4K recodé (flux `<nom>_main_mjpeg`) au lieu du léger ; `&screen=mobile` : les flux `…_mjpeg_m` des écrans de moins de 1024 px, dont la cadence se règle à part dans House Sync. `/frame?camera=` : l'image à l'instant.
+- `/guest` : de quoi bâtir le lien de la page invité (`GUEST_KEY`, `GUEST_PORT` (8090), `GUEST_PUBLIC_URL`) ; 503 sans `GUEST_KEY`.
+
+## Switch (PoE)
+
+`GET /poe` : l'alimentation de chaque caméra (PoE activé, alimentée, watts, et `streaming` : les octets reçus par go2rtc augmentent, donc elle a fini de démarrer). `POST /poe/:camera` avec `{"on": true|false}` rend ou coupe le PoE du port ; 503 sans switch configuré.
+
+Variables : `SWITCH_URL` (`http://192.168.1.33`), `SWITCH_USER`, `SWITCH_PASSWORD` (dans `.env`, absent = PoE désactivé), `SWITCH_PORTS` (`voliere-exterieur:3,voliere-interieur:4`, caméra:port). Aucune API officielle sans contrôleur : le client imite la page web du firmware 1.0.1 (`logon.cgi`, `poe_port_config.cgi?poe_status=…&selBit=…`, `logout.cgi`). Un autre firmware peut casser ces commandes. Après un refus de connexion, le client ne réessaie pas pendant une minute (il rend le même refus sans déranger le switch, qui pourrait verrouiller le compte). Couper le PoE éteint la caméra : l'enregistreur réessaie son flux jusqu'au retour du courant.
+
+## Pont Hue (`routes/hue.ts`, `services/hueService.ts`, `lib/hueClient.ts`)
+
+- `/hue` : les pièces et leurs lampes. `GET /hue/sensors` : les détecteurs de mouvement avec température et luminosité. `GET /hue/automations` : les règles d'automatisation du pont en phrases, lues par son API v2 en HTTPS sans vérifier son certificat (c'est un équipement du réseau de la maison).
+- `GET` et `PUT /hue/positions` : les positions des ampoules `{"<id de lampe>": {"x", "y"}}`, fusionnées avec celles déjà gardées (`lights-positions.json`).
+- `PUT /hue/rooms/:id` et `PUT /hue/lights/:id` avec `{"on": true|false}` et/ou `{"bri": 1..254}`.
+- 503 sans pont configuré : `HUE_BRIDGE_IP` et `HUE_APP_KEY` dans `.env`, la clé vient d'un appui sur le bouton du pont puis `POST http://<pont>/api` avec `{"devicetype":"house#mini"}`.
+- **Extinction en douceur d'une lampe.** `GET`, `POST` et `DELETE /hue/lights/<id>/fade`. `POST` (`{"minutes": N}`, de 1 à 60, 15 par défaut ; 409 si la lampe est éteinte ou injoignable) fait descendre sa luminosité au minimum par **une transition du pont** (`transitiontime`) et programme **un minuteur du pont** (`POST /schedules`, « house-fade-<id> », « PThh:mm:ss », `autodelete`) qui l'éteint juste après et lui rend sa luminosité d'avant (gardée dans la description du minuteur : `bri=<n>`) pour le prochain allumage ; le pont fait tout, l'API peut s'arrêter. `GET` dit si l'extinction est en cours et quand elle finit (`ends_at`, secondes depuis 1970, du début UTC du minuteur plus sa durée) ; `DELETE` supprime le minuteur et rend la luminosité d'avant en 2 s. Côté client : `schedules`, `createTimer`, `deleteSchedule`.
+- Le journal des changements de lampes est tenu par House Sync, pas par l'API : `../../../docs/hue.md`.
+
+## Prise connectée (Kasa HS100)
+
+`PLUG_HOST` (l'adresse de la prise sur le réseau de la maison, dans `.env` ; absent = `/plug` répond 503), `PLUG_PORT` (9999). Protocole Kasa local (`lib/kasaClient.ts`, JSON chiffré par XOR en chaîne sur TCP), sans cloud.
+
+- `GET /plug` rend `{alias, model, on, rssi, onTime, timerSeconds, offOnMotion}` (`timerSeconds` : ce qui reste, null sans minuteur).
+- `POST /plug` avec `{"on": false}` l'éteint (502 si elle ne répond pas). **Allumer sans durée est refusé (400) : la prise ne reste jamais allumée sans fin.** `{"on": true, "minutes": N}` (N entier de 1 à 120 ; la WebApp propose un curseur de 1 à 30) l'allume **pendant N minutes, puis la prise s'éteint toute seule** : c'est le **minuteur de la prise elle-même** (`count_down` du protocole Kasa, `startTimer`), pas un minuteur de l'API, donc l'extinction a lieu même si le mini PC ou l'API tombent pendant le chauffage. Allumer ou éteindre pour de bon annule un minuteur en cours ; si le minuteur ne se programme pas, la prise est rééteinte (jamais allumée sans fin par accident).
+- **Option « éteindre au mouvement »** : `POST /plug` avec `"offOnMotion": true` (en allumant, avec ou sans `minutes`) arme un garde (`services/plugService.ts`) qui lit toutes les 3 s le détecteur Hue `PLUG_MOTION_SENSOR` (défaut `motion interieur`, API v1 du pont) et **éteint la prise au premier front montant du mouvement** (un mouvement déjà en cours à l'armement ne compte pas) ; l'option s'efface alors, et dès que la prise est éteinte autrement ; gardée dans `plug-guard.json` (`STATE_DIR`) pour survivre à un redémarrage ; 503 sans pont Hue. Contrairement au minuteur, elle dépend de l'API et du pont.
+- `PLUG_MAC` (par défaut `D8:0D:17:1C:84:E3`, dans le compose) : si la prise ne répond pas à `PLUG_HOST` (la box a changé son adresse), l'API essaie le port 9999 de chaque adresse du réseau de `PLUG_HOST` (`/24`), reconnaît la prise à sa MAC dans `get_sysinfo` et garde la nouvelle adresse jusqu'au redémarrage (un scan par minute au plus) : pas de bail DHCP à réserver.
+
+## Zones de surveillance (`lib/zonesStore.ts`)
+
+`GET /zones` rend `{"<caméra>": [[x, y], ...]}` (polygones de 3 à 32 sommets en parts de l'image, de 0 à 1) ; `PUT /zones/<caméra>` avec `{"points": [[x, y], ...]}` ou `{"points": null}` (toute l'image) en fixe ou retire une. Fichier `zones.json` (écriture dans un fichier temporaire puis renommé) ; House Sync le lit en lecture seule et le donne à l'enregistreur.
+
+## Plan de la maison (`lib/planStore.ts`)
+
+`GET /plan` rend `{"plan": {...}}` (ou `{"plan": null}` s'il n'y en a pas encore) ; `PUT /plan` le remplace (128 ko au plus). Le document (`plan.json`) a les arbres, les haies, la place de la cage, les décalages du chemin du garage et des portes, les positions de la lampe et de la prise, les caméras du plan et le lien de chacune avec une vraie caméra ; seul ce qui est bien formé est gardé (arrondi à 7 décimales). **Les positions sont des longitudes et latitudes (`version`: 2), les tailles des mètres, les angles des caps** (degrés depuis le nord). House Sync l'importe dans la table `plan` de SQLite (onglet Base).
+
+## Clip enregistré à la main (`routes/record.ts`)
+
+`GET`, `POST` et `DELETE /record/<caméra>` relaient l'enregistreur (`RECORDER_URL`, `http://motion:8080`, réseau `sync_net` ; 503 sans lui, 502 s'il ne répond pas) : état (`{recording, id, started_at}`), début, arrêt (409 s'il n'y avait pas d'enregistrement ; arrêt automatique à 3 minutes). Au `POST`, **l'API ajoute le clip à la liste des clips sauvegardés** : un clip voulu n'est jamais effacé.
