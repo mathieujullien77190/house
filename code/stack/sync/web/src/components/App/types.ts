@@ -3,7 +3,7 @@ import type { CameraEnergy, Media, Docker, HueBridge, NetworkInterface, Overview
 
 export type Status = 'locked' | 'checking' | 'ready'
 
-export type TabId = 'db' | 'disk' | 'system' | 'docker' | 'settings'
+export type TabId = 'db' | 'disk' | 'system' | 'docker' | 'schema' | 'settings'
 
 export interface AppUIProps {
   status: Status

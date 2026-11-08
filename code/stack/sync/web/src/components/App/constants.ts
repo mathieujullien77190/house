@@ -12,6 +12,7 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'disk', label: 'Disque' },
   { id: 'system', label: 'Machine' },
   { id: 'docker', label: 'Docker' },
+  { id: 'schema', label: 'Schéma' },
   { id: 'settings', label: 'Réglages' },
 ]
 export const LOCKED_TEXT = 'Entrez votre clé.'

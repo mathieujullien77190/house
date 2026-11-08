@@ -39,6 +39,11 @@ describe('AppUI', () => {
     expect(screen.getAllByText('12 %').length).toBeGreaterThan(0)
   })
 
+  it('l’onglet Schéma montre le schéma', () => {
+    render(<AppUI {...props({ tab: 'schema' })} />)
+    expect(screen.getByText('Architecture matérielle')).toBeTruthy()
+  })
+
   it('en vérification : le texte d’attente', () => {
     render(<AppUI {...props({ status: 'checking' })} />)
     expect(screen.getByText('Vérification…')).toBeTruthy()

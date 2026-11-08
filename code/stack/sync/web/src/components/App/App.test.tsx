@@ -328,6 +328,15 @@ describe('onglet Machine', () => {
   })
 })
 
+describe('onglet Schéma', () => {
+  it('affiche l’architecture matérielle puis logicielle', async () => {
+    await ready()
+    await goTo('Schéma')
+    expect(await screen.findByText('Architecture matérielle')).toBeTruthy()
+    expect(screen.getByText('Architecture logicielle')).toBeTruthy()
+  })
+})
+
 describe('onglet Docker', () => {
   it('conteneurs, configuration globale et docker-compose.yml', async () => {
     await ready()
