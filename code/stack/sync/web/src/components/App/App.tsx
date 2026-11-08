@@ -145,11 +145,12 @@ const App = () => {
   }
 
   const quit = async () => {
+    // On verrouille d'abord, avant d'attendre le serveur : sinon un rafraîchissement lancé pendant la déconnexion, et fini après elle, rouvrirait la page.
     generation.current += 1
-    await logout()
     setOverview(null)
     setMedia(null)
     setStatus('locked')
+    await logout()
   }
 
   return (
