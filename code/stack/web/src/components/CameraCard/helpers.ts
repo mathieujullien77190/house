@@ -1,6 +1,6 @@
 import { describeEvent, formatTime } from '@/lib/format'
 import type { SpecItem } from '@house/ui'
-import type { EventRow, HueSensor } from '@/types'
+import type { Camera, EventRow, HueSensor, Orientation } from '@/types'
 import type { Quality } from './types'
 import {
   AT_CAPTION_PREFIX,
@@ -45,4 +45,17 @@ export const captionOf = (cursor: number | null, selected: EventRow | null, live
   if (selected) return selected.ended_at === null ? describeEvent(selected) : `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`
   if (cursor !== null) return `${AT_CAPTION_PREFIX}${formatTime(cursor)}`
   return live
+}
+
+/**
+ * L'orientation de ce que la carte montre : celle de l'événement choisi (son clip), celle de l'événement de la caméra le plus récent avant l'instant d'une image gardée (une image n'a pas
+ * de marque à elle), sinon celle de la caméra (le direct).
+ */
+export const orientationShown = (camera: Camera, selected: EventRow | null, cursor: number | null, events: EventRow[]): Orientation => {
+  if (selected) return selected.orientation
+  if (cursor !== null) {
+    const before = events.filter((event) => event.camera === camera.name && event.started_at <= cursor).sort((a, b) => b.started_at - a.started_at)[0]
+    if (before) return before.orientation
+  }
+  return camera.orientation
 }

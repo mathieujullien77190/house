@@ -41,7 +41,7 @@ export const LIVE_QUALITY_OPTIONS = [
 export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'
 export const CAMERA_OFF_TEXT = 'Caméra éteinte'
 export const CAMERA_STARTING_TEXT = 'Caméra en démarrage…'
-export const NO_CLIP_TEXT = 'Clip en cours de copie par House Sync… il apparaîtra dès qu’il est prêt.'
+export const NO_CLIP_TEXT = 'Clip en cours de copie par House Sync…\nIl apparaîtra dès qu’il est prêt.'
 export const ONGOING_CLIP_TEXT = 'Événement en cours : le clip arrivera à la fin du mouvement.'
 
 /** Le lecteur du clip se charge sans se voir (sr-only le garde dans la page : un `display: none` empêcherait le téléphone de charger la vidéo). */
@@ -52,10 +52,15 @@ export const ZONE_BUTTON_LABEL = 'Zone de surveillance'
 export const ZONE_RESET_LABEL = 'Toute l’image'
 export const ZONE_FAILED_TEXT = 'Zone non enregistrée'
 export const ZONE_FAILED_CLASS = 'text-[0.8rem] text-danger'
-/** Sous la vidéo d'une caméra tournée : les commandes du clip, droites, aussi larges que la vidéo (298 px, centrées). */
-export const CONTROLS_HOST_CLASS = 'mx-auto mt-2 w-[min(100%,298px)]'
+/** Dans la vidéo d'une caméra tournée, en bas, droite : l'endroit où le lecteur pose ses commandes. */
+export const CONTROLS_OVERLAY_CLASS = 'absolute inset-x-0 bottom-0'
 /** Le cadre de la vidéo, sur lequel se pose le polygone. */
 export const MEDIA_HOST_CLASS = 'relative'
 
-/** Les caméras posées de côté : leur image est tournée d'un quart de tour horaire (affichage en portrait). */
-export const TURNED_CAMERAS = ['voliere-exterieur']
+/** Le bouton qui enregistre un clip à la main : « Enregistrer » commence, « Arrêter » (avec le temps écoulé) termine ; le clip est sauvegardé d'office. */
+export const RECORD_LABEL = 'Enregistrer un clip'
+export const RECORD_STOP_LABEL = 'Arrêter'
+export const RECORD_FAILED_TEXT = 'Enregistrement impossible'
+export const RECORD_STOPPED_TEXT = 'Clip en cours de copie par House Sync…'
+export const RECORD_STOPPED_DETAIL = 'Il apparaîtra dès qu’il est prêt.'
+export const RECORD_NOTE_CLASS = 'text-[0.8rem] text-muted'

@@ -20,7 +20,8 @@ export interface HouseState {
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-const toCameras = (live: { camera: string }[]): Camera[] => live.map(({ camera }) => ({ name: camera }))
+const toCameras = (live: { camera: string; orientation?: Camera['orientation'] }[]): Camera[] =>
+  live.map(({ camera, orientation }) => ({ name: camera, orientation: orientation === 'portrait' ? 'portrait' : 'landscape' }))
 
 export const useHouse = (): HouseState => {
   // Au départ pas de clé : on essaie la session par cookie ; sinon la page demande la clé.

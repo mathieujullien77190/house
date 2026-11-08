@@ -106,6 +106,7 @@ export const planLamps = (lights: HueLight[], positions: Positions, defaults: Po
     name: light.name,
     on: light.on,
     reachable: light.reachable,
+    brightness: light.bri,
     ...(positions[light.id] ?? defaults[light.id] ?? { x: 0, y: 0 }),
   }))
 

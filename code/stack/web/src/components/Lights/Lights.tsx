@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Collapsible, LightsPanel, LightsPlan, Notice, SpecList } from '@house/ui'
+import { CAMERA_LAMP } from '@/components/CameraCard/constants'
+import FadeButton from '@/components/FadeButton'
 import { useMobile } from '@/lib/useMobile'
 import { usePinchZoom } from '@/lib/usePinchZoom'
 import { ApiError, fetchAutomations, fetchLampPositions, fetchLights, fetchSensors, saveLampPositions, setHue } from '@/lib/api'
@@ -181,6 +183,8 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
         rooms={zones}
         busy={busy}
         drafts={drafts}
+        // La lampe de la perruche a en plus son bouton d'extinction en douceur (15 min), comme dans le détail de sa caméra.
+        lampExtra={(light) => (light.id === CAMERA_LAMP['voliere-interieur'] ? <FadeButton apiKey={apiKey} lampId={light.id} on={light.on} /> : null)}
         onAll={(on) => void changeAll(on)}
         onRoom={(id, state) => void changeZone(id, state)}
         onLight={(id, state) => void changeLight(id, state)}

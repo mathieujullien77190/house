@@ -16,6 +16,7 @@ import { usePinchZoom } from '@/lib/usePinchZoom'
 import { useLamp } from '@/lib/useLamp'
 import { usePlug } from '@/lib/usePlug'
 import { useSensors } from '@/lib/useSensors'
+import { useRecording } from '@/lib/useRecording'
 import { useZone } from '@/lib/useZone'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
@@ -40,14 +41,19 @@ import {
   CAMERA_WITH_PLUG,
   CAMERA_SENSOR,
   MEDIA_HOST_CLASS,
-  CONTROLS_HOST_CLASS,
+  CONTROLS_OVERLAY_CLASS,
+  RECORD_FAILED_TEXT,
+  RECORD_LABEL,
+  RECORD_NOTE_CLASS,
+  RECORD_STOP_LABEL,
+  RECORD_STOPPED_DETAIL,
+  RECORD_STOPPED_TEXT,
   ZONE_BUTTON_LABEL,
   ZONE_FAILED_CLASS,
   ZONE_FAILED_TEXT,
   ZONE_RESET_LABEL,
-  TURNED_CAMERAS,
 } from './constants'
-import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
+import { captionOf, clipLead, clipPathOf, liveCaption, orientationShown, temperatureItems } from './helpers'
 import type { CameraCardProps, LiveQuality, Quality } from './types'
 
 /**
@@ -82,7 +88,8 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const { power, setPower, failed: powerFailed } = usePower(apiKey, camera.name)
   // « Afficher en grand » : le média en plein écran, en paysage.
   // Caméra posée de côté : tout son média (direct, image, clip, zone) est tourné d'un quart de tour horaire, donc en portrait ; la vue en grand reste en portrait.
-  const turned = TURNED_CAMERAS.includes(camera.name)
+  // L'orientation de ce qu'on regarde : celle de l'événement (un clip pris avant que la caméra soit tournée reste en paysage), celle de l'événement le plus récent avant l'instant d'une image gardée, sinon celle de la caméra.
+  const turned = orientationShown(camera, selected, cursor, events) === 'portrait'
   const bigView = useBigView(turned)
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
   // Zoom au doigt : en vue en grand, et sur la vidéo de l'écran du téléphone (où elle n'est pas tournée) ; un autre média (direct, image, autre clip) ou l'entrée et la sortie de la vue en grand le remettent à zéro.
@@ -117,10 +124,12 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   // La zone de surveillance du mouvement : un polygone (par défaut toute l'image) qu'on réduit en glissant ses sommets sur le direct ; House API le garde.
   const [editingZone, setEditingZone] = useState(false)
   const zone = useZone(apiKey, camera.name)
-  const zoneEditing = editingZone && isLive && !placeholder
+  const zoneEditing = editingZone && isLive && !placeholder && !mobile
+  // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
+  const recorder = useRecording(apiKey, camera.name, isLive && !placeholder && !mobile)
   // Caméra tournée : les commandes natives de la vidéo tourneraient avec elle ; le lecteur les pose ici, sous la vidéo, droites (hors vue en grand, où il n'y a pas de place).
   const [controlsHost, setControlsHost] = useState<HTMLDivElement | null>(null)
-  const uprightControls = turned && !bigView.big
+  const uprightControls = turned
 
   // Un clip ouvert est un clip lu.
   const selectedId = selected?.id
@@ -205,7 +214,10 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   )
   // Le lecteur se monte dès le choix (il télécharge le clip) mais reste caché : l'image reste en place jusqu'à ce que la vidéo soit là.
   const media = (
-    <RotatedMedia turned={turned}>
+    <RotatedMedia
+      turned={turned}
+      overlay={uprightControls && clipPath ? <div ref={setControlsHost} className={CONTROLS_OVERLAY_CLASS} /> : undefined}
+    >
       <div className={MEDIA_HOST_CLASS}>
         {selected && clipPath ? (
           <div className={clipReady || clipFailed ? undefined : HIDDEN_PLAYER_CLASS}>
@@ -253,10 +265,25 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
           {selected || cursor !== null ? null : (
             <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />
           )}
-          {isLive && !placeholder ? (
+          {isLive && !placeholder && !mobile ? (
             <Button variant={zoneEditing ? 'active' : 'default'} aria-pressed={zoneEditing} onClick={() => setEditingZone((on) => !on)}>
               {ZONE_BUTTON_LABEL}
             </Button>
+          ) : null}
+          {isLive && !placeholder && !mobile ? (
+            <Button variant={recorder.recording ? 'danger' : 'default'} disabled={recorder.busy} onClick={() => void recorder.toggle()}>
+              {recorder.recording
+                ? `${RECORD_STOP_LABEL} (${Math.floor(recorder.seconds / 60)}:${String(recorder.seconds % 60).padStart(2, '0')})`
+                : RECORD_LABEL}
+            </Button>
+          ) : null}
+          {recorder.failed ? <span className={ZONE_FAILED_CLASS}>{RECORD_FAILED_TEXT}</span> : null}
+          {recorder.stopped && !recorder.recording ? (
+            <span className={RECORD_NOTE_CLASS}>
+              {RECORD_STOPPED_TEXT}
+              <br />
+              {RECORD_STOPPED_DETAIL}
+            </span>
           ) : null}
           {zoneEditing && zone.reduced ? <Button onClick={zone.reset}>{ZONE_RESET_LABEL}</Button> : null}
           {zoneEditing && zone.failed ? <span className={ZONE_FAILED_CLASS}>{ZONE_FAILED_TEXT}</span> : null}
@@ -273,17 +300,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       mediaGesture={zoneEditing ? undefined : pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
-      details={
-        mobile ? (
-          selected?.clip ? (
-            (shareButton ?? undefined)
-          ) : (
-            indicators
-          )
-        ) : uprightControls && clipPath ? (
-          <div ref={setControlsHost} className={CONTROLS_HOST_CLASS} />
-        ) : undefined
-      }
+      details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
       overlay={indicators && !mobile ? indicators : undefined}

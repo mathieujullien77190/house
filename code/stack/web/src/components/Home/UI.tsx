@@ -1,12 +1,14 @@
-import { Button, CameraTile, Notice, SectionTitle } from '@house/ui'
+import { Button, CameraTile, Notice, SectionTitle, Tabs } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
+import FullscreenBox from '@/components/FullscreenBox'
+import PortraitClip from '@/components/PortraitClip'
 import ShareButton from '@/components/ShareButton'
 import { describeEvent } from '@/lib/format'
-import { ACTIONS_CLASS, BACK_LABEL, EMPTY_TEXT, GRID_CLASS, LOADING_TEXT, LOAD_ERROR_TEXT, OPENED_CAPTION_CLASS, PLAYER_WRAP_CLASS, SECTION_CLASS, THUMB_CLASS, TITLE_TEXT } from './constants'
+import { ACTIONS_CLASS, BACK_LABEL, EMPTY_TEXT, GRID_CLASS, LOADING_TEXT, LOAD_ERROR_TEXT, OPENED_CAPTION_CLASS, PLAYER_WRAP_CLASS, SAVE_FAILED_CLASS, SAVE_FAILED_TEXT, SAVE_LABEL, SAVE_OPTIONS, SECTION_CLASS, THUMB_BOX_CLASS, THUMB_CLASS, THUMB_TURNED_CLASS, TITLE_TEXT } from './constants'
 import { captionOf, playablePath } from './helpers'
 import type { HomeUIProps } from './types'
 
-const HomeUI = ({ apiKey, events, failed, opened, durations, onDuration, onOpen, onBack }: HomeUIProps) => {
+const HomeUI = ({ apiKey, events, failed, opened, durations, onDuration, saved, onSave, saveFailed, onOpen, onBack }: HomeUIProps) => {
   if (failed) return <Notice text={LOAD_ERROR_TEXT} />
   if (events === null) return <Notice text={LOADING_TEXT} />
   const path = opened ? playablePath(opened) : null
@@ -15,13 +17,21 @@ const HomeUI = ({ apiKey, events, failed, opened, durations, onDuration, onOpen,
       <div className={SECTION_CLASS}>
         <div className={ACTIONS_CLASS}>
           <Button onClick={onBack}>{BACK_LABEL}</Button>
+          <Tabs label={SAVE_LABEL} options={[...SAVE_OPTIONS]} value={saved ? 'yes' : 'no'} onChange={(id) => onSave(id === 'yes')} />
+          {saveFailed ? <span className={SAVE_FAILED_CLASS}>{SAVE_FAILED_TEXT}</span> : null}
           <ShareButton path={path} name={opened.id} title={describeEvent(opened)} />
         </div>
         <p className={OPENED_CAPTION_CLASS}>
           {opened.camera} · {captionOf(opened, durations[opened.id])}
         </p>
         <div className={PLAYER_WRAP_CLASS}>
-          <ClipPlayer key={path} apiKey={apiKey} path={path} onClose={onBack} audioSrc={opened.clip_audio ?? undefined} />
+          <FullscreenBox>
+            {opened.orientation === 'portrait' ? (
+              <PortraitClip key={path} apiKey={apiKey} path={path} onClose={onBack} audioSrc={opened.clip_audio ?? undefined} />
+            ) : (
+              <ClipPlayer key={path} apiKey={apiKey} path={path} onClose={onBack} audioSrc={opened.clip_audio ?? undefined} />
+            )}
+          </FullscreenBox>
         </div>
       </div>
     )
@@ -38,7 +48,17 @@ const HomeUI = ({ apiKey, events, failed, opened, durations, onDuration, onOpen,
               key={event.id}
               name={event.camera}
               caption={captionOf(event, durations[event.id])}
-              media={clip ? <video className={THUMB_CLASS} src={clip} preload="metadata" muted playsInline onLoadedMetadata={(e) => onDuration(event.id, e.currentTarget.duration)} /> : null}
+              media={
+                clip ? (
+                  event.orientation === 'portrait' ? (
+                    <div className={THUMB_BOX_CLASS}>
+                      <video className={THUMB_TURNED_CLASS} src={clip} preload="metadata" muted playsInline onLoadedMetadata={(e) => onDuration(event.id, e.currentTarget.duration)} />
+                    </div>
+                  ) : (
+                    <video className={THUMB_CLASS} src={clip} preload="metadata" muted playsInline onLoadedMetadata={(e) => onDuration(event.id, e.currentTarget.duration)} />
+                  )
+                ) : null
+              }
               onOpen={() => onOpen(event.id)}
             />
           )

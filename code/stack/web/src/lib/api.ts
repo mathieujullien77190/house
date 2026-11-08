@@ -168,6 +168,8 @@ export const putZone = async (key: string, camera: string, points: ZonePoint[] |
 
 /** Le plan de la maison tel que House API le garde (même document sur tous les appareils). */
 export interface PlanDocument {
+  /** 2 : positions en longitude (x) et latitude (y), tailles en mètres, angles en caps ; 1 ou absent : l'ancien plan, en unités du dessin. */
+  version?: number
   trees: { id: string; x: number; y: number; r: number }[]
   hedges: { id: string; points: [number, number][] }[]
   cage: { x: number; y: number } | null
@@ -189,3 +191,38 @@ export const putPlan = async (key: string, plan: PlanDocument): Promise<void> =>
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/plan : HTTP ${res.status}`)
 }
+
+/** L'extinction en douceur d'une lampe (la luminosité descend au minimum en 15 minutes, puis elle s'éteint) : en cours ou non, et quand elle finit (secondes depuis 1970). */
+export interface FadeState {
+  fading: boolean
+  ends_at: number | null
+}
+export const fetchFade = async (key: string, lampId: string): Promise<FadeState> => (await request(key, `/hue/lights/${encodeURIComponent(lampId)}/fade`)).json()
+const fadeCall = async (key: string, lampId: string, method: 'POST' | 'DELETE'): Promise<FadeState> => {
+  const res = await fetch(`/hue/lights/${encodeURIComponent(lampId)}/fade`, {
+    method,
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: method === 'POST' ? JSON.stringify({ minutes: 15 }) : undefined,
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/hue/lights/${lampId}/fade : HTTP ${res.status}`)
+  return res.json()
+}
+export const startFade = (key: string, lampId: string): Promise<FadeState> => fadeCall(key, lampId, 'POST')
+export const cancelFade = (key: string, lampId: string): Promise<FadeState> => fadeCall(key, lampId, 'DELETE')
+
+/** L'enregistrement d'un clip lancé à la main sur une caméra (il s'arrête seul au bout de 3 minutes ; le clip est sauvegardé d'office). */
+export interface RecordingState {
+  recording: boolean
+  id: string | null
+  started_at: number | null
+}
+export const fetchRecording = async (key: string, camera: string): Promise<RecordingState> =>
+  (await request(key, `/record/${encodeURIComponent(camera)}`)).json()
+const recordingCall = async (key: string, camera: string, method: 'POST' | 'DELETE'): Promise<void> => {
+  const res = await fetch(`/record/${encodeURIComponent(camera)}`, { method, headers: { [KEY_HEADER]: key } })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/record : HTTP ${res.status}`)
+}
+export const startRecording = (key: string, camera: string): Promise<void> => recordingCall(key, camera, 'POST')
+export const stopRecording = (key: string, camera: string): Promise<void> => recordingCall(key, camera, 'DELETE')

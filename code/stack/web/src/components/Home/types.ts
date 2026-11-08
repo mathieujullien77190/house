@@ -15,6 +15,11 @@ export interface HomeUIProps {
   /** La durée de la vidéo de chaque clip (secondes), par identifiant, une fois ses métadonnées chargées. */
   durations: Record<string, number>
   onDuration: (id: string, seconds: number) => void
+  /** Le clip ouvert est-il sauvegardé (jamais effacé) ? Il peut être libéré ici ; il quitte alors la liste au retour. */
+  saved: boolean
+  onSave: (saved: boolean) => void
+  /** La libération du clip a échoué. */
+  saveFailed: boolean
   onOpen: (id: string) => void
   onBack: () => void
 }

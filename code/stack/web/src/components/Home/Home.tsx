@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import GuestLink from '@/components/GuestLink'
-import { fetchSavedEvents } from '@/lib/api'
+import { fetchSavedEvents, setClipSaved } from '@/lib/api'
 import type { EventRow } from '@/types'
 import HomeUI from './UI'
 import type { HomeProps } from './types'
@@ -30,11 +30,37 @@ const Home = ({ apiKey }: HomeProps) => {
   }, [apiKey])
 
   const opened = events?.find((event) => event.id === openId) ?? null
+  // « Non sauvegardé » libère le clip (il sera effacé comme les autres après la durée de garde) : il quitte la liste des clips sauvegardés et on revient à elle. Un échec le laisse ouvert et sauvegardé.
+  const [failedSave, setFailedSave] = useState(false)
+  const save = (next: boolean) => {
+    if (!opened || next) return
+    const id = opened.id
+    setFailedSave(false)
+    setClipSaved(apiKey, id, false).then(
+      () => {
+        setEvents((current) => current?.filter((event) => event.id !== id) ?? current)
+        setOpenId('')
+      },
+      () => setFailedSave(true),
+    )
+  }
   // Le lien de la page invité se montre en haut de la liste, pas pendant la lecture d'un clip.
   return (
     <>
       {opened ? null : <GuestLink apiKey={apiKey} />}
-      <HomeUI apiKey={apiKey} events={events} failed={failed} opened={opened} durations={durations} onDuration={(id, seconds) => setDurations((current) => (current[id] === seconds ? current : { ...current, [id]: seconds }))} onOpen={setOpenId} onBack={() => setOpenId('')} />
+      <HomeUI
+        apiKey={apiKey}
+        events={events}
+        failed={failed}
+        opened={opened}
+        durations={durations}
+        saved
+        onSave={save}
+        saveFailed={failedSave}
+        onDuration={(id, seconds) => setDurations((current) => (current[id] === seconds ? current : { ...current, [id]: seconds }))}
+        onOpen={setOpenId}
+        onBack={() => setOpenId('')}
+      />
     </>
   )
 }

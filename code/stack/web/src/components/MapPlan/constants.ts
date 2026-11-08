@@ -44,7 +44,7 @@ export const RECENTER_LABEL = 'Recentrer'
 export const WRAPPER_CLASS = 'relative'
 export const MAP_CLASS = 'h-[530px] w-full overflow-hidden rounded-md border border-line'
 /** Les commandes posées sur la carte (au-dessus de ses couches : z 10) : le choix du fond en haut à droite, « Recentrer » et « Modifier » en bas à droite. */
-export const LAYERS_CLASS = 'absolute right-2.5 top-2.5 z-10 flex flex-col items-end gap-2 rounded-md border border-line bg-card/90 p-2'
+export const LAYERS_CLASS = 'absolute right-2.5 top-2.5 z-10 flex flex-col items-end gap-2'
 export const ACTIONS_CLASS = 'absolute bottom-2.5 right-2.5 z-10 flex gap-2'
 /** L'erreur de la carte, sous les commandes (courte, qui se coupe). */
 export const PROBLEM_CLASS = 'max-w-[16rem] text-[0.75rem] text-danger [overflow-wrap:anywhere]'

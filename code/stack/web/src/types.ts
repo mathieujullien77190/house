@@ -1,8 +1,12 @@
 /** Ce que renvoient les services de House API. */
 
+/** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire pour être droite). Réglé dans House Sync. */
+export type Orientation = 'landscape' | 'portrait'
+
 export interface CameraRow {
   camera: string
   url: string
+  orientation: Orientation
 }
 
 export interface EventRow {
@@ -22,6 +26,8 @@ export interface EventRow {
   clip_started_at: number | null
   /** Sauvegardé : jamais effacé par le ménage (les autres clips le sont après la durée de garde réglée dans House Sync). */
   saved: boolean
+  /** L'orientation qu'avait la caméra au début de l'événement : un clip pris avant que la caméra soit tournée reste en paysage. */
+  orientation: Orientation
 }
 
 /** L'alimentation d'une caméra, lue sur le switch (service poe). */
@@ -104,6 +110,8 @@ export interface HueState {
 /** Une caméra avec tout ce que la page sait d'elle. */
 export interface Camera {
   name: string
+  /** L'orientation actuelle de la caméra (son direct). */
+  orientation: Orientation
 }
 
 /** De quoi bâtir le lien de la page invité (GET /guest). */
