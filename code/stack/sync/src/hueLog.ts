@@ -143,6 +143,8 @@ const bridgeGet = <T>(host: string, key: string, path: string): Promise<T[]> =>
 interface Named {
   id: string
   metadata?: { name?: string }
+  /** L'appareil qui porte la ressource (une lampe a le sien, nommé comme sur la page Lumière). */
+  owner?: { rid?: string }
 }
 
 /** Ce qu'on lit d'une règle du pont (API v2, behavior_instance) : son nom, ses jours et son heure de départ. */
@@ -216,9 +218,10 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
     namesAt = now()
     try {
       const [l, s, d] = await Promise.all([bridgeGet<Named>(address, key, 'light'), bridgeGet<Named>(address, key, 'scene'), bridgeGet<Named>(address, key, 'device')])
-      lights = nameMap(l)
-      scenes = nameMap(s)
       devices = nameMap(d)
+      // Une lampe porte le nom de son appareil (celui de la page Lumière, de House API) et non le nom propre de la lampe.
+      lights = new Map(l.map((entry) => [entry.id, (entry.owner?.rid ? devices.get(entry.owner.rid) : undefined) ?? entry.metadata?.name ?? entry.id]))
+      scenes = nameMap(s)
     } catch (error) {
       log(`Hue : noms non rechargés (${error instanceof Error ? error.message : String(error)})`)
     }

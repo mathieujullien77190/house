@@ -7,12 +7,15 @@ import type { TableFiltersProps } from './types'
 const TableFilters = ({ match, date, clear, children }: TableFiltersProps) => {
   const active = (match !== undefined && match.value !== '') || (date !== undefined && date.value !== '')
   // Une valeur choisie qui n'est pas (encore) dans la liste y reste, pour que la liste la montre.
-  const options = match === undefined || match.value === '' || match.options.includes(match.value) ? (match?.options ?? []) : [match.value, ...match.options]
+  const options =
+    match === undefined || match.value === '' || match.options.includes(match.value)
+      ? (match?.options ?? [])
+      : [match.value, ...match.options]
   return (
     <div className={ROW_CLASS}>
       {children}
       {match ? (
-        <label className={FIELD_CLASS}>
+        <div className={FIELD_CLASS}>
           <span className={LABEL_CLASS}>{match.label}</span>
           <Select
             label={match.label}
@@ -20,7 +23,7 @@ const TableFilters = ({ match, date, clear, children }: TableFiltersProps) => {
             value={match.value}
             onChange={match.onChange}
           />
-        </label>
+        </div>
       ) : null}
       {date ? (
         <label className={FIELD_CLASS}>
