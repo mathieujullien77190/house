@@ -19,6 +19,7 @@ test('sans variable : les valeurs par défaut du compose', () => {
   assert.equal(config.retentionDaysEnv, undefined)
   assert.equal(config.guestVisitsDays, 365)
   assert.equal(config.heatingLogFile, '/house/heating-log.jsonl')
+  assert.equal(config.heatingSettingsFile, '/house/heating.json')
   assert.equal(config.hueLogDays, 365)
   assert.equal(config.apiServername, 'localhost')
   assert.equal(config.zonesFile, '/house/zones.json')
@@ -47,11 +48,13 @@ test('les réglages de l\'environnement sont repris', () => {
     HUE_LOG_DAYS: '10',
     GUEST_VISITS_DAYS: '5',
     HEATING_LOG_FILE: '/h/log.jsonl',
+    HEATING_SETTINGS_FILE: '/h/heating.json',
     DATA_DIR: '/d',
   })
   assert.deepEqual([config.houseKey, config.pagePort, config.intervalMs], ['k', 9000, 5000])
   assert.deepEqual(config.housePosition, { latitude: 10, longitude: 20 })
   assert.equal(config.heatingLogFile, '/h/log.jsonl')
+  assert.equal(config.heatingSettingsFile, '/h/heating.json')
   assert.equal(config.go2rtcUrl, 'http://g:1')
   assert.deepEqual([config.retentionDaysEnv, config.hueAddress, config.hueKey, config.hueLogDays, config.guestVisitsDays, config.dataDir], ['30', '1.2.3.4', 'app', 10, 5, '/d'])
 })

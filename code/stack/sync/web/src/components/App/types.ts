@@ -1,5 +1,5 @@
 import type { LiveHistory } from '@/lib/live'
-import type { Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
+import type { CameraEnergy, Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
 
 export type Status = 'locked' | 'checking' | 'ready'
 
@@ -11,6 +11,8 @@ export interface AppUIProps {
   overview: Overview | null
   /** La consommation, null tant qu'elle n'est pas lue. */
   power: Power | null
+  /** L'énergie des caméras depuis le début du suivi, null tant qu'elle n'est pas lue. */
+  cameraEnergy: CameraEnergy | null
   /** La mémoire et le processeur, null tant qu'ils ne sont pas lus. */
   system: System | null
   /** Les caractéristiques de la machine, null tant qu'elles ne sont pas lues. */

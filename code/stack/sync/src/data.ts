@@ -2,7 +2,7 @@
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'plan']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'plan', 'camera_energy']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {
@@ -80,6 +80,7 @@ const orderOf = (columns: string[]): string => {
   if (columns.includes('absorbed_started_at')) return 'ORDER BY absorbed_started_at DESC'
   if (columns.includes('taken_at')) return 'ORDER BY taken_at DESC'
   if (columns.includes('happened_ms')) return 'ORDER BY happened_ms DESC, id DESC'
+  if (columns.includes('hour')) return 'ORDER BY hour DESC, camera'
   if (columns.includes('kind')) return 'ORDER BY kind, id'
   return 'ORDER BY camera'
 }

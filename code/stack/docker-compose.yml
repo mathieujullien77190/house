@@ -110,6 +110,8 @@ services:
       GUEST_VISITS_FILE: /guest-visits/visits.jsonl
       # Le journal des activations du chauffage (écrit par House API dans data/house, importé toutes les 30 s dans la table heating_log).
       HEATING_LOG_FILE: /house/heating-log.jsonl
+      # Le tarif heures creuses / pleines (écrit par House API), pour chiffrer l'énergie des caméras (table camera_energy).
+      HEATING_SETTINGS_FILE: /house/heating.json
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}

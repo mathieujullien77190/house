@@ -57,6 +57,8 @@ export const CPU_CHART_LABEL = 'Part du processeur utilisée et libre'
 export const SYSTEM_MISSING_TEXT = 'Mesure indisponible.'
 export const POWER_TITLE = 'Consommation électrique'
 export const POWER_MISSING_TEXT = 'Consommation indisponible.'
+export const CAMERA_ENERGY_TITLE = 'Consommation des caméras (estimation)'
+export const CAMERA_ENERGY_MISSING_TEXT = 'Énergie des caméras indisponible.'
 export const LOADING_TEXT = 'Chargement…'
 
 /** Les graphiques l'un sous l'autre de 360 à 1024 px (mobile), côte à côte au-delà (bureau). */

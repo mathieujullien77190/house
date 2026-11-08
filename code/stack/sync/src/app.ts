@@ -11,12 +11,13 @@ import { initDatabase } from './database.ts'
 import { createEvents } from './events.ts'
 import { createImports } from './imports.ts'
 import { createHueLog } from './hueLog.ts'
-import { createPage, createPageServer } from './page.ts'
+import { apiTargetOf, createPage, createPageServer } from './page.ts'
 import { createPoller } from './poll.ts'
 import { createRecorder } from './recorder.ts'
 import { createSettings } from './settings.ts'
 import { createSnapshots } from './snapshots.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
+import { createCameraEnergy, createCameraEnergyTable } from './cameraEnergy.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
 import { createPlanTable } from './plan.ts'
 
@@ -48,6 +49,7 @@ export const startApp = async (deps: AppDeps) => {
   db.exec('CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
   createGuestVisitsTable(db)
   createHeatingLogTable(db)
+  createCameraEnergyTable(db)
   createPlanTable(db)
 
   const rec = createRecorder(ctx)
@@ -56,6 +58,7 @@ export const startApp = async (deps: AppDeps) => {
   const control = createControl(ctx)
   const snapshots = createSnapshots(ctx, rec)
   const imports = createImports(ctx)
+  const cameraEnergy = createCameraEnergy(ctx, () => apiTargetOf(config))
   const poller = createPoller(ctx, { rec, events, clips, control, snapshots })
   const page = createPage(ctx, { hueLog, resetLiveFpsCheck: control.resetLiveFpsCheck })
 
@@ -69,6 +72,10 @@ export const startApp = async (deps: AppDeps) => {
   const { server, secure } = createPageServer(config, page.handlePage)
   server.listen(config.pagePort, () => deps.log(`Page de House Sync en ${secure ? 'HTTPS' : 'HTTP'} sur le port ${config.pagePort}`))
 
+  // L'énergie des caméras (estimation) : un relevé de la puissance PoE par minute.
+  void cameraEnergy.sample()
+  const energyTimer = setInterval(() => void cameraEnergy.sample(), 60_000)
+
   // ---- Le polling ----
   deps.log(`House Sync démarré (${config.dataDir}/events.db, toutes les ${config.intervalMs / 1000} s)`)
   hueLog.start()
@@ -81,6 +88,7 @@ export const startApp = async (deps: AppDeps) => {
     clearInterval(planTimer)
     clearInterval(visitsTimer)
     clearInterval(heatingTimer)
+    clearInterval(energyTimer)
     hueLog.stop()
     server.closeAllConnections()
     server.close()

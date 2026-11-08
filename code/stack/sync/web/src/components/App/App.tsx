@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
-import { fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
-import type { Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
+import { fetchCameraEnergy, fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
+import type { CameraEnergy, Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
 import AppUI from './UI'
 import { DEFAULT_TAB, DESKTOP_QUERY, LIVE_CAPACITY, LIVE_MS, REFRESH_MS } from './constants'
 import type { Status, TabId } from './types'
@@ -24,6 +24,7 @@ const App = () => {
   const [message, setMessage] = useState('')
   const [overview, setOverview] = useState<Overview | null>(null)
   const [power, setPower] = useState<Power | null>(null)
+  const [cameraEnergy, setCameraEnergy] = useState<CameraEnergy | null>(null)
   const [system, setSystem] = useState<System | null>(null)
   const [specs, setSpecs] = useState<Specs | null>(null)
   const [docker, setDocker] = useState<Docker | null>(null)
@@ -51,10 +52,11 @@ const App = () => {
     } else if (target === 'system') {
       // Le reste est secondaire (si une mesure ne se lit pas, la page marche quand même) et se charge en parallèle.
       const next = await fetchOverview(true)
-      const [nextPower, nextSystem, nextSpecs, nextNetwork, nextBridge] = await Promise.all([soft(fetchPower()), soft(fetchSystem()), soft(fetchSpecs()), soft(fetchNetwork()), soft(fetchHue())])
+      const [nextPower, nextEnergy, nextSystem, nextSpecs, nextNetwork, nextBridge] = await Promise.all([soft(fetchPower()), soft(fetchCameraEnergy()), soft(fetchSystem()), soft(fetchSpecs()), soft(fetchNetwork()), soft(fetchHue())])
       if (generation.current !== started) return
       setOverview(next)
       setPower(nextPower)
+      setCameraEnergy(nextEnergy)
       setSystem(nextSystem)
       setSpecs(nextSpecs)
       setNetwork(nextNetwork)
@@ -156,6 +158,7 @@ const App = () => {
       message={message}
       overview={overview}
       power={power}
+      cameraEnergy={cameraEnergy}
       system={system}
       specs={specs}
       history={history}

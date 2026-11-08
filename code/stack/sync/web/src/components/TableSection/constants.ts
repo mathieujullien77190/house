@@ -4,6 +4,7 @@ export const DESCRIPTIONS: Record<string, string> = {
   last_images: 'Pour chaque caméra, l’adresse de sa dernière image chez l’enregistreur.',
   live_streams: 'Pour chaque caméra, le flux go2rtc du direct, que l’API relaie.',
   snapshots: 'Une image par caméra et par minute, gardée quelques jours : ce que la frise de la WebApp montre entre deux événements.',
+  camera_energy: 'L’énergie estimée des caméras, par caméra et par heure (heure UTC) : wh_offpeak et wh_peak (Wh en heures creuses et pleines) et cost (€), au tarif du moment. Puissance PoE relevée chaque minute : une estimation.',
   heating_log: 'Chaque activation du chauffage de la volière commandée par notre système (règle automatique ou WebApp) : date, origine (auto, manuel), durée programmée, température, et cost : le coût prévu en euros (Coût (€)), calculé par House API au tarif et à la puissance du moment.',
 }
 
@@ -11,6 +12,7 @@ export const DESCRIPTIONS: Record<string, string> = {
 export const MAIN_COLUMNS: Record<string, string[]> = {
   plan: ['kind', 'id', 'longitude', 'latitude', 'data'],
   guest_visits: ['id', 'started_at', 'ip', 'origin', 'cle', 'camera', 'status', 'path'],
+  camera_energy: ['camera', 'hour', 'wh_offpeak', 'wh_peak', 'cost'],
   heating_log: ['id', 'started_at', 'origin', 'minutes', 'temperature', 'cost'],
 }
 export const DETAILS_CLASS = 'm-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 font-mono text-[0.78rem]'

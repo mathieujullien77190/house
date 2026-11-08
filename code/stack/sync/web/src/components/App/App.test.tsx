@@ -12,6 +12,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   fetchHue: vi.fn(),
   fetchNetwork: vi.fn(),
   fetchPower: vi.fn(),
+  fetchCameraEnergy: vi.fn(),
   fetchSpecs: vi.fn(),
   fetchSystem: vi.fn(),
   fetchTable: vi.fn(),
@@ -54,6 +55,7 @@ beforeEach(() => {
   m.fetchHue.mockResolvedValue(bridge())
   m.fetchNetwork.mockResolvedValue([link()])
   m.fetchPower.mockResolvedValue({ cpu: { watts: 10, ageSeconds: 1 }, cameras: [], camerasError: null })
+  m.fetchCameraEnergy.mockResolvedValue({ since: '2026-11-08T12:00:00.000Z', cameras: [{ camera: 'cam', kwh: 0.5, cost: 0.08 }], total: { kwh: 0.5, cost: 0.08 } })
   m.fetchSpecs.mockResolvedValue(specs())
   m.fetchSystem.mockResolvedValue(system())
   m.fetchTable.mockResolvedValue(tablePage([{ id: 'e1', camera: 'cam', started_at: 5, clip_path: 'clips/cam/e1.mp4' }]))
@@ -236,11 +238,15 @@ describe('onglet Machine', () => {
     expect(screen.getByText('Adresses IP de la maison')).toBeTruthy()
     expect(screen.getByText('En direct (2 dernières minutes)')).toBeTruthy()
     expect(screen.getByText('Consommation électrique')).toBeTruthy()
+    expect(screen.getByText('Consommation des caméras (estimation)')).toBeTruthy()
+    expect(screen.getAllByText('0,500 kWh')).toHaveLength(2)
+    expect(screen.getByText('cam · 0,08 €')).toBeTruthy()
     expect(m.fetchOverview).toHaveBeenLastCalledWith(true)
   })
 
   it('chaque mesure qui manque est dite, le reste de la page marche', async () => {
     m.fetchPower.mockRejectedValue(new Error('x'))
+    m.fetchCameraEnergy.mockRejectedValue(new Error('x'))
     m.fetchSystem.mockRejectedValue(new Error('x'))
     m.fetchSpecs.mockRejectedValue(new Error('x'))
     m.fetchNetwork.mockRejectedValue(new Error('x'))
@@ -251,6 +257,7 @@ describe('onglet Machine', () => {
     expect(await screen.findByText('Caractéristiques indisponibles.')).toBeTruthy()
     expect(screen.getByText('Réseau indisponible.')).toBeTruthy()
     expect(screen.getByText('Consommation indisponible.')).toBeTruthy()
+    expect(screen.getByText('Énergie des caméras indisponible.')).toBeTruthy()
     expect(screen.getAllByText('Mesure indisponible.')).toHaveLength(2)
     expect(screen.queryByText('Place sur le disque')).toBeNull()
     expect(screen.queryByText('Pont Hue')).toBeNull()

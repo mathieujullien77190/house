@@ -11,6 +11,7 @@ const props = (patch: Partial<AppUIProps> = {}): AppUIProps => ({
   message: '',
   overview: null,
   power: null,
+  cameraEnergy: null,
   system: null,
   specs: null,
   network: null,

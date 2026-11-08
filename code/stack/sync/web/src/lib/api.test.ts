@@ -8,6 +8,7 @@ import {
   fetchNetwork,
   fetchOverview,
   fetchPower,
+  fetchCameraEnergy,
   fetchRetention,
   fetchSettings,
   fetchSpecs,
@@ -80,6 +81,7 @@ describe('lectures', () => {
     ['fetchNetwork', fetchNetwork, '/api/network'],
     ['fetchSystem', fetchSystem, '/api/system'],
     ['fetchPower', fetchPower, '/api/power'],
+    ['fetchCameraEnergy', fetchCameraEnergy, '/api/camera-energy'],
   ])('%s lit %s', async (_name, read, path) => {
     answer({ ok: true })
     expect(await read()).toEqual({ ok: true })

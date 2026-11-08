@@ -36,6 +36,7 @@ const database = () => {
     CREATE TABLE settings (camera TEXT PRIMARY KEY);
     CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT, cle TEXT);
     CREATE TABLE heating_log (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, origin TEXT, minutes INTEGER, cost REAL);
+    CREATE TABLE camera_energy (camera TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (camera, hour));
     CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, longitude REAL, latitude REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id));
   `)
   const insert = db.prepare('INSERT INTO events (id, camera, started_at) VALUES (?, ?, ?)')
@@ -211,4 +212,15 @@ test('paginate et pageParams : pages bornées', () => {
   assert.deepEqual(pageParams(new URLSearchParams('page=3&size=50')), { page: 3, size: 50 })
   assert.deepEqual(pageParams(new URLSearchParams('page=-2&size=1000')), { page: 0, size: 100 })
   assert.deepEqual(pageParams(new URLSearchParams('page=x&size=0')), { page: 0, size: 20 })
+})
+
+test('readTable : camera_energy, l’heure la plus récente d’abord', () => {
+  const db = database()
+  const insert = db.prepare('INSERT INTO camera_energy (camera, hour, wh_offpeak, wh_peak, cost) VALUES (?, ?, 1, 0, 0.1)')
+  insert.run('a', '2026-11-09T01:00:00.000Z')
+  insert.run('a', '2026-11-09T02:00:00.000Z')
+  assert.deepEqual(
+    readTable(db, 'camera_energy', 0, 20)?.items.map((row) => row.hour),
+    ['2026-11-09T02:00:00.000Z', '2026-11-09T01:00:00.000Z'],
+  )
 })

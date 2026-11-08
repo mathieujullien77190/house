@@ -11,6 +11,7 @@ import { after, mock } from 'node:test'
 import { loadConfig, type Config } from './config.ts'
 import type { Context, Fetch } from './context.ts'
 import { initDatabase } from './database.ts'
+import { createCameraEnergyTable } from './cameraEnergy.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
 import { createHueLog } from './hueLog.ts'
@@ -44,7 +45,7 @@ type Handler = (url: string, init?: RequestInit) => Response | Promise<Response>
 export const testContext = (handler: Handler = () => new Response('', { status: 404 }), env: Record<string, string> = {}): TestContext => {
   const dir = tempDir()
   const time = clock()
-  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), ...env })
+  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), HEATING_SETTINGS_FILE: join(dir, 'heating.json'), ...env })
   const db = new DatabaseSync(':memory:')
   const log = console.log
   console.log = () => undefined
@@ -54,6 +55,7 @@ export const testContext = (handler: Handler = () => new Response('', { status: 
     createHueLog(db, { address: '', key: '', log: () => undefined })
     createGuestVisitsTable(db)
     createHeatingLogTable(db)
+    createCameraEnergyTable(db)
     createPlanTable(db)
   } finally {
     console.log = log

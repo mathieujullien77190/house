@@ -125,7 +125,7 @@ test('les services de données', async () => {
   const settings = json(await get('/api/settings')) as { camera: string }[]
   assert.deepEqual(settings.map((s) => s.camera), ['cam'])
   const full = json(await get('/api/overview')) as { database: { tables: unknown[]; size: number }; backup: { disk: { total: number } } }
-  assert.equal(full.database.tables.length, 10)
+  assert.equal(full.database.tables.length, 11)
   assert.ok(full.backup.disk.total > 0)
   const light = json(await get('/api/overview?part=database')) as typeof full
   assert.equal(light.backup.disk.total, 0)
@@ -138,6 +138,8 @@ test('les services de données', async () => {
   assert.ok('memory' in (json(await get('/api/system')) as object))
   const power = json(await get('/api/power')) as { camerasError: string }
   assert.equal(power.camerasError, 'API non configurée')
+  const energy = json(await get('/api/camera-energy')) as { since: string | null; cameras: unknown[]; total: { kwh: number } }
+  assert.deepEqual(energy, { since: null, cameras: [], total: { kwh: 0, cost: 0 } })
   assert.equal((await get('/api/inconnu')).status, 404)
   assert.equal((await get('/files/autre/chose.txt')).status, 404)
 })

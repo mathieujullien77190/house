@@ -18,6 +18,7 @@ import type { HueLog } from './hueLog.ts'
 import { intSetting, readJsonObject, sendJson } from './http.ts'
 import { createAttemptLimiter } from './attempts.ts'
 import { readNetwork } from './network.ts'
+import { readCameraEnergy } from './cameraEnergy.ts'
 import { readPower, type ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
@@ -139,6 +140,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     if (pathname === '/api/hue-log') return sendJson(res, 200, hueLog.list(params))
     if (pathname === '/api/network') return sendJson(res, 200, await readNetwork())
     if (pathname === '/api/system') return sendJson(res, 200, await readSystem())
+    if (pathname === '/api/camera-energy') return sendJson(res, 200, readCameraEnergy(db))
     if (pathname === '/api/power') return sendJson(res, 200, await readPower(config.powerFile, apiTargetOf(config)))
     if (pathname === '/api/table') {
       const { page, size } = pageParams(params)

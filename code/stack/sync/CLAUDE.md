@@ -15,6 +15,7 @@ Sert `web/dist` en public. Derrière la session (clé et cookie : `../docs/secur
 
 - `GET` et `PUT /api/settings`, `GET` et `PUT /api/retention`, `GET` et `PUT /api/guest` (réglages : `src/CLAUDE.md`) ;
 - `/api/overview` (`?part=database` : seulement la base, sans parcourir le disque backup, pour les onglets qui n'ont pas besoin de ses chiffres), `/api/power`, `/api/system` (dont `cpu.perThread`), `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (la fiche publique du pont, sans clé : `src/hue.ts`), `/api/hue-log` (le journal des lampes : `../docs/hue.md`) ;
+- `/api/camera-energy` (l'énergie estimée des caméras depuis le début, par caméra et au total : `src/cameraEnergy.ts`) ;
 - `/api/table?name=&page=&size=` (dont `hue_events`), `/api/clips?page=&size=` et `/files/…` (en-tête `Range` : réponse 206, `src/range.ts`).
 
 Les petits outils HTTP (corps JSON borné, réponse JSON, entier de réglage) sont dans `src/http.ts`. Les lectures sont dans `src/data.ts` (fonctions pures, pagination bornée à 100). Une erreur dans une requête répond 500 sans arrêter le service.
@@ -29,7 +30,7 @@ Les petits outils HTTP (corps JSON borné, réponse JSON, entier de réglage) so
 - `recorder.ts` (requêtes vers les enregistreurs, `syncCameras`), `clips.ts` (copie des clips, copie légère, son, reprises, ménage de la durée de garde), `events.ts` (événements terminés, en cours, fusions), `control.ts` (détection, sensibilité, zone, cadence des directs go2rtc), `snapshots.ts` (une image par minute), `imports.ts` (plan de la maison, visites de la page invité, journal du chauffage), `poll.ts` (le tour de polling).
 - `page.ts` : la page (session, services de données, fichiers du disque backup, `createPageServer` HTTP ou HTTPS).
 - `app.ts` : `startApp(deps)` assemble tout et rend `stop`.
-- Petits modules : `data.ts`, `http.ts`, `hueLog.ts`, `hueStream.ts`, `hueOrigin.ts`, `guestVisits.ts`, `heatingLog.ts`, `guestState.ts`, `plan.ts`, `zones.ts`, `savedClips.ts`, `sun.ts` (**copié** dans `api/src/lib/sun.ts` : si l’un change, changer l’autre), `power.ts`, `docker.ts`, `network.ts`, `specs.ts`, `system.ts` ; `specs.ts` et `system.ts` prennent en option un préfixe de `/proc` et `/sys` (`root`) pour les essais.
+- Petits modules : `data.ts`, `http.ts`, `hueLog.ts`, `hueStream.ts`, `hueOrigin.ts`, `guestVisits.ts`, `heatingLog.ts`, `cameraEnergy.ts`, `guestState.ts`, `plan.ts`, `zones.ts`, `savedClips.ts`, `sun.ts` (**copié** dans `api/src/lib/sun.ts` : si l’un change, changer l’autre), `power.ts`, `docker.ts`, `network.ts`, `specs.ts`, `system.ts` ; `specs.ts` et `system.ts` prennent en option un préfixe de `/proc` et `/sys` (`root`) pour les essais.
 
 ## Tests
 

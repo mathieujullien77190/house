@@ -15,6 +15,7 @@ import {
   containerDetail,
 } from '@/lib/docker'
 import { memoryPercent } from '@/lib/live'
+import { buildCameraEnergyTotals, cameraEnergyNote } from '@/lib/cameraEnergy'
 import { buildPowerTotals } from '@/lib/power'
 import { buildBridgeItems, bridgeSummary } from '@/lib/hue'
 import { buildLinkItems, linkSummary } from '@/lib/network'
@@ -22,6 +23,8 @@ import { buildSpecItems } from '@/lib/specs'
 import { buildCpuChart, buildMemoryChart } from '@/lib/system'
 import {
   BACKUP_TITLE,
+  CAMERA_ENERGY_MISSING_TEXT,
+  CAMERA_ENERGY_TITLE,
   CPU_CHART_LABEL,
   CPU_MEMORY_TITLE,
   MEMORY_CHART_LABEL,
@@ -73,7 +76,7 @@ import {
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, power, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, power, cameraEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
@@ -197,6 +200,16 @@ const AppUI = ({ status, message, overview, power, system, specs, docker, histor
               </Collapsible>
               <Collapsible title={POWER_TITLE}>
                 {power ? <Totals totals={buildPowerTotals(power)} /> : <Notice text={POWER_MISSING_TEXT} />}
+              </Collapsible>
+              <Collapsible title={CAMERA_ENERGY_TITLE}>
+                {cameraEnergy ? (
+                  <>
+                    <Totals totals={buildCameraEnergyTotals(cameraEnergy)} />
+                    <Notice text={cameraEnergyNote(cameraEnergy)} />
+                  </>
+                ) : (
+                  <Notice text={CAMERA_ENERGY_MISSING_TEXT} />
+                )}
               </Collapsible>
             </>
           ) : tab === 'docker' ? (

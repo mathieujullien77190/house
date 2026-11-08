@@ -70,6 +70,13 @@ export interface Power {
   camerasError: string | null
 }
 
+/** L'énergie des caméras depuis le début du suivi (estimation) ; `since` : ISO, null tant qu'aucun relevé n'a réussi. */
+export interface CameraEnergy {
+  since: string | null
+  cameras: { camera: string; kwh: number; cost: number }[]
+  total: { kwh: number; cost: number }
+}
+
 export interface System {
   /** La mémoire en octets ; null si elle ne se lit pas. */
   memory: { total: number; available: number } | null

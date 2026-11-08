@@ -1,7 +1,7 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
 import type { CameraSetting } from '@/components/SettingsSection'
 import { NO_FILTER, filterQuery } from '@/lib/filter'
-import type { ClipGroup, Docker, Filter, FilteredPage, HueBridge, NetworkInterface, Overview, Page, Power, Row, Specs, System } from '@/types'
+import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HueBridge, NetworkInterface, Overview, Page, Power, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
   status: number
@@ -71,6 +71,8 @@ export const fetchNetwork = async (): Promise<NetworkInterface[]> => (await requ
 export const fetchSystem = async (): Promise<System> => (await request('/api/system')).json()
 
 export const fetchPower = async (): Promise<Power> => (await request('/api/power')).json()
+
+export const fetchCameraEnergy = async (): Promise<CameraEnergy> => (await request('/api/camera-energy')).json()
 
 export const fetchTable = async (name: string, page: number, size: number, filter: Filter = NO_FILTER): Promise<FilteredPage<Row>> =>
   (await request(`/api/table?name=${encodeURIComponent(name)}&page=${page}&size=${size}${filterQuery(filter)}`)).json()

@@ -82,6 +82,7 @@ test('les tours reviennent à leur rythme : polling, plan et visites', async () 
   for (let waited = 0; planRows() === 0 && waited < 100; waited += 1) await new Promise((resolve) => setTimeout(resolve, 10))
   assert.ok(urls.length > before)
   assert.equal(planRows(), 1)
+  mock.timers.tick(30_000)
   await app.stop()
 })
 
