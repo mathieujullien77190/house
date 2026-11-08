@@ -19,7 +19,7 @@ Sous la liste, une section repliable « Plan », ouverte au départ : **la même
 - rond orange allumée, de la couleur du fond éteinte, contour rouge pâle injoignable (alors montrée éteinte, `allLights` force `on` à faux) ;
 - **opacité selon la luminosité** (`bulbOpacity`) ; « Nom · 60 % » en bas de la carte au survol ou au toucher (`bulbLabel`) ;
 - **toucher une lampe l'allume ou l'éteint** (`onToggleLamp`) ; avec le bouton **« Modifier »** on la glisse pour la placer (`onMoveLamp`, seules les lampes se déplacent dans cette carte) ;
-- **la vue cadre toutes les lampes** (`lampBounds`, `fitBounds`) dès qu'elles sont arrivées, une seule fois ; « Recentrer » refait ce cadrage ; pas de bouton du toit sur cette carte ;
+- **la vue cadre toutes les lampes** (`lampBounds`, `cameraForBounds`, plus `FIT_EXTRA_ZOOM` = 1 cran de zoom) dès qu’elles sont arrivées, une seule fois ; « Recentrer » refait ce cadrage ; pas de bouton du toit sur cette carte ;
 - les lampes pas encore placées attendent en rangées sur le carrelage au sud de la maison (`waitingSlot`) et **ne se voient qu'en mode Modifier**.
 
 **Sur téléphone (sous 1024 px) l'onglet est un écran à part** : la carte seule en plein écran (`screen`, pas de boutons + et −, le pincement suffit ; tenu droit, la carte est tournée d'un quart de tour de plus pour que la maison remplisse l'écran), sans titre ni menu ni liste, avec une flèche retour en haut à gauche vers l'onglet Caméras (`onBack`).

@@ -5,8 +5,10 @@ import type { MapPlanProps } from './types'
 import {
   BASES_LABEL,
   EDIT_LABEL,
+  FIT_EXTRA_ZOOM,
   HIDE_ROOF_LABEL,
   LINK_LABEL,
+  MAP_MAX_ZOOM,
   MAP_ROTATION_DEG,
   MAP_ZOOM,
   RECENTER_LABEL,
@@ -31,7 +33,7 @@ const mocks = vi.hoisted(() => {
     removed = false
     touchZoomRotate = { disableRotation: vi.fn() }
     jumpTo = vi.fn()
-    fitBounds = vi.fn()
+    cameraForBounds = vi.fn((): { center: [number, number]; zoom: number } | undefined => ({ center: [2.65, 48.52], zoom: 20.2 }))
     easeTo = vi.fn()
     addControl = vi.fn()
     options: unknown
@@ -314,32 +316,47 @@ describe('MapPlan : le toit', () => {
 })
 
 describe('MapPlan : cadrer les lampes', () => {
-  it('carte des lumières : la vue cadre toutes les lampes, une seule fois', () => {
+  it('carte des lumières : la vue cadre toutes les lampes, avec un cran de zoom de plus, une seule fois', () => {
     const { rerender } = render(<MapPlan {...baseProps({ mode: 'lights', lamps: [] })} />)
     const map = loaded()
-    expect(map.fitBounds).not.toHaveBeenCalled()
+    expect(map.cameraForBounds).not.toHaveBeenCalled()
+    expect(map.jumpTo).not.toHaveBeenCalled()
     rerender(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1'), lamp('2', { x: 200, y: 100 })] })} />)
-    expect(map.fitBounds).toHaveBeenCalledTimes(1)
-    expect(map.fitBounds.mock.calls[0][1]).toEqual(expect.objectContaining({ duration: 0 }))
+    expect(map.cameraForBounds).toHaveBeenCalledTimes(1)
+    expect(map.jumpTo).toHaveBeenCalledTimes(1)
+    expect(map.jumpTo).toHaveBeenCalledWith({ center: [2.65, 48.52], zoom: 20.2 + FIT_EXTRA_ZOOM, bearing: MAP_ROTATION_DEG, pitch: 0 })
     rerender(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1'), lamp('2', { x: 300, y: 100 })] })} />)
-    expect(map.fitBounds).toHaveBeenCalledTimes(1)
+    expect(map.jumpTo).toHaveBeenCalledTimes(1)
   })
 
-  it('« Recentrer » cadre les lampes sur la carte des lumières, et revient à la vue de départ sans lampes', () => {
+  it('le zoom du cadrage ne dépasse pas le zoom maximal', () => {
+    render(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1')] })} />)
+    const map = loaded()
+    map.cameraForBounds.mockReturnValue({ center: [2.65, 48.52], zoom: MAP_MAX_ZOOM })
+    map.jumpTo.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_MAX_ZOOM }))
+  })
+
+  it('« Recentrer » cadre les lampes sur la carte des lumières, et revient à la vue de départ sans cadrage possible', () => {
     const { rerender } = render(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1')] })} />)
     const map = loaded()
-    map.fitBounds.mockClear()
+    map.jumpTo.mockClear()
     fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(map.fitBounds).toHaveBeenCalledTimes(1)
-    expect(map.jumpTo).not.toHaveBeenCalled()
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 20.2 + FIT_EXTRA_ZOOM }))
+    map.jumpTo.mockClear()
+    map.cameraForBounds.mockReturnValue(undefined)
+    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_ZOOM }))
+    map.jumpTo.mockClear()
     rerender(<MapPlan {...baseProps({ mode: 'lights', lamps: [] })} />)
     fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(map.jumpTo).toHaveBeenCalledTimes(1)
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_ZOOM }))
   })
 
   it('carte des caméras : pas de cadrage des lampes', () => {
     render(<MapPlan {...baseProps({ lamps: [lamp('26', { indoor: false })] })} />)
-    expect(loaded().fitBounds).not.toHaveBeenCalled()
+    expect(loaded().cameraForBounds).not.toHaveBeenCalled()
   })
 })
 

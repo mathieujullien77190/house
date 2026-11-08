@@ -19,6 +19,7 @@ import {
   LAYERS_CLASS,
   MAP_CENTER,
   MAP_CLASS,
+  FIT_EXTRA_ZOOM,
   FIT_PADDING,
   MAP_MAX_ZOOM,
   MAP_ROTATION_DEG,
@@ -237,7 +238,11 @@ const MapPlan = (given: MapPlanProps) => {
   const fitLamps = (map: MapLibreMap): boolean => {
     const bounds = lampBounds(props.lamps)
     if (!bounds) return false
-    map.fitBounds(bounds, { padding: FIT_PADDING, maxZoom: MAP_MAX_ZOOM, bearing: startBearing(screen), duration: 0 })
+    const bearing = startBearing(screen)
+    const camera = map.cameraForBounds(bounds, { padding: FIT_PADDING, bearing })
+    if (!camera) return false
+    // Le cadrage exact, un cran de zoom en plus (les lampes du bord se rejoignent en glissant).
+    map.jumpTo({ center: camera.center, zoom: Math.min(MAP_MAX_ZOOM, camera.zoom! + FIT_EXTRA_ZOOM), bearing, pitch: 0 })
     return true
   }
   useEffect(() => {
