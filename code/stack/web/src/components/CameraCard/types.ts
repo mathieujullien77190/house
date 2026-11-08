@@ -13,4 +13,8 @@ export interface CameraCardProps {
   events: EventRow[]
   /** Le retour à la liste des caméras : le bouton fixe en haut à gauche de l'écran du téléphone. */
   onBack?: () => void
+  /** L'événement à ouvrir dès l'arrivée (le dernier clip, depuis la mosaïque), ou rien. */
+  initialEventId?: string
+  /** Appelé avec l'identifiant d'un clip ouvert : il est désormais lu. */
+  onRead?: (id: string) => void
 }

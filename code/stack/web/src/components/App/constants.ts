@@ -16,6 +16,7 @@ export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification de la clé…'
 export const CAMERA_WORD = 'caméra'
 export const LAMP_WORD = 'lampe'
+export const PLUG_WORD = 'prise'
 /** Entre le nombre de caméras et celui de lampes, dans l'en-tête. */
 export const COUNTS_SEPARATOR = ' / '
 export const NO_CAMERA_TEXT = 'Aucune caméra : House Sync n’a encore rien écrit.'

@@ -165,6 +165,15 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     return () => axis.removeEventListener('wheel', onWheel)
   }, [vertical])
 
+  // Caméra ouverte directement sur un événement (clic sur la ligne du dernier clip dans la mosaïque) : la fenêtre se recale sur lui, comme après un clic sur son bloc.
+  useEffect(() => {
+    const event = recent.find((e) => e.id === selectedEventId)
+    if (!event) return
+    const focus = focusOn(event, EVENT_FOCUS_SHARE, nowSeconds())
+    place(focus.end, focus.seconds)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Un clic sur l'axe : le curseur s'y pose, l'image de cet instant est demandée, l'événement ouvert se ferme.
   const chooseCursor = (time: number | null) => {
     setCursor(time)

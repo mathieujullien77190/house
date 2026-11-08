@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
 import CameraIndicators from '@/components/CameraIndicators'
 import PowerButton from '@/components/PowerButton'
 import ShareButton from '@/components/ShareButton'
 import { setClipSaved } from '@/lib/api'
+import { rememberClipDuration } from '@/lib/clipDurations'
 import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
@@ -12,6 +13,7 @@ import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
 import { useLamp } from '@/lib/useLamp'
+import { usePlug } from '@/lib/usePlug'
 import { useSensors } from '@/lib/useSensors'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
@@ -33,6 +35,7 @@ import {
   SAVE_LABEL,
   SAVE_OPTIONS,
   CAMERA_LAMP,
+  CAMERA_WITH_PLUG,
   CAMERA_SENSOR,
 } from './constants'
 import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
@@ -43,14 +46,14 @@ import type { CameraCardProps, LiveQuality, Quality } from './types'
  * à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis la frise.
  * La carte elle-même (@house/ui) ne sait rien de tout ça : elle reçoit le média et la frise déjà rendus.
  */
-const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
+const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: CameraCardProps) => {
   // Sur téléphone (sous 1024 px) : un écran fixe, la vidéo sur le tiers du haut, la frise sur le reste.
   const mobile = useMobile()
   const [cursor, setCursor] = useState<number | null>(null)
   // L'événement cliqué ; sa version à jour (clip copié, fin du mouvement) vient de la liste relue chaque seconde.
-  const [picked, setSelected] = useState<EventRow | null>(null)
+  const [picked, setSelected] = useState<EventRow | null>(() => events.find((event) => event.id === initialEventId && event.clip) ?? null)
   const selected = picked ? (events.find((event) => event.id === picked.id) ?? picked) : null
-  const [playhead, setPlayhead] = useState<number | null>(null)
+  const [playhead, setPlayhead] = useState<number | null>(() => (picked ? (picked.clip_started_at ?? picked.started_at) : null))
   // La durée réelle de la vidéo, une fois connue.
   // Compte les clics sur un événement : chaque clic relance le clip depuis son début.
   const [plays, setPlays] = useState(0)
@@ -84,18 +87,37 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   // Le rond de la lampe de la caméra (« Perruche » pour voliere-interieur), à côté de la température et seulement en direct comme elle.
   const lampId = CAMERA_LAMP[camera.name]
   const lamp = useLamp(apiKey, lampId, lampId !== undefined && isLive)
-  const indicators = isLive && (temperatures.length > 0 || lamp !== null) ? <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} /> : undefined
+  // Le carré de la prise connectée, à côté du rond de la lampe (vert allumée, rouge éteinte), en direct aussi.
+  const plug = usePlug(apiKey, CAMERA_WITH_PLUG.includes(camera.name) && isLive)
+  const indicators =
+    isLive && (temperatures.length > 0 || lamp !== null || plug !== null) ? (
+      <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} />
+    ) : undefined
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
   const placeholder = off ? CAMERA_OFF_TEXT : starting ? CAMERA_STARTING_TEXT : ''
 
+  // Un clip ouvert est un clip lu.
+  const selectedId = selected?.id
+  useEffect(() => {
+    if (selectedId && onRead) onRead(selectedId)
+  }, [selectedId, onRead])
+
   const lead = selected ? clipLead(selected, videoDuration) : 0
   // Ce que la vidéo couvre sur la frise : elle commence `lead` avant l'événement et dure `videoDuration`.
-  const clipRange = selected?.clip && videoDuration !== null ? { start: selected.started_at - lead, end: selected.started_at - lead + videoDuration } : null
+  const clipRange =
+    selected?.clip && videoDuration !== null ? { start: selected.started_at - lead, end: selected.started_at - lead + videoDuration } : null
   const clipPath = selected ? clipPathOf(selected, quality) : null
   const onReady = useCallback(() => setReadyClip(clipPath ?? ''), [clipPath])
-  const onDuration = useCallback((seconds: number) => setVideoDuration(seconds), [])
+  const selectedForDuration = selected?.id
+  const onDuration = useCallback(
+    (seconds: number) => {
+      setVideoDuration(seconds)
+      if (selectedForDuration) rememberClipDuration(selectedForDuration, seconds)
+    },
+    [selectedForDuration],
+  )
   // Le direct : un flux MJPEG que l'API relaie depuis go2rtc ; une seule requête, les images arrivent toutes seules.
   const live = liveSrc(camera.name, liveQuality === 'hd', mobile)
 
@@ -129,7 +151,8 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
 
   // Un clip sauvegardé se partage : le menu de partage du système sur téléphone, le téléchargement ailleurs.
   const sharePath = selected ? (selected.clip_h264 ?? selected.clip) : null
-  const shareButton = isSaved && selected && sharePath ? <ShareButton path={sharePath} name={selected.id} title={describeEvent(selected)} /> : null
+  const shareButton =
+    isSaved && selected && sharePath ? <ShareButton path={sharePath} name={selected.id} title={describeEvent(selected)} /> : null
 
   const back = () => {
     setFailedClip('')
@@ -149,7 +172,11 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
   ) : cursor !== null ? (
     <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} />
   ) : (
-    <ImageBox src={placeholder ? '' : live} message={placeholder || NO_IMAGE_TEXT} onSize={(width, height) => setLiveSize({ width, height })} />
+    <ImageBox
+      src={placeholder ? '' : live}
+      message={placeholder || NO_IMAGE_TEXT}
+      onSize={(width, height) => setLiveSize({ width, height })}
+    />
   )
   // Le lecteur se monte dès le choix (il télécharge le clip) mais reste caché : l'image reste en place jusqu'à ce que la vidéo soit là.
   const media = (
@@ -186,8 +213,17 @@ const CameraCard = ({ apiKey, camera, events, onBack }: CameraCardProps) => {
         <>
           {selected?.clip && !mobile ? saveToggle : null}
           {!mobile ? shareButton : null}
-          {selected?.clip_h264 ? <Tabs label={QUALITY_LABEL} options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]} value={quality} onChange={changeQuality} /> : null}
-          {selected || cursor !== null ? null : <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />}
+          {selected?.clip_h264 ? (
+            <Tabs
+              label={QUALITY_LABEL}
+              options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]}
+              value={quality}
+              onChange={changeQuality}
+            />
+          ) : null}
+          {selected || cursor !== null ? null : (
+            <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />
+          )}
           <PowerButton apiKey={apiKey} camera={camera.name} power={power} unavailable={powerFailed} hideOff={mobile} onPower={setPower} />
         </>
       }

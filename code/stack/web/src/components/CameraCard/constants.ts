@@ -9,6 +9,8 @@ export const LIVE_CAPTION = 'Direct'
 export const CAMERA_SENSOR: Record<string, string> = { 'voliere-exterieur': '57', 'voliere-interieur': '54' }
 /** La lampe dont le rond s'affiche à côté de la température sur la vidéo d'une caméra (identifiant du pont) : « Perruche » pour voliere-interieur. */
 export const CAMERA_LAMP: Record<string, string> = { 'voliere-interieur': '26' }
+/** Les caméras dont la vidéo montre aussi le carré de la prise connectée (celle de la volière), à côté du rond de la lampe. */
+export const CAMERA_WITH_PLUG: string[] = ['voliere-interieur']
 export const TEMPERATURE_LABEL = 'Température · '
 export const TEMPERATURE_UNKNOWN_TEXT = 'inconnue'
 /** Le direct est un flux MJPEG que l'API relaie depuis go2rtc (le flux léger de la caméra, recodé en JPEG). */

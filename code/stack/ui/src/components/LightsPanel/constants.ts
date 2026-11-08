@@ -1,7 +1,7 @@
 export const TURN_OFF_LABEL = 'Éteindre'
 export const TURN_ON_LABEL = 'Allumer'
 export const BUSY_LABEL = '…'
-export const UNREACHABLE_TEXT = 'injoignable (coupée à l’interrupteur ?)'
+export const UNREACHABLE_TEXT = 'injoignable'
 export const BRIGHTNESS_LABEL = 'Luminosité'
 export const ALL_ON_LABEL = 'Tout allumer'
 export const ALL_OFF_LABEL = 'Tout éteindre'

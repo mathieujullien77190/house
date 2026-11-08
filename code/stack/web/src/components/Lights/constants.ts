@@ -118,3 +118,133 @@ export const SIDE_TOP = -2
 export const SIDE_ROW_HEIGHT = 32
 export const SIDE_ROWS = 10
 export const SIDE_COLUMN_WIDTH = 48
+/** La cage à perruches : 5 m sur 3 m (tournée d'un quart de tour : 117 × 195 unités), dans l'angle nord-est du jardin, à droite de la maison. */
+export const PLAN_CAGE = { x: 583, y: -262, w: 117, h: 195 }
+/** L'échelle du plan de la mosaïque : la maison fait 14 m (les 540 unités) sur 7,5 m (les 300), soit environ 39 unités le mètre. */
+export const UNITS_PER_METER = 39
+/** La terrasse orange clair autour de la maison : 1,5 m de large. */
+export const PLAN_TERRACE = 1.5 * UNITS_PER_METER
+export const PLAN_CAGE_LABEL = 'Cage à perruches'
+/** La zone dessinée du plan de la mosaïque : un terrain bien plus large que la maison, qui paraît plus petite. */
+export const PLAN_VIEW = { x: -325, y: -278, w: 1035, h: 1113 }
+/** Le terrain : un quart de cercle de 26 m de rayon (1014 unités, centre (700, -190), l arc côté rue au sud-ouest) plus une bande de 2 m (78 unités) au nord. */
+export const PLAN_GARDEN = 'M 700 -268 L -314 -268 L -314 -190 A 1014 1014 0 0 0 700 824 Z'
+/** Les arbres du terrain au départ (le plan de la mosaïque les laisse déplacer et garde leurs positions). */
+export const DEFAULT_TREES = [
+  { id: 't1', x: -242, y: -124, r: 16 },
+  { id: 't2', x: -196, y: 136, r: 18 },
+  { id: 't3', x: -60, y: 362, r: 14 },
+  { id: 't4', x: 113, y: 562, r: 18 },
+  { id: 't5', x: 348, y: 681, r: 16 },
+  { id: 't6', x: 601, y: 754, r: 14 },
+  { id: 't7', x: -150, y: -110, r: 16 },
+  { id: 't8', x: 80, y: -120, r: 14 },
+  { id: 't9', x: 250, y: -130, r: 18 },
+  { id: 't10', x: 640, y: 470, r: 16 },
+  { id: 't11', x: 650, y: 640, r: 14 },
+  { id: 't12', x: 600, y: 780, r: 16 },
+  { id: 't13', x: 330, y: 560, r: 18 },
+  { id: 't14', x: 110, y: 600, r: 14 },
+  { id: 't15', x: 430, y: 690, r: 16 },
+]
+/** Le portail (à gauche, en haut mais pas tout en haut) et le portillon (en bas à droite, mais pas tout à droite), sur l'arc du terrain. */
+export const PLAN_GATES = [
+  { id: 'portail', name: 'Portail', x1: -273, y1: 40, x2: -228, y2: 184 },
+  { id: 'portillon', name: 'Portillon', x1: 552, y1: 799, x2: 501, y2: 790 },
+]
+/** La maison est poussée de 1 m vers la droite (vers l'est). */
+export const HOUSE_SHIFT = UNITS_PER_METER
+/** L entrée : une avancée de 1,5 m (sur 2 m de large) à 1 m au-dessus du milieu du mur est, fondue dans le toit de la maison (un seul contour). */
+export const PLAN_EXTENSION = { x: 540, y: 72, w: Math.round(1.5 * UNITS_PER_METER), h: 2 * UNITS_PER_METER }
+/** Le sol carrelé : à droite de la maison, de sa terrasse à la limite de propriété (x = 700) et jusqu au bas de la cage ; le sol de la cage elle-même ; le chemin du portillon. */
+export const PLAN_FLOORS = [
+  {
+    // Commence 2 unités en deçà du bord de la terrasse (637,5) : elles se chevauchent, pas de liseré entre elles.
+    x: Math.floor(540 + HOUSE_SHIFT + PLAN_TERRACE) - 2,
+    y: PLAN_CAGE.y + PLAN_CAGE.h,
+    w: 700 - Math.floor(540 + HOUSE_SHIFT + PLAN_TERRACE) + 2,
+    h: 358 - (PLAN_CAGE.y + PLAN_CAGE.h),
+  },
+  // Le joint entre le bas de la cage (y = -67) et le haut de la terrasse (y = -58,5), à droite de la maison : sans lui, un liseré sombre entre les carreaux.
+  { x: PLAN_CAGE.x, y: PLAN_CAGE.y + PLAN_CAGE.h, w: Math.round(540 + HOUSE_SHIFT + PLAN_TERRACE) - PLAN_CAGE.x, h: 10 },
+]
+/**
+ * La haie sur toute la limite de propriété (à 14 unités en dedans) : l'arc, sauf au portail et au portillon ; le bord ouest et le bord nord
+ * de la bande du haut ; le bord est, sauf à droite de la cage à perruches (de y = -262 à -67), seul endroit sans haie.
+ */
+export const PLAN_HEDGES = [
+  'M -300 -190 A 1000 1000 0 0 0 -273 40',
+  'M -228 184 A 1000 1000 0 0 0 501 790',
+  'M 552 799 A 1000 1000 0 0 0 700 810',
+  'M -300 -190 L -300 -254 L 686 -254',
+  'M 686 -67 L 686 810',
+]
+/**
+ * Deux caméras sur la cage à perruches : une en bas à droite qui regarde tout droit en haut, une en haut à gauche qui regarde tout droit
+ * en bas ; leur champ de vision est un croissant (40 à 50°, de 24 unités (0,6 m) jusqu à 190 ou 260 : il part tout près de la caméra).
+ */
+export const PLAN_CAMERAS = [
+  {
+    id: 'cage-bas-droite',
+    name: 'Caméra voliere-interieur (bas à droite de la cage, regarde vers le haut)',
+    x: 655,
+    y: -73,
+    angle: 0,
+    fov: 50,
+    near: 18,
+    far: 190,
+  },
+  {
+    id: 'cage-haut-gauche',
+    name: 'Caméra voliere-exterieur (haut à gauche de la cage, regarde vers le bas)',
+    x: 628,
+    y: -256,
+    angle: 180,
+    fov: 50,
+    near: 18,
+    far: 190,
+  },
+  // Sur l'avancée de l'entrée (x 579 à 638, y 72 à 150 après le décalage de la maison), regarde vers la cage : presque tout droit en haut (5° vers la droite).
+  {
+    id: 'entree',
+    name: "Caméra de l'entrée (regarde vers la cage)",
+    x: 608,
+    y: 90,
+    angle: 5,
+    fov: 40,
+    near: 18,
+    far: 260,
+  },
+  // À côté de la cage, sur son flanc gauche, regarde le jardin à gauche (270° : tout droit vers la gauche).
+  {
+    id: 'cage-jardin',
+    name: 'Caméra à côté de la cage (regarde le jardin à gauche)',
+    x: 566,
+    y: -165,
+    angle: 270,
+    fov: 60,
+    near: 18,
+    far: 330,
+  },
+]
+/**
+ * Le chemin de béton gris clair, tout droit du portail au mur ouest de la maison (x = 41), aussi large que le portail ; son bout gauche suit
+ * l'arc de la haie (rayon 1000) pour ne jamais dépasser dehors ; il passe sous le pavage.
+ */
+export const PLAN_PATHS = ['M -273 40 A 1000 1000 0 0 0 -228 184 H 41 V 40 Z']
+/**
+ * Le chemin carrelé de 1,5 m de large du portillon à la terrasse de la maison (y = 358) : son bout bas suit l'arc de la haie (rayon 1000)
+ * pour ne pas dépasser dehors. Fondu dans le même tracé que le reste du pavage.
+ */
+export const PLAN_FLOOR_PATHS = ['M 498 358 H 556 V 800 A 1000 1000 0 0 1 498 789 Z']
+/**
+ * Les caméras de la maison qui sont sur le plan : le nom de la caméra (celui de l'API, le titre de sa vignette) et l'identifiant de son icône.
+ * Passer la souris sur la vignette sélectionne l'icône ; sélectionner l'icône met la vignette en surbrillance.
+ */
+export const PLAN_CAMERA_LINKS: Record<string, string> = { 'voliere-interieur': 'cage-bas-droite', 'voliere-exterieur': 'cage-haut-gauche' }
+/** La lampe « Perruche » (identifiant 26 du pont) dans la cage : au milieu (la cage va de 583 à 700 sur x, de -262 à -67 sur y). Son état est celui du pont. */
+export const PLAN_LAMP_POSITION = { x: 641, y: -165 }
+/** La prise connectée dans la cage, sous la lampe : son état (marche ou arrêt) est lu sur la prise. */
+export const PLAN_PLUG_POSITION = { x: 625, y: -118 }
+/** La lampe de la cage est dessinée de la taille de la prise (18 unités de large : rayon 9). */
+export const PLAN_LAMP_RADIUS = 9

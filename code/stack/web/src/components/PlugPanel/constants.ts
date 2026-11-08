@@ -21,7 +21,6 @@ export const SLIDER_HEAD_CLASS = 'flex w-full items-baseline justify-between gap
 export const SLIDER_CLASS = 'w-full accent-accent'
 export const VALUE_CLASS = 'font-mono text-[0.9rem]'
 export const REMAINING_LABEL = 'S’éteint dans'
-export const NOTE = 'Piloté en local par House API (protocole Kasa, port 9999), sans le cloud TP-Link.'
 export const BOX_CLASS = 'mt-4 flex flex-col gap-3'
 export const HEAD_CLASS = 'flex flex-wrap items-center gap-3'
 export const NAME_CLASS = 'text-[1.1rem] font-semibold'

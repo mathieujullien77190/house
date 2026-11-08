@@ -1,4 +1,5 @@
 import type { EventRow } from '@/types'
+import { clipDurationOf } from './clipDurations'
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' }
 
@@ -6,11 +7,13 @@ export const formatTime = (seconds: number): string => new Date(seconds * 1000).
 
 export const ONGOING_TEXT = 'en cours'
 
-/** Durée d'un événement, en secondes entières ; « en cours » s'il n'est pas terminé. */
-export const formatDuration = (event: EventRow): string =>
-  event.ended_at === null ? ONGOING_TEXT : `${Math.max(1, event.ended_at - event.started_at)} s`
+/** Durée du clip d'un événement, en secondes entières, quand sa vidéo a été lue ; « en cours » tant que l'événement dure ; sinon rien. */
+export const formatDuration = (event: EventRow): string => {
+  if (event.ended_at === null) return ONGOING_TEXT
+  const seconds = clipDurationOf(event.id)
+  return seconds === null ? '' : `${Math.max(1, Math.round(seconds))} s`
+}
 
-/** Libellé lisible : « person · 25/10/2026 14:51 · 15 s ». */
+/** Libellé lisible : « person · 25/10/2026 14:51 · 15 s » : le début et la durée du **clip** (pas du mouvement). */
 export const describeEvent = (event: EventRow): string =>
-  [event.label, formatTime(event.started_at), formatDuration(event)].filter(Boolean).join(' · ')
-
+  [event.label, formatTime(event.clip_started_at ?? event.started_at), formatDuration(event)].filter(Boolean).join(' · ')

@@ -12,7 +12,6 @@ import {
   MODEL_LABEL,
   NAME_CLASS,
   NOT_CONFIGURED_TEXT,
-  NOTE,
   OFF_TEXT,
   ON_TEXT,
   REMAINING_LABEL,
@@ -166,7 +165,6 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
               { id: 'model', label: MODEL_LABEL, value: plug.model },
             ]}
           />
-          <Notice text={NOTE} />
         </>
       ) : null}
     </section>
