@@ -9,3 +9,9 @@ data
 .env
 sync/node_modules
 motion/node_modules
+
+api/src/**/*.test.ts
+api/src/testing
+sync/src/**/*.test.ts
+sync/src/testing.ts
+**/coverage

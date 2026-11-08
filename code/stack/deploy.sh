@@ -128,13 +128,16 @@ for s in "${TODO[@]}"; do
   fi
 done
 
-# 5. Contrôle : chaque service tourne, pas d'erreur au démarrage.
-sleep 8
+# 5. Contrôle : chaque service tourne et répond (healthcheck du compose, attendu jusqu'à 90 s), pas d'erreur au démarrage.
+sleep 5
 FAIL=0
 for s in "${TODO[@]}"; do
-  STATE="$(ssh_run "cd ~/$REMOTE_DIR && docker compose ps --format '{{.State}} {{.Health}}' $s" | head -1)"
+  for _ in $(seq 1 18); do
+    STATE="$(ssh_run "cd ~/$REMOTE_DIR && docker compose ps --format '{{.State}} {{.Health}}' $s" | head -1)"
+    case "$STATE" in *starting*) sleep 5 ;; *) break ;; esac
+  done
   echo "  $s : $STATE"
-  case "$STATE" in running*unhealthy* | exited* | restarting* | "") FAIL=1 ;; esac
+  case "$STATE" in running*unhealthy* | running*starting* | exited* | restarting* | "") FAIL=1 ;; esac
   ssh_run "cd ~/$REMOTE_DIR && docker compose logs --since 30s $s 2>&1 | grep -iE 'error|fatal|crash|cannot|no such' | head -5" || true
 done
 if [ "$FAIL" = 1 ]; then echo "ÉCHEC : voir 'docker compose logs <service>' sur le mini PC." >&2; exit 1; fi

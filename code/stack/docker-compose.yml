@@ -25,6 +25,12 @@ services:
       CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
     volumes:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:1984/api"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
       - sync_net
       # Le réseau de la page invité : elle ne voit que go2rtc.
@@ -54,6 +60,12 @@ services:
     volumes:
       - ./data/recordings:/recordings
       - ./data/clips:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(8080, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - sync_net
 
@@ -126,6 +138,12 @@ services:
       - /etc/os-release:/host/os-release:ro
       # Le /sys de l'hôte, en lecture seule : l'état des cartes réseau physiques (câble RJ45, WiFi) de la page Machine.
       - /sys:/host/sys:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(8081, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - sync_net
 
@@ -177,6 +195,12 @@ services:
       - ./data/backup:/data:ro
       - ./data/certs:/certs:ro
       - ./data/house:/state
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(8080, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - web_net
       # Pour joindre go2rtc (go2rtc:1984), qui n'est jamais publié.
@@ -217,6 +241,7 @@ services:
       - ./data/certs/key.pem:/certs/key.pem:ro
       - ./data/guest:/guest:ro
       - ./data/guest-visits:/visits
+    # Pas de healthcheck : son port est fermé exprès quand l'interrupteur de la page invité est coupé (House Sync).
     read_only: true
     cap_drop:
       - ALL

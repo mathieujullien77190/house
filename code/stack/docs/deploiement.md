@@ -21,7 +21,7 @@ Ce qu'il fait, dans l'ordre :
 2. Lance typecheck, lint, tests (la couverture à 100 % quand le paquet en a une) et build pour les apps, de chaque paquet concerné, `ui` compris ; un script absent est ignoré, un échec arrête tout.
 3. Envoie par `tar` les dossiers des services, **sans** `data/`, `.env`, `node_modules`, `dist`, `coverage`, `storybook-static`. `sync/web` part avec `sync`.
 4. Reconstruit dans l'ordre sync, motion, go2rtc, api, guest (`docker compose up -d --build --no-deps <service>` : `--no-deps` évite de redémarrer `motion` pour rien ; `go2rtc` est seulement relancé).
-5. Contrôle l'état de chaque conteneur et les erreurs des 30 dernières secondes ; sort en erreur sinon.
+5. Attend (90 s au plus) que chaque conteneur soit `healthy` (healthcheck du compose : port ouvert pour `api`, `sync`, `motion`, appel `/api` pour `go2rtc` ; pas pour `guest`, dont le port est fermé exprès quand sa page est coupée), lit les erreurs des 30 dernières secondes ; sort en erreur sinon.
 6. Écrit le commit déployé dans `.deployed-commit`.
 
 Variables : `DEPLOY_HOST` (`mathieu@192.168.1.139` par défaut), `DEPLOY_DIR` (`house/code/phase0`).
