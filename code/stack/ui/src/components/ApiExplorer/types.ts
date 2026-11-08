@@ -1,4 +1,8 @@
 export interface ApiService {
+  /** La méthode : GET par défaut. Une écriture (PUT, POST, DELETE) est montrée avec son corps type mais ne s'appelle pas d'ici : elle change quelque chose (allumer une caméra, une lampe…). */
+  method?: 'GET' | 'PUT' | 'POST' | 'DELETE'
+  /** Pour une écriture : un exemple de corps JSON. */
+  body?: string
   path: string
   /** Ce que le service renvoie, en une phrase. */
   description: string

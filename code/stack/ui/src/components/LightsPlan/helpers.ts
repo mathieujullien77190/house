@@ -1,4 +1,26 @@
-import { BULB_RADIUS, HOUSE_HEIGHT, HOUSE_WIDTH, VIEW_HEIGHT, VIEW_WIDTH, VIEW_X, VIEW_Y } from './constants'
+import {
+  BRIGHTNESS_FLOOR,
+  BRIGHTNESS_MAX,
+  BULB_RADIUS,
+  HOUSE_HEIGHT,
+  HOUSE_WIDTH,
+  VIEW_HEIGHT,
+  VIEW_WIDTH,
+  VIEW_X,
+  VIEW_Y,
+} from './constants'
+
+/** L'opacité d'une ampoule : sa luminosité (1 à 254) entre le plancher et le plein ; plein si elle est éteinte, injoignable ou sans luminosité. */
+export const bulbOpacity = (on: boolean, reachable: boolean, brightness: number | null | undefined): number =>
+  on && reachable && brightness !== null && brightness !== undefined
+    ? BRIGHTNESS_FLOOR + (1 - BRIGHTNESS_FLOOR) * Math.min(1, Math.max(0, brightness / BRIGHTNESS_MAX))
+    : 1
+
+/** Le nom d'une ampoule avec sa luminosité en pourcentage quand elle est allumée (« Perruche · 60 % »). */
+export const bulbLabel = (name: string, on: boolean, reachable: boolean, brightness: number | null | undefined): string =>
+  on && reachable && brightness !== null && brightness !== undefined
+    ? `${name} · ${Math.round((brightness / BRIGHTNESS_MAX) * 100)} %`
+    : name
 
 /** Borne une position pour que l'ampoule reste entière dans le dessin (jardin et zone « À placer » compris), arrondie à l'unité. */
 export const clampToPlan = (x: number, y: number): { x: number; y: number } => ({

@@ -33,6 +33,9 @@ export const ROOM_LABEL_OFFSET = { x: 8, y: 16 }
 
 /** Rayon d'une ampoule, en unités du plan. */
 export const BULB_RADIUS = 5
+/** L'opacité d'une ampoule allumée selon sa luminosité (1 à 254) : jamais sous ce plancher (une lampe à 1 % reste visible). */
+export const BRIGHTNESS_MAX = 254
+export const BRIGHTNESS_FLOOR = 0.25
 /** Un glissement de plus de 4 unités déplace l'ampoule ; en deçà, c'est un clic qui l'allume ou l'éteint. */
 export const DRAG_THRESHOLD = 4
 /** Un appui sur une flèche du clavier déplace l'ampoule de ce pas. */

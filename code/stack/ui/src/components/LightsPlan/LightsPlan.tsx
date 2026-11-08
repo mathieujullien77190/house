@@ -83,7 +83,7 @@ import {
   WALL_CLASS,
 } from './constants'
 import { EXPANDED_CLASS } from '../CameraCard/constants'
-import { clampToPlan, fieldOfView, tileArea, toPlan, treeFill, planScale, pointerInPlan } from './helpers'
+import { bulbLabel, bulbOpacity, clampToPlan, fieldOfView, tileArea, toPlan, treeFill, planScale, pointerInPlan } from './helpers'
 import type { LightsPlanProps, PlanLamp, PlanTree, PlanHedge } from './types'
 
 /** Le glissement en cours : l'ampoule saisie, où le doigt a commencé, et si on a dépassé le seuil (donc ce n'est plus un clic). */
@@ -580,13 +580,13 @@ const LightsPlan = ({
               {lamp.name}
             </text>
           ) : null}
-          <circle className={bulbClass(lamp)} cx={lamp.x} cy={lamp.y} r={lampRadius} />
+          <circle className={bulbClass(lamp)} cx={lamp.x} cy={lamp.y} r={lampRadius} style={{ fillOpacity: bulbOpacity(lamp.on, lamp.reachable, lamp.brightness) }} />
         </g>
       ))}
       {/* Le nom de l'ampoule survolée ou touchée, toujours en bas du jardin, centré (pas sur le plan nu). */}
       {bare ? null : (
         <text className={ACTIVE_NAME_CLASS} x={ACTIVE_NAME_POSITION.x} y={ACTIVE_NAME_POSITION.y}>
-          {activeLamp?.name ?? ''}
+          {activeLamp ? bulbLabel(activeLamp.name, activeLamp.on, activeLamp.reachable, activeLamp.brightness) : ''}
         </text>
       )}
       {plugs.map((plug) => (

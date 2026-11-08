@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Button from '../Button'
 import {
+  BAR_OVERLAY_CLASS,
   BOX_CLASS,
   CLOSE_CLASS,
   CLOSE_LABEL,
@@ -14,6 +15,7 @@ import {
   PLAY_ICON,
   PLAY_LABEL,
   PLAYER_CLASS,
+  VIDEO_BOX_CLASS,
   SEEK_CLASS,
   SEEK_LABEL,
   SOUND_CLASS,
@@ -115,7 +117,7 @@ const ClipPlayer = ({
 
   useEffect(() => {
     const element = video.current
-    if (!element || !src || !controlsHost) return
+    if (!element || !src) return
     const onPlay = () => setPlaying(true)
     const onPause = () => setPlaying(false)
     const onLength = () => setDuration(element.duration)
@@ -131,7 +133,7 @@ const ClipPlayer = ({
       element.removeEventListener('ended', onPause)
       element.removeEventListener('durationchange', onLength)
     }
-  }, [src, controlsHost])
+  }, [src])
 
   const togglePlay = () => {
     const element = video.current
@@ -146,30 +148,29 @@ const ClipPlayer = ({
     setTime(seconds)
   }
   // Les commandes maison, posées dans l'élément donné par le parent (hors du lecteur, donc droites même si la vidéo est tournée).
-  const controls =
-    controlsHost && src && !error
-      ? createPortal(
-          <div className={CONTROLS_CLASS}>
-            <Button aria-label={playing ? PAUSE_LABEL : PLAY_LABEL} title={playing ? PAUSE_LABEL : PLAY_LABEL} onClick={togglePlay}>
-              {playing ? PAUSE_ICON : PLAY_ICON}
-            </Button>
-            <input
-              type="range"
-              className={SEEK_CLASS}
-              aria-label={SEEK_LABEL}
-              min={0}
-              max={duration || 0}
-              step={0.1}
-              value={Math.min(time, duration || 0)}
-              onChange={(event) => seek(Number(event.currentTarget.value))}
-            />
-            <span className={TIME_CLASS}>
-              {formatClock(time)} / {formatClock(duration)}
-            </span>
-          </div>,
-          controlsHost,
-        )
-      : null
+  const bar =
+    src && !error ? (
+      <div className={CONTROLS_CLASS}>
+        <Button aria-label={playing ? PAUSE_LABEL : PLAY_LABEL} title={playing ? PAUSE_LABEL : PLAY_LABEL} onClick={togglePlay}>
+          {playing ? PAUSE_ICON : PLAY_ICON}
+        </Button>
+        <input
+          type="range"
+          className={SEEK_CLASS}
+          aria-label={SEEK_LABEL}
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={Math.min(time, duration || 0)}
+          onChange={(event) => seek(Number(event.currentTarget.value))}
+        />
+        <span className={TIME_CLASS}>
+          {formatClock(time)} / {formatClock(duration)}
+        </span>
+      </div>
+    ) : null
+  // Dans l'élément du parent s'il en donne un (une vidéo tournée : les commandes restent droites), sinon posées dans l'image, en bas.
+  const controls = bar && controlsHost ? createPortal(bar, controlsHost) : bar ? <div className={BAR_OVERLAY_CLASS}>{bar}</div> : null
 
   const enableSound = () => {
     const sound = audio.current
@@ -183,32 +184,34 @@ const ClipPlayer = ({
 
   return (
     <div className={PLAYER_CLASS}>
-      {error ? (
-        <p className={ERROR_CLASS}>{error}</p>
-      ) : src ? (
-        <video
-          ref={video}
-          className={VIDEO_CLASS}
-          src={src}
-          controls={!controlsHost}
-          // Ni agrandir, ni télécharger, ni vitesse, ni diffusion, ni image dans l'image : les commandes ne gardent que lecture et barre de temps (voir VIDEO_CLASS).
-          controlsList="nofullscreen nodownload noremoteplayback noplaybackrate"
-          disablePictureInPicture
-          // La vidéo n'a pas de son (il est dans un fichier à part, joué avec elle) : démarrer en sourdine est la seule façon que les téléphones acceptent de lancer la lecture tout seuls.
-          muted
-          playsInline
-          preload="metadata"
-          onLoadedData={onReady}
-          onError={(event) => onFailure?.(event.currentTarget.error?.code ?? 0)}
-          onTimeUpdate={(event) => {
-            setTime(event.currentTarget.currentTime)
-            onTime(event.currentTarget.currentTime)
-          }}
-        />
-      ) : (
-        <div className={BOX_CLASS}>{LOADING_TEXT}</div>
-      )}
-      {controls}
+      <div className={VIDEO_BOX_CLASS}>
+        {error ? (
+          <p className={ERROR_CLASS}>{error}</p>
+        ) : src ? (
+          <video
+            ref={video}
+            className={VIDEO_CLASS}
+            src={src}
+            onClick={togglePlay}
+            // Ni agrandir, ni télécharger, ni vitesse, ni diffusion, ni image dans l'image : les commandes ne gardent que lecture et barre de temps (voir VIDEO_CLASS).
+            controlsList="nofullscreen nodownload noremoteplayback noplaybackrate"
+            disablePictureInPicture
+            // La vidéo n'a pas de son (il est dans un fichier à part, joué avec elle) : démarrer en sourdine est la seule façon que les téléphones acceptent de lancer la lecture tout seuls.
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedData={onReady}
+            onError={(event) => onFailure?.(event.currentTarget.error?.code ?? 0)}
+            onTimeUpdate={(event) => {
+              setTime(event.currentTarget.currentTime)
+              onTime(event.currentTarget.currentTime)
+            }}
+          />
+        ) : (
+          <div className={BOX_CLASS}>{LOADING_TEXT}</div>
+        )}
+        {controls}
+      </div>
       {audioSrc && src && !error ? <audio ref={audio} src={audioSrc} preload="auto" /> : null}
       {soundBlocked ? (
         <Button className={SOUND_CLASS} onClick={enableSound}>

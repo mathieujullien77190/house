@@ -27,7 +27,7 @@ import { briOf, countText, percentOf } from './helpers'
 import type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
 /** Les lumières : une section repliable par pièce, un bouton et un curseur de luminosité pour la pièce et pour chaque lampe. */
-const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft }: LightsPanelProps) => {
+const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lampExtra }: LightsPanelProps) => {
   // Un bouton et un curseur : le même rendu pour une pièce entière et pour une lampe. Le curseur envoie au relâchement.
   const controls = (key: string, on: boolean, bri: number | null, disabled: boolean, change: (change: LightsChange) => void) => {
     const percent = drafts[key] ?? (bri === null ? null : percentOf(bri))
@@ -69,6 +69,7 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft }: L
         {light.reachable ? null : <span className={MUTED_CLASS}> · {UNREACHABLE_TEXT}</span>}
       </span>
       {controls(`light:${light.id}`, light.on, light.bri, !light.reachable, (change) => onLight(light.id, change))}
+      {lampExtra?.(light)}
     </li>
   )
 

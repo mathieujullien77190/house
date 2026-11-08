@@ -9,6 +9,8 @@ export interface PlanLamp {
   on: boolean
   /** La lampe répond au pont ; sinon l'ampoule est estompée. */
   reachable: boolean
+  /** La luminosité (1 à 254) : l'ampoule allumée est d'autant plus pâle qu'elle est basse, et son nom dit le pourcentage. Absente : plein. */
+  brightness?: number | null
 }
 
 /** Un rectangle du plan, en unités du plan. */

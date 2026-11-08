@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 /** Une lampe d'une pièce. */
 export interface LightsLamp {
   id: string
@@ -45,6 +47,8 @@ export interface LightsChange {
 
 export interface LightsPanelProps {
   rooms: LightsRoom[]
+  /** Quelque chose en plus au bout de la ligne d'une lampe (un bouton d'action), ou rien. Le parent y met ce qu'il veut : le panneau ne sait rien de plus. */
+  lampExtra?: (light: LightsLamp) => ReactNode
   /** Ce qui est en cours de changement : « all », « room:<id> » ou « light:<id> » ; son bouton est désactivé. */
   busy: string
   /** La luminosité en pourcentage pendant que le curseur bouge, par « room:<id> » ou « light:<id> ». */

@@ -14,6 +14,9 @@ import {
   LIST_CLASS,
   NOTE_CLASS,
   PATH_CLASS,
+  WRITE_BADGE,
+  WRITE_BODY_CLASS,
+  WRITE_CLASS,
   RESULT_CLASS,
   RESULT_HEAD_CLASS,
   RESULT_TITLE,
@@ -35,12 +38,24 @@ const ApiExplorer = ({ services, selected, busy, result, note, onCall }: ApiExpl
               {group.name ? <h3 className={GROUP_TITLE_CLASS}>{group.name}</h3> : null}
               <ul className={LIST_CLASS}>
                 {group.items.map((service) => (
-                  <li key={service.path}>
-                    <button type="button" className={serviceClass(service.path === selected)} onClick={() => onCall(service.path)}>
-                      <span className={PATH_CLASS}>GET {service.path}</span>
-                      {service.secured ? <span className={BADGE_CLASS}>{KEY_BADGE}</span> : null}
-                      <div className={DESCRIPTION_CLASS}>{service.description}</div>
-                    </button>
+                  <li key={`${service.method ?? 'GET'} ${service.path}`}>
+                    {service.method && service.method !== 'GET' ? (
+                      <div className={WRITE_CLASS}>
+                        <span className={PATH_CLASS}>
+                          {service.method} {service.path}
+                        </span>
+                        {service.secured ? <span className={BADGE_CLASS}>{KEY_BADGE}</span> : null}
+                        <span className={BADGE_CLASS}>{WRITE_BADGE}</span>
+                        <div className={DESCRIPTION_CLASS}>{service.description}</div>
+                        {service.body ? <pre className={WRITE_BODY_CLASS}>{service.body}</pre> : null}
+                      </div>
+                    ) : (
+                      <button type="button" className={serviceClass(service.path === selected)} onClick={() => onCall(service.path)}>
+                        <span className={PATH_CLASS}>GET {service.path}</span>
+                        {service.secured ? <span className={BADGE_CLASS}>{KEY_BADGE}</span> : null}
+                        <div className={DESCRIPTION_CLASS}>{service.description}</div>
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

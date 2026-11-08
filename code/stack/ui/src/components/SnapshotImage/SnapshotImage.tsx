@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   ALT,
   BOX_CLASS,
+  UPRIGHT_BOX_CLASS,
   UPRIGHT_CLASS,
   UPRIGHT_LABEL_CLASS,
   UPRIGHT_LOADING_CLASS,
@@ -45,7 +46,9 @@ const SnapshotImage = ({ src, label, message, onSize, upright = false }: Snapsho
       </div>
     )
   }
-  return <div className={BOX_CLASS}>{upright ? <span className={UPRIGHT_CLASS}>{message}</span> : message}</div>
+  return (
+    <div className={upright ? UPRIGHT_BOX_CLASS : BOX_CLASS}>{upright ? <span className={UPRIGHT_CLASS}>{message}</span> : message}</div>
+  )
 }
 
 export default SnapshotImage
