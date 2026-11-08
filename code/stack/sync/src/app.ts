@@ -17,6 +17,7 @@ import { createRecorder } from './recorder.ts'
 import { createSettings } from './settings.ts'
 import { createSnapshots } from './snapshots.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
+import { createHeatingLogTable } from './heatingLog.ts'
 import { createPlanTable } from './plan.ts'
 
 export interface AppDeps {
@@ -46,6 +47,7 @@ export const startApp = async (deps: AppDeps) => {
   // Les visites de la page invité et le plan de la maison : des fichiers que les autres services écrivent (lecture seule ici), importés dans la base.
   db.exec('CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
   createGuestVisitsTable(db)
+  createHeatingLogTable(db)
   createPlanTable(db)
 
   const rec = createRecorder(ctx)
@@ -61,6 +63,8 @@ export const startApp = async (deps: AppDeps) => {
   const planTimer = setInterval(() => void imports.syncPlan(), 30_000)
   void imports.syncGuestVisits()
   const visitsTimer = setInterval(() => void imports.syncGuestVisits(), 15_000)
+  void imports.syncHeatingLog()
+  const heatingTimer = setInterval(() => void imports.syncHeatingLog(), 30_000)
 
   const { server, secure } = createPageServer(config, page.handlePage)
   server.listen(config.pagePort, () => deps.log(`Page de House Sync en ${secure ? 'HTTPS' : 'HTTP'} sur le port ${config.pagePort}`))
@@ -76,6 +80,7 @@ export const startApp = async (deps: AppDeps) => {
     clearInterval(timer)
     clearInterval(planTimer)
     clearInterval(visitsTimer)
+    clearInterval(heatingTimer)
     hueLog.stop()
     server.closeAllConnections()
     server.close()

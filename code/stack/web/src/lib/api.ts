@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { CameraPower, CameraRow, EventRow, GuestInfo, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
+import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingLogEntry, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -82,6 +82,27 @@ export const setPlug = async (key: string, on: boolean, minutes?: number, offOnM
   })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/plug : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Les réglages du chauffage automatique et l'état de la règle (503 sans prise ou sans pont Hue). */
+export const fetchHeating = async (key: string): Promise<HeatingStatus> => (await request(key, '/plug/heating')).json()
+
+/** Les dernières activations du chauffage, la plus récente d'abord (503 sans prise). */
+export const fetchHeatingLog = async (key: string, limit = 50): Promise<HeatingLogEntry[]> => (await request(key, `/plug/log?limit=${limit}`)).json()
+
+/** Change les réglages du chauffage automatique (une valeur absente garde l'ancienne) ; en cas de refus (400), l'erreur porte le texte de l'API. */
+export const saveHeating = async (key: string, body: HeatingSettingsBody): Promise<HeatingStatus> => {
+  const res = await fetch('/plug/heating', {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => null)) as { error?: unknown } | null
+    throw new ApiError(res.status, typeof detail?.error === 'string' ? detail.error : `/plug/heating : HTTP ${res.status}`)
+  }
   return res.json()
 }
 

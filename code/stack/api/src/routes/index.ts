@@ -8,6 +8,7 @@ import { createRequireKey } from '../middleware/requireKey.ts'
 import { createSessions } from '../middleware/session.ts'
 import type { CamerasService } from '../services/camerasService.ts'
 import type { EventsService } from '../services/eventsService.ts'
+import type { HeatingService } from '../services/heatingService.ts'
 import type { HueService } from '../services/hueService.ts'
 import type { PlugService } from '../services/plugService.ts'
 import type { PoeService } from '../services/poeService.ts'
@@ -37,6 +38,8 @@ export interface Services {
   hue: HueService | null
   /** Null quand aucune prise connectée n'est configurée. */
   plug: PlugService | null
+  /** Le chauffage automatique de la prise et son journal ; null sans prise. */
+  heating: HeatingService | null
   /** Null quand aucun switch n'est configuré. */
   poe: PoeService | null
   /** Null sans GUEST_KEY : /guest répond 503. */
@@ -84,7 +87,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(snapshotsRouter(services.snapshots, services.files))
   router.use(liveRouter(services.live))
   router.use(poeRouter(services.poe))
-  router.use(plugRouter(services.plug))
+  router.use(plugRouter(services.plug, services.heating))
   router.use(hueRouter(services.hue))
   router.use(guestRouter(services.guest))
   router.use(zonesRouter(services.zones))

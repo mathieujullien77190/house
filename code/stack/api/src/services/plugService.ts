@@ -3,6 +3,7 @@
 // éteint la prise ; l'option s'efface alors, et dès que la prise est éteinte autrement.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import type { Activation } from '../lib/heatingLog.ts'
 import type { KasaClient, PlugInfo } from '../lib/kasaClient.ts'
 
 export type PlugState = PlugInfo & {
@@ -23,7 +24,17 @@ interface GuardOptions {
   motion: MotionSource | null
   /** Le fichier où l'option armée est gardée (pour qu'un redémarrage ne l'oublie pas). */
   file: string
+  /** Appelée à chaque allumage commandé par l'API (le journal du chauffage). */
+  record?: (entry: Activation) => void
 }
+
+/** D'où vient un allumage commandé par l'API : une commande de la WebApp (par défaut) ou la règle automatique, avec la température qui l'a décidée. */
+export interface ActivationMeta {
+  origin: 'manuel' | 'auto'
+  temperature: number | null
+  note: string | null
+}
+const MANUAL: ActivationMeta = { origin: 'manuel', temperature: null, note: null }
 
 export const createPlugService = (client: KasaClient, guard: GuardOptions = { motion: null, file: '' }) => {
   let cached: { at: number; state: PlugInfo } | null = null
@@ -94,6 +105,10 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
     arm(on && offOnMotion && guard.motion !== null)
   }
 
+  // Chaque allumage pour une durée commandé par l'API va au journal du chauffage.
+  const record = (minutes: number, meta: ActivationMeta): void =>
+    guard.record?.({ at: Math.floor(Date.now() / 1000), origin: meta.origin, minutes, temperature: meta.temperature, note: meta.note })
+
   return {
     get: async (): Promise<PlugState> => withOption(await read()),
     /** Les détecteurs permettent-ils l'option ? (faux sans pont Hue) */
@@ -106,10 +121,11 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
       return withOption(await read())
     },
     /** Allume la prise pendant `minutes` minutes : c'est la prise qui s'éteint ensuite. */
-    startTimer: async (minutes: number, offOnMotion = false): Promise<PlugState> => {
+    startTimer: async (minutes: number, offOnMotion = false, meta: ActivationMeta = MANUAL): Promise<PlugState> => {
       await client.startTimer(minutes * 60)
       cached = null
       decide(true, offOnMotion)
+      record(minutes, meta)
       return withOption(await read())
     },
   }

@@ -29,6 +29,9 @@ import {
   setClipSaved,
   setHue,
   setPlug,
+  saveHeating,
+  fetchHeating,
+  fetchHeatingLog,
   startFade,
   startRecording,
   stopRecording,
@@ -55,6 +58,9 @@ describe('lectures (GET)', () => {
     ['fetchGuest', (k) => fetchGuest(k), '/guest'],
     ['fetchPower', (k) => fetchPower(k), '/poe'],
     ['fetchPlug', (k) => fetchPlug(k), '/plug'],
+    ['fetchHeating', (k) => fetchHeating(k), '/plug/heating'],
+    ['fetchHeatingLog', (k) => fetchHeatingLog(k), '/plug/log?limit=50'],
+    ['fetchHeatingLog limit', (k) => fetchHeatingLog(k, 5), '/plug/log?limit=5'],
     ['fetchLights', (k) => fetchLights(k), '/hue'],
     ['fetchAutomations', (k) => fetchAutomations(k), '/hue/automations'],
     ['fetchSensors', (k) => fetchSensors(k), '/hue/sensors'],
@@ -124,6 +130,7 @@ describe('écritures', () => {
   const writes: [string, (k: string) => Promise<unknown>, string, string, unknown][] = [
     ['setClipSaved', (k) => setClipSaved(k, 'a/b', true), '/clips/a%2Fb/saved', 'PUT', { saved: true }],
     ['setCameraPower', (k) => setCameraPower(k, 'c 1', false), '/poe/c%201', 'POST', { on: false }],
+    ['saveHeating', (k) => saveHeating(k, { thresholdC: 2, heaterWatts: null }), '/plug/heating', 'PUT', { thresholdC: 2, heaterWatts: null }],
     ['setPlug seul', (k) => setPlug(k, true), '/plug', 'POST', { on: true }],
     ['setPlug minuteur et mouvement', (k) => setPlug(k, true, 5, true), '/plug', 'POST', { on: true, minutes: 5, offOnMotion: true }],
     ['setHue', (k) => setHue(k, 'lights', 'l 1', { on: true, bri: 3 }), '/hue/lights/l%201', 'PUT', { on: true, bri: 3 }],
@@ -150,6 +157,14 @@ describe('écritures', () => {
       await expect(call('k')).rejects.toMatchObject({ status: 502 })
     },
   )
+  it('saveHeating : le texte du refus de l’API, ou un message par défaut', async () => {
+    stubFetch(() => reply({ error: 'minutes must be an integer from 1 to 120' }, 400))
+    await expect(saveHeating('k', { minutes: 0 })).rejects.toMatchObject({ status: 400, message: 'minutes must be an integer from 1 to 120' })
+    stubFetch(() => reply('oups', 400))
+    await expect(saveHeating('k', {})).rejects.toMatchObject({ status: 400, message: '/plug/heating : HTTP 400' })
+    stubFetch(() => reply({ error: 3 }, 400))
+    await expect(saveHeating('k', {})).rejects.toMatchObject({ message: '/plug/heating : HTTP 400' })
+  })
   it('cancelFade envoie DELETE sans corps', async () => {
     const spy = stubFetch(() => reply({ fading: false, ends_at: null }))
     await cancelFade('k', 'l1')

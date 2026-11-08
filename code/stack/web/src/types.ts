@@ -60,6 +60,45 @@ export interface PlugState {
   offOnMotion: boolean
 }
 
+/** Les réglages du chauffage automatique de la prise et l'état de la règle, tels que House API les décrit (GET /plug/heating). */
+export interface HeatingStatus {
+  enabled: boolean
+  thresholdC: number
+  minutes: number
+  cooldownMinutes: number
+  /** Prix du kWh en heures creuses et en heures pleines (€ TTC). */
+  priceKwh: number
+  peakPriceKwh: number
+  /** Les heures creuses « HH:MM » (heure de Paris), null si inconnues. */
+  offPeakStart: string | null
+  offPeakEnd: string | null
+  /** La puissance du chauffage en watts, null si inconnue. */
+  heaterWatts: number | null
+  lastActivationAt: number | null
+  nextAllowedAt: number | null
+  /** La température de la volière, null si inconnue. */
+  temperature: number | null
+  night: boolean
+  cold: boolean
+}
+
+/** Ce que PUT /plug/heating accepte (tout est facultatif). */
+export type HeatingSettingsBody = Partial<
+  Pick<HeatingStatus, 'enabled' | 'thresholdC' | 'minutes' | 'cooldownMinutes' | 'priceKwh' | 'peakPriceKwh' | 'offPeakStart' | 'offPeakEnd' | 'heaterWatts'>
+>
+
+/** Une activation du chauffage (GET /plug/log). */
+export interface HeatingLogEntry {
+  /** Secondes depuis 1970. */
+  at: number
+  origin: 'auto' | 'manuel'
+  minutes: number
+  temperature: number | null
+  note: string | null
+  /** Le coût prévu en euros, écrit à l'activation ; null si la puissance était inconnue. */
+  cost: number | null
+}
+
 /** Une lampe du pont Hue. */
 export interface HueLight {
   id: string

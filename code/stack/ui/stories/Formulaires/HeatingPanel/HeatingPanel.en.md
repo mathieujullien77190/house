@@ -1,0 +1,1 @@
+The automatic heating rule of the plug: the checkbox, the fields (text, number or time), a save button, what the rule would do now and the activation log with its total. Everything is text: the parent converts and sends.

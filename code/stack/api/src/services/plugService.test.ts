@@ -190,3 +190,20 @@ test('le garde avec un détecteur mais sans fichier : l’option reste en mémoi
   assert.equal((await plug.set(false)).offOnMotion, false)
   // avec le détecteur mais sans le surveiller : le minuteur de l'intervalle est détaché du processus (unref)
 })
+
+test('chaque allumage pour une durée va au journal : manuel par défaut, ou avec l’origine donnée ; éteindre et allumer sans durée non', async (t) => {
+  clock(t)
+  const { client } = fakePlug()
+  const noted: unknown[] = []
+  const plug = createPlugService(client, { motion: null, file: '', record: (entry) => noted.push(entry) })
+  await plug.startTimer(5)
+  await plug.startTimer(7, false, { origin: 'auto', temperature: 2.5, note: null })
+  await plug.set(false)
+  await plug.set(true)
+  assert.deepEqual(noted, [
+    { at: 1000, origin: 'manuel', minutes: 5, temperature: null, note: null },
+    { at: 1000, origin: 'auto', minutes: 7, temperature: 2.5, note: null },
+  ])
+  // sans journal, rien ne casse
+  await createPlugService(client).startTimer(5)
+})

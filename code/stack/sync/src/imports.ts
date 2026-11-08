@@ -1,7 +1,8 @@
 // Les imports périodiques de fichiers écrits par les autres services (lecture seule ici) dans la base :
-// le plan de la maison (toutes les 30 s, écrit par House API) et les visites de la page invité (toutes les 15 s).
+// le plan de la maison et le journal du chauffage (toutes les 30 s, écrits par House API) et les visites de la page invité (toutes les 15 s).
 import { messageOf, type Context } from './context.ts'
 import { importGuestVisits, purgeGuestVisits } from './guestVisits.ts'
+import { importHeatingLog } from './heatingLog.ts'
 import { importPlan, readPlan } from './plan.ts'
 
 export const createImports = (ctx: Context) => {
@@ -31,5 +32,14 @@ export const createImports = (ctx: Context) => {
     }
   }
 
-  return { syncPlan, syncGuestVisits }
+  const syncHeatingLog = async (): Promise<void> => {
+    try {
+      const imported = await importHeatingLog(db, config.heatingLogFile)
+      if (imported > 0) ctx.log(`Chauffage : ${imported} activation(s) notée(s)`)
+    } catch (error) {
+      ctx.log(`Journal du chauffage : ${messageOf(error)}`)
+    }
+  }
+
+  return { syncPlan, syncGuestVisits, syncHeatingLog }
 }

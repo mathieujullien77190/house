@@ -9,6 +9,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   fetchPlug: vi.fn(),
   setPlug: vi.fn(),
 }))
+vi.mock('@/components/HeatingSection', () => ({ default: ({ version }: { version: number }) => <div data-testid="heating">{version}</div> }))
 const api = await import('@/lib/api')
 
 const plug = (over: Partial<PlugState> = {}): PlugState => ({
@@ -124,6 +125,8 @@ describe('PlugPanel', () => {
     await settle()
     expect(api.setPlug).toHaveBeenCalledTimes(1)
     expect(api.setPlug).toHaveBeenCalledWith('k', false)
+    // le chauffage automatique est sous la commande, et relu après la commande
+    expect(screen.getByTestId('heating')).toHaveTextContent('1')
     expect(screen.queryByRole('button', { name: 'Éteindre' })).toBeNull()
   })
 
@@ -143,6 +146,7 @@ describe('PlugPanel', () => {
     render(<PlugPanel apiKey="k" />)
     await settle()
     expect(screen.getByRole('button', { name: /Allumer pendant 5 min/ })).toBeInTheDocument()
+    expect(screen.getByTestId('heating')).toHaveTextContent('0')
     fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } })
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: /Allumer pendant 12 min/ }))

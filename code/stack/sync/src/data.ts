@@ -2,7 +2,7 @@
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'plan']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'plan']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {
@@ -31,6 +31,7 @@ export const TABLE_FILTERS: Record<string, TableFilterConfig> = {
   merges: { match: 'camera', date: 'absorbed_started_at' },
   hue_events: { match: 'name', date: 'happened_at' },
   guest_visits: { match: 'cle', date: 'started_at' },
+  heating_log: { match: null, date: 'started_at' },
 }
 
 /** Le filtre demandé : une valeur de la colonne choisie, et une période [from, to[ en secondes depuis 1970. */

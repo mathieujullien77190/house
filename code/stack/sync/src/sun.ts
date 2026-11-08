@@ -1,3 +1,4 @@
+// Copie assumée dans api/src/lib/sun.ts (l’API ne dépend pas de House Sync) : si l’un change, changer l’autre.
 // Le lever et le coucher du soleil, calculés (équation du lever de soleil, précision de quelques minutes) :
 // le pont Hue n'a pas de position, et les heures fixes de ses règles dérivent avec les saisons.
 const RAD = Math.PI / 180

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock, test } from 'node:test'
-import { createApp, createMotionSource } from './app.ts'
+import { createApp, createMotionSource, createTemperatureSource } from './app.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db/database.ts'
 import type { HueClient, HueSensor } from './lib/hueClient.ts'
@@ -44,6 +44,8 @@ const baseConfig = (dir: string): Config => ({
   hue: null,
   plug: null,
   plugMotionSensor: 'motion interieur',
+  plugTemperatureSensor: 'motion interieur',
+  housePosition: { latitude: 48.6, longitude: 2.7 },
   guest: null,
   recorderUrl: null,
   tls: null,
@@ -103,6 +105,27 @@ test('sans base de House Sync, les routes qui la lisent répondent 503', async (
   })
 })
 
+test('la température de la volière : celle du détecteur nommé, ou null', async () => {
+  const sensors: Record<string, HueSensor> = {
+    '1': { ...sensor('motion interieur', 'ZLLPresence', false), uniqueid: 'aa:bb-02-0406' },
+    '2': { ...sensor('motion interieur', 'ZLLTemperature'), uniqueid: 'aa:bb-02-0402', state: { temperature: 251 } },
+  }
+  const hue = { sensors: async () => sensors } as unknown as HueClient
+  assert.equal(await createTemperatureSource(hue, 'motion interieur').read(), 2.5)
+  assert.equal(await createTemperatureSource(hue, 'absent').read(), null)
+})
+
+test('une prise sans pont Hue : le journal se lit, la règle répond 503', async () => {
+  await withTempDir(async (dir) => {
+    const config: Config = { ...prepare(dir), plug: { host: '127.0.0.1', port: 1, mac: '' } }
+    await serveApp(config, async (url) => {
+      const key = { 'X-House-Key': KEY }
+      assert.equal((await call(`${url}/plug/heating`, 'GET', undefined, key)).status, 503)
+      assert.equal((await call(`${url}/plug/log`, 'GET', undefined, key)).status, 200)
+    })
+  })
+})
+
 test('tous les services configurés : pont Hue, prise, switch, enregistreur, page invité', async () => {
   const log = mock.method(console, 'error', () => undefined)
   const bridge = await listen((req, res) => {
@@ -126,6 +149,8 @@ test('tous les services configurés : pont Hue, prise, switch, enregistreur, pag
         assert.equal(rooms[0].lights[0].name, 'Lampe')
         assert.equal((await call(`${url}/guest`, 'GET', undefined, key)).status, 200)
         assert.equal((await call(`${url}/plug`, 'GET', undefined, key)).status, 502)
+        assert.equal((await call(`${url}/plug/heating`, 'GET', undefined, key)).status, 200)
+        assert.deepEqual((await call(`${url}/plug/log`, 'GET', undefined, key)).body, [])
         assert.equal((await call(`${url}/record/cam-a`, 'GET', undefined, key)).status, 502)
         assert.equal((await call(`${url}/poe`, 'GET', undefined, key)).status, 500)
         assert.equal((await call(`${url}/rootCA.crt`)).status, 404)

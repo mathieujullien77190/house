@@ -20,6 +20,7 @@ const services: Services = {
   live: {} as LiveService,
   hue: null,
   plug: null,
+  heating: null,
   poe: null,
   guest: null,
   files: {} as BackupFiles,

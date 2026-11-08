@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Checkbox, Notice, SectionTitle, SpecList } from '@house/ui'
 import { ApiError, fetchPlug, setPlug } from '@/lib/api'
+import HeatingSection from '@/components/HeatingSection'
 import type { PlugState } from '@/types'
 import {
   BOX_CLASS,
@@ -53,6 +54,8 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   // L'instant où la prise s'est allumée (déduit de « allumée depuis » que la prise a dit), pour que « allumée depuis » défile aussi chaque seconde.
   const [onSince, setOnSince] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  // Change après chaque commande de la prise : le journal du chauffage est relu.
+  const [commands, setCommands] = useState(0)
 
   const apply = (state: PlugState) => {
     const at = Date.now()
@@ -60,6 +63,12 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
     setNow(at)
     setEndsAt(state.timerSeconds !== null ? at + state.timerSeconds * 1000 : null)
     setOnSince(state.on ? at - state.onTime * 1000 : null)
+  }
+
+  // Une commande de la prise (éteindre, allumer pour une durée) : son résultat, puis le journal du chauffage relu.
+  const applyCommand = (state: PlugState) => {
+    apply(state)
+    setCommands((count) => count + 1)
   }
 
   useEffect(() => {
@@ -98,7 +107,7 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   const turnOff = () => {
     setBusy(true)
     setPlug(apiKey, false)
-      .then(apply)
+      .then(applyCommand)
       .catch(() => setProblem('off'))
       .finally(() => setBusy(false))
   }
@@ -107,7 +116,7 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
   const startTimer = () => {
     setBusy(true)
     setPlug(apiKey, true, minutes, offOnMotion)
-      .then(apply)
+      .then(applyCommand)
       .catch(() => setProblem('off'))
       .finally(() => setBusy(false))
   }
@@ -163,6 +172,7 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
               { id: 'model', label: MODEL_LABEL, value: plug.model },
             ]}
           />
+          <HeatingSection apiKey={apiKey} version={commands} />
         </>
       ) : null}
     </section>

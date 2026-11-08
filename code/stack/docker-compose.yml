@@ -108,6 +108,8 @@ services:
       GUEST_STATE_FILE: /guest/state.json
       # Les visites de la page invité (une ligne JSON par visite, importée toutes les 15 s dans la table guest_visits), lues dans le dossier que la page remplit.
       GUEST_VISITS_FILE: /guest-visits/visits.jsonl
+      # Le journal des activations du chauffage (écrit par House API dans data/house, importé toutes les 30 s dans la table heating_log).
+      HEATING_LOG_FILE: /house/heating-log.jsonl
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
@@ -175,6 +177,11 @@ services:
       # l'API la retrouve toute seule par un scan du réseau (une fois par minute au plus). Sans adresse, le service plug répond 503.
       PLUG_HOST: ${PLUG_HOST:-}
       PLUG_MAC: ${PLUG_MAC:-D8:0D:17:1C:84:E3}
+      # Le chauffage automatique de la prise (voliere) : la température vient du détecteur Hue nommé ici (par défaut celui de PLUG_MOTION_SENSOR,
+      # « motion interieur »), la nuit se calcule pour la position de la maison (les mêmes valeurs par défaut que House Sync). Les réglages de la règle sont dans data/house/heating.json.
+      PLUG_TEMPERATURE_SENSOR: ${PLUG_TEMPERATURE_SENSOR:-}
+      HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
+      HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
       # La page invité (guest/) : la WebApp en affiche le lien (clé comprise) et un bouton « Copier » (GET /guest, derrière la clé de l'API). GUEST_PUBLIC_URL : son adresse publique
       # si elle est ouverte à internet (sinon la WebApp prend son propre hôte et le port 8090).
       # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API.

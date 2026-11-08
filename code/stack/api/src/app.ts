@@ -17,7 +17,10 @@ import { createZonesStore } from './lib/zonesStore.ts'
 import { createSavedClipsStore } from './lib/savedClipsStore.ts'
 import { createKasaClient } from './lib/kasaClient.ts'
 import { createSwitchClient } from './lib/switchClient.ts'
-import { createHueService } from './services/hueService.ts'
+import { createHueService, toSensors } from './services/hueService.ts'
+import { createHeatingService, createRecorder, type TemperatureSource } from './services/heatingService.ts'
+import { createHeatingLog } from './lib/heatingLog.ts'
+import { createHeatingSettings } from './lib/heatingSettings.ts'
 import { createPlugService, type MotionSource } from './services/plugService.ts'
 import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
@@ -31,6 +34,11 @@ export const createMotionSource = (hueClient: HueClient, sensorName: string): Mo
   },
 })
 
+/** La température du détecteur de la volière, lue chez le pont (null si le détecteur manque ou ne la donne pas). */
+export const createTemperatureSource = (hueClient: HueClient, sensorName: string): TemperatureSource => ({
+  read: async (): Promise<number | null> => toSensors(await hueClient.sensors()).find((sensor) => sensor.name === sensorName)?.temperature ?? null,
+})
+
 export const createApp = (config: Config): Express => {
   const db = openDatabase(`${config.dataDir}/events.db`)
   const cameras = createCamerasRepository(db)
@@ -38,6 +46,11 @@ export const createApp = (config: Config): Express => {
   const motion = hueClient ? createMotionSource(hueClient, config.plugMotionSensor) : null
   const live = createLiveService(config.go2rtcUrls, cameras)
   const savedClips = createSavedClipsStore(`${config.stateDir}/saved-clips.json`)
+  const heatingLog = createHeatingLog(`${config.stateDir}/heating-log.jsonl`)
+  const heatingSettings = createHeatingSettings(`${config.stateDir}/heating.json`)
+  const plug = config.plug
+    ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json`, record: createRecorder(heatingLog, heatingSettings) })
+    : null
   const services = {
     cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db), savedClips),
@@ -50,7 +63,16 @@ export const createApp = (config: Config): Express => {
     savedClips,
     hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     guest: config.guest,
-    plug: config.plug ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json` }) : null,
+    plug,
+    heating: plug
+      ? createHeatingService({
+          plug,
+          settings: heatingSettings,
+          log: heatingLog,
+          temperature: hueClient ? createTemperatureSource(hueClient, config.plugTemperatureSensor) : null,
+          position: config.housePosition,
+        })
+      : null,
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
 

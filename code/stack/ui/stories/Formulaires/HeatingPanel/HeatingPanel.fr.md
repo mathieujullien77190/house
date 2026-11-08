@@ -1,0 +1,1 @@
+La règle du chauffage automatique de la prise : la case, les champs (texte, nombre ou heure), « Enregistrer », ce que la règle ferait maintenant et le journal des activations avec son total. Tout est en texte : le parent convertit et envoie.
