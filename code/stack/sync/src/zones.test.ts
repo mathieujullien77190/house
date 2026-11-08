@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -55,6 +55,21 @@ test('les zones : fichier lu, absent = aucune zone, dossier absent ou fichier ab
     writeFileSync(file, '{abîmé')
     assert.equal(await readZones(file), null)
     assert.equal(await readZones(join(dir, 'absent', 'zones.json')), null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('un fichier qui n est pas un objet, ou illisible pour une autre raison, est inconnu', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'zones-'))
+  try {
+    const file = join(dir, 'zones.json')
+    for (const content of ['[]', 'null', '3']) {
+      writeFileSync(file, content)
+      assert.equal(await readZones(file), null)
+    }
+    mkdirSync(join(dir, 'dossier.json'))
+    assert.equal(await readZones(join(dir, 'dossier.json')), null)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

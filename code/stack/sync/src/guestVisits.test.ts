@@ -62,3 +62,44 @@ test('purgeGuestVisits supprime les visites trop vieilles', async () => {
     assert.equal(count(db), 1)
   })
 })
+
+test('une visite avec clé, caméra et qualité garde ses champs ; sans durée, pas de fin', () => {
+  const visit = parseVisit(line({ key: 'clé fausse', duration: undefined }))
+  assert.equal(visit?.cle, 'clé fausse')
+  assert.equal(visit?.ended_at, null)
+  assert.equal(visit?.duration_seconds, null)
+  assert.equal(parseVisit(line({ key: undefined }))?.cle, null)
+})
+
+test('une table d\'avant la colonne cle la reçoit, et ses visites de page ou de flux prennent « avec clé »', () => {
+  const db = new DatabaseSync(':memory:')
+  db.exec('CREATE TABLE guest_visits (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at INTEGER NOT NULL, ended_at INTEGER, kind TEXT NOT NULL, ip TEXT NOT NULL, origin TEXT NOT NULL, device TEXT NOT NULL)')
+  db.exec("INSERT INTO guest_visits (started_at, kind, ip, origin, device) VALUES (1, 'page', 'a', 'b', 'c'), (2, 'refused', 'a', 'b', 'c')")
+  createGuestVisitsTable(db)
+  assert.deepEqual(
+    (db.prepare('SELECT cle FROM guest_visits ORDER BY id').all() as { cle: string | null }[]).map((row) => row.cle),
+    ['avec clé', null],
+  )
+})
+
+test('rien de nouveau, une ligne vide ou absurde, ou une base qui refuse : le fichier est relu au prochain tour', async () => {
+  await withFile(async (db, file) => {
+    writeFileSync(file, `${line()}\n\n{"at":1}\n`)
+    assert.equal(await importGuestVisits(db, file), 1)
+    assert.equal(await importGuestVisits(db, file), 0)
+    appendFileSync(file, `${line()}\n`)
+    db.exec("CREATE TRIGGER refuse BEFORE INSERT ON guest_visits BEGIN SELECT RAISE(ABORT, 'refusé'); END")
+    await assert.rejects(importGuestVisits(db, file), /refusé/)
+    assert.equal(count(db), 1)
+    db.exec('DROP TRIGGER refuse')
+    assert.equal(await importGuestVisits(db, file), 1)
+  })
+})
+
+test('purgeGuestVisits : sans date, l\'heure réelle', async () => {
+  await withFile(async (db, file) => {
+    writeFileSync(file, `${line({ at: 1_000_000_000 })}\n`)
+    await importGuestVisits(db, file)
+    assert.equal(purgeGuestVisits(db, 365), 1)
+  })
+})

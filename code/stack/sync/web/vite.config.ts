@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -24,5 +24,19 @@ export default defineConfig({
     port: 5181,
     https: existsSync(CERT) && existsSync(KEY) ? { cert: readFileSync(CERT), key: readFileSync(KEY) } : undefined,
     proxy: Object.fromEntries(SYNC_PATHS.map((path) => [path, { target: SYNC_URL, secure: false }])),
+  },
+  // Les essais (Vitest, jsdom) : la couverture ne mesure que le code de cette page (src), pas @house/ui, qui a ses propres essais.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      // main.tsx monte l'application dans la page (aucune logique) ; les fichiers types.ts ne contiennent que des types ; test-setup.ts est un outil des essais.
+      exclude: ['src/main.tsx', 'src/**/types.ts', 'src/test-setup.ts', 'src/lib/fixtures.ts', 'src/**/*.test.{ts,tsx}'],
+      reporter: ['text'],
+      thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
+    },
   },
 })

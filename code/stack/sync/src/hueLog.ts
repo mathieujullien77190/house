@@ -242,8 +242,10 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
     try {
       schedules = schedulesOf(await bridgeGet<Behavior>(address, key, 'behavior_instance'))
       const config = (await (await fetch(`http://${address}/api/${key}/config`, { signal: AbortSignal.timeout(TIMEOUT_MS) })).json()) as { timezone?: string }
-      if (typeof config.timezone === 'string' && config.timezone !== '') timeZone = config.timezone
-      localClock(now(), timeZone)
+      if (typeof config.timezone === 'string' && config.timezone !== '') {
+        localClock(now(), config.timezone) // valide d'abord : un fuseau invalide ne remplace pas le fuseau connu
+        timeZone = config.timezone
+      }
     } catch (error) {
       // On garde le fuseau déjà connu : un délai dépassé ne doit pas le remplacer par UTC jusqu'au prochain rechargement.
       log(`Hue : règles à heure fixe non rechargées (${error instanceof Error ? error.message : String(error)})`)

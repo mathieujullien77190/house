@@ -21,3 +21,10 @@ test('la nuit élargie va de 30 min avant le coucher à 30 min après le lever',
   assert.equal(isNight(at('2026-11-06T03:00:00Z'), PARIS, margin), true)
   assert.equal(isNight(at('2026-11-06T09:00:00Z'), PARIS, margin), false)
 })
+
+test('près du pôle, le soleil ne se couche pas l été et ne se lève pas l hiver : pas de nuit', () => {
+  const ARCTIC = { latitude: 80, longitude: 0 }
+  assert.equal(sunTimes(at('2026-06-21T12:00:00Z'), ARCTIC), null)
+  assert.equal(sunTimes(at('2026-12-21T12:00:00Z'), ARCTIC), null)
+  assert.equal(isNight(at('2026-06-21T00:00:00Z'), ARCTIC, 1800), false)
+})

@@ -49,7 +49,7 @@ export const parseCpuTimes = (stat: string): CpuTimes | null => {
   const values = line.trim().split(/\s+/).slice(1, 9).map(Number)
   if (values.length < 4 || values.some(Number.isNaN)) return null
   const total = values.reduce((sum, value) => sum + value, 0)
-  const idle = (values[3] ?? 0) + (values[4] ?? 0)
+  const idle = values[3] + (values[4] ?? 0)
   return { busy: total - idle, total }
 }
 
@@ -70,15 +70,15 @@ export const countThreads = (stat: string): number => stat.split('\n').filter((l
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const readCpu = async (): Promise<CpuUsage | null> => {
+const readCpu = async (root: string, sampleMs: number): Promise<CpuUsage | null> => {
   try {
-    const first = await readFile('/proc/stat', 'utf8')
-    await wait(SAMPLE_MS)
-    const second = await readFile('/proc/stat', 'utf8')
+    const first = await readFile(`${root}/proc/stat`, 'utf8')
+    await wait(sampleMs)
+    const second = await readFile(`${root}/proc/stat`, 'utf8')
     const before = parseCpuTimes(first)
     const after = parseCpuTimes(second)
     if (!before || !after) return null
-    const load1 = Number((await readFile('/proc/loadavg', 'utf8')).split(' ')[0])
+    const load1 = Number((await readFile(`${root}/proc/loadavg`, 'utf8')).split(' ')[0])
     const threadsBefore = parseThreadTimes(first)
     const perThread = parseThreadTimes(second).map((times, index) => cpuPercent(threadsBefore[index] ?? times, times))
     return { percent: cpuPercent(before, after), threads: countThreads(second), load1: Number.isNaN(load1) ? 0 : load1, perThread }
@@ -87,7 +87,8 @@ const readCpu = async (): Promise<CpuUsage | null> => {
   }
 }
 
-export const readSystem = async (): Promise<SystemReport> => ({
-  memory: parseMemory(await readFile('/proc/meminfo', 'utf8').catch(() => '')),
-  cpu: await readCpu(),
+/** L'état de la machine. `root` : le préfixe de /proc (vide en vrai, un dossier temporaire dans les essais) ; `sampleMs` : le temps entre les deux lectures du processeur. */
+export const readSystem = async (root = '', sampleMs = SAMPLE_MS): Promise<SystemReport> => ({
+  memory: parseMemory(await readFile(`${root}/proc/meminfo`, 'utf8').catch(() => '')),
+  cpu: await readCpu(root, sampleMs),
 })

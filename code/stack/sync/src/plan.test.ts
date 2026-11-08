@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
-import { createPlanTable, importPlan, planRows } from './plan.ts'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createPlanTable, importPlan, planRows, readPlan } from './plan.ts'
 
 const PLAN = {
   version: 2,
@@ -43,4 +46,59 @@ test('la table est refaite quand le plan change, pas sinon ; un plan illisible n
   assert.equal(importPlan(db, { ...PLAN, trees: [] }, 300), 5)
   assert.equal(importPlan(db, null), 0)
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM plan').get() as { n: number }).n, 5)
+})
+
+test('un plan aux formes bizarres : rien ne casse, les valeurs absentes deviennent null', () => {
+  const rows = planRows({ version: 2, trees: [{ id: 't', x: 'a' }], cage: { x: 'a' }, cameras: [{ id: 'c' }], links: [], offsets: { o: 3 }, items: { i: [] } })
+  assert.deepEqual(
+    rows.map((row) => `${row.kind}:${row.id}:${row.longitude}`),
+    ['arbre:t:null', 'decalage:o:null', 'objet:i:null', 'camera:c:null'],
+  )
+  assert.equal(JSON.parse(rows[3]?.data ?? '{}').camera, null)
+  assert.deepEqual(planRows({ version: 2 }), [])
+  assert.deepEqual(planRows([]), [])
+  assert.deepEqual(planRows({ version: 2, cage: 'x', trees: 'x', hedges: 'x', cameras: 'x', links: 'x' }), [])
+})
+
+test('readPlan : le JSON du fichier, ou null s\'il manque ou est abîmé', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sync-plan-'))
+  try {
+    writeFileSync(`${dir}/plan.json`, JSON.stringify(PLAN))
+    assert.deepEqual(await readPlan(`${dir}/plan.json`), PLAN)
+    assert.equal(await readPlan(`${dir}/absent.json`), null)
+    writeFileSync(`${dir}/plan.json`, '{')
+    assert.equal(await readPlan(`${dir}/plan.json`), null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('importPlan : un plan sans élément vide la table ; un autre document ne la touche pas', () => {
+  const db = new DatabaseSync(':memory:')
+  createPlanTable(db)
+  assert.equal(importPlan(db, PLAN, 1), 6)
+  assert.equal(importPlan(db, { version: 2 }, 2), 0)
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM plan').get() as { n: number }).n, 0)
+  assert.equal(importPlan(db, { version: 1, trees: [] }, 3), 0)
+  assert.equal(importPlan(db, 'texte', 4), 0)
+  assert.equal(importPlan(db, PLAN), 6)
+})
+
+test('importPlan : un échec en route annule tout et se répète', () => {
+  const db = new DatabaseSync(':memory:')
+  createPlanTable(db)
+  importPlan(db, PLAN, 1)
+  const doubled = { ...PLAN, trees: [{ id: 'même', x: 1, y: 2, r: 3 }, { id: 'même', x: 1, y: 2, r: 3 }] }
+  assert.throws(() => importPlan(db, doubled, 2), /UNIQUE/)
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM plan').get() as { n: number }).n, 6)
+})
+
+test('createPlanTable jette une table d\'avant (colonnes x et y) et oublie son empreinte', () => {
+  const db = new DatabaseSync(':memory:')
+  db.exec("CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO app_settings VALUES ('plan_hash', 'vieux')")
+  db.exec('CREATE TABLE plan (kind TEXT, id TEXT, x REAL, y REAL, data TEXT, updated_at INTEGER)')
+  createPlanTable(db)
+  const columns = (db.prepare('PRAGMA table_info(plan)').all() as { name: string }[]).map((column) => column.name)
+  assert.ok(columns.includes('longitude') && !columns.includes('x'))
+  assert.equal(db.prepare("SELECT 1 FROM app_settings WHERE key = 'plan_hash'").get(), undefined)
 })

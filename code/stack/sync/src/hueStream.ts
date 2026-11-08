@@ -90,6 +90,8 @@ export const openHueStream = (host: string, key: string, onMessage: (message: Hu
   }
 
   const connect = (): void => {
+    // Garde-fou inatteignable aujourd'hui (stop() annule l'attente avant qu'elle ne rappelle connect) : gardé contre un futur appelant.
+    /* node:coverage ignore next */
     if (stopped) return
     const parse = createSseParser((text) => parseMessages(text).forEach(onMessage))
     const options: RequestOptions = {

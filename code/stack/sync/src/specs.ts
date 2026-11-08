@@ -50,43 +50,44 @@ export const parseCpuInfo = (content: string): Omit<CpuSpecs, 'maxMhz'> | null =
   return { model, cores, threads }
 }
 
-const readMaxMhz = async (): Promise<number | null> => {
-  const khz = Number((await text('/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq')).trim())
+const readMaxMhz = async (root: string): Promise<number | null> => {
+  const khz = Number((await text(`${root}/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq`)).trim())
   return khz > 0 ? Math.round(khz / 1000) : null
 }
 
-const readCpu = async (): Promise<CpuSpecs | null> => {
-  const info = parseCpuInfo(await text('/proc/cpuinfo'))
-  return info ? { ...info, maxMhz: await readMaxMhz() } : null
+const readCpu = async (root: string): Promise<CpuSpecs | null> => {
+  const info = parseCpuInfo(await text(`${root}/proc/cpuinfo`))
+  return info ? { ...info, maxMhz: await readMaxMhz(root) } : null
 }
 
 const DISK_NAME = /^(sd[a-z]+|nvme\d+n\d+|vd[a-z]+)$/
 
 /** Le premier disque physique : son modèle (à défaut son fabricant), sa capacité (secteurs de 512 octets) et son type. */
-const readDisk = async (): Promise<DiskSpecs | null> => {
-  const names = (await readdir('/sys/block').catch(() => [])).filter((name) => DISK_NAME.test(name)).sort()
+const readDisk = async (root: string): Promise<DiskSpecs | null> => {
+  const names = (await readdir(`${root}/sys/block`).catch(() => [])).filter((name) => DISK_NAME.test(name)).sort()
   const name = names[0]
   if (!name) return null
-  const base = `/sys/block/${name}`
+  const base = `${root}/sys/block/${name}`
   const model = (await text(`${base}/device/model`)).trim() || (await text(`${base}/device/vendor`)).trim() || name
   const sectors = Number((await text(`${base}/size`)).trim())
   if (!(sectors > 0)) return null
   return { model, size: sectors * 512, rotational: (await text(`${base}/queue/rotational`)).trim() === '1' }
 }
 
-const memoryTotal = async (): Promise<number | null> => {
-  const kilobytes = /^MemTotal:\s+(\d+)\s+kB/m.exec(await text('/proc/meminfo'))?.[1]
+const memoryTotal = async (root: string): Promise<number | null> => {
+  const kilobytes = /^MemTotal:\s+(\d+)\s+kB/m.exec(await text(`${root}/proc/meminfo`))?.[1]
   return kilobytes ? Number(kilobytes) * 1024 : null
 }
 
-export const readSpecs = async (): Promise<Specs> => {
+/** Les caractéristiques de la machine. `root` : le préfixe de /proc et /sys (vide en vrai, un dossier temporaire dans les essais) ; `files` : les deux fichiers de l'hôte. */
+export const readSpecs = async (root = '', files = { hostname: HOSTNAME_FILE, osRelease: OS_RELEASE_FILE }): Promise<Specs> => {
   const [hostname, osRelease, bios, cpu, memory, disk] = await Promise.all([
-    text(HOSTNAME_FILE),
-    text(OS_RELEASE_FILE),
-    text('/sys/class/dmi/id/bios_version'),
-    readCpu(),
-    memoryTotal(),
-    readDisk(),
+    text(files.hostname),
+    text(files.osRelease),
+    text(`${root}/sys/class/dmi/id/bios_version`),
+    readCpu(root),
+    memoryTotal(root),
+    readDisk(root),
   ])
   return {
     hostname: hostname.trim(),
