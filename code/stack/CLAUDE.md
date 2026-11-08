@@ -22,7 +22,7 @@ Sur l'hôte (hors Docker), `power/` : deux services systemd (la puissance du pro
 | Sujet | Fichier |
 |---|---|
 | Accès distant (VPN), pare-feu, SSH, clé et cookie, HTTPS, secrets | `docs/securite.md` |
-| Déploiement (`deploy.sh`, GitHub Actions, runner du mini PC, retour arrière) | `docs/deploiement.md` |
+| Déploiement (`deploy.sh` à la main par SSH, retour arrière) | `docs/deploiement.md` |
 | Lumières Hue, règles du pont, journal `hue_events` | `docs/hue.md` |
 | Session Claude permanente du mini PC | `remote/README.md` (`claude-rules.md` : les règles qu'elle charge, volontairement pas nommé `CLAUDE.md` pour ne pas s'appliquer à qui édite ce dépôt) |
 | Un service | le `CLAUDE.md` de son dossier : `certs/`, `power/`, `go2rtc/`, `motion/`, `sync/`, `sync/web/`, `api/`, `web/`, `guest/`, `ui/` (le paquet `@house/ui` : composants dumb des deux apps, avec un Storybook) |

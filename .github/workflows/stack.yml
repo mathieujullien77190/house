@@ -1,7 +1,6 @@
 name: Stack
 
-# Vérifie la pile Docker (code/stack) à chaque changement ; sur main, la déploie sur le mini PC
-# si le runner auto-hébergé est installé (variable de dépôt DEPLOY_ENABLED=true, voir code/stack/docs/deploiement.md).
+# Vérifie la pile Docker (code/stack) à chaque changement. Le déploiement se fait à la main (code/stack/deploy.sh) : le mini PC ne parle pas à GitHub.
 on:
   push:
     branches: [main]
@@ -46,16 +45,3 @@ jobs:
             if node -e "process.exit(require('./package.json').scripts?.['$s'] ? 0 : 1)"; then npm run "$s"; fi
           done
         working-directory: ${{ matrix.dir }}
-
-  deploy:
-    needs: check
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true' }}
-    runs-on: [self-hosted, house]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      # Les vérifications viennent de `check` ; le script envoie les dossiers changés dans ~/house/code/phase0 et reconstruit.
-      - run: ./code/stack/deploy.sh --skip-checks
-        env:
-          DEPLOY_HOST: local

@@ -318,7 +318,7 @@ export const EXPLANATIONS: Record<string, string> = {
   'power/house-power.sh': 'Sur l’hôte, pas dans Docker : toutes les 5 secondes, lit le compteur d’énergie du processeur (RAPL, lisible par root seulement) et écrit la puissance moyenne en watts dans data/power/cpu.json, que House Sync lit en lecture seule.',
   'power/house-power.service': 'L’unité systemd qui lance house-power.sh au démarrage du mini PC et le relance s’il s’arrête.',
   'power/house-docker.py': 'Sur l’hôte : toutes les 10 secondes, écrit data/power/docker.json avec l’état de chaque conteneur (docker inspect, stats, top). Il ne reprend que le nom des variables d’environnement et des programmes, jamais leurs valeurs ni leurs arguments, qui peuvent contenir des mots de passe.',
-  'docs/deploiement.md': 'Le déploiement : le script deploy.sh à la main, ou à chaque push sur main par GitHub Actions et un runner du mini PC ; ce qui est envoyé, l’ordre, le contrôle, le retour arrière et la mise en place du runner.',
+  'docs/deploiement.md': 'Le déploiement : le script deploy.sh à la main par SSH sur le réseau local (ce qui est envoyé, l’ordre, le contrôle, le retour arrière) ; GitHub ne fait que les vérifications.',
   'deploy.sh': 'Le déploiement en une commande : vérifie (typecheck, lint, tests), envoie les dossiers des services changés sans data ni .env, reconstruit les conteneurs dans l’ordre, contrôle leur état et note le commit déployé.',
   'api/src/server.ts': 'Crée et arrête le serveur de l’API (HTTPS avec la CA de la maison, sinon HTTP), sorti de index.ts pour être testé.',
   'api/src/testing/helpers.ts': 'Les outils des tests de l’API : dossiers temporaires, serveur Express sur un port libre, base SQLite de test, appel fetch.',

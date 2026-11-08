@@ -44,8 +44,7 @@ services_for_path() {
   esac
 }
 
-# DEPLOY_HOST=local : on est déjà sur le mini PC (runner GitHub auto-hébergé), les commandes tournent ici.
-ssh_run() { if [ "$HOST" = local ]; then bash -c "$*"; else ssh -o BatchMode=yes "$HOST" "$@"; fi; }
+ssh_run() { ssh -o BatchMode=yes "$HOST" "$@"; }
 
 # 1. Quels services ?
 declare -A WANT=()
