@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips } from '@house/ui'
+import { Button, CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips, ZoneEditor } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
 import CameraIndicators from '@/components/CameraIndicators'
 import PowerButton from '@/components/PowerButton'
+import RotatedMedia from '@/components/RotatedMedia'
 import ShareButton from '@/components/ShareButton'
 import { setClipSaved } from '@/lib/api'
 import { rememberClipDuration } from '@/lib/clipDurations'
@@ -15,6 +16,7 @@ import { usePinchZoom } from '@/lib/usePinchZoom'
 import { useLamp } from '@/lib/useLamp'
 import { usePlug } from '@/lib/usePlug'
 import { useSensors } from '@/lib/useSensors'
+import { useZone } from '@/lib/useZone'
 import { usePower } from '@/lib/usePower'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
@@ -37,6 +39,13 @@ import {
   CAMERA_LAMP,
   CAMERA_WITH_PLUG,
   CAMERA_SENSOR,
+  MEDIA_HOST_CLASS,
+  CONTROLS_HOST_CLASS,
+  ZONE_BUTTON_LABEL,
+  ZONE_FAILED_CLASS,
+  ZONE_FAILED_TEXT,
+  ZONE_RESET_LABEL,
+  TURNED_CAMERAS,
 } from './constants'
 import { captionOf, clipLead, clipPathOf, liveCaption, temperatureItems } from './helpers'
 import type { CameraCardProps, LiveQuality, Quality } from './types'
@@ -72,10 +81,17 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
   const { power, setPower, failed: powerFailed } = usePower(apiKey, camera.name)
   // « Afficher en grand » : le média en plein écran, en paysage.
-  const bigView = useBigView()
+  // Caméra posée de côté : tout son média (direct, image, clip, zone) est tourné d'un quart de tour horaire, donc en portrait ; la vue en grand reste en portrait.
+  const turned = TURNED_CAMERAS.includes(camera.name)
+  const bigView = useBigView(turned)
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
-  // Zoom au doigt : en vue en grand, et sur la vidéo de l'écran du téléphone (où elle n'est pas tournée) ; un autre média (direct, image, autre clip) le remet à zéro.
-  const pinchZoom = usePinchZoom(bigView.big || mobile, bigView.big, selected?.id ?? (cursor !== null ? 'image' : 'live'))
+  // Zoom au doigt : en vue en grand, et sur la vidéo de l'écran du téléphone (où elle n'est pas tournée) ; un autre média (direct, image, autre clip) ou l'entrée et la sortie de la vue en grand le remettent à zéro.
+  const pinchZoom = usePinchZoom(
+    bigView.big || mobile,
+    bigView.big && !turned,
+    `${selected?.id ?? (cursor !== null ? 'image' : 'live')}${bigView.big ? ':big' : ''}`,
+    !mobile && bigView.big,
+  )
   const now = useClock(bigView.big)
   // La température du détecteur de la caméra (« motion exterieur » pour voliere-exterieur, « motion interieur » pour voliere-interieur), sur la vidéo.
   const sensorId = CAMERA_SENSOR[camera.name]
@@ -97,6 +113,14 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
   const starting = power !== null && power.on && !power.streaming
   const placeholder = off ? CAMERA_OFF_TEXT : starting ? CAMERA_STARTING_TEXT : ''
+
+  // La zone de surveillance du mouvement : un polygone (par défaut toute l'image) qu'on réduit en glissant ses sommets sur le direct ; House API le garde.
+  const [editingZone, setEditingZone] = useState(false)
+  const zone = useZone(apiKey, camera.name)
+  const zoneEditing = editingZone && isLive && !placeholder
+  // Caméra tournée : les commandes natives de la vidéo tourneraient avec elle ; le lecteur les pose ici, sous la vidéo, droites (hors vue en grand, où il n'y a pas de place).
+  const [controlsHost, setControlsHost] = useState<HTMLDivElement | null>(null)
+  const uprightControls = turned && !bigView.big
 
   // Un clip ouvert est un clip lu.
   const selectedId = selected?.id
@@ -168,38 +192,43 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   // Un événement choisi dont la vidéo n'est pas encore là (en cours, ou fini mais pas encore copié) : un cadre noir et ce qu'on attend.
   const pendingText = selected && !selected.clip ? (ongoing ? ONGOING_CLIP_TEXT : NO_CLIP_TEXT) : ''
   const still = pendingText ? (
-    <ImageBox src="" message={pendingText} />
+    <ImageBox src="" message={pendingText} upright={turned} />
   ) : cursor !== null ? (
-    <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} />
+    <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} upright={turned} />
   ) : (
     <ImageBox
       src={placeholder ? '' : live}
       message={placeholder || NO_IMAGE_TEXT}
+      upright={turned}
       onSize={(width, height) => setLiveSize({ width, height })}
     />
   )
   // Le lecteur se monte dès le choix (il télécharge le clip) mais reste caché : l'image reste en place jusqu'à ce que la vidéo soit là.
   const media = (
-    <>
-      {selected && clipPath ? (
-        <div className={clipReady || clipFailed ? undefined : HIDDEN_PLAYER_CLASS}>
-          <ClipPlayer
-            key={clipPath}
-            apiKey={apiKey}
-            path={clipPath}
-            audioSrc={selected.clip_audio ?? undefined}
-            startAt={resumeAt}
-            restart={plays}
-            onClose={back}
-            onReady={onReady}
-            onFailure={() => setFailedClip(clipPath)}
-            onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
-            onDuration={onDuration}
-          />
-        </div>
-      ) : null}
-      {clipReady || clipFailed ? null : still}
-    </>
+    <RotatedMedia turned={turned}>
+      <div className={MEDIA_HOST_CLASS}>
+        {selected && clipPath ? (
+          <div className={clipReady || clipFailed ? undefined : HIDDEN_PLAYER_CLASS}>
+            <ClipPlayer
+              key={clipPath}
+              apiKey={apiKey}
+              path={clipPath}
+              audioSrc={selected.clip_audio ?? undefined}
+              startAt={resumeAt}
+              restart={plays}
+              onClose={back}
+              controlsHost={uprightControls ? controlsHost : null}
+              onReady={onReady}
+              onFailure={() => setFailedClip(clipPath)}
+              onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
+              onDuration={onDuration}
+            />
+          </div>
+        ) : null}
+        {clipReady || clipFailed ? null : still}
+        {zoneEditing ? <ZoneEditor points={zone.points} onChange={zone.change} onCommit={zone.commit} quarterTurn={turned} /> : null}
+      </div>
+    </RotatedMedia>
   )
 
   return (
@@ -224,6 +253,13 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
           {selected || cursor !== null ? null : (
             <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />
           )}
+          {isLive && !placeholder ? (
+            <Button variant={zoneEditing ? 'active' : 'default'} aria-pressed={zoneEditing} onClick={() => setEditingZone((on) => !on)}>
+              {ZONE_BUTTON_LABEL}
+            </Button>
+          ) : null}
+          {zoneEditing && zone.reduced ? <Button onClick={zone.reset}>{ZONE_RESET_LABEL}</Button> : null}
+          {zoneEditing && zone.failed ? <span className={ZONE_FAILED_CLASS}>{ZONE_FAILED_TEXT}</span> : null}
           <PowerButton apiKey={apiKey} camera={camera.name} power={power} unavailable={powerFailed} hideOff={mobile} onPower={setPower} />
         </>
       }
@@ -232,10 +268,22 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       expanded={bigView.big}
       onExpand={bigView.open}
       onCollapse={bigView.close}
-      mediaGesture={pinchZoom}
+      // Pendant le dessin de la zone, les gestes du média (zoom, déplacement) laissent place aux sommets.
+      portraitMedia={turned}
+      mediaGesture={zoneEditing ? undefined : pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
-      details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
+      details={
+        mobile ? (
+          selected?.clip ? (
+            (shareButton ?? undefined)
+          ) : (
+            indicators
+          )
+        ) : uprightControls && clipPath ? (
+          <div ref={setControlsHost} className={CONTROLS_HOST_CLASS} />
+        ) : undefined
+      }
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
       overlay={indicators && !mobile ? indicators : undefined}

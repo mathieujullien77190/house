@@ -2,7 +2,15 @@ import { describeEvent, formatTime } from '@/lib/format'
 import type { SpecItem } from '@house/ui'
 import type { EventRow, HueSensor } from '@/types'
 import type { Quality } from './types'
-import { AT_CAPTION_PREFIX, CLIP_CAPTION_PREFIX, CLIP_MAX_LEAD_SECONDS, LIVE_CAPTION, LIVE_FORMAT, TEMPERATURE_LABEL, TEMPERATURE_UNKNOWN_TEXT } from './constants'
+import {
+  AT_CAPTION_PREFIX,
+  CLIP_CAPTION_PREFIX,
+  CLIP_MAX_LEAD_SECONDS,
+  LIVE_CAPTION,
+  LIVE_FORMAT,
+  TEMPERATURE_LABEL,
+  TEMPERATURE_UNKNOWN_TEXT,
+} from './constants'
 
 /** Une ligne par capteur demandé, dans l'ordre des identifiants : « Température · <nom du capteur> » et sa valeur. Un capteur absent du pont n'a pas de ligne. */
 export const temperatureItems = (sensors: HueSensor[], ids: string[]): SpecItem[] =>
@@ -25,9 +33,9 @@ export const clipLead = (event: EventRow, videoDuration: number | null): number 
   return Math.min(CLIP_MAX_LEAD_SECONDS, Math.max(0, (videoDuration - eventDuration) / 2))
 }
 
-
 /** L'adresse du clip à lire : la copie H.264 si on la demande et qu'elle existe, sinon l'original. */
-export const clipPathOf = (event: EventRow, quality: Quality): string | null => (quality === 'h264' && event.clip_h264 ? event.clip_h264 : event.clip)
+export const clipPathOf = (event: EventRow, quality: Quality): string | null =>
+  quality === 'h264' && event.clip_h264 ? event.clip_h264 : event.clip
 
 /** « Direct · MJPEG · 640×360 » : le type du flux et, une fois la première image reçue, sa résolution. */
 export const liveCaption = (size: { width: number; height: number } | null): string =>

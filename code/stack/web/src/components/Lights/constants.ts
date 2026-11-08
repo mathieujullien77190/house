@@ -119,7 +119,15 @@ export const SIDE_ROW_HEIGHT = 32
 export const SIDE_ROWS = 10
 export const SIDE_COLUMN_WIDTH = 48
 /** La cage à perruches : 5 m sur 3 m (tournée d'un quart de tour : 117 × 195 unités), dans l'angle nord-est du jardin, à droite de la maison. */
-export const PLAN_CAGE = { x: 583, y: -262, w: 117, h: 195 }
+// La cage fait exactement 6 × 85 cm sur 4 × 85 cm (5,1 m sur 3,4 m, le grand côté vertical), à l'échelle réelle de la carte (la maison de 12,4 m fait 540 unités) ; elle est
+// décalée de 50 cm vers le bas par rapport au dessin d'origine (y = -262).
+const CAGE_UNITS_PER_METER = 540 / 12.4
+export const PLAN_CAGE = {
+  x: 583,
+  y: Math.round(-262 + 0.5 * CAGE_UNITS_PER_METER),
+  w: Math.round(4 * 0.85 * CAGE_UNITS_PER_METER),
+  h: Math.round(6 * 0.85 * CAGE_UNITS_PER_METER),
+}
 /** L'échelle du plan de la mosaïque : la maison fait 14 m (les 540 unités) sur 7,5 m (les 300), soit environ 39 unités le mètre. */
 export const UNITS_PER_METER = 39
 /** La terrasse orange clair autour de la maison : 1,5 m de large. */
@@ -143,6 +151,10 @@ export const DEFAULT_TREES = [
   { id: 't10', x: 640, y: 470, r: 16 },
   { id: 't11', x: 650, y: 640, r: 14 },
   { id: 't12', x: 600, y: 780, r: 16 },
+  // Trois arbres de plus, posés dehors de la propriété (à l'ouest, au-delà de l'arc de la rue) : à placer à la souris.
+  { id: 'dehors-1', x: -480, y: -120, r: 30 },
+  { id: 'dehors-2', x: -430, y: 120, r: 30 },
+  { id: 'dehors-3', x: -290, y: 430, r: 30 },
   { id: 't13', x: 330, y: 560, r: 18 },
   { id: 't14', x: 110, y: 600, r: 14 },
   { id: 't15', x: 430, y: 690, r: 16 },
@@ -231,7 +243,7 @@ export const PLAN_CAMERAS = [
  * Le chemin de béton gris clair, tout droit du portail au mur ouest de la maison (x = 41), aussi large que le portail ; son bout gauche suit
  * l'arc de la haie (rayon 1000) pour ne jamais dépasser dehors ; il passe sous le pavage.
  */
-export const PLAN_PATHS = ['M -273 40 A 1000 1000 0 0 0 -228 184 H 41 V 40 Z']
+export const PLAN_PATHS = ['M -273 40 A 1000 1000 0 0 0 -228 184 H -19 V 40 Z']
 /**
  * Le chemin carrelé de 1,5 m de large du portillon à la terrasse de la maison (y = 358) : son bout bas suit l'arc de la haie (rayon 1000)
  * pour ne pas dépasser dehors. Fondu dans le même tracé que le reste du pavage.
@@ -243,8 +255,8 @@ export const PLAN_FLOOR_PATHS = ['M 498 358 H 556 V 800 A 1000 1000 0 0 1 498 78
  */
 export const PLAN_CAMERA_LINKS: Record<string, string> = { 'voliere-interieur': 'cage-bas-droite', 'voliere-exterieur': 'cage-haut-gauche' }
 /** La lampe « Perruche » (identifiant 26 du pont) dans la cage : au milieu (la cage va de 583 à 700 sur x, de -262 à -67 sur y). Son état est celui du pont. */
-export const PLAN_LAMP_POSITION = { x: 641, y: -165 }
+export const PLAN_LAMP_POSITION = { x: 657, y: -143 }
 /** La prise connectée dans la cage, sous la lampe : son état (marche ou arrêt) est lu sur la prise. */
-export const PLAN_PLUG_POSITION = { x: 625, y: -118 }
+export const PLAN_PLUG_POSITION = { x: 641, y: -96 }
 /** La lampe de la cage est dessinée de la taille de la prise (18 unités de large : rayon 9). */
 export const PLAN_LAMP_RADIUS = 9

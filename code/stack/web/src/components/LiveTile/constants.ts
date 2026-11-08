@@ -1,4 +1,5 @@
-export const NAME_PREFIX = 'Caméra : '
+/** Le nom sous la vignette : celui de la caméra, sans préfixe. */
+export const NAME_PREFIX = ''
 export const OFF_TEXT = 'Caméra éteinte'
 export const STARTING_TEXT = 'Caméra en démarrage…'
 export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'

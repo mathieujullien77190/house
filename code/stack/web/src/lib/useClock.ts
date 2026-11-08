@@ -21,4 +21,5 @@ export const useClock = (active: boolean): number => {
 }
 
 /** « 18:30:05 » : l'heure d'un instant (secondes), à l'heure de la maison, sans la date. */
-export const formatClock = (seconds: number): string => new Date(seconds * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+export const formatClock = (seconds: number): string =>
+  new Date(seconds * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })

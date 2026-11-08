@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, t
 
 export interface PinchZoom {
   /** À poser sur la zone du média. */
-  handlers: HTMLAttributes<HTMLDivElement>
+  handlers: HTMLAttributes<HTMLDivElement> & { ref?: (element: HTMLDivElement | null) => void }
   /** À poser sur le contenu qui se déplace et grossit. */
   style: CSSProperties
 }
@@ -42,6 +42,8 @@ interface Gesture {
 }
 
 const MAX_SCALE = 6
+/** Le zoom d'un cran de molette : e^(-deltaY × WHEEL_SPEED). */
+const WHEEL_SPEED = 0.0015
 const DOUBLE_TAP_SCALE = 2.5
 const DOUBLE_TAP_MS = 300
 const TAP_MS = 250
@@ -72,10 +74,12 @@ const limit = (view: View, element: HTMLElement): View => {
 }
 
 /**
- * `active` : le zoom est permis. `rotated` : le média est tourné d'un quart de tour en portrait (la vue en grand ; vrai par défaut). `resetKey` : un
+ * `active` : le zoom au doigt est permis. `wheel` : la molette zoome aussi, autour du pointeur (bureau). `rotated` : le média est tourné d'un quart de tour en portrait (la vue en grand ; vrai par défaut). `resetKey` : un
  * changement de média (direct, image, autre clip) remet le zoom à zéro.
  */
-export const usePinchZoom = (active: boolean, rotated = true, resetKey = ''): PinchZoom => {
+export const usePinchZoom = (active: boolean, rotated = true, resetKey = '', wheel = false): PinchZoom => {
+  // Le zoom vit tant que les doigts ou la molette le permettent.
+  const zoomable = active || wheel
   const [view, setView] = useState<View>(IDENTITY)
   const [seenKey, setSeenKey] = useState(resetKey)
   if (seenKey !== resetKey) {
@@ -86,13 +90,66 @@ export const usePinchZoom = (active: boolean, rotated = true, resetKey = ''): Pi
   const gestureRef = useRef<Gesture>({ anchor: null, tapStart: null, lastTap: null })
 
   // La vue en grand se ferme : le zoom repart de zéro.
-  if (!active && view !== IDENTITY) setView(IDENTITY)
+  if (!zoomable && view !== IDENTITY) setView(IDENTITY)
   // Et les doigts oubliés (posés pendant la fermeture) ne faussent pas le prochain geste.
   useEffect(() => {
     if (active) return
     pointers.clear()
     gestureRef.current = { anchor: null, tapStart: null, lastTap: null }
   }, [active, pointers])
+
+  // La molette : zoome autour du pointeur. Écouteur natif non passif, sinon la page défile en même temps.
+  const [zone, setZone] = useState<HTMLDivElement | null>(null)
+  const viewRef = useRef(view)
+  useEffect(() => {
+    viewRef.current = view
+  })
+  useEffect(() => {
+    if (!wheel || !zone) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const rect = zone.getBoundingClientRect()
+      const point = { x: event.clientX - (rect.left + rect.width / 2), y: event.clientY - (rect.top + rect.height / 2) }
+      const current = viewRef.current
+      const scale = Math.min(MAX_SCALE, Math.max(1, current.scale * Math.exp(-event.deltaY * WHEEL_SPEED)))
+      const content = { x: (point.x - current.x) / current.scale, y: (point.y - current.y) / current.scale }
+      setView(limit({ scale, x: point.x - content.x * scale, y: point.y - content.y * scale }, zone))
+    }
+    zone.addEventListener('wheel', onWheel, { passive: false })
+    return () => zone.removeEventListener('wheel', onWheel)
+  }, [wheel, zone])
+
+  // Au bureau, hors vue en grand (molette sans doigts) : une image zoomée se déplace à la souris. Le glisser ne démarre qu'après quelques pixels, pour que
+  // les clics sur les commandes de la vidéo passent ; le clic qui finit un glisser est avalé.
+  const dragRef = useRef<{ id: number; x: number; y: number; from: View; moved: boolean } | null>(null)
+  const mouseDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || view.scale <= 1) return
+    dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, from: view, moved: false }
+  }
+  const mouseMove = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current
+    if (!drag || drag.id !== event.pointerId) return
+    const dx = event.clientX - drag.x
+    const dy = event.clientY - drag.y
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < TAP_MOVE / 2) return
+      drag.moved = true
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
+    setView(limit({ scale: drag.from.scale, x: drag.from.x + dx, y: drag.from.y + dy }, event.currentTarget))
+  }
+  const mouseUp = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current
+    if (drag?.id !== event.pointerId) return
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    // Le clic qui suit le relâchement d'un vrai glisser n'en est pas un.
+    if (drag.moved) {
+      const swallow = (click: Event) => click.stopPropagation()
+      window.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0)
+    }
+    dragRef.current = null
+  }
 
   // Les doigts ont changé : le geste repart de là où ils sont, sans saut.
   const begin = () => {
@@ -142,13 +199,21 @@ export const usePinchZoom = (active: boolean, rotated = true, resetKey = ''): Pi
     const gesture = gestureRef.current
     const { tapStart, lastTap } = gesture
     gesture.tapStart = null
-    const tapped = canTap && tapStart !== null && pointers.size === 0 && Date.now() - tapStart.at < TAP_MS && gap(point, tapStart) < TAP_MOVE
+    const tapped =
+      canTap && tapStart !== null && pointers.size === 0 && Date.now() - tapStart.at < TAP_MS && gap(point, tapStart) < TAP_MOVE
     if (tapped && lastTap && Date.now() - lastTap.at < DOUBLE_TAP_MS && gap(point, lastTap) < 4 * TAP_MOVE) {
       // Double toucher : retour à la taille normale, ou zoom sur le point touché.
       gesture.lastTap = null
       pointers.clear()
       gesture.anchor = null
-      setView(view.scale > 1 ? IDENTITY : limit({ scale: DOUBLE_TAP_SCALE, x: point.x * (1 - DOUBLE_TAP_SCALE), y: point.y * (1 - DOUBLE_TAP_SCALE) }, event.currentTarget))
+      setView(
+        view.scale > 1
+          ? IDENTITY
+          : limit(
+              { scale: DOUBLE_TAP_SCALE, x: point.x * (1 - DOUBLE_TAP_SCALE), y: point.y * (1 - DOUBLE_TAP_SCALE) },
+              event.currentTarget,
+            ),
+      )
       return
     }
     gesture.lastTap = tapped ? { ...point, at: Date.now() } : null
@@ -157,11 +222,24 @@ export const usePinchZoom = (active: boolean, rotated = true, resetKey = ''): Pi
 
   return {
     handlers: {
-      onPointerDown,
-      onPointerMove,
-      onPointerUp: (event) => release(event, true),
-      onPointerCancel: (event) => release(event, false),
+      ref: setZone,
+      // Sans cela le navigateur emporte l'image en glisser-déposer et coupe le glisser à la souris.
+      onDragStart: (event) => event.preventDefault(),
+      ...(active
+        ? {
+            onPointerDown,
+            onPointerMove,
+            onPointerUp: (event: PointerEvent<HTMLDivElement>) => release(event, true),
+            onPointerCancel: (event: PointerEvent<HTMLDivElement>) => release(event, false),
+          }
+        : wheel
+          ? { onPointerDown: mouseDown, onPointerMove: mouseMove, onPointerUp: mouseUp, onPointerCancel: mouseUp }
+          : {}),
     },
-    style: { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, transformOrigin: 'center' },
+    style: {
+      transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+      transformOrigin: 'center',
+      ...(wheel && !active && view.scale > 1 ? { cursor: 'grab' } : {}),
+    },
   }
 }

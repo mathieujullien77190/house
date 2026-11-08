@@ -9,4 +9,3 @@ export const orderedCameras = (cameras: Camera[]): Camera[] => {
   }
   return [...cameras].sort((a, b) => rank(a) - rank(b))
 }
-

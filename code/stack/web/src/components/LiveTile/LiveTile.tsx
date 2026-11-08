@@ -1,5 +1,6 @@
 import { CameraTile, SnapshotImage as ImageBox } from '@house/ui'
-import { CAMERA_LAMP, CAMERA_SENSOR, CAMERA_WITH_PLUG } from '@/components/CameraCard/constants'
+import RotatedMedia from '@/components/RotatedMedia'
+import { CAMERA_LAMP, CAMERA_SENSOR, CAMERA_WITH_PLUG, TURNED_CAMERAS } from '@/components/CameraCard/constants'
 import CameraIndicators from '@/components/CameraIndicators'
 import { temperatureItems } from '@/components/CameraCard/helpers'
 import { liveSrc } from '@/lib/live'
@@ -45,6 +46,7 @@ const LiveTile = ({ apiKey, camera, lastEvent, read, onOpenClip, onOpen }: LiveT
   const clipSeconds = useClipDuration(lastEvent?.id ?? null, lastEvent?.clip_h264 ?? lastEvent?.clip ?? null)
   // Le carré de la prise connectée (vert allumée, rouge éteinte), à côté du rond de la lampe.
   const plug = usePlug(apiKey, CAMERA_WITH_PLUG.includes(camera.name))
+  const turned = TURNED_CAMERAS.includes(camera.name)
   const off = power !== null && !power.on
   const starting = power !== null && power.on && !power.streaming
   const placeholder = off ? OFF_TEXT : starting ? STARTING_TEXT : ''
@@ -58,7 +60,11 @@ const LiveTile = ({ apiKey, camera, lastEvent, read, onOpenClip, onOpen }: LiveT
           <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} />
         ) : undefined
       }
-      media={<ImageBox src={placeholder ? '' : liveSrc(camera.name, false, mobile)} message={placeholder || NO_IMAGE_TEXT} />}
+      media={
+        <RotatedMedia turned={turned}>
+          <ImageBox src={placeholder ? '' : liveSrc(camera.name, false, mobile)} message={placeholder || NO_IMAGE_TEXT} upright={turned} />
+        </RotatedMedia>
+      }
       footer={
         lastEvent ? (
           <>

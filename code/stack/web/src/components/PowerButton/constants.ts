@@ -3,7 +3,6 @@ export const LABELS = {
   off: 'Éteindre la caméra',
   busy: 'En cours…',
 }
-export const STATUS_ON = 'En marche'
 export const STATUS_POWERED = 'Alimentée, démarrage de la caméra…'
 export const STATUS_STARTING = 'Mise sous tension…'
 export const STATUS_STOPPING = 'Extinction…'

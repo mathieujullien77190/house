@@ -9,3 +9,30 @@ body {
   color: var(--text);
   font-family: system-ui, sans-serif;
 }
+
+/* Les commandes de la carte (zoom, échelle, mention) aux couleurs de la maison, claires ou sombres comme le reste de la page. */
+.maplibregl-map {
+  font-family: inherit;
+}
+.maplibregl-ctrl-group {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  box-shadow: none;
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--line);
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  .maplibregl-ctrl button .maplibregl-ctrl-icon {
+    filter: invert(1);
+  }
+}
+.maplibregl-ctrl-scale {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--line);
+}

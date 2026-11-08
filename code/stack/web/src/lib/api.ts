@@ -1,5 +1,6 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
+import type { ZonePoint } from '@house/ui'
 import type { CameraPower, CameraRow, EventRow, GuestInfo, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
@@ -74,7 +75,11 @@ export const fetchPlug = async (key: string): Promise<PlugState> => (await reque
 
 /** Allume (on) ou éteint la prise connectée ; avec `minutes`, l'allume pour ce temps puis elle s'éteint toute seule. */
 export const setPlug = async (key: string, on: boolean, minutes?: number, offOnMotion = false): Promise<PlugState> => {
-  const res = await fetch('/plug', { method: 'POST', headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' }, body: JSON.stringify({ on, ...(minutes === undefined ? {} : { minutes }), ...(offOnMotion ? { offOnMotion } : {}) }) })
+  const res = await fetch('/plug', {
+    method: 'POST',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ on, ...(minutes === undefined ? {} : { minutes }), ...(offOnMotion ? { offOnMotion } : {}) }),
+  })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/plug : HTTP ${res.status}`)
   return res.json()
@@ -102,10 +107,14 @@ export const fetchAutomations = async (key: string): Promise<HueAutomation[]> =>
 export const fetchSensors = async (key: string): Promise<HueSensor[]> => (await request(key, '/hue/sensors')).json()
 
 /** Les positions des ampoules sur le plan, gardées par l'API (503 sans pont configuré). */
-export const fetchLampPositions = async (key: string): Promise<Record<string, { x: number; y: number }>> => (await request(key, '/hue/positions')).json()
+export const fetchLampPositions = async (key: string): Promise<Record<string, { x: number; y: number }>> =>
+  (await request(key, '/hue/positions')).json()
 
 /** Garde ces positions d'ampoules (les autres restent) ; rend l'ensemble. */
-export const saveLampPositions = async (key: string, changes: Record<string, { x: number; y: number }>): Promise<Record<string, { x: number; y: number }>> => {
+export const saveLampPositions = async (
+  key: string,
+  changes: Record<string, { x: number; y: number }>,
+): Promise<Record<string, { x: number; y: number }>> => {
   const res = await fetch('/hue/positions', {
     method: 'PUT',
     headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
@@ -142,4 +151,41 @@ export const clearStoredKey = (): void => {
   } catch {
     // Stockage indisponible (navigation privée) : rien à effacer.
   }
+}
+
+/** Les zones de surveillance du mouvement : un polygone par caméra qui en a une (parts de l'image, de 0 à 1) ; une caméra sans entrée est surveillée sur toute l'image. */
+export const fetchZones = async (key: string): Promise<Record<string, ZonePoint[]>> => (await request(key, '/zones')).json()
+/** Fixe la zone de surveillance d'une caméra (un polygone), ou la retire (null : toute l'image). */
+export const putZone = async (key: string, camera: string, points: ZonePoint[] | null): Promise<void> => {
+  const res = await fetch(`/zones/${encodeURIComponent(camera)}`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ points }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/zones : HTTP ${res.status}`)
+}
+
+/** Le plan de la maison tel que House API le garde (même document sur tous les appareils). */
+export interface PlanDocument {
+  trees: { id: string; x: number; y: number; r: number }[]
+  hedges: { id: string; points: [number, number][] }[]
+  cage: { x: number; y: number } | null
+  offsets: Record<string, { dx: number; dy: number }>
+  items: Record<string, { x: number; y: number }>
+  cameras: { id: string; name: string; x: number; y: number; angle: number; fov: number; near: number; far: number }[]
+  links: Record<string, string>
+}
+/** Le plan gardé, ou null s'il n'y en a pas encore. */
+export const fetchPlan = async (key: string): Promise<PlanDocument | null> =>
+  ((await (await request(key, '/plan')).json()) as { plan: PlanDocument | null }).plan
+/** Remplace le plan gardé par celui de cet appareil. */
+export const putPlan = async (key: string, plan: PlanDocument): Promise<void> => {
+  const res = await fetch('/plan', {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify(plan),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/plan : HTTP ${res.status}`)
 }

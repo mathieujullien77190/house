@@ -3,7 +3,8 @@
  * l'enregistrement avait des segments à ce moment : l'avance réelle se déduit de la durée de la vidéo, bornée à cette valeur.
  */
 export const CLIP_MAX_LEAD_SECONDS = 5
-export const CAMERA_TITLE_PREFIX = 'Caméra : '
+/** Le titre de la carte : le nom de la caméra, sans préfixe. */
+export const CAMERA_TITLE_PREFIX = ''
 export const LIVE_CAPTION = 'Direct'
 /** Le détecteur du pont Hue dont la température s'affiche sur la vidéo de chaque caméra (identifiants du pont) : « motion exterieur » (57) pour voliere-exterieur, « motion interieur » (54) pour voliere-interieur. */
 export const CAMERA_SENSOR: Record<string, string> = { 'voliere-exterieur': '57', 'voliere-interieur': '54' }
@@ -45,3 +46,16 @@ export const ONGOING_CLIP_TEXT = 'Événement en cours : le clip arrivera à la 
 
 /** Le lecteur du clip se charge sans se voir (sr-only le garde dans la page : un `display: none` empêcherait le téléphone de charger la vidéo). */
 export const HIDDEN_PLAYER_CLASS = 'sr-only'
+
+/** Le bouton qui montre le polygone de la zone où on cherche le mouvement (par défaut toute l'image), à réduire en glissant ses sommets. */
+export const ZONE_BUTTON_LABEL = 'Zone de surveillance'
+export const ZONE_RESET_LABEL = 'Toute l’image'
+export const ZONE_FAILED_TEXT = 'Zone non enregistrée'
+export const ZONE_FAILED_CLASS = 'text-[0.8rem] text-danger'
+/** Sous la vidéo d'une caméra tournée : les commandes du clip, droites, aussi larges que la vidéo (298 px, centrées). */
+export const CONTROLS_HOST_CLASS = 'mx-auto mt-2 w-[min(100%,298px)]'
+/** Le cadre de la vidéo, sur lequel se pose le polygone. */
+export const MEDIA_HOST_CLASS = 'relative'
+
+/** Les caméras posées de côté : leur image est tournée d'un quart de tour horaire (affichage en portrait). */
+export const TURNED_CAMERAS = ['voliere-exterieur']

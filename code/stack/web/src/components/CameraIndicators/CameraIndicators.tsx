@@ -7,7 +7,7 @@ import type { CameraIndicatorsProps } from './types'
 const CameraIndicators = ({ temperatures, lamp, plug }: CameraIndicatorsProps) => (
   <div className={ROW_CLASS}>
     {temperatures.length > 0 ? <ValueChips values={temperatures} /> : null}
-    {lamp ? <LampDot on={lamp.on} reachable={lamp.reachable} label={lampLabel(lamp)} /> : null}
+    {lamp ? <LampDot on={lamp.on} reachable={lamp.reachable} brightness={lamp.bri} label={lampLabel(lamp)} /> : null}
     {plug ? <PlugSquare on={plug.on} label={plugLabel(plug)} /> : null}
   </div>
 )

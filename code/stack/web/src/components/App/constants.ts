@@ -2,7 +2,7 @@ import type { TabId } from '@/types'
 
 export const TITLE = 'House'
 export const TABS_LABEL = 'Pages'
-export const DEFAULT_TAB: TabId = 'home'
+export const DEFAULT_TAB: TabId = 'cameras'
 export const TABS: { id: TabId; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'cameras', label: 'Caméras' },

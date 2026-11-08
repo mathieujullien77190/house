@@ -13,7 +13,7 @@ interface Loaded {
 }
 
 /** L'image gardée par House Sync la plus proche d'un instant, téléchargée via l'API avec la clé. */
-const SnapshotImage = ({ apiKey, camera, at }: SnapshotImageProps) => {
+const SnapshotImage = ({ apiKey, camera, at, upright }: SnapshotImageProps) => {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
 
   useEffect(() => {
@@ -36,7 +36,14 @@ const SnapshotImage = ({ apiKey, camera, at }: SnapshotImageProps) => {
 
   // Tant que le résultat ne concerne pas l'instant demandé, on charge.
   const current = loaded?.at === at ? loaded : null
-  return <SnapshotImageUI src={current?.src ?? ''} label={current?.src && current.id !== null ? `${ID_PREFIX}${current.id}` : undefined} message={current ? MISSING_TEXT : LOADING_TEXT} />
+  return (
+    <SnapshotImageUI
+      src={current?.src ?? ''}
+      label={current?.src && current.id !== null ? `${ID_PREFIX}${current.id}` : undefined}
+      message={current ? MISSING_TEXT : LOADING_TEXT}
+      upright={upright}
+    />
+  )
 }
 
 export default SnapshotImage

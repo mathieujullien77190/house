@@ -44,7 +44,7 @@ const PowerButton = ({ apiKey, camera, power, unavailable = false, hideOff = fal
       <Button variant={power.on ? 'danger' : 'active'} disabled={busy} onClick={() => void change(!power.on)}>
         {label}
       </Button>
-      <span className={STATUS_CLASS}>{error || statusText(power)}</span>
+      {error || statusText(power) ? <span className={STATUS_CLASS}>{error || statusText(power)}</span> : null}
     </div>
   )
 }

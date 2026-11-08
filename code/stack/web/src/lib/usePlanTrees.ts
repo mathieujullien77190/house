@@ -12,7 +12,9 @@ const load = (defaults: PlanTree[]): PlanTree[] => {
       (tree): tree is PlanTree =>
         typeof tree?.id === 'string' && typeof tree?.x === 'number' && typeof tree?.y === 'number' && typeof tree?.r === 'number',
     )
-    return saved.length > 0 ? saved : defaults
+    // Les arbres ajoutés au dessin de départ depuis la dernière sauvegarde arrivent aussi (on ne peut pas encore en supprimer, aucun ne ressuscite).
+    const known = new Set(saved.map((tree) => tree.id))
+    return saved.length > 0 ? [...saved, ...defaults.filter((tree) => !known.has(tree.id))] : defaults
   } catch {
     return defaults
   }
@@ -26,7 +28,9 @@ const save = (trees: PlanTree[]): void => {
   }
 }
 
-export const usePlanTrees = (defaults: PlanTree[]): { trees: PlanTree[]; move: (id: string, x: number, y: number) => void } => {
+export const usePlanTrees = (
+  defaults: PlanTree[],
+): { trees: PlanTree[]; move: (id: string, x: number, y: number) => void; resize: (id: string, r: number) => void } => {
   const [trees, setTrees] = useState<PlanTree[]>(() => load(defaults))
   const change = useCallback((id: string, patch: Partial<PlanTree>) => {
     setTrees((current) => {
@@ -36,5 +40,6 @@ export const usePlanTrees = (defaults: PlanTree[]): { trees: PlanTree[]; move: (
     })
   }, [])
   const move = useCallback((id: string, x: number, y: number) => change(id, { x, y }), [change])
-  return { trees, move }
+  const resize = useCallback((id: string, r: number) => change(id, { r }), [change])
+  return { trees, move, resize }
 }

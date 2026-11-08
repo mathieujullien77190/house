@@ -19,7 +19,8 @@ const unlockOrientation = () => {
   }
 }
 
-export const useBigView = (): BigView => {
+/** `portrait` : le média est en portrait (caméra posée de côté) — l'écran se verrouille en portrait au lieu du paysage. */
+export const useBigView = (portrait = false): BigView => {
   const ref = useRef<HTMLElement>(null)
   const [big, setBig] = useState(false)
   // Vrai tant que la vue est demandée : une fermeture pendant que le plein écran se négocie annule la suite.
@@ -47,13 +48,13 @@ export const useBigView = (): BigView => {
         return
       }
       try {
-        await screen.orientation.lock('landscape')
+        await screen.orientation.lock(portrait ? 'portrait' : 'landscape')
       } catch {
         // verrou refusé (hors plein écran, navigateur sans l'API) : la vue se tourne d'elle-même si l'écran reste droit
       }
     }
     enter()
-  }, [])
+  }, [portrait])
 
   // Retour, Échap ou geste système ferment le plein écran réel : la vue en grand se ferme avec lui.
   useEffect(() => {

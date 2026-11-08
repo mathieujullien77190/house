@@ -50,7 +50,7 @@ export const PLAY_INTERVAL_MS = 1000
 export const FALLBACK_IMAGE_SECONDS = 60
 /** Le curseur qui avance repousse la fenêtre quand il dépasse cette part de l'axe. */
 export const FOLLOW_EDGE = 0.92
-/** Le bouton « Maintenant » zoome sur cette fenêtre (secondes), « maintenant » au centre : on lit les secondes. */
+/** Le bouton « Direct » zoome sur cette fenêtre (secondes), « maintenant » au centre : on lit les secondes. */
 export const NOW_ZOOM_SECONDS = 60
 /** En direct, la fenêtre avance au plus à ce rythme (ms) ; une fenêtre courte avance plus souvent, pour que la ligne « maintenant » reste juste. */
 export const MAX_REFRESH_MS = 60_000
