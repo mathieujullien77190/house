@@ -6,6 +6,7 @@ import { audioClipPath } from './audio.ts'
 import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
+import { parsePolygon, type Point } from './zone.ts'
 import { isSensitivity, MAX_SENSITIVITY, MIN_SENSITIVITY } from './sensitivity.ts'
 
 const json = (res: ServerResponse, status: number, body: unknown) => {
@@ -24,7 +25,29 @@ export interface Detection {
   set: (camera: string, enabled: boolean) => void
   /** La sensibilité de la détection de la caméra, de 1 à 5 (3 : les seuils de base). */
   setSensitivity: (camera: string, level: number) => void
+  /** La zone surveillée de la caméra : un polygone (parts de l'image), ou null pour toute l'image. */
+  setZone: (camera: string, points: Point[] | null) => void
 }
+
+/** La taille maximale du corps d'une demande de zone (32 sommets tiennent dans moins de 1 Ko). */
+const MAX_BODY = 4096
+
+const readBody = (req: IncomingMessage): Promise<string | null> =>
+  new Promise((resolve) => {
+    let size = 0
+    const chunks: Buffer[] = []
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length
+      if (size > MAX_BODY) {
+        resolve(null)
+        req.destroy()
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', () => resolve(null))
+  })
 
 export const startServer = (config: Config, store: EventStore, detection: Detection, log: (message: string) => void) => {
   const clipPath = (id: string): string => `${config.clipsDir}/${id}.mp4`
@@ -54,12 +77,34 @@ export const startServer = (config: Config, store: EventStore, detection: Detect
       detection.setSensitivity(sensitivity[1], level)
       return json(res, 200, { camera: sensitivity[1], level })
     }
+    // PUT /api/cameras/<caméra>/zone avec {"points": [[x, y], ...]} (parts de l'image, de 3 à 32 sommets) : la zone où on cherche le mouvement ; {"points": null} : toute l'image.
+    const zone = /^\/api\/cameras\/([\w-]+)\/zone$/.exec(pathname)
+    if (req.method === 'PUT' && zone) {
+      if (!config.cameras.includes(zone[1])) return json(res, 404, { error: 'unknown camera' })
+      const body = await readBody(req)
+      let parsed: unknown
+      try {
+        parsed = body === null ? undefined : JSON.parse(body)
+      } catch {
+        parsed = undefined
+      }
+      const value = typeof parsed === 'object' && parsed !== null ? (parsed as { points?: unknown }).points : undefined
+      const points = value === null ? null : parsePolygon(value)
+      if (value === undefined || (value !== null && points === null))
+        return json(res, 400, { error: 'points must be null or 3 to 32 [x, y] pairs between 0 and 1' })
+      detection.setZone(zone[1], points)
+      return json(res, 200, { camera: zone[1], points })
+    }
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
 
     // Les caméras et, pour chacune, le go2rtc de cet enregistreur (son adresse sur le réseau Docker) et le flux à montrer en
     // direct : plusieurs enregistreurs, chacun avec son go2rtc, peuvent coexister (un par machine).
     if (pathname === '/api/config') {
-      return json(res, 200, { cameras: Object.fromEntries(config.cameras.map((camera) => [camera, { live: { go2rtc: config.go2rtcApi, streams: { Léger: `${camera}_sub` } } }])) })
+      return json(res, 200, {
+        cameras: Object.fromEntries(
+          config.cameras.map((camera) => [camera, { live: { go2rtc: config.go2rtcApi, streams: { Léger: `${camera}_sub` } } }]),
+        ),
+      })
     }
 
     if (pathname === '/api/events') {
@@ -83,7 +128,11 @@ export const startServer = (config: Config, store: EventStore, detection: Detect
       const path = clip[2] ? webClipPath(clipPath(clip[1])) : clipPath(clip[1])
       if (!store.get(clip[1])?.has_clip || !existsSync(path)) return json(res, 404, { error: 'clip not found' })
       // X-Clip-Start : l'instant (secondes depuis 1970) où le clip commence, pour que House Sync le garde.
-      res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': statSync(path).size, 'X-Clip-Start': String(store.get(clip[1])?.clip_start ?? '') })
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+        'Content-Length': statSync(path).size,
+        'X-Clip-Start': String(store.get(clip[1])?.clip_start ?? ''),
+      })
       // pipeline ferme le fichier si le client part ou si la lecture échoue (sans quoi le descripteur resterait ouvert).
       return await pipeline(createReadStream(path), res)
     }
@@ -108,7 +157,9 @@ export const startServer = (config: Config, store: EventStore, detection: Detect
     if (latest && config.cameras.includes(latest[1])) {
       const height = num(searchParams.get('h')) ?? 720
       try {
-        const upstream = await fetch(`${config.go2rtcApi}/api/frame.jpeg?src=${latest[1]}_main&height=${height}`, { signal: AbortSignal.timeout(FRAME_TIMEOUT_MS) })
+        const upstream = await fetch(`${config.go2rtcApi}/api/frame.jpeg?src=${latest[1]}_main&height=${height}`, {
+          signal: AbortSignal.timeout(FRAME_TIMEOUT_MS),
+        })
         if (!upstream.ok) return json(res, 502, { error: `go2rtc answered ${upstream.status}` })
         res.writeHead(200, { 'Content-Type': 'image/jpeg' })
         return res.end(Buffer.from(await upstream.arrayBuffer()))

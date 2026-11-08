@@ -11,6 +11,7 @@ import { createEventStore } from './events.ts'
 import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
 import { detectorForLevel, DEFAULT_SENSITIVITY } from './sensitivity.ts'
+import { polygonMask, type Point } from './zone.ts'
 import { startServer } from './server.ts'
 import { watchMotion } from './watcher.ts'
 
@@ -32,12 +33,18 @@ const detecting = new Map<string, boolean>()
 // Les seuils de détection de chaque caméra : un objet à elle, que la sensibilité (House Sync) modifie sur place, et que le détecteur relit à chaque image.
 const detectors = new Map<string, typeof config.detector>(config.cameras.map((camera) => [camera, { ...config.detector }]))
 
+// La zone surveillée de chaque caméra : son polygone (pour comparer) et son masque sur l'image analysée (absent = toute l'image).
+// House Sync l'envoie à chaque minute ; en mémoire, comme la sensibilité.
+const zones = new Map<string, { points: Point[] | null; mask: Uint8Array | null }>()
+
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
 
 for (const camera of config.cameras) {
   mkdirSync(`${config.recordingsDir}/${camera}`, { recursive: true })
-  void recordSegments(`${config.go2rtcRtsp}/${camera}_main`, `${config.recordingsDir}/${camera}`, config.segmentSeconds, (m) => log(`${camera} : ${m}`))
+  void recordSegments(`${config.go2rtcRtsp}/${camera}_main`, `${config.recordingsDir}/${camera}`, config.segmentSeconds, (m) =>
+    log(`${camera} : ${m}`),
+  )
   void watchMotion(
     `${config.go2rtcRtsp}/${camera}_sub`,
     { ...config, detector: detectors.get(camera) ?? config.detector },
@@ -65,6 +72,7 @@ for (const camera of config.cameras) {
         open.delete(camera)
       }
     },
+    () => zones.get(camera)?.mask ?? null,
   )
 }
 
@@ -72,7 +80,9 @@ for (const camera of config.cameras) {
 // Il n'est conservé que pour les clips de mouvement : voir makeClips.
 const audioDirOf = (camera: string) => `${config.recordingsDir}/${camera}/audio`
 for (const camera of config.audioCameras) {
-  void recordAudio(`${config.go2rtcRtsp}/${camera}_sub`, audioDirOf(camera), config.audioSegmentSeconds, (m) => log(`${camera} (son) : ${m}`))
+  void recordAudio(`${config.go2rtcRtsp}/${camera}_sub`, audioDirOf(camera), config.audioSegmentSeconds, (m) =>
+    log(`${camera} (son) : ${m}`),
+  )
 }
 
 startServer(
@@ -83,12 +93,20 @@ startServer(
       if (detecting.get(camera) !== enabled) log(`${camera} : détection ${enabled ? 'allumée' : 'éteinte'}`)
       detecting.set(camera, enabled)
     },
+    setZone: (camera, points) => {
+      const current = zones.get(camera)
+      if (JSON.stringify(current?.points ?? null) === JSON.stringify(points)) return
+      zones.set(camera, { points, mask: points ? polygonMask(points, config.width, config.height) : null })
+      log(`${camera} : zone surveillée ${points ? `${points.length} sommets` : 'toute l’image'}`)
+    },
     setSensitivity: (camera, level) => {
       const seuils = detectors.get(camera)
       if (!seuils) return
       const next = detectorForLevel(config.detector, level)
       if (seuils.pixelThreshold !== next.pixelThreshold || seuils.areaThreshold !== next.areaThreshold) {
-        log(`${camera} : sensibilité ${level}${level === DEFAULT_SENSITIVITY ? ' (réglage de base)' : ''} : écart ${next.pixelThreshold}, surface ${(next.areaThreshold * 100).toFixed(2)} %`)
+        log(
+          `${camera} : sensibilité ${level}${level === DEFAULT_SENSITIVITY ? ' (réglage de base)' : ''} : écart ${next.pixelThreshold}, surface ${(next.areaThreshold * 100).toFixed(2)} %`,
+        )
       }
       Object.assign(seuils, next)
     },
@@ -212,4 +230,7 @@ setInterval(() => {
 }, PRUNE_MS)
 
 log(`Enregistreur : ${config.cameras.join(', ')} (segments de ${config.segmentSeconds} s, ${config.retentionSeconds / 3600} h gardées)`)
-if (config.audioCameras.length > 0) log(`Son des clips : ${config.audioCameras.join(', ')} (petits fichiers de ${config.audioSegmentSeconds} s gardés comme les segments, un son par clip de mouvement)`)
+if (config.audioCameras.length > 0)
+  log(
+    `Son des clips : ${config.audioCameras.join(', ')} (petits fichiers de ${config.audioSegmentSeconds} s gardés comme les segments, un son par clip de mouvement)`,
+  )

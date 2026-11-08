@@ -12,12 +12,31 @@ const SUSPENDED = 'détection suspendue'
 const STALL_MS = 20_000
 
 /** Une passe : lance ffmpeg et analyse ses images jusqu'à ce qu'il s'arrête. Rend la raison de l'arrêt. */
-const run = (url: string, config: Config, onEvent: (event: MotionEvent) => void, enabled: () => boolean): Promise<string> =>
+const run = (
+  url: string,
+  config: Config,
+  onEvent: (event: MotionEvent) => void,
+  enabled: () => boolean,
+  mask: () => Uint8Array | null,
+): Promise<string> =>
   new Promise((resolve) => {
     const frameSize = config.width * config.height
     const ffmpeg = spawn(
       'ffmpeg',
-      ['-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', url, '-an', '-vf', `fps=${config.fps},scale=${config.width}:${config.height},format=gray`, '-f', 'rawvideo', '-'],
+      [
+        '-loglevel',
+        'error',
+        '-rtsp_transport',
+        'tcp',
+        '-i',
+        url,
+        '-an',
+        '-vf',
+        `fps=${config.fps},scale=${config.width}:${config.height},format=gray`,
+        '-f',
+        'rawvideo',
+        '-',
+      ],
       { stdio: ['ignore', 'pipe', 'inherit'] },
     )
     track(ffmpeg)
@@ -34,7 +53,7 @@ const run = (url: string, config: Config, onEvent: (event: MotionEvent) => void,
         const frame = Uint8Array.from(pending.subarray(0, frameSize))
         pending = pending.subarray(frameSize)
         if (previous) {
-          const event = detector.push(changedShare(previous, frame, config.detector.pixelThreshold), Date.now() / 1000)
+          const event = detector.push(changedShare(previous, frame, config.detector.pixelThreshold, mask()), Date.now() / 1000)
           if (event) onEvent(event)
         }
         previous = frame
@@ -65,7 +84,8 @@ const run = (url: string, config: Config, onEvent: (event: MotionEvent) => void,
 /**
  * Surveille le flux léger d'une caméra en continu ; relance ffmpeg s'il s'arrête. Ne rend jamais. `enabled` dit si la
  * détection doit tourner (House Sync la coupe quand les clips de la caméra ne sont pas gardés) ; `onSuspend` est appelé
- * à chaque arrêt de ffmpeg (suspension ou panne), pour fermer l'événement resté ouvert.
+ * à chaque arrêt de ffmpeg (suspension ou panne), pour fermer l'événement resté ouvert. `mask` rend à chaque image le masque de la zone
+ * surveillée (zone.ts), ou null pour toute l'image.
  */
 export const watchMotion = async (
   url: string,
@@ -74,11 +94,12 @@ export const watchMotion = async (
   log: (message: string) => void,
   enabled: () => boolean = () => true,
   onSuspend: () => void = () => undefined,
+  mask: () => Uint8Array | null = () => null,
 ): Promise<never> => {
   for (;;) {
     // Suspendue : rien ne tourne, on attend qu'elle revienne.
     while (!enabled()) await new Promise((resolve) => setTimeout(resolve, CHECK_MS))
-    const reason = await run(url, config, onEvent, enabled)
+    const reason = await run(url, config, onEvent, enabled, mask)
     // Un mouvement ouvert quand ffmpeg s'arrête (suspension, flux figé, caméra coupée) ne recevra jamais sa fin : on le ferme.
     onSuspend()
     if (isStopping()) await new Promise<never>(() => undefined)

@@ -23,19 +23,25 @@ export const DEFAULT_CONFIG: DetectorConfig = {
   endSeconds: 5,
 }
 
-/** Part des pixels (0 à 1) qui ont changé de plus de `pixelThreshold` entre deux images de même taille. */
-export const changedShare = (previous: Uint8Array, current: Uint8Array, pixelThreshold: number): number => {
+/**
+ * Part des pixels (0 à 1) qui ont changé de plus de `pixelThreshold` entre deux images de même taille. Avec un `mask` (1 = pixel surveillé),
+ * seuls les pixels surveillés comptent, et la part est celle de la zone surveillée (une petite zone remplie par un mouvement vaut 1).
+ */
+export const changedShare = (previous: Uint8Array, current: Uint8Array, pixelThreshold: number, mask: Uint8Array | null = null): number => {
   if (previous.length !== current.length || current.length === 0) return 0
+  if (mask && mask.length !== current.length) return 0
   let changed = 0
+  let watched = 0
   for (let i = 0; i < current.length; i += 1) {
+    if (mask && mask[i] === 0) continue
+    watched += 1
     if (Math.abs(current[i] - previous[i]) > pixelThreshold) changed += 1
   }
-  return changed / current.length
+  return watched === 0 ? 0 : changed / watched
 }
 
 export type MotionEvent =
-  | { type: 'start'; at: number; score: number }
-  | { type: 'end'; at: number; startedAt: number; durationSeconds: number; peak: number }
+  { type: 'start'; at: number; score: number } | { type: 'end'; at: number; startedAt: number; durationSeconds: number; peak: number }
 
 /** La machine à états : on lui donne la part de pixels changés de chaque image, elle rend un événement quand il y en a un. */
 export const createDetector = (config: DetectorConfig = DEFAULT_CONFIG) => {
