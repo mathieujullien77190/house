@@ -43,6 +43,9 @@ const baseConfig = (dir: string): Config => ({
   switchPoe: null,
   hue: null,
   plug: null,
+  shutters: [],
+  shuttersAuto: [],
+  shuttersEspUrl: null,
   plugMotionSensor: 'motion interieur',
   plugTemperatureSensor: 'motion interieur',
   housePosition: { latitude: 48.6, longitude: 2.7 },
@@ -85,7 +88,7 @@ test('l’application assemble les routes publiques, protégées, statiques et l
       assert.equal((await call(`${url}/`)).body, '<h1>House</h1>')
       assert.deepEqual((await call(`${url}/nimporte`)).body, { error: 'not found' })
       // services non configurés
-      for (const path of ['/hue', '/plug', '/poe', '/guest'])
+      for (const path of ['/hue', '/plug', '/poe', '/guest', '/shutters'])
         assert.equal((await call(`${url}${path}`, 'GET', undefined, key)).status, 503, path)
       assert.equal((await call(`${url}/record/cam-a`, 'GET', undefined, key)).status, 503)
       // la clé donne une session par cookie
@@ -160,4 +163,43 @@ test('tous les services configurés : pont Hue, prise, switch, enregistreur, pag
     await bridge.close()
     log.mock.restore()
   }
+})
+
+test('les volets : simulation sans ESP32, action automatique seulement pour les volets listés', async () => {
+  await withTempDir(async (dir) => {
+    const config: Config = {
+      ...prepare(dir),
+      shutters: [
+        { id: '1', name: 'Salon', shadeId: 1 },
+        { id: '2', name: 'Chambre', shadeId: 2 },
+      ],
+      shuttersAuto: ['1', 'absent'],
+    }
+    await serveApp(config, async (url) => {
+      const key = { 'X-House-Key': KEY }
+      const list = (await call(`${url}/shutters`, 'GET', undefined, key)).body as { mock: boolean; shutters: { id: string; auto: unknown }[] }
+      assert.equal(list.mock, true)
+      assert.deepEqual(
+        list.shutters.map((shutter) => [shutter.id, shutter.auto]),
+        [
+          ['1', { open: false, close: false }],
+          ['2', null],
+        ],
+      )
+      assert.equal((await call(`${url}/shutters/1`, 'POST', { command: 'up' }, key)).status, 200)
+      assert.equal((await call(`${url}/shutters/2/auto`, 'PUT', { open: true }, key)).status, 404)
+      assert.equal((await call(`${url}/shutters/1/auto`, 'PUT', { open: true }, key)).status, 200)
+    })
+  })
+})
+
+test('les volets avec un ESP32 : le pilote réel, un ordre qui échoue rend 502', async () => {
+  await withTempDir(async (dir) => {
+    const config: Config = { ...prepare(dir), shutters: [{ id: '1', name: 'Salon', shadeId: 1 }], shuttersAuto: ['1'], shuttersEspUrl: 'http://127.0.0.1:1' }
+    await serveApp(config, async (url) => {
+      const key = { 'X-House-Key': KEY }
+      assert.equal(((await call(`${url}/shutters`, 'GET', undefined, key)).body as { mock: boolean }).mock, false)
+      assert.equal((await call(`${url}/shutters/1`, 'POST', { command: 'up' }, key)).status, 502)
+    })
+  })
 })

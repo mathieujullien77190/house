@@ -11,6 +11,8 @@ import type { EventsService } from '../services/eventsService.ts'
 import type { HeatingService } from '../services/heatingService.ts'
 import type { HueService } from '../services/hueService.ts'
 import type { PlugService } from '../services/plugService.ts'
+import type { ShuttersService } from '../services/shuttersService.ts'
+import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
 import type { PoeService } from '../services/poeService.ts'
 import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
@@ -22,6 +24,7 @@ import { guestRouter, type GuestLink } from './guest.ts'
 import { hueRouter } from './hue.ts'
 import { liveRouter } from './live.ts'
 import { plugRouter } from './plug.ts'
+import { shuttersRouter } from './shutters.ts'
 import { poeRouter } from './poe.ts'
 import { snapshotsRouter } from './snapshots.ts'
 import { welcomeRouter } from './welcome.ts'
@@ -38,6 +41,10 @@ export interface Services {
   hue: HueService | null
   /** Null quand aucune prise connectée n'est configurée. */
   plug: PlugService | null
+  /** Les volets roulants ; null sans volets configurés. */
+  shutters: ShuttersService | null
+  /** L'action automatique des volets (lever et coucher du soleil) ; null sans volets. */
+  shuttersAuto: ShuttersAuto | null
   /** Le chauffage automatique de la prise et son journal ; null sans prise. */
   heating: HeatingService | null
   /** Null quand aucun switch n'est configuré. */
@@ -68,6 +75,7 @@ export const SECURED_PATHS = [
   '/frame',
   '/poe',
   '/plug',
+  '/shutters',
   '/hue',
   '/guest',
   '/zones',
@@ -88,6 +96,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(liveRouter(services.live))
   router.use(poeRouter(services.poe))
   router.use(plugRouter(services.plug, services.heating))
+  router.use(shuttersRouter(services.shutters, services.shuttersAuto))
   router.use(hueRouter(services.hue))
   router.use(guestRouter(services.guest))
   router.use(zonesRouter(services.zones))

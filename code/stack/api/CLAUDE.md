@@ -12,12 +12,12 @@ Les routes, une à une, et les équipements : `src/routes/CLAUDE.md`.
 src/
 ├── index.ts          démarrage : configuration, application, écoute du port et des signaux (seul fichier hors couverture des tests)
 ├── server.ts         le serveur : HTTPS (certificat de la maison) ou HTTP, et son arrêt
-├── config.ts         environnement validé : PORT, WEB_DIR, DATA_DIR, STATE_DIR, API_KEY (8 caractères au moins), GO2RTC_URLS (ou GO2RTC_URL), TLS_CERT/TLS_KEY, CA_CERT, RECORDER_URL, GUEST_*, PLUG_* (dont PLUG_TEMPERATURE_SENSOR), HOUSE_LATITUDE/HOUSE_LONGITUDE, HUE_BRIDGE_IP/HUE_APP_KEY, SWITCH_*
+├── config.ts         environnement validé : PORT, WEB_DIR, DATA_DIR, STATE_DIR, API_KEY (8 caractères au moins), GO2RTC_URLS (ou GO2RTC_URL), TLS_CERT/TLS_KEY, CA_CERT, RECORDER_URL, GUEST_*, PLUG_* (dont PLUG_TEMPERATURE_SENSOR), HOUSE_LATITUDE/HOUSE_LONGITUDE, HUE_BRIDGE_IP/HUE_APP_KEY, SWITCH_*, SHUTTERS/SHUTTERS_AUTO/SHUTTERS_ESP_URL
 ├── app.ts            assemblage : base, dépôts, services, routes, statique, 404, erreurs
 ├── types.ts          lignes de la base et forme des réponses
 ├── db/database.ts    SQLite en lecture seule, ouverte au premier besoin (DatabaseNotReady → 503)
 ├── repositories/     le SQL : cameras, events, snapshots
-├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 5 min), hue, plug, heating (la règle du chauffage automatique, tour de 60 s), live (relais go2rtc : le flux <flux>_mjpeg)
+├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 5 min), hue, plug, heating (la règle du chauffage automatique, tour de 60 s), shutters (les volets roulants et leurs ordres), shuttersAuto (ouvrir au lever du soleil, fermer à son coucher, tour de 60 s), live (relais go2rtc : le flux <flux>_mjpeg)
 ├── routes/           un fichier par service ; index.ts liste SECURED_PATHS (derrière la clé) ; welcome public
 ├── middleware/       requireKey (X-House-Key en temps constant, ou la session ; 10 clés fausses par adresse en 15 min, puis 429) ; session (cookie signé ouvert par /auth) ; errorHandler (JSON)
 ├── lib/hueClient.ts, automations.ts  le pont Hue (API v1 et v2) et ses règles en phrases
@@ -26,6 +26,7 @@ src/
 ├── lib/positionsStore.ts, zonesStore.ts, planStore.ts, savedClipsStore.ts  les fichiers de STATE_DIR (positions des ampoules, zones de surveillance par caméra, plan de la maison, clips sauvegardés)
 ├── lib/heatingSettings.ts, heatingLog.ts, heatingCost.ts  les réglages de la règle du chauffage (`heating.json`), son journal (`heating-log.jsonl`, rotation à 5000 lignes) et le coût prévu d’une activation
 ├── lib/sun.ts  le lever et le coucher du soleil (la nuit du chauffage) : **copie assumée de `sync/src/sun.ts`** (l’API ne dépend pas de House Sync) ; si l’un change, changer l’autre
+├── lib/shutterDriver.ts, shutterLog.ts, shutterAutoStore.ts  le pilote des volets (simulation ou ESP32 ESPSomfy), leur journal (`shutters-log.jsonl`, que House Sync importe) et les réglages de l’action automatique (`shutters-auto.json`)
 ├── lib/attemptLimiter.ts  les essais de clé ratés par adresse (en mémoire)
 └── lib/backupFiles.ts  envoi d'un fichier du disque backup, jamais hors du disque, avec Range (la vidéo se déplace)
 ```

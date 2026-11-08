@@ -22,6 +22,11 @@ import { createHeatingService, createRecorder, type TemperatureSource } from './
 import { createHeatingLog } from './lib/heatingLog.ts'
 import { createHeatingSettings } from './lib/heatingSettings.ts'
 import { createPlugService, type MotionSource } from './services/plugService.ts'
+import { createEspSomfyDriver, createMockDriver } from './lib/shutterDriver.ts'
+import { createShutterLog } from './lib/shutterLog.ts'
+import { createShuttersService } from './services/shuttersService.ts'
+import { createShutterAutoStore } from './lib/shutterAutoStore.ts'
+import { createShuttersAuto } from './services/shuttersAutoService.ts'
 import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
@@ -51,6 +56,24 @@ export const createApp = (config: Config): Express => {
   const plug = config.plug
     ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json`, record: createRecorder(heatingLog), onAutoCut: heatingSettings.disable })
     : null
+  // Les volets : le pilote réel (ESP32) si SHUTTERS_ESP_URL est donné, sinon la simulation (rien n'est envoyé).
+  const shutters =
+    config.shutters.length > 0
+      ? createShuttersService({
+          shutters: config.shutters,
+          driver: config.shuttersEspUrl ? createEspSomfyDriver(config.shuttersEspUrl) : createMockDriver(),
+          log: createShutterLog(`${config.stateDir}/shutters-log.jsonl`),
+        })
+      : null
+  // L'action automatique de certains volets : ouvrir au lever du soleil, fermer à son coucher (activable volet par volet).
+  const shuttersAuto = shutters
+    ? createShuttersAuto({
+        ids: config.shuttersAuto.filter((id) => config.shutters.some((shutter) => shutter.id === id)),
+        shutters,
+        store: createShutterAutoStore(`${config.stateDir}/shutters-auto.json`),
+        position: config.housePosition,
+      })
+    : null
   const services = {
     cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db), savedClips),
@@ -64,6 +87,8 @@ export const createApp = (config: Config): Express => {
     hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     guest: config.guest,
     plug,
+    shutters,
+    shuttersAuto,
     heating: plug
       ? createHeatingService({
           plug,

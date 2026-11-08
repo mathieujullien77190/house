@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
-import { loadConfig } from './config.ts'
+import { loadConfig, parseShutters } from './config.ts'
 import { withTempDir } from './testing/helpers.ts'
 
 test('sans clé ou avec une clé trop courte, la configuration est refusée', () => {
@@ -20,6 +20,13 @@ test('les valeurs par défaut', () => {
   assert.equal(config.switchPoe, null)
   assert.equal(config.hue, null)
   assert.equal(config.plug, null)
+  assert.deepEqual(
+    config.shutters.map((shutter) => shutter.id),
+    ['1', '2', '3', '4'],
+  )
+  // par défaut, tous les volets ont l'action automatique ; sans ESP32, c'est la simulation
+  assert.deepEqual(config.shuttersAuto, ['1', '2', '3', '4'])
+  assert.equal(config.shuttersEspUrl, null)
   assert.equal(config.plugMotionSensor, 'motion interieur')
   assert.equal(config.plugTemperatureSensor, 'motion interieur')
   assert.deepEqual(config.housePosition, { latitude: 48.6, longitude: 2.7 })
@@ -49,6 +56,9 @@ test('toutes les variables renseignées', async () => {
       HUE_BRIDGE_IP: '1.2.3.4',
       HUE_APP_KEY: 'abc',
       PLUG_MOTION_SENSOR: 'autre',
+      SHUTTERS: '5:Cave, 6 : Grenier ,mal',
+      SHUTTERS_AUTO: ' 6, ,5',
+      SHUTTERS_ESP_URL: 'http://esp//',
       PLUG_HOST: '192.168.1.200',
       PLUG_PORT: '1234',
       PLUG_MAC: 'AA:BB',
@@ -65,6 +75,14 @@ test('toutes les variables renseignées', async () => {
     assert.deepEqual(config.go2rtcUrls, ['http://a:1984', 'http://b:1984'])
     assert.deepEqual(config.switchPoe, { url: 'http://sw', user: 'root', password: 'pw', ports: { cam1: 3, cam2: 4 } })
     assert.deepEqual(config.hue, { url: 'http://1.2.3.4', key: 'abc' })
+    assert.deepEqual(config.shutters, [
+      { id: '5', name: 'Cave', shadeId: 5 },
+      { id: '6', name: 'Grenier', shadeId: 6 },
+    ])
+    assert.deepEqual(config.shuttersAuto, ['6', '5'])
+    assert.equal(config.shuttersEspUrl, 'http://esp')
+    // SHUTTERS_AUTO absent : tous les volets configurés
+    assert.deepEqual(loadConfig({ API_KEY: '12345678', SHUTTERS: '7:A,8:B' }).shuttersAuto, ['7', '8'])
     assert.equal(config.plugMotionSensor, 'autre')
     // sans PLUG_TEMPERATURE_SENSOR, le détecteur du mouvement donne aussi la température
     assert.equal(config.plugTemperatureSensor, 'autre')
@@ -108,4 +126,12 @@ test('par défaut, l’environnement du processus est lu', () => {
     if (before === undefined) delete process.env.API_KEY
     else process.env.API_KEY = before
   }
+})
+
+test('parseShutters : numéro:nom, une entrée mal écrite est ignorée', () => {
+  assert.deepEqual(parseShutters('1:Salon, 2 : Chambre ,x:Non,3:'), [
+    { id: '1', name: 'Salon', shadeId: 1 },
+    { id: '2', name: 'Chambre', shadeId: 2 },
+  ])
+  assert.deepEqual(parseShutters(''), [])
 })

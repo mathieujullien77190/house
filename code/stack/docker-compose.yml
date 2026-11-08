@@ -110,6 +110,8 @@ services:
       GUEST_VISITS_FILE: /guest-visits/visits.jsonl
       # Le journal des activations du chauffage (écrit par House API dans data/house, importé toutes les 30 s dans la table heating_log).
       HEATING_LOG_FILE: /house/heating-log.jsonl
+      # Le journal des ordres aux volets roulants (écrit par House API dans data/house, importé toutes les 30 s dans la table shutter_log).
+      SHUTTER_LOG_FILE: /house/shutters-log.jsonl
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
@@ -177,6 +179,12 @@ services:
       # l'API la retrouve toute seule par un scan du réseau (une fois par minute au plus). Sans adresse, le service plug répond 503.
       PLUG_HOST: ${PLUG_HOST:-}
       PLUG_MAC: ${PLUG_MAC:-D8:0D:17:1C:84:E3}
+      # Les volets roulants Somfy RTS : « numéro dans le firmware:nom », séparés par des virgules. Sans SHUTTERS_ESP_URL (l'adresse de l'ESP32 qui fait
+      # tourner ESPSomfy-RTS, par exemple http://192.168.1.60), c'est une SIMULATION : les ordres sont notés mais aucun signal radio ne part.
+      SHUTTERS: ${SHUTTERS:-1:Volet PC,2:Volet salon,3:Volet porte,4:Volet cuisine}
+      SHUTTERS_ESP_URL: ${SHUTTERS_ESP_URL:-}
+      # Les volets qui ont l'action « ouvrir au lever du soleil, fermer à son coucher » (leurs numéros) : la Vide : tous. Activée ensuite dans la WebApp, volet par volet.
+      SHUTTERS_AUTO: ${SHUTTERS_AUTO:-}
       # Le chauffage automatique de la prise (voliere) : la température vient du détecteur Hue nommé ici (par défaut celui de PLUG_MOTION_SENSOR,
       # « motion interieur »), la nuit se calcule pour la position de la maison (les mêmes valeurs par défaut que House Sync). Les réglages de la règle sont dans data/house/heating.json.
       PLUG_TEMPERATURE_SENSOR: ${PLUG_TEMPERATURE_SENSOR:-}

@@ -20,6 +20,12 @@ export interface Config {
   hue: { url: string; key: string } | null
   /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
   plug: { host: string; port: number; mac: string } | null
+  /** Les volets roulants (SHUTTERS="1:Salon,2:Chambre" : le numéro du volet dans le firmware de l'ESP32, puis son nom) ; vide : shutters répond 503. Par défaut les quatre volets de la maison : PC, salon, porte, cuisine. */
+  shutters: { id: string; name: string; shadeId: number }[]
+  /** Les volets qui ont l'action automatique « ouvrir au lever du soleil, fermer à son coucher » (SHUTTERS_AUTO, leurs identifiants séparés par des virgules ; par défaut tous les volets). */
+  shuttersAuto: string[]
+  /** L'ESP32 (firmware ESPSomfy-RTS) qui envoie les ordres radio ; null : SIMULATION, aucun ordre n'est envoyé (SHUTTERS_ESP_URL). */
+  shuttersEspUrl: string | null
   /** Le détecteur Hue qui éteint la prise (option « éteindre au mouvement »), par son nom chez le pont. */
   plugMotionSensor: string
   /** Le détecteur Hue dont la température décide du chauffage automatique (PLUG_TEMPERATURE_SENSOR ; par défaut le détecteur du mouvement). */
@@ -37,6 +43,16 @@ export interface Config {
 }
 
 const MIN_KEY_LENGTH = 8
+
+/** « 1:Salon,2:Chambre » en volets : le numéro du volet dans le firmware (qui sert aussi d'identifiant) puis son nom. Une entrée mal écrite est ignorée. */
+const DEFAULT_SHUTTERS = '1:Volet PC,2:Volet salon,3:Volet porte,4:Volet cuisine'
+
+export const parseShutters = (text: string): { id: string; name: string; shadeId: number }[] =>
+  text
+    .split(',')
+    .map((part) => /^\s*(\d+)\s*:\s*(.+?)\s*$/.exec(part))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => ({ id: match[1], name: match[2], shadeId: Number(match[1]) }))
 
 /** SWITCH_PORTS : « voliere-exterieur:7,jardin:3 » (caméra:port du switch). */
 const parseSwitch = (env: NodeJS.ProcessEnv): Config['switchPoe'] => {
@@ -69,6 +85,11 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .filter(Boolean),
     switchPoe: parseSwitch(env),
     hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
+    shutters: parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS),
+    shuttersAuto: env.SHUTTERS_AUTO
+      ? env.SHUTTERS_AUTO.split(',').map((id) => id.trim()).filter(Boolean)
+      : parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS).map((shutter) => shutter.id),
+    shuttersEspUrl: env.SHUTTERS_ESP_URL ? env.SHUTTERS_ESP_URL.replace(/\/+$/, '') : null,
     plugMotionSensor: env.PLUG_MOTION_SENSOR ?? 'motion interieur',
     plugTemperatureSensor: env.PLUG_TEMPERATURE_SENSOR || env.PLUG_MOTION_SENSOR || 'motion interieur',
     housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.6), longitude: Number(env.HOUSE_LONGITUDE ?? 2.7) },
