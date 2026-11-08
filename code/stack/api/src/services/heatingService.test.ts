@@ -49,7 +49,7 @@ test('froid, nuit, prise éteinte : la prise est allumée pour la durée réglé
     const { state, heating, log, settings } = await setup(t, dir)
     settings.set({ ...DEFAULT_SETTINGS, minutes: 7, cooldownMinutes: 30 })
     await heating.tick()
-    assert.deepEqual(state.started, [[7, false, { origin: 'auto', temperature: 1, note: null }]])
+    assert.deepEqual(state.started, [[7, true, { origin: 'auto', temperature: 1, note: null }]])
     // la ligne du journal vient de plugService (simulé ici) : on y met la même
     log.append({ at: NIGHT / 1000, origin: 'auto', minutes: 7, temperature: 1, note: null, cost: null })
     // la prise est allumée : rien de plus
@@ -191,14 +191,12 @@ test('réglages, état et journal : status, update, log, settings', async (t) =>
   })
 })
 
-test('l’enregistreur calcule le coût prévu avec les réglages du moment', async () => {
+test('l’enregistreur calcule le coût prévu avec les prix constants', async () => {
   await withTempDir((dir) => {
     const log = createHeatingLog(join(dir, 'log.jsonl'))
-    const settings = createHeatingSettings(join(dir, 'heating.json'))
-    const record = createRecorder(log, settings)
+    const record = createRecorder(log)
     record({ at: Date.parse('2026-11-09T02:00:00Z') / 1000, origin: 'manuel', minutes: 5, temperature: null, note: null })
-    settings.set({ ...DEFAULT_SETTINGS, heaterWatts: null })
     record({ at: Date.parse('2026-11-09T02:10:00Z') / 1000, origin: 'auto', minutes: 5, temperature: 2, note: null })
-    assert.deepEqual(log.recent(2).map((entry) => entry.cost), [null, 0.0265])
+    assert.deepEqual(log.recent(2).map((entry) => entry.cost), [0.0265, 0.0265])
   })
 })

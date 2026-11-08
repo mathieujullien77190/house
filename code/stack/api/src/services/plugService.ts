@@ -1,6 +1,7 @@
 // La prise connectée : son état (allumée ou non, signal WiFi) et son changement. Un état lu est gardé 2 s.
 // Option « éteindre au mouvement » : tant qu'elle est armée, un détecteur de mouvement Hue (par défaut « motion interieur ») qui voit quelqu'un
-// éteint la prise ; l'option s'efface alors, et dès que la prise est éteinte autrement.
+// éteint la prise ; l'option s'efface alors, et dès que la prise est éteinte autrement. Quand la prise avait été allumée par la règle automatique du
+// chauffage (elle arme toujours l'option), le mouvement désactive aussi la règle (`onAutoCut`).
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { Activation } from '../lib/heatingLog.ts'
@@ -26,6 +27,8 @@ interface GuardOptions {
   file: string
   /** Appelée à chaque allumage commandé par l'API (le journal du chauffage). */
   record?: (entry: Activation) => void
+  /** Appelée quand un mouvement éteint un chauffage allumé par la règle automatique : la règle se désactive. */
+  onAutoCut?: () => void
 }
 
 /** D'où vient un allumage commandé par l'API : une commande de la WebApp (par défaut) ou la règle automatique, avec la température qui l'a décidée. */
@@ -45,23 +48,28 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
     return state
   }
 
-  const load = (): boolean => {
-    if (!guard.file) return false
+  const load = (): { armed: boolean; origin: ActivationMeta['origin'] } => {
+    if (!guard.file) return { armed: false, origin: 'manuel' }
     try {
-      return (JSON.parse(readFileSync(guard.file, 'utf8')) as { offOnMotion?: unknown }).offOnMotion === true
+      const saved = JSON.parse(readFileSync(guard.file, 'utf8')) as { offOnMotion?: unknown; origin?: unknown }
+      return { armed: saved.offOnMotion === true, origin: saved.origin === 'auto' ? 'auto' : 'manuel' }
     } catch {
-      return false
+      return { armed: false, origin: 'manuel' }
     }
   }
-  let armed = load()
-  const arm = (value: boolean): void => {
-    if (armed === value) return
+  const saved = load()
+  let armed = saved.armed
+  // Qui a allumé la prise sous garde : si c'est la règle automatique, un mouvement la désactive aussi.
+  let armedOrigin = saved.origin
+  const arm = (value: boolean, origin: ActivationMeta['origin'] = 'manuel'): void => {
+    if (armed === value && armedOrigin === origin) return
     armed = value
+    armedOrigin = origin
     if (!guard.file) return
     try {
       mkdirSync(dirname(guard.file), { recursive: true })
       const partial = `${guard.file}.tmp`
-      writeFileSync(partial, JSON.stringify({ offOnMotion: value }))
+      writeFileSync(partial, JSON.stringify({ offOnMotion: value, origin }))
       renameSync(partial, guard.file)
     } catch {
       // l'option marche quand même en mémoire
@@ -83,10 +91,12 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
       }
       const presence = await guard.motion.presence()
       if (presence === true && previous === false) {
+        const byRule = armedOrigin === 'auto'
         await client.set(false)
         cached = null
         arm(false)
         previous = null
+        if (byRule) guard.onAutoCut?.()
         return
       }
       if (presence !== null) previous = presence
@@ -100,9 +110,9 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
 
   const withOption = (state: PlugInfo): PlugState => ({ ...state, offOnMotion: armed })
   // Une nouvelle commande décide de l'option : armée seulement si elle l'est demandée en allumant.
-  const decide = (on: boolean, offOnMotion: boolean): void => {
+  const decide = (on: boolean, offOnMotion: boolean, origin: ActivationMeta['origin'] = 'manuel'): void => {
     previous = null
-    arm(on && offOnMotion && guard.motion !== null)
+    arm(on && offOnMotion && guard.motion !== null, origin)
   }
 
   // Chaque allumage pour une durée commandé par l'API va au journal du chauffage.
@@ -124,7 +134,7 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
     startTimer: async (minutes: number, offOnMotion = false, meta: ActivationMeta = MANUAL): Promise<PlugState> => {
       await client.startTimer(minutes * 60)
       cached = null
-      decide(true, offOnMotion)
+      decide(true, offOnMotion, meta.origin)
       record(minutes, meta)
       return withOption(await read())
     },

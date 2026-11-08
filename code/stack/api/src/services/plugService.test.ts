@@ -94,7 +94,7 @@ test('éteindre au mouvement : le front montant éteint la prise, l’option se 
     // un mouvement déjà en cours à l'armement ne compte pas
     control.next = true
     assert.equal((await plug.startTimer(15, true)).offOnMotion, true)
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: true })
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: true, origin: 'manuel' })
     t.mock.timers.tick(3000)
     await flush()
     assert.equal(state.info.on, true)
@@ -111,7 +111,7 @@ test('éteindre au mouvement : le front montant éteint la prise, l’option se 
     t.mock.timers.tick(3000)
     await flush()
     assert.equal(state.info.on, false)
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: false })
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: false, origin: 'manuel' })
     assert.equal((await plug.get()).offOnMotion, false)
 
     // une panne du détecteur ne casse rien : on réessaie au tour suivant
@@ -150,7 +150,7 @@ test('la prise éteinte autrement efface l’option ; un tour n’en attend pas 
     state.info.on = false
     t.mock.timers.tick(3000)
     await flush()
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: false })
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: false, origin: 'manuel' })
     // désarmer une option déjà désarmée n'écrit rien de plus
     await plug.set(false)
     assert.equal((await plug.get()).offOnMotion, false)
@@ -165,7 +165,7 @@ test('l’option armée est relue au démarrage ; un fichier illisible ou absent
     assert.equal((await createPlugService(client, { motion, file }).get()).offOnMotion, false)
     writeFileSync(file, 'pas du json')
     assert.equal((await createPlugService(client, { motion, file }).get()).offOnMotion, false)
-    writeFileSync(file, JSON.stringify({ offOnMotion: true }))
+    writeFileSync(file, JSON.stringify({ offOnMotion: true, origin: 'manuel' }))
     const armed = createPlugService(client, { motion, file })
     assert.equal((await armed.get()).offOnMotion, true)
   })
@@ -206,4 +206,56 @@ test('chaque allumage pour une durée va au journal : manuel par défaut, ou ave
   ])
   // sans journal, rien ne casse
   await createPlugService(client).startTimer(5)
+})
+
+test('un mouvement qui éteint un chauffage de la règle automatique la désactive ; un allumage manuel non', async (t) => {
+  await withTempDir(async (dir) => {
+    clock(t)
+    const file = join(dir, 'guard.json')
+    const { client, state } = fakePlug()
+    const { motion, control } = fakeMotion()
+    let cuts = 0
+    const plug = createPlugService(client, { motion, file, onAutoCut: () => (cuts += 1) })
+    const cutByMotion = async (): Promise<void> => {
+      control.next = false
+      t.mock.timers.tick(3000)
+      await flush()
+      control.next = true
+      t.mock.timers.tick(3000)
+      await flush()
+    }
+
+    // allumage manuel : le mouvement éteint la prise, la règle reste
+    await plug.startTimer(5, true)
+    await cutByMotion()
+    assert.equal(state.info.on, false)
+    assert.equal(cuts, 0)
+
+    // allumage par la règle : l'origine est gardée dans le fichier, le mouvement éteint la prise et désactive la règle
+    await plug.startTimer(5, true, { origin: 'auto', temperature: 1, note: null })
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: true, origin: 'auto' })
+    await cutByMotion()
+    assert.equal(state.info.on, false)
+    assert.equal(cuts, 1)
+  })
+})
+
+test('l’origine de l’allumage sous garde est relue au démarrage', async (t) => {
+  await withTempDir(async (dir) => {
+    clock(t)
+    const file = join(dir, 'guard.json')
+    writeFileSync(file, JSON.stringify({ offOnMotion: true, origin: 'auto' }))
+    const { client, state } = fakePlug()
+    const { motion, control } = fakeMotion()
+    let cuts = 0
+    createPlugService(client, { motion, file, onAutoCut: () => (cuts += 1) })
+    control.next = false
+    t.mock.timers.tick(3000)
+    await flush()
+    control.next = true
+    t.mock.timers.tick(3000)
+    await flush()
+    assert.equal(state.info.on, false)
+    assert.equal(cuts, 1)
+  })
 })

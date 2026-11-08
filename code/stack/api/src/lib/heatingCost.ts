@@ -1,6 +1,6 @@
 // Le coût prévu d'une activation du chauffage, calculé quand elle commence et écrit dans la ligne du journal (le tarif peut changer ensuite).
 import type { Activation } from './heatingLog.ts'
-import type { HeatingSettings } from './heatingSettings.ts'
+import { HEATER_WATTS, OFF_PEAK_END, OFF_PEAK_PRICE_KWH, OFF_PEAK_START, PEAK_PRICE_KWH } from './heatingSettings.ts'
 
 const parisClock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
@@ -18,20 +18,16 @@ export const isOffPeak = (minuteOfDay: number, start: string, end: string): bool
 }
 
 /**
- * Le coût en euros d'une activation : puissance (kW) × heures × prix du kWh. Les minutes se découpent entre heures creuses et pleines
- * selon l'heure de Paris quand les deux bornes sont connues ; sinon tout est compté au tarif creux (la règle chauffe la nuit).
- * Arrondi à quatre décimales (0,0265 €) ; null si la puissance est inconnue.
+ * Le coût en euros d'une activation : puissance constante (kW) × heures × prix du kWh. Les minutes se découpent entre heures creuses et pleines
+ * selon l'heure de Paris (heures creuses constantes).
+ * Arrondi à quatre décimales (0,0265 €).
  */
-export const activationCost = (entry: Pick<Activation, 'at' | 'minutes'>, settings: HeatingSettings): number | null => {
-  if (settings.heaterWatts === null) return null
-  let cheap = entry.minutes
-  if (settings.offPeakStart !== null && settings.offPeakEnd !== null) {
-    cheap = 0
-    for (let minute = 0; minute < entry.minutes; minute += 1) {
-      if (isOffPeak(parisMinuteOfDay(entry.at + minute * 60), settings.offPeakStart, settings.offPeakEnd)) cheap += 1
-    }
+export const activationCost = (entry: Pick<Activation, 'at' | 'minutes'>): number => {
+  let cheap = 0
+  for (let minute = 0; minute < entry.minutes; minute += 1) {
+    if (isOffPeak(parisMinuteOfDay(entry.at + minute * 60), OFF_PEAK_START, OFF_PEAK_END)) cheap += 1
   }
-  const kilowattHours = (settings.heaterWatts / 1000) * (1 / 60)
-  const euros = kilowattHours * (cheap * settings.priceKwh + (entry.minutes - cheap) * settings.peakPriceKwh)
+  const kilowattHours = (HEATER_WATTS / 1000) * (1 / 60)
+  const euros = kilowattHours * (cheap * OFF_PEAK_PRICE_KWH + (entry.minutes - cheap) * PEAK_PRICE_KWH)
   return Math.round(euros * 10000) / 10000
 }

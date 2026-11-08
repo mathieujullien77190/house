@@ -7,11 +7,11 @@ import type { Activation, HeatingLog } from '../lib/heatingLog.ts'
 import { mergeSettings, type HeatingSettings, type HeatingSettingsStore } from '../lib/heatingSettings.ts'
 import type { PlugService } from './plugService.ts'
 
-/** Ce que plugService appelle à chaque allumage commandé par l'API : la ligne du journal, avec le coût prévu au tarif et à la puissance d'aujourd'hui. */
+/** Ce que plugService appelle à chaque allumage commandé par l'API : la ligne du journal, avec le coût prévu (prix, heures creuses et puissance constants). */
 export const createRecorder =
-  (log: HeatingLog, settings: HeatingSettingsStore) =>
+  (log: HeatingLog) =>
   (activation: Activation): void =>
-    log.append({ ...activation, cost: activationCost(activation, settings.get()) })
+    log.append({ ...activation, cost: activationCost(activation) })
 
 /** Le rythme du tour. */
 const TICK_MS = 60_000
@@ -86,7 +86,7 @@ export const createHeatingService = ({ plug, settings, log, temperature, positio
     say(null)
     if (celsius >= rule.thresholdC) return
     try {
-      await plug.startTimer(rule.minutes, false, { origin: 'auto', temperature: celsius, note: null })
+      await plug.startTimer(rule.minutes, true, { origin: 'auto', temperature: celsius, note: null })
       plugSaid = false
     } catch {
       if (!plugSaid) warn('Chauffage : la prise ne répond pas : pas de chauffage')

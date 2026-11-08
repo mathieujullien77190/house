@@ -49,7 +49,7 @@ export const createApp = (config: Config): Express => {
   const heatingLog = createHeatingLog(`${config.stateDir}/heating-log.jsonl`)
   const heatingSettings = createHeatingSettings(`${config.stateDir}/heating.json`)
   const plug = config.plug
-    ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json`, record: createRecorder(heatingLog, heatingSettings) })
+    ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json`, record: createRecorder(heatingLog), onAutoCut: heatingSettings.disable })
     : null
   const services = {
     cameras: createCamerasService(cameras),
