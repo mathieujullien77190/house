@@ -19,7 +19,7 @@ export const Variants: StoryObj<typeof Button> = {
   render: () => (
     <div className="flex flex-wrap gap-2">
       <Button>Rafraîchir</Button>
-      <Button variant="active">Maintenant</Button>
+      <Button variant="active">Direct</Button>
       <Button variant="danger">Oublier la clé</Button>
       <Button disabled>Plus tard</Button>
     </div>

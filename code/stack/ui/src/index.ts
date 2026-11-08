@@ -18,6 +18,8 @@ export { default as DataTable } from './components/DataTable'
 export type { DataTableProps } from './components/DataTable'
 export { default as KeyForm } from './components/KeyForm'
 export type { KeyFormProps } from './components/KeyForm'
+export { default as ZoneEditor } from './components/ZoneEditor'
+export type { ZoneEditorProps, ZonePoint } from './components/ZoneEditor'
 export { default as PlugSquare } from './components/PlugSquare'
 export type { PlugSquareProps } from './components/PlugSquare'
 export { default as LampDot } from './components/LampDot'
@@ -25,7 +27,18 @@ export type { LampDotProps } from './components/LampDot'
 export { default as LightsPanel } from './components/LightsPanel'
 export type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './components/LightsPanel'
 export { default as LightsPlan } from './components/LightsPlan'
-export type { LightsPlanProps, PlanCamera, PlanGate, PlanLamp, PlanPlug, PlanRect, PlanRoom, PlanTree, PlanWall } from './components/LightsPlan'
+export type {
+  LightsPlanProps,
+  PlanCamera,
+  PlanGate,
+  PlanLamp,
+  PlanPlug,
+  PlanRect,
+  PlanRoom,
+  PlanHedge,
+  PlanTree,
+  PlanWall,
+} from './components/LightsPlan'
 export { default as LineChart } from './components/LineChart'
 export type { LineChartProps } from './components/LineChart'
 export { default as MediaPanel } from './components/MediaPanel'

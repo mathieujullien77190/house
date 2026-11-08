@@ -3,6 +3,8 @@ export interface LampDotProps {
   on: boolean
   /** La lampe répond au pont : sinon son contour est rouge pâle. */
   reachable: boolean
+  /** La luminosité (1 à 254, Hue) : le rond allumé est d'autant plus pâle qu'elle est basse ; absente ou nulle : plein. */
+  brightness?: number | null
   /** Ce que lit un lecteur d'écran et ce que montre l'infobulle (« Lampe Perruche : allumée »). */
   label: string
 }

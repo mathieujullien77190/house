@@ -18,4 +18,9 @@ export interface ClipPlayerProps {
   onTime: (seconds: number) => void
   /** Durée de la vidéo, une fois ses métadonnées connues. */
   onDuration: (seconds: number) => void
+  /**
+   * Un élément hors du lecteur où poser des commandes maison (lecture ou pause, barre de temps, position) à la place des commandes natives : pour une
+   * vidéo tournée d'un quart de tour, les commandes restent droites. Absent (ou null) : les commandes natives, sur la vidéo.
+   */
+  controlsHost?: HTMLElement | null
 }

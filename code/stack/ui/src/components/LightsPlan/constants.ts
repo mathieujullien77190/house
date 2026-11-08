@@ -123,3 +123,12 @@ export const PLUG_OFF_TEXT = 'Arrêt'
 export const CAMERA_ICON_OFF_CLASS = 'fill-black stroke-[#dc2626] stroke-[2.2] [stroke-linejoin:round] select-none'
 /** Une prise qu'on peut déplacer : la main qui attrape. */
 export const PLUG_GROUP_CLASS = 'cursor-grab active:cursor-grabbing'
+/** Une haie qu'on peut déplacer (sur le plan de la mosaïque), et la haie choisie, dont les sommets se montrent. */
+export const HEDGE_MOVABLE_CLASS = `${HEDGE_CLASS} cursor-grab active:cursor-grabbing`
+export const HEDGE_SELECTED_CLASS = `${HEDGE_MOVABLE_CLASS} [stroke-opacity:0.7]`
+export const HEDGE_LABEL = 'Haie'
+export const HEDGE_HANDLE_LABEL = 'Sommet de la haie (glisser pour le déplacer)'
+/** La poignée sur le bord de l'arbre choisi : la glisser change son rayon, entre ces bornes (unités du plan). */
+export const TREE_HANDLE_LABEL = "Taille de l'arbre (glisser pour l'agrandir ou le réduire)"
+export const TREE_RADIUS_MIN = 5
+export const TREE_RADIUS_MAX = 80

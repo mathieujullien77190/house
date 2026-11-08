@@ -7,9 +7,12 @@ import {
   CLOCK_CLASS,
   COLLAPSE_CLASS,
   COLLAPSE_LABEL,
-  EXPAND_CLASS,
+  EXPAND_OVERLAY_CLASS,
+  MEDIA_BLOCK_CLASS,
+  MEDIA_BLOCK_PORTRAIT_CLASS,
   EXPAND_LABEL,
   EXPANDED_CLASS,
+  EXPANDED_UPRIGHT_CLASS,
   FIGURE_CLASS,
   HEAD_CLASS,
   NAME_CLASS,
@@ -33,9 +36,30 @@ import type { CameraCardProps } from './types'
  * Le média peut passer en grand : plein écran, en paysage ; le parent décide quand (`expanded`) et appelle le plein
  * écran du navigateur sur `figureRef`.
  */
-const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, warning = '', actions, media, details, overlay, clock, timeline, figureRef, expanded = false, onExpand, onCollapse, mediaGesture }: CameraCardProps) => {
-  // Le zoom au doigt existe en vue en grand et sur l'écran du téléphone (la vidéo du tiers du haut).
-  const gesture = expanded || screen ? mediaGesture : undefined
+const CameraCard = ({
+  screen = false,
+  onBack,
+  backLabel = '',
+  name,
+  caption,
+  warning = '',
+  actions,
+  media,
+  details,
+  overlay,
+  clock,
+  timeline,
+  figureRef,
+  expanded = false,
+  onExpand,
+  onCollapse,
+  mediaGesture,
+  portraitMedia = false,
+}: CameraCardProps) => {
+  // Un média en portrait garde l'écran tel quel en vue en grand.
+  const expandedClass = portraitMedia ? EXPANDED_UPRIGHT_CLASS : EXPANDED_CLASS
+  // Le zoom : au doigt en vue en grand et sur l'écran du téléphone, à la molette partout (le parent décide de ce qu'il passe).
+  const gesture = mediaGesture
   // L'écran du téléphone : la vidéo sur le tiers du haut (commandes dessus), la frise sur le reste, pas de titre ni de légende.
   if (screen) {
     return (
@@ -45,8 +69,19 @@ const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, war
             {BACK_ARROW}
           </button>
         )}
-        <figure ref={figureRef} className={expanded ? EXPANDED_CLASS : SCREEN_VIDEO_CLASS}>
-          <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : gesture ? `${SCREEN_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : SCREEN_MEDIA_CLASS} {...gesture?.handlers}>
+        <figure ref={figureRef} className={expanded ? expandedClass : SCREEN_VIDEO_CLASS}>
+          <div
+            className={
+              expanded
+                ? gesture
+                  ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}`
+                  : BIG_MEDIA_CLASS
+                : gesture
+                  ? `${SCREEN_MEDIA_CLASS} ${ZOOM_AREA_CLASS}`
+                  : SCREEN_MEDIA_CLASS
+            }
+            {...gesture?.handlers}
+          >
             <div style={gesture?.style}>{media}</div>
           </div>
           {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
@@ -79,22 +114,32 @@ const CameraCard = ({ screen = false, onBack, backLabel = '', name, caption, war
         <h2 className={NAME_CLASS}>{name}</h2>
         {actions}
       </div>
-      <figure ref={figureRef} className={expanded ? EXPANDED_CLASS : FIGURE_CLASS}>
+      <figure ref={figureRef} className={expanded ? expandedClass : FIGURE_CLASS}>
         {expanded ? null : (
           <figcaption className={`${CAPTION_ROW_CLASS} ${CAPTION_CLASS}`}>
             <span>{caption}</span>
-            {onExpand ? (
-              <button type="button" className={EXPAND_CLASS} onClick={onExpand}>
-                {EXPAND_LABEL}
-              </button>
-            ) : null}
           </figcaption>
         )}
         {warning && !expanded ? <p className={WARNING_CLASS}>{warning}</p> : null}
-        <div className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : undefined} {...gesture?.handlers}>
-          <div style={gesture?.style}>{media}</div>
+        <div className={expanded ? undefined : portraitMedia ? MEDIA_BLOCK_PORTRAIT_CLASS : MEDIA_BLOCK_CLASS}>
+          <div
+            className={expanded ? (gesture ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}` : BIG_MEDIA_CLASS) : undefined}
+            {...gesture?.handlers}
+          >
+            <div style={gesture?.style}>{media}</div>
+          </div>
+          {expanded ? null : (
+            <>
+              {onExpand ? (
+                <button type="button" className={EXPAND_OVERLAY_CLASS} aria-label={EXPAND_LABEL} title={EXPAND_LABEL} onClick={onExpand}>
+                  {SCREEN_EXPAND_ICON}
+                </button>
+              ) : null}
+              {overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
+            </>
+          )}
         </div>
-        {overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
+        {expanded && overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
         {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
         {expanded && onCollapse ? (
           <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>

@@ -1,8 +1,8 @@
 export const RANGE_LABEL = 'Fenêtre'
-export const NOW_LABEL = 'Maintenant'
+export const NOW_LABEL = 'Direct'
 export const NOW_MARK = 'maintenant'
 
-/** Le bouton « Maintenant » : se soulève au survol, s'enfonce au clic (et retombe en douceur). */
+/** Le bouton « Direct » : se soulève au survol, s'enfonce au clic (et retombe en douceur). */
 export const NOW_BUTTON_CLASS =
   'transition duration-150 hover:enabled:-translate-y-0.5 hover:enabled:shadow-md hover:enabled:brightness-110 active:enabled:translate-y-0 active:enabled:scale-95 active:enabled:shadow-none active:enabled:brightness-90'
 export const WRAP_CLASS = 'mt-3'
@@ -42,7 +42,7 @@ export const CLIP_SPAN_VERTICAL_CLASS = 'pointer-events-none absolute left-[3.75
 export const MARKER_VERTICAL_CLASS = 'absolute left-16 w-28 min-h-4 cursor-pointer rounded border p-0 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-accent'
 /**
  * La frise qui remplit sa place (écran du téléphone) : le bloc prend toute la hauteur du parent, l'axe tout ce qui reste
- * sous les commandes (« Maintenant » et les durées sont dans la frise).
+ * sous les commandes (« Direct » et les durées sont dans la frise).
  */
 export const WRAP_FILL_CLASS = 'flex h-full min-h-0 flex-col pt-2'
 export const AXIS_FILL_CLASS = 'relative mt-2 min-h-0 flex-1 cursor-grab touch-none select-none overflow-hidden rounded-lg border border-line bg-card active:cursor-grabbing'

@@ -2,7 +2,8 @@ import type { CSSProperties, HTMLAttributes, ReactNode, RefObject } from 'react'
 
 /** Le zoom au doigt du média en grand, tenu par le parent : les gestes de la zone, et le style du contenu qui bouge. */
 export interface MediaGesture {
-  handlers: HTMLAttributes<HTMLDivElement>
+  /** Les gestes de la zone ; `ref` : la zone elle-même (la molette s'y accroche hors de React, pour empêcher le défilement de la page). */
+  handlers: HTMLAttributes<HTMLDivElement> & { ref?: (element: HTMLDivElement | null) => void }
   style: CSSProperties
 }
 
@@ -39,4 +40,6 @@ export interface CameraCardProps {
   onCollapse?: () => void
   /** Zoom au doigt (pincer, déplacer, double toucher), seulement en vue en grand ; sans lui, le média ne bouge pas. */
   mediaGesture?: MediaGesture
+  /** Le média est en portrait : la vue en grand garde l'écran tel quel (pas de quart de tour quand il est droit). */
+  portraitMedia?: boolean
 }

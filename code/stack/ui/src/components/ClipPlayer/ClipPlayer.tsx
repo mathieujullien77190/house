@@ -1,14 +1,51 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Button from '../Button'
-import { BOX_CLASS, CLOSE_CLASS, CLOSE_LABEL, DRIFT_SECONDS, ERROR_CLASS, LOADING_TEXT, PLAYER_CLASS, SOUND_CLASS, SOUND_LABEL, VIDEO_CLASS } from './constants'
+import {
+  BOX_CLASS,
+  CLOSE_CLASS,
+  CLOSE_LABEL,
+  CONTROLS_CLASS,
+  DRIFT_SECONDS,
+  ERROR_CLASS,
+  LOADING_TEXT,
+  PAUSE_ICON,
+  PAUSE_LABEL,
+  PLAY_ICON,
+  PLAY_LABEL,
+  PLAYER_CLASS,
+  SEEK_CLASS,
+  SEEK_LABEL,
+  SOUND_CLASS,
+  SOUND_LABEL,
+  TIME_CLASS,
+  VIDEO_CLASS,
+} from './constants'
+import { formatClock } from './helpers'
 import type { ClipPlayerProps } from './types'
 
 /** Le lecteur d'un clip : démarre à `startAt`, remonte sa durée et sa position, et joue le son du clip (un fichier à part) avec la vidéo. Le téléchargement est au parent. */
-const ClipPlayer = ({ src, audioSrc, error, startAt, restart = 0, onClose, onReady, onFailure, onTime, onDuration }: ClipPlayerProps) => {
+const ClipPlayer = ({
+  src,
+  audioSrc,
+  error,
+  startAt,
+  restart = 0,
+  onClose,
+  onReady,
+  onFailure,
+  onTime,
+  onDuration,
+  controlsHost = null,
+}: ClipPlayerProps) => {
   const video = useRef<HTMLVideoElement>(null)
   const audio = useRef<HTMLAudioElement>(null)
   // Le navigateur a refusé de lancer le son tout seul (téléphone) : un bouton le lance d'un toucher.
   const [soundBlocked, setSoundBlocked] = useState(false)
+  // Pour les commandes maison : la vidéo joue-t-elle, où en est-elle, combien dure-t-elle.
+  const [playing, setPlaying] = useState(false)
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
 
   // À chaque nouvelle position demandée (ou nouveau clic : restart change), la lecture saute là, une fois la vidéo prête.
   useEffect(() => {
@@ -76,6 +113,64 @@ const ClipPlayer = ({ src, audioSrc, error, startAt, restart = 0, onClose, onRea
     }
   }, [audioSrc, src])
 
+  useEffect(() => {
+    const element = video.current
+    if (!element || !src || !controlsHost) return
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onLength = () => setDuration(element.duration)
+    element.addEventListener('play', onPlay)
+    element.addEventListener('pause', onPause)
+    element.addEventListener('ended', onPause)
+    element.addEventListener('durationchange', onLength)
+    setPlaying(!element.paused)
+    onLength()
+    return () => {
+      element.removeEventListener('play', onPlay)
+      element.removeEventListener('pause', onPause)
+      element.removeEventListener('ended', onPause)
+      element.removeEventListener('durationchange', onLength)
+    }
+  }, [src, controlsHost])
+
+  const togglePlay = () => {
+    const element = video.current
+    if (!element) return
+    if (element.paused) element.play().catch(() => undefined)
+    else element.pause()
+  }
+  const seek = (seconds: number) => {
+    const element = video.current
+    if (!element) return
+    element.currentTime = seconds
+    setTime(seconds)
+  }
+  // Les commandes maison, posées dans l'élément donné par le parent (hors du lecteur, donc droites même si la vidéo est tournée).
+  const controls =
+    controlsHost && src && !error
+      ? createPortal(
+          <div className={CONTROLS_CLASS}>
+            <Button aria-label={playing ? PAUSE_LABEL : PLAY_LABEL} title={playing ? PAUSE_LABEL : PLAY_LABEL} onClick={togglePlay}>
+              {playing ? PAUSE_ICON : PLAY_ICON}
+            </Button>
+            <input
+              type="range"
+              className={SEEK_CLASS}
+              aria-label={SEEK_LABEL}
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(time, duration || 0)}
+              onChange={(event) => seek(Number(event.currentTarget.value))}
+            />
+            <span className={TIME_CLASS}>
+              {formatClock(time)} / {formatClock(duration)}
+            </span>
+          </div>,
+          controlsHost,
+        )
+      : null
+
   const enableSound = () => {
     const sound = audio.current
     if (!sound) return
@@ -95,7 +190,7 @@ const ClipPlayer = ({ src, audioSrc, error, startAt, restart = 0, onClose, onRea
           ref={video}
           className={VIDEO_CLASS}
           src={src}
-          controls
+          controls={!controlsHost}
           // Ni agrandir, ni télécharger, ni vitesse, ni diffusion, ni image dans l'image : les commandes ne gardent que lecture et barre de temps (voir VIDEO_CLASS).
           controlsList="nofullscreen nodownload noremoteplayback noplaybackrate"
           disablePictureInPicture
@@ -105,11 +200,15 @@ const ClipPlayer = ({ src, audioSrc, error, startAt, restart = 0, onClose, onRea
           preload="metadata"
           onLoadedData={onReady}
           onError={(event) => onFailure?.(event.currentTarget.error?.code ?? 0)}
-          onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)}
+          onTimeUpdate={(event) => {
+            setTime(event.currentTarget.currentTime)
+            onTime(event.currentTarget.currentTime)
+          }}
         />
       ) : (
         <div className={BOX_CLASS}>{LOADING_TEXT}</div>
       )}
+      {controls}
       {audioSrc && src && !error ? <audio ref={audio} src={audioSrc} preload="auto" /> : null}
       {soundBlocked ? (
         <Button className={SOUND_CLASS} onClick={enableSound}>

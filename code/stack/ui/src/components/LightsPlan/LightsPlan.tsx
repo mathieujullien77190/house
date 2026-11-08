@@ -10,6 +10,13 @@ import {
   CONCRETE_CLASS,
   GATE_CLASS,
   HEDGE_CLASS,
+  HEDGE_HANDLE_LABEL,
+  HEDGE_LABEL,
+  HEDGE_MOVABLE_CLASS,
+  HEDGE_SELECTED_CLASS,
+  TREE_HANDLE_LABEL,
+  TREE_RADIUS_MAX,
+  TREE_RADIUS_MIN,
   FOV_CLASS,
   CAMERA_HANDLE_CLASS,
   CAMERA_FAR_MAX,
@@ -76,8 +83,8 @@ import {
   WALL_CLASS,
 } from './constants'
 import { EXPANDED_CLASS } from '../CameraCard/constants'
-import { clampToPlan, fieldOfView, tileArea, toPlan, treeFill } from './helpers'
-import type { LightsPlanProps, PlanLamp, PlanTree } from './types'
+import { clampToPlan, fieldOfView, tileArea, toPlan, treeFill, planScale, pointerInPlan } from './helpers'
+import type { LightsPlanProps, PlanLamp, PlanTree, PlanHedge } from './types'
 
 /** Le glissement en cours : l'ampoule saisie, où le doigt a commencé, et si on a dépassé le seuil (donc ce n'est plus un clic). */
 interface Drag {
@@ -113,14 +120,19 @@ const LightsPlan = ({
   roof = false,
   terrace = 0,
   houseShift = 0,
+  houseHeight = HOUSE_HEIGHT,
   floors = [],
   floorPaths = [],
   extension,
   concreteNorth = false,
   selectedTreeId,
   onSelectTree,
+  onResizeTree,
   gates = [],
   hedges = [],
+  selectedHedgeId,
+  onSelectHedge,
+  onMoveHedge,
   cameras = [],
   selectedCameraId,
   onSelectCamera,
@@ -139,6 +151,8 @@ const LightsPlan = ({
   // Sur l'écran du téléphone, le dessin s'arrête avant la zone « À placer ».
   const viewWidth = screen || bare ? EXPANDED_VIEW_WIDTH : VIEW_WIDTH
   const svg = useRef<SVGSVGElement>(null)
+  // Le pointeur dans les unités du plan (par la matrice du SVG : juste même posé tourné sur une carte).
+  const planPoint = (clientX: number, clientY: number) => pointerInPlan(svg.current, clientX, clientY)
   const drag = useRef<Drag | null>(null)
   const [active, setActive] = useState<string | null>(null)
 
@@ -153,11 +167,10 @@ const LightsPlan = ({
     const box = svg.current?.getBoundingClientRect()
     if (!current || !box || !onMoveCamera || screen) return
     const area = view ?? { x: VIEW_X, y: VIEW_Y, w: viewWidth, h: VIEW_HEIGHT }
-    const scale = area.w / box.width
+    const scale = planScale(svg.current)
     if (!current.moved && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) * scale <= DRAG_THRESHOLD) return
     current.moved = true
-    const x = area.x + ((event.clientX - box.left) / box.width) * area.w
-    const y = area.y + ((event.clientY - box.top) / box.height) * area.h
+    const { x, y } = planPoint(event.clientX, event.clientY)
     onMoveCamera(
       current.id,
       Math.round(Math.min(area.x + area.w, Math.max(area.x, x))),
@@ -187,9 +200,9 @@ const LightsPlan = ({
     const box = svg.current?.getBoundingClientRect()
     const start = adjusting.current
     if (start === null || !box || !onAdjustCamera) return
-    const area = view ?? { x: VIEW_X, y: VIEW_Y, w: viewWidth, h: VIEW_HEIGHT }
-    const dx = area.x + ((event.clientX - box.left) / box.width) * area.w - camera.x
-    const dy = area.y + ((event.clientY - box.top) / box.height) * area.h - camera.y
+    const point = planPoint(event.clientX, event.clientY)
+    const dx = point.x - camera.x
+    const dy = point.y - camera.y
     if (dx === 0 && dy === 0) return
     // La poignée est à CAMERA_HANDLE_RATIO de la longueur de la vue : sa distance donne la longueur ; l'écartement suit (même proportion).
     const far = Math.round(Math.min(CAMERA_FAR_MAX, Math.max(CAMERA_FAR_MIN, Math.hypot(dx, dy) / CAMERA_HANDLE_RATIO)))
@@ -213,8 +226,7 @@ const LightsPlan = ({
     const box = svg.current?.getBoundingClientRect()
     if (plugDrag.current === null || !box || !onMovePlug) return
     const area = view ?? { x: VIEW_X, y: VIEW_Y, w: viewWidth, h: VIEW_HEIGHT }
-    const x = area.x + ((event.clientX - box.left) / box.width) * area.w
-    const y = area.y + ((event.clientY - box.top) / box.height) * area.h
+    const { x, y } = planPoint(event.clientX, event.clientY)
     onMovePlug(
       plugDrag.current,
       Math.round(Math.min(area.x + area.w, Math.max(area.x, x))),
@@ -239,8 +251,7 @@ const LightsPlan = ({
     if (treeDrag.current === null || !box || !onMoveTree) return
     // Un arbre reste dans la zone dessinée (celle du terrain si `view` est donnée).
     const area = view ?? { x: VIEW_X, y: VIEW_Y, w: viewWidth, h: VIEW_HEIGHT }
-    const x = area.x + ((event.clientX - box.left) / box.width) * area.w
-    const y = area.y + ((event.clientY - box.top) / box.height) * area.h
+    const { x, y } = planPoint(event.clientX, event.clientY)
     onMoveTree(
       treeDrag.current,
       Math.round(Math.min(area.x + area.w, Math.max(area.x, x))),
@@ -249,6 +260,73 @@ const LightsPlan = ({
   }
   const treeUp = (event: PointerEvent<SVGCircleElement>) => {
     treeDrag.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  // La poignée sur le bord de l'arbre choisi : sa distance au centre devient le rayon.
+  const treeResize = useRef<string | null>(null)
+  const treeHandleDown = (event: PointerEvent<SVGCircleElement>, tree: PlanTree) => {
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    treeResize.current = tree.id
+  }
+  const treeHandleMove = (event: PointerEvent<SVGCircleElement>, tree: PlanTree) => {
+    event.stopPropagation()
+    if (treeResize.current !== tree.id || !onResizeTree) return
+    const point = planPoint(event.clientX, event.clientY)
+    onResizeTree(tree.id, Math.round(Math.min(TREE_RADIUS_MAX, Math.max(TREE_RADIUS_MIN, Math.hypot(point.x - tree.x, point.y - tree.y)))))
+  }
+  const treeHandleUp = (event: PointerEvent<SVGCircleElement>) => {
+    event.stopPropagation()
+    treeResize.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  // Une haie : un clic la choisit (ses sommets apparaissent), un glissement la déplace entière ; un sommet de la haie choisie se glisse seul.
+  const hedgeDrag = useRef<{ id: string; from: { x: number; y: number }; points: [number, number][]; moved: boolean } | null>(null)
+  const hedgeDown = (event: PointerEvent<SVGPolylineElement>, hedge: PlanHedge) => {
+    if (screen || !onMoveHedge) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    hedgeDrag.current = { id: hedge.id, from: planPoint(event.clientX, event.clientY), points: hedge.points, moved: false }
+  }
+  const hedgeMove = (event: PointerEvent<SVGPolylineElement>) => {
+    const current = hedgeDrag.current
+    if (!current || !onMoveHedge) return
+    const point = planPoint(event.clientX, event.clientY)
+    const dx = point.x - current.from.x
+    const dy = point.y - current.from.y
+    if (!current.moved && Math.hypot(dx, dy) <= DRAG_THRESHOLD) return
+    current.moved = true
+    onMoveHedge(
+      current.id,
+      current.points.map(([x, y]) => [Math.round(x + dx), Math.round(y + dy)]),
+    )
+  }
+  const hedgeUp = (event: PointerEvent<SVGPolylineElement>) => {
+    const current = hedgeDrag.current
+    hedgeDrag.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    if (current && !current.moved) onSelectHedge?.(current.id)
+  }
+  const hedgeVertex = useRef<{ id: string; index: number } | null>(null)
+  const vertexDown = (event: PointerEvent<SVGCircleElement>, hedge: PlanHedge, index: number) => {
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    hedgeVertex.current = { id: hedge.id, index }
+  }
+  const vertexMove = (event: PointerEvent<SVGCircleElement>, hedge: PlanHedge) => {
+    event.stopPropagation()
+    const current = hedgeVertex.current
+    if (!current || current.id !== hedge.id || !onMoveHedge) return
+    const point = planPoint(event.clientX, event.clientY)
+    onMoveHedge(
+      hedge.id,
+      hedge.points.map((old, index) => (index === current.index ? [Math.round(point.x), Math.round(point.y)] : old)),
+    )
+  }
+  const vertexUp = (event: PointerEvent<SVGCircleElement>) => {
+    event.stopPropagation()
+    hedgeVertex.current = null
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
@@ -263,15 +341,14 @@ const LightsPlan = ({
     const box = svg.current?.getBoundingClientRect()
     if (!current || !box) return
     // Le seuil se mesure en unités du plan, comme celui des caméras du site : un tremblement du doigt n'est pas un glissement.
-    const scale = (view?.w ?? viewWidth) / box.width
+    const scale = planScale(svg.current)
     if (!current.moved && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) * scale <= DRAG_THRESHOLD) return
     current.moved = true
     // Sur l'écran du téléphone (parfois tourné d'un quart de tour), on ne déplace pas : seul un toucher allume ou éteint.
     if (screen) return
     if (view) {
       // Zone dessinée sur mesure : l'ampoule reste entière dedans.
-      const x = view.x + ((event.clientX - box.left) / box.width) * view.w
-      const y = view.y + ((event.clientY - box.top) / box.height) * view.h
+      const { x, y } = planPoint(event.clientX, event.clientY)
       onMove(
         current.id,
         Math.round(Math.min(view.x + view.w - BULB_RADIUS, Math.max(view.x + BULB_RADIUS, x))),
@@ -341,7 +418,7 @@ const LightsPlan = ({
         <path key={path} className={CONCRETE_CLASS} d={path} />
       ))}
       {terrace > 0 || floors.length > 0 || floorPaths.length > 0 ? (
-        <path className={TERRACE_CLASS} d={tileArea(terrace, houseShift, floors, floorPaths)} />
+        <path className={TERRACE_CLASS} d={tileArea(terrace, houseShift, floors, floorPaths, houseHeight)} />
       ) : null}
       {/* La cage (intérieur rouge pastel et contour rouge) passe sous tout le reste : les caméras et les objets connectés (lampe, prise) sont dessus. */}
       {cage ? (
@@ -360,7 +437,7 @@ const LightsPlan = ({
           // Le toit et l'avancée ne font qu'une forme : un seul contour, sans trait entre les deux.
           <path
             className={roof ? ROOF_CLASS : HOUSE_CLASS}
-            d={`M ${HOUSE_INSET} ${HOUSE_INSET} H ${HOUSE_WIDTH - HOUSE_INSET} V ${extension.y} H ${extension.x + extension.w} V ${extension.y + extension.h} H ${HOUSE_WIDTH - HOUSE_INSET} V ${HOUSE_HEIGHT - HOUSE_INSET} H ${HOUSE_INSET} Z`}
+            d={`M ${HOUSE_INSET} ${HOUSE_INSET} H ${HOUSE_WIDTH - HOUSE_INSET} V ${extension.y} H ${extension.x + extension.w} V ${extension.y + extension.h} H ${HOUSE_WIDTH - HOUSE_INSET} V ${houseHeight - HOUSE_INSET} H ${HOUSE_INSET} Z`}
           />
         ) : (
           <rect
@@ -368,7 +445,7 @@ const LightsPlan = ({
             x={HOUSE_INSET}
             y={HOUSE_INSET}
             width={HOUSE_WIDTH - 2 * HOUSE_INSET}
-            height={HOUSE_HEIGHT - 2 * HOUSE_INSET}
+            height={houseHeight - 2 * HOUSE_INSET}
           />
         )}
       </g>
@@ -405,8 +482,38 @@ const LightsPlan = ({
         />
       ))}
       {hedges.map((hedge) => (
-        <path key={hedge} className={HEDGE_CLASS} d={hedge} />
+        <polyline
+          key={hedge.id}
+          className={hedge.id === selectedHedgeId ? HEDGE_SELECTED_CLASS : onMoveHedge && !screen ? HEDGE_MOVABLE_CLASS : HEDGE_CLASS}
+          points={hedge.points.map(([x, y]) => `${x},${y}`).join(' ')}
+          onPointerDown={(event) => hedgeDown(event, hedge)}
+          onPointerMove={hedgeMove}
+          onPointerUp={hedgeUp}
+          onPointerCancel={hedgeUp}
+        >
+          <title>{HEDGE_LABEL}</title>
+        </polyline>
       ))}
+      {/* Les sommets de la haie choisie : des poignées, une par sommet. */}
+      {hedges
+        .filter((hedge) => hedge.id === selectedHedgeId && onMoveHedge && !screen)
+        .map((hedge) =>
+          hedge.points.map(([x, y], index) => (
+            <circle
+              key={`${hedge.id}-${index}`}
+              className={CAMERA_HANDLE_CLASS}
+              cx={x}
+              cy={y}
+              r={CAMERA_HANDLE_RADIUS}
+              onPointerDown={(event) => vertexDown(event, hedge, index)}
+              onPointerMove={(event) => vertexMove(event, hedge)}
+              onPointerUp={vertexUp}
+              onPointerCancel={vertexUp}
+            >
+              <title>{HEDGE_HANDLE_LABEL}</title>
+            </circle>
+          )),
+        )}
       {gates.map((gate) => (
         <line key={gate.id} className={GATE_CLASS} x1={gate.x1} y1={gate.y1} x2={gate.x2} y2={gate.y2}>
           <title>{gate.name}</title>
@@ -428,6 +535,24 @@ const LightsPlan = ({
           <title>{TREE_LABEL}</title>
         </circle>
       ))}
+      {/* La poignée de l'arbre choisi, sur son bord droit : la glisser change sa taille. */}
+      {trees
+        .filter((tree) => tree.id === selectedTreeId && onResizeTree && !screen)
+        .map((tree) => (
+          <circle
+            key={`${tree.id}-handle`}
+            className={CAMERA_HANDLE_CLASS}
+            cx={tree.x + tree.r}
+            cy={tree.y}
+            r={CAMERA_HANDLE_RADIUS}
+            onPointerDown={(event) => treeHandleDown(event, tree)}
+            onPointerMove={(event) => treeHandleMove(event, tree)}
+            onPointerUp={treeHandleUp}
+            onPointerCancel={treeHandleUp}
+          >
+            <title>{TREE_HANDLE_LABEL}</title>
+          </circle>
+        ))}
       {lamps.map((lamp) => (
         <g
           key={lamp.id}

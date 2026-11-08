@@ -7,4 +7,6 @@ export interface SnapshotImageProps {
   message: string
   /** Appelé quand l'image est chargée, avec sa taille réelle en pixels (pour un flux MJPEG : à la première image). */
   onSize?: (width: number, height: number) => void
+  /** Le cadre est tourné d'un quart de tour horaire par le parent : le texte (chargement, message, identifiant) est remis droit. */
+  upright?: boolean
 }

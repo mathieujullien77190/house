@@ -38,14 +38,32 @@ export const treeFill = (radius: number): string => {
  * Tout le pavage (la terrasse de la maison, décalée avec elle, et les autres zones de sol) en **un seul tracé** : des rectangles de même sens
  * dans un même chemin, donc leur réunion, sans trait ni couture entre eux.
  */
+/**
+ * Le point du pointeur dans les unités du plan, par la matrice du SVG : juste même quand le plan est tourné ou étiré par CSS (posé sur une carte).
+ * Sans SVG monté : l'origine.
+ */
+export const pointerInPlan = (svg: SVGSVGElement | null, clientX: number, clientY: number): { x: number; y: number } => {
+  const matrix = svg?.getScreenCTM()
+  if (!matrix) return { x: 0, y: 0 }
+  const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse())
+  return { x: point.x, y: point.y }
+}
+
+/** Les unités du plan par pixel de l'écran (pour mesurer un seuil de glissement), par la même matrice. */
+export const planScale = (svg: SVGSVGElement | null): number => {
+  const matrix = svg?.getScreenCTM()
+  return matrix ? 1 / (Math.hypot(matrix.a, matrix.b) || 1) : 1
+}
+
 export const tileArea = (
   terrace: number,
   houseShift: number,
   floors: { x: number; y: number; w: number; h: number }[],
   floorPaths: string[] = [],
+  houseHeight: number = HOUSE_HEIGHT,
 ): string => {
   const rects = [
-    ...(terrace > 0 ? [{ x: houseShift - terrace, y: -terrace, w: HOUSE_WIDTH + 2 * terrace, h: HOUSE_HEIGHT + 2 * terrace }] : []),
+    ...(terrace > 0 ? [{ x: houseShift - terrace, y: -terrace, w: HOUSE_WIDTH + 2 * terrace, h: houseHeight + 2 * terrace }] : []),
     ...floors,
   ]
   return [...rects.map((rect) => `M ${rect.x} ${rect.y} h ${rect.w} v ${rect.h} h ${-rect.w} Z`), ...floorPaths].join(' ')

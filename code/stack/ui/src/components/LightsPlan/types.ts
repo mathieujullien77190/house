@@ -46,6 +46,12 @@ export interface PlanTree {
   r: number
 }
 
+/** Une haie : une ligne brisée (ses sommets, en unités du plan), dessinée en gros trait vert arrondi. */
+export interface PlanHedge {
+  id: string
+  points: [number, number][]
+}
+
 /** Un portail ou un portillon : un segment sur le contour du terrain. */
 export interface PlanGate {
   id: string
@@ -129,12 +135,21 @@ export interface LightsPlanProps {
    */
   onAdjustCamera?: (id: string, setting: { angle: number; far: number; fov: number }) => void
   onMoveCamera?: (id: string, x: number, y: number) => void
-  /** Des haies : des chemins SVG tracés en un gros trait vert arrondi (une « saucisse »), par exemple le long de la limite du terrain. */
-  hedges?: string[]
+  /** Des haies : des lignes brisées tracées en un gros trait vert arrondi (une « saucisse »), par exemple le long de la limite du terrain. */
+  hedges?: PlanHedge[]
+  /** La haie choisie (un clic dessus) : ses sommets se montrent et se glissent un par un ; glisser la haie elle-même la déplace entière. */
+  selectedHedgeId?: string
+  onSelectHedge?: (id: string) => void
+  /** Une haie a bougé (entière, ou un de ses sommets) : ses nouveaux sommets. Sans lui, les haies sont fixes. */
+  onMoveHedge?: (id: string, points: [number, number][]) => void
+  /** L'arbre choisi a une poignée sur son bord : la glisser change son rayon. Sans lui, la taille est fixe. */
+  onResizeTree?: (id: string, r: number) => void
   /** Des portails et portillons posés sur le contour du terrain : un trait épais entre deux points, avec son nom. */
   gates?: PlanGate[]
   /** La maison (avec sa terrasse) est décalée vers la droite de ce nombre d'unités du plan. */
   houseShift?: number
+  /** La hauteur de la maison (du nord au sud), en unités du plan : 300 par défaut ; la vraie maison posée sur la carte en a une autre. */
+  houseHeight?: number
   /** Des zones de sol carrelé (même couleur que la terrasse), en unités du plan. */
   floors?: PlanRect[]
   /** Des zones de sol en chemins SVG (pour un bord en arc), réunies aux autres dans le même tracé de pavage ; même sens que les rectangles (horaire). */
