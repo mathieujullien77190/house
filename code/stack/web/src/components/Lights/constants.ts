@@ -238,6 +238,13 @@ export const PLAN_CAMERAS = [
     near: 18,
     far: 330,
   },
+  // Six caméras de plus (5 à 10), posées au nord de la maison en attendant d'être placées à la main (mode « Modifier » de la carte) ; liées à aucune vraie caméra au départ.
+  { id: 'camera-5', name: 'Caméra 5 (à placer)', x: 170, y: -100, angle: 0, fov: 60, near: 18, far: 200 },
+  { id: 'camera-6', name: 'Caméra 6 (à placer)', x: 330, y: -100, angle: 0, fov: 60, near: 18, far: 200 },
+  { id: 'camera-7', name: 'Caméra 7 (à placer)', x: 170, y: -170, angle: 0, fov: 60, near: 18, far: 200 },
+  { id: 'camera-8', name: 'Caméra 8 (à placer)', x: 330, y: -170, angle: 0, fov: 60, near: 18, far: 200 },
+  { id: 'camera-9', name: 'Caméra 9 (à placer)', x: 170, y: -240, angle: 0, fov: 60, near: 18, far: 200 },
+  { id: 'camera-10', name: 'Caméra 10 (à placer)', x: 330, y: -240, angle: 0, fov: 60, near: 18, far: 200 },
 ]
 /**
  * Le chemin de béton gris clair, tout droit du portail au mur ouest de la maison (x = 41), aussi large que le portail ; son bout gauche suit

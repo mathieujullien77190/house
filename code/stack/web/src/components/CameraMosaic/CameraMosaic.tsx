@@ -62,7 +62,10 @@ const CameraMosaic = ({ apiKey, cameras, events, isRead, onOpen }: CameraMosaicP
   const offPlanIds = Object.entries(links)
     .filter(([, name]) => offNames.includes(name))
     .map(([planId]) => planId)
-  const shownCameras = planCameras.map((camera) => (offPlanIds.includes(camera.id) ? { ...camera, off: true } : camera))
+  // Contour rouge : la vraie caméra est éteinte, ou la caméra du plan n'est liée à aucune vraie caméra.
+  const shownCameras = planCameras.map((camera) =>
+    offPlanIds.includes(camera.id) || !links[camera.id] ? { ...camera, off: true } : camera,
+  )
   // La caméra dont on voit le champ de vision : un clic sur son icône l'affiche, un second le cache.
   const [selectedCamera, setSelectedCamera] = useState('')
   // L'icône a été sélectionnée en passant la souris sur la vignette (elle se désélectionne alors quand la souris la quitte).

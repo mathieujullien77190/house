@@ -25,6 +25,7 @@ export const PLAN_LAYERS = [
   'plan-arbres-trait',
   'plan-vue',
   'plan-cameras',
+  'plan-cameras-trait',
   'plan-lampes',
   'plan-prises',
   'plan-saisie',
@@ -143,7 +144,15 @@ export const addPlanLayers = (
     id: 'plan-cameras',
     type: 'fill',
     ...only(SHAPES_SOURCE, kind('camera')),
-    paint: { 'fill-color': '#000000', 'fill-outline-color': palette.accent },
+    paint: { 'fill-color': '#000000' },
+  })
+  // Le contour d'une caméra : bleu, ou rouge quand sa vraie caméra est éteinte ou qu'elle n'est liée à aucune (la couleur vient de l'élément).
+  map.addLayer({
+    id: 'plan-cameras-trait',
+    type: 'line',
+    ...only(SHAPES_SOURCE, kind('camera')),
+    layout: { 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'stroke'], 'line-width': 1 },
   })
   map.addLayer({
     id: 'plan-lampes',
