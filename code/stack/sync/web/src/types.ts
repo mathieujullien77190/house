@@ -6,6 +6,8 @@ export interface TableSummary {
   count: number
   /** Les filtres que la page propose : le choix d'une valeur (caméra, matériel Hue) et/ou la date. */
   filters?: { match: 'camera' | 'name' | 'cle' | null; date: boolean }
+  /** Les sommes de la table entière (heating_log : minutes et cost). */
+  sums?: Record<string, number>
 }
 
 export interface Overview {
@@ -39,6 +41,8 @@ export interface Filter {
 /** Une page filtrée, avec les valeurs que le choix peut prendre. */
 export interface FilteredPage<T> extends Page<T> {
   options: string[]
+  /** Les sommes des colonnes que la table totalise (heating_log : minutes et cost), sur toutes les lignes du filtre. */
+  sums?: Record<string, number>
 }
 
 export interface BackupFile {

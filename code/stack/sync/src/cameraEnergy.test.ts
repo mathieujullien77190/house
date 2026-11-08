@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
-import { writeFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { createCameraEnergy, DEFAULT_TARIFF, isOffPeak, readCameraEnergy, readTariff, slicesOf, type PowerFetcher } from './cameraEnergy.ts'
+import { createCameraEnergy, isOffPeak, OFF_PEAK_PRICE_KWH, PEAK_PRICE_KWH, readCameraEnergy, slicesOf, type PowerFetcher } from './cameraEnergy.ts'
 import type { ApiTarget } from './power.ts'
 import { testContext } from './testing.ts'
 
@@ -24,36 +23,16 @@ const setup = (start: string) => {
 }
 const near = (actual: unknown, expected: number) => assert.ok(Math.abs(Number(actual) - expected) < 1e-9, `${String(actual)} différent de ${expected}`)
 
-test('readTariff : défauts si le fichier manque ou est abîmé, lecture tolérante sinon', async () => {
-  const ctx = testContext()
-  const file = ctx.config.heatingSettingsFile
-  assert.deepEqual(await readTariff(file), DEFAULT_TARIFF)
-  writeFileSync(file, 'pas du json')
-  assert.deepEqual(await readTariff(file), DEFAULT_TARIFF)
-  writeFileSync(file, 'null')
-  assert.deepEqual(await readTariff(file), DEFAULT_TARIFF)
-  writeFileSync(file, JSON.stringify({ priceKwh: 0.2, peakPriceKwh: -1, offPeakStart: '22:00', offPeakEnd: 'minuit' }))
-  assert.deepEqual(await readTariff(file), { priceKwh: 0.2, peakPriceKwh: 0.2142, offPeakStart: '22:00', offPeakEnd: '07:10' })
-  writeFileSync(file, JSON.stringify({ priceKwh: 'x', peakPriceKwh: 0.3, offPeakStart: null, offPeakEnd: 5 }))
-  assert.deepEqual(await readTariff(file), { priceKwh: 0.1589, peakPriceKwh: 0.3, offPeakStart: null, offPeakEnd: '07:10' })
-})
-
-test('isOffPeak : plage qui passe minuit, plage du jour, bornes inconnues', () => {
+test('isOffPeak : la plage 23:10 → 07:10 passe minuit', () => {
   // Novembre : Paris = UTC + 1.
-  assert.equal(isOffPeak(at('2026-11-09T22:09:00Z'), DEFAULT_TARIFF), false)
-  assert.equal(isOffPeak(at('2026-11-09T22:10:00Z'), DEFAULT_TARIFF), true)
-  assert.equal(isOffPeak(at('2026-11-10T06:09:00Z'), DEFAULT_TARIFF), true)
-  assert.equal(isOffPeak(at('2026-11-10T06:10:00Z'), DEFAULT_TARIFF), false)
-  const day = { ...DEFAULT_TARIFF, offPeakStart: '12:00', offPeakEnd: '14:00' }
-  assert.equal(isOffPeak(at('2026-11-09T12:30:00Z'), day), true)
-  assert.equal(isOffPeak(at('2026-11-09T10:30:00Z'), day), false)
-  assert.equal(isOffPeak(at('2026-11-09T14:30:00Z'), day), false)
-  assert.equal(isOffPeak(at('2026-11-09T12:00:00Z'), { ...DEFAULT_TARIFF, offPeakStart: null }), true)
-  assert.equal(isOffPeak(at('2026-11-09T12:00:00Z'), { ...DEFAULT_TARIFF, offPeakEnd: null }), true)
+  assert.equal(isOffPeak(at('2026-11-09T22:09:00Z')), false)
+  assert.equal(isOffPeak(at('2026-11-09T22:10:00Z')), true)
+  assert.equal(isOffPeak(at('2026-11-10T06:09:00Z')), true)
+  assert.equal(isOffPeak(at('2026-11-10T06:10:00Z')), false)
 })
 
 test('slicesOf : coupé à chaque minute, jamais à cheval sur une heure', () => {
-  const slices = slicesOf(at('2026-11-09T09:59:30Z'), at('2026-11-09T10:00:30Z'), DEFAULT_TARIFF)
+  const slices = slicesOf(at('2026-11-09T09:59:30Z'), at('2026-11-09T10:00:30Z'))
   assert.deepEqual(
     slices.map((s) => [s.hour, s.ms]),
     [
@@ -61,7 +40,7 @@ test('slicesOf : coupé à chaque minute, jamais à cheval sur une heure', () =>
       ['2026-11-09T10:00:00.000Z', 30_000],
     ],
   )
-  assert.deepEqual(slicesOf(5, 5, DEFAULT_TARIFF), [])
+  assert.deepEqual(slicesOf(5, 5), [])
 })
 
 test('un relevé normal en heures creuses : le premier pose la date de départ, le suivant compte la dernière puissance connue', async () => {
@@ -79,7 +58,7 @@ test('un relevé normal en heures creuses : le premier pose la date de départ, 
   assert.equal(a.hour, '2026-11-09T02:00:00.000Z')
   near(a.wh_offpeak, 0.1)
   assert.equal(a.wh_peak, 0)
-  near(a.cost, (0.1 * 0.1589) / 1000)
+  near(a.cost, (0.1 * OFF_PEAK_PRICE_KWH) / 1000)
   near(b.wh_offpeak, 0.2)
   // un deuxième relevé s'ajoute à la même ligne (UPSERT) avec la puissance du relevé précédent
   ctx.time.advance(60_000)
@@ -94,9 +73,8 @@ test('un relevé normal en heures creuses : le premier pose la date de départ, 
   near(totals.total.cost, totals.cameras[0].cost + totals.cameras[1].cost)
 })
 
-test('un relevé à cheval sur 23:10 (Paris) se partage entre heures pleines et creuses, au tarif du fichier', async () => {
+test('un relevé à cheval sur 23:10 (Paris) se partage entre heures pleines et creuses, aux prix constants', async () => {
   const { ctx, answer, energy, rows } = setup('2026-11-09T22:08:00Z')
-  writeFileSync(ctx.config.heatingSettingsFile, JSON.stringify({ priceKwh: 0.1, peakPriceKwh: 0.3 }))
   answer.current = [cam('a', 60)]
   await energy.sample()
   ctx.time.advance(4 * 60_000)
@@ -105,7 +83,7 @@ test('un relevé à cheval sur 23:10 (Paris) se partage entre heures pleines et 
   assert.equal(row.hour, '2026-11-09T22:00:00.000Z')
   near(row.wh_peak, 2)
   near(row.wh_offpeak, 2)
-  near(row.cost, (2 * 0.3 + 2 * 0.1) / 1000)
+  near(row.cost, (2 * PEAK_PRICE_KWH + 2 * OFF_PEAK_PRICE_KWH) / 1000)
 })
 
 test('un trou de plus de 5 minutes est plafonné ; une panne de l’API ne compte rien', async () => {

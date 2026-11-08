@@ -95,6 +95,26 @@ test("une table sans filtre ignore ceux qu'on lui donne ; summarizeTables dit ce
   assert.deepEqual(tables.settings, { match: null, date: false })
 })
 
+const plain = (sums: Record<string, number> | undefined) => ({ ...sums })
+
+test('sums : minutes et cost de heating_log, sur le filtre ou sur toute la table, vides ailleurs', () => {
+  const db = database()
+  assert.deepEqual(plain(readTable(db, 'heating_log', 0, 20)?.sums), { minutes: 0, cost: 0 })
+  const insert = db.prepare('INSERT INTO heating_log (started_at, origin, minutes, cost) VALUES (?, ?, ?, ?)')
+  insert.run(1000, 'auto', 5, 0.25)
+  insert.run(2000, 'manuel', 10, 0.5)
+  insert.run(3000, 'auto', 15, 0.75)
+  assert.deepEqual(plain(readTable(db, 'heating_log', 0, 1)?.sums), { minutes: 30, cost: 1.5 })
+  assert.deepEqual(plain(readTable(db, 'heating_log', 0, 20, { from: 1500, to: 3500 })?.sums), { minutes: 25, cost: 1.25 })
+  assert.deepEqual(plain(readTable(db, 'events', 0, 20)?.sums), {})
+  const summary = summarizeTables(db)
+  assert.deepEqual(plain(summary.find((table) => table.name === 'heating_log')?.sums), { minutes: 30, cost: 1.5 })
+  assert.deepEqual(plain(summary.find((table) => table.name === 'events')?.sums), {})
+  const bare = new DatabaseSync(':memory:')
+  bare.exec('CREATE TABLE heating_log (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL)')
+  assert.deepEqual(plain(readTable(bare, 'heating_log', 0, 20)?.sums), {})
+})
+
 test('un nom de colonne ne vient jamais de la demande : une valeur piégée reste une valeur', () => {
   const db = database()
   assert.equal(readTable(db, 'events', 0, 20, { match: "x' OR '1'='1" })?.total, 0)

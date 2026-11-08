@@ -17,6 +17,8 @@ export interface TableSummary {
   count: number
   /** Les filtres que la page propose pour cette table : le choix d'une valeur (caméra, nom du matériel Hue) et la date. */
   filters: { match: 'camera' | 'name' | 'cle' | null; date: boolean }
+  /** Les sommes de la table entière (heating_log : minutes et cost), vides pour les autres. */
+  sums: Record<string, number>
 }
 
 /** Ce qu'une table se laisse filtrer : la colonne dont on choisit une valeur, et la colonne d'horodatage (secondes) de la date. */
@@ -32,6 +34,17 @@ export const TABLE_FILTERS: Record<string, TableFilterConfig> = {
   hue_events: { match: 'name', date: 'happened_at' },
   guest_visits: { match: 'cle', date: 'started_at' },
   heating_log: { match: null, date: 'started_at' },
+}
+
+/** Les colonnes dont la page montre la somme (sur toutes les lignes du filtre, pas seulement la page) : heating_log, le temps activé et le coût. */
+const SUMS: Record<string, string[]> = { heating_log: ['minutes', 'cost'] }
+
+/** Les sommes des colonnes que la table totalise (vide pour les autres), sur les lignes du filtre `clause`. */
+const sumsOf = (db: DatabaseSync, name: string, columns: string[], clause = '', args: (string | number)[] = []): Record<string, number> => {
+  const sumColumns = (SUMS[name] ?? []).filter((column) => columns.includes(column))
+  if (sumColumns.length === 0) return {}
+  const select = sumColumns.map((column) => `COALESCE(SUM(${column}), 0) AS ${column}`).join(', ')
+  return db.prepare(`SELECT ${select} FROM ${name} ${clause}`).get(...args) as Record<string, number>
 }
 
 /** Le filtre demandé : une valeur de la colonne choisie, et une période [from, to[ en secondes depuis 1970. */
@@ -91,6 +104,7 @@ export const summarizeTables = (db: DatabaseSync): TableSummary[] =>
     columns: shown(name, columnsOf(db, name)),
     count: (db.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get() as { n: number }).n,
     filters: { match: TABLE_FILTERS[name]?.match ?? null, date: TABLE_FILTERS[name]?.date != null },
+    sums: sumsOf(db, name, columnsOf(db, name)),
   }))
 
 /**
@@ -103,7 +117,7 @@ export const readTable = (
   page: number,
   size: number,
   filter: TableFilters = {},
-): (Page<Record<string, unknown>> & { options: string[] }) | null => {
+): (Page<Record<string, unknown>> & { options: string[]; sums: Record<string, number> }) | null => {
   if (!isTable(name)) return null
   const columns = columnsOf(db, name)
   const config = TABLE_FILTERS[name]
@@ -136,7 +150,8 @@ export const readTable = (
           .all() as { value: string }[]
       ).map((row) => row.value)
     : []
-  return { items, total, page, size, options }
+  const sums = sumsOf(db, name, columns, clause, args)
+  return { items, total, page, size, options, sums }
 }
 /** Les fichiers d'un dossier du disque backup, du plus récent au plus ancien, chemins relatifs au disque. */
 export const listBackup = async (dir: string, prefix = ''): Promise<BackupFile[]> => {

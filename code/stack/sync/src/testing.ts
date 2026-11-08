@@ -45,7 +45,7 @@ type Handler = (url: string, init?: RequestInit) => Response | Promise<Response>
 export const testContext = (handler: Handler = () => new Response('', { status: 404 }), env: Record<string, string> = {}): TestContext => {
   const dir = tempDir()
   const time = clock()
-  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), HEATING_SETTINGS_FILE: join(dir, 'heating.json'), ...env })
+  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), ...env })
   const db = new DatabaseSync(':memory:')
   const log = console.log
   console.log = () => undefined

@@ -4,7 +4,7 @@ import * as api from '@/lib/api'
 import type { FilteredPage, Row, TableSummary } from '@/types'
 import TableSection from '@/components/TableSection'
 import { renderCell } from './UI'
-import { isTimestamp, mediaOf } from './helpers'
+import { isTimestamp, mediaOf, sumsText } from './helpers'
 
 vi.mock('@/lib/api', () => ({ fetchTable: vi.fn() }))
 const fetchTable = vi.mocked(api.fetchTable)
@@ -33,6 +33,20 @@ describe('helpers', () => {
     expect(isTimestamp('started_at', 5)).toBe(true)
     expect(isTimestamp('started_at', '5')).toBe(false)
     expect(isTimestamp('id', 5)).toBe(false)
+  })
+})
+
+describe('sumsText', () => {
+  it('heures et minutes, ou minutes seules, avec le coût en euros', () => {
+    expect(sumsText({ minutes: 125, cost: 1.5 })).toBe(' · activé 2 h 05 · 1,50 €')
+    expect(sumsText({ minutes: 35, cost: 0.5265 })).toBe(' · activé 35 min · 0,5265 €')
+  })
+
+  it('vide sans sommes ou sans les deux colonnes', () => {
+    expect(sumsText(undefined)).toBe('')
+    expect(sumsText({})).toBe('')
+    expect(sumsText({ minutes: 5 })).toBe('')
+    expect(sumsText({ cost: 5 })).toBe('')
   })
 })
 
@@ -80,6 +94,15 @@ describe('TableSection', () => {
     open()
     await waitFor(() => expect(fetchTable).toHaveBeenCalledWith('events', 0, 20, { match: '', day: '' }))
     fireEvent.click(screen.getByRole('button', { name: /Replier/ }))
+  })
+
+  it('montre les sommes dans l’en-tête, repliée (celles de la table) puis dépliée (celles du filtre)', async () => {
+    const log: TableSummary = { name: 'heating_log', columns: ['id', 'minutes', 'cost'], count: 3, sums: { minutes: 125, cost: 1.5 } }
+    fetchTable.mockResolvedValue(page([{ id: 1, minutes: 5, cost: 0.25 }], { total: 1, sums: { minutes: 5, cost: 0.25 } }))
+    render(<TableSection table={log} refreshTick={0} onOpen={() => undefined} />)
+    expect(screen.getByText('3 ligne(s) · activé 2 h 05 · 1,50 €')).toBeTruthy()
+    open()
+    await screen.findByText('1 ligne(s) · activé 5 min · 0,25 €')
   })
 
   it('montre les lignes une fois dépliée, et recharge quand la page se rafraîchit', async () => {
