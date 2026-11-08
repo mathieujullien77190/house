@@ -1,2 +1,2 @@
 export { default } from './HeatingPanel'
-export type { HeatingColumns, HeatingField, HeatingPanelProps, HeatingRow } from './types'
+export type { HeatingField, HeatingPanelProps } from './types'

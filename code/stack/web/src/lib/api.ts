@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingLogEntry, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
+import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -89,7 +89,6 @@ export const setPlug = async (key: string, on: boolean, minutes?: number, offOnM
 export const fetchHeating = async (key: string): Promise<HeatingStatus> => (await request(key, '/plug/heating')).json()
 
 /** Les dernières activations du chauffage, la plus récente d'abord (503 sans prise). */
-export const fetchHeatingLog = async (key: string, limit = 50): Promise<HeatingLogEntry[]> => (await request(key, `/plug/log?limit=${limit}`)).json()
 
 /** Change les réglages du chauffage automatique (une valeur absente garde l'ancienne) ; en cas de refus (400), l'erreur porte le texte de l'API. */
 export const saveHeating = async (key: string, body: HeatingSettingsBody): Promise<HeatingStatus> => {

@@ -299,7 +299,7 @@ export const EXPLANATIONS: Record<string, string> = {
   'sync/web/src/lib/filter.ts': 'Les filtres des tableaux : le jour choisi devient une période en secondes (heure locale) et le filtre devient les paramètres de la requête.',
   'sync/src/data.test.ts': 'Les tests des filtres de House Sync : valeur et période sur les tables, caméras et dates des clips.',
   'ui/src/components/Checkbox/Checkbox.tsx': 'Une case à cocher et son texte, cliquable aussi, assez haute pour le doigt ; sert à l’option « éteindre au mouvement » de la prise.',
-  'ui/src/components/HeatingPanel/HeatingPanel.tsx': 'La règle du chauffage automatique : la case, les champs (nombre, décimal, heure), le bouton Enregistrer, l’état de la règle et le journal des activations avec son total ; tout est en texte, le parent convertit et envoie.',
+  'ui/src/components/HeatingPanel/HeatingPanel.tsx': 'La règle du chauffage automatique : la case, les champs (nombre, décimal, heure), le bouton Enregistrer ; tout est en texte, le parent convertit et envoie.',
   'sync/src/http.ts': 'Les petits outils HTTP de House Sync : lire un corps JSON borné, répondre en JSON, valider un entier de réglage.',
   'sync/web/src/lib/useFilter.ts': 'Le filtre d’un tableau (valeur et jour) : chaque changement revient à la première page ; partagé par les tables et les clips.',
   'ui/src/components/TopBar/TopBar.tsx': 'La barre du haut des deux apps, collée en haut de l’écran quand on défile : le titre (cliquable dans la WebApp), les onglets, l’état et les boutons à droite.',

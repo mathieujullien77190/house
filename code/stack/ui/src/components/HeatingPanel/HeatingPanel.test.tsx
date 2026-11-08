@@ -2,10 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import HeatingPanel from './HeatingPanel'
 import type { HeatingPanelProps } from './types'
 
-const columns = { when: 'Quand', origin: 'Origine', duration: 'Durée', temperature: 'Température', cost: 'Coût' }
-
 const props = (over: Partial<HeatingPanelProps> = {}): HeatingPanelProps => ({
-  title: 'Chauffage automatique',
   enabledLabel: 'Activer la règle',
   enabled: true,
   onEnabledChange: vi.fn(),
@@ -17,10 +14,6 @@ const props = (over: Partial<HeatingPanelProps> = {}): HeatingPanelProps => ({
   saveLabel: 'Enregistrer',
   saving: false,
   onSave: vi.fn(),
-  logTitle: 'Journal',
-  columns,
-  rows: [],
-  emptyText: 'Aucune activation',
   ...over,
 })
 
@@ -45,32 +38,9 @@ describe('HeatingPanel', () => {
     expect(p.onSave).toHaveBeenCalledTimes(1)
   })
 
-  it('bloque le bouton pendant l’envoi, montre l’erreur, l’état et la note', () => {
-    render(<HeatingPanel {...props({ saving: true, error: 'refusé', status: 'Il fait jour', note: 'discret' })} />)
+  it('bloque le bouton pendant l’envoi, montre l’erreur', () => {
+    render(<HeatingPanel {...props({ saving: true, error: 'refusé' })} />)
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
     expect(screen.getByText('refusé')).toBeInTheDocument()
-    expect(screen.getByText('Il fait jour')).toBeInTheDocument()
-    expect(screen.getByText('discret')).toBeInTheDocument()
-  })
-
-  it('journal vide : le texte', () => {
-    render(<HeatingPanel {...props()} />)
-    expect(screen.getByText('Aucune activation')).toBeInTheDocument()
-    expect(screen.queryByRole('table')).toBeNull()
-  })
-
-  it('journal : une ligne par activation et le total en pied', () => {
-    const rows = [{ id: '1', when: '9 nov. 02:00', origin: 'Automatique', duration: '5 min', temperature: '2,5 °C', cost: '0,0265 €' }]
-    render(<HeatingPanel {...props({ rows, total: { label: 'Total', value: '0,03 €' } })} />)
-    expect(screen.getByRole('table')).toBeInTheDocument()
-    expect(screen.getByText('Automatique')).toBeInTheDocument()
-    expect(screen.getByText('0,0265 €')).toBeInTheDocument()
-    expect(screen.getByText('Total 0,03 €')).toBeInTheDocument()
-  })
-
-  it('journal sans total', () => {
-    const rows = [{ id: '1', when: 'x', origin: 'Manuel', duration: '5 min', temperature: '–', cost: '–' }]
-    render(<HeatingPanel {...props({ rows })} />)
-    expect(screen.queryByText(/Total/)).toBeNull()
   })
 })

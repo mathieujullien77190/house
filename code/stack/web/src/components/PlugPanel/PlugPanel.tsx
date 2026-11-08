@@ -132,6 +132,16 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
       {problem === 'off' ? <Notice text={UNAVAILABLE_TEXT} /> : null}
       {plug ? (
         <>
+          <SpecList
+            items={[
+              { id: 'state', label: STATE_LABEL, value: plug.on ? ON_TEXT : OFF_TEXT },
+              ...(plug.on && remaining !== null ? [{ id: 'timer', label: REMAINING_LABEL, value: countdownText(remaining) }] : []),
+              ...(plug.on && elapsed !== null ? [{ id: 'since', label: SINCE_LABEL, value: elapsedText(elapsed) }] : []),
+              ...(plug.on && plug.offOnMotion ? [{ id: 'motion', label: MOTION_ARMED_LABEL, value: MOTION_ARMED_TEXT }] : []),
+              { id: 'signal', label: SIGNAL_LABEL, value: signalText(plug.rssi) },
+              { id: 'model', label: MODEL_LABEL, value: plug.model },
+            ]}
+          />
           <div className={HEAD_CLASS}>
             <span className={NAME_CLASS}>{plug.alias}</span>
             {plug.on ? (
@@ -162,16 +172,6 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
               {TIMER_START_LABEL} {minutes} {TIMER_UNIT}
             </Button>
           </div>
-          <SpecList
-            items={[
-              { id: 'state', label: STATE_LABEL, value: plug.on ? ON_TEXT : OFF_TEXT },
-              ...(plug.on && remaining !== null ? [{ id: 'timer', label: REMAINING_LABEL, value: countdownText(remaining) }] : []),
-              ...(plug.on && elapsed !== null ? [{ id: 'since', label: SINCE_LABEL, value: elapsedText(elapsed) }] : []),
-              ...(plug.on && plug.offOnMotion ? [{ id: 'motion', label: MOTION_ARMED_LABEL, value: MOTION_ARMED_TEXT }] : []),
-              { id: 'signal', label: SIGNAL_LABEL, value: signalText(plug.rssi) },
-              { id: 'model', label: MODEL_LABEL, value: plug.model },
-            ]}
-          />
           <HeatingSection apiKey={apiKey} version={commands} />
         </>
       ) : null}

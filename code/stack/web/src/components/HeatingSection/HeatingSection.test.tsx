@@ -1,13 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { flush } from '@/test/fetch'
-import type { HeatingLogEntry, HeatingStatus } from '@/types'
+import type { HeatingStatus } from '@/types'
 import HeatingSection from './HeatingSection'
-import { INVALID_TEXT, SAVE_ERROR_TEXT, UNKNOWN_HOURS_NOTE } from './constants'
+import { INVALID_TEXT, SAVE_ERROR_TEXT } from './constants'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   fetchHeating: vi.fn(),
-  fetchHeatingLog: vi.fn(),
   saveHeating: vi.fn(),
 }))
 const api = await import('@/lib/api')
@@ -17,11 +16,6 @@ const status = (over: Partial<HeatingStatus> = {}): HeatingStatus => ({
   thresholdC: 3,
   minutes: 5,
   cooldownMinutes: 20,
-  priceKwh: 0.1589,
-  peakPriceKwh: 0.2142,
-  offPeakStart: '23:10',
-  offPeakEnd: '07:10',
-  heaterWatts: 2000,
   lastActivationAt: null,
   nextAllowedAt: null,
   temperature: 1,
@@ -29,11 +23,6 @@ const status = (over: Partial<HeatingStatus> = {}): HeatingStatus => ({
   cold: true,
   ...over,
 })
-const entries: HeatingLogEntry[] = [
-  { at: 1_800_000_100, origin: 'auto', minutes: 5, temperature: 2, note: null, cost: 0.0265 },
-  { at: 1_800_000_000, origin: 'manuel', minutes: 5, temperature: null, note: null, cost: 0.0265 },
-]
-
 const settle = async () => {
   await act(async () => {
     await flush()
@@ -42,7 +31,6 @@ const settle = async () => {
 
 beforeEach(() => {
   vi.mocked(api.fetchHeating).mockResolvedValue(status())
-  vi.mocked(api.fetchHeatingLog).mockResolvedValue(entries)
 })
 
 describe('HeatingSection', () => {
@@ -53,48 +41,27 @@ describe('HeatingSection', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('montre les réglages, la phrase d’état, le journal et son total', async () => {
+  it('montre les réglages et leurs valeurs', async () => {
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
-    expect(api.fetchHeatingLog).toHaveBeenCalledWith('k', 50)
     expect(screen.getByRole('checkbox', { name: 'Activer la règle' })).toBeChecked()
     expect(screen.getByLabelText('Température (°C)')).toHaveValue('3')
     expect(screen.getByLabelText('Durée (min)')).toHaveValue(5)
     expect(screen.getByLabelText(/Délai avant réactivation/)).toHaveValue(20)
-    expect(screen.getByLabelText('Prix du kWh heures creuses (€ TTC)')).toHaveValue('0,1589')
-    expect(screen.getByLabelText('Prix du kWh heures pleines (€ TTC)')).toHaveValue('0,2142')
-    expect(screen.getByLabelText('Début des heures creuses')).toHaveValue('23:10')
-    expect(screen.getByLabelText('Fin des heures creuses')).toHaveValue('07:10')
-    expect(screen.getByLabelText(/Puissance du chauffage/)).toHaveValue(2000)
-    expect(screen.getByText('pour chiffrer le coût')).toBeInTheDocument()
-    expect(screen.getByText('Froid et nuit : la règle chauffera')).toBeInTheDocument()
-    expect(screen.queryByText(UNKNOWN_HOURS_NOTE)).toBeNull()
-    expect(screen.getByText('Automatique')).toBeInTheDocument()
-    expect(screen.getByText('Manuel')).toBeInTheDocument()
-    expect(screen.getAllByText('0,0265 €')).toHaveLength(2)
-    expect(screen.getByText('Total des activations affichées : 0,053 €')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Prix du kWh/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/heures creuses/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Puissance/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Journal/)).toBeNull()
   })
 
-  it('plages inconnues : la phrase discrète ; journal vide : pas de total', async () => {
-    vi.mocked(api.fetchHeating).mockResolvedValue(status({ offPeakEnd: null }))
-    vi.mocked(api.fetchHeatingLog).mockResolvedValue([])
-    render(<HeatingSection apiKey="k" version={0} />)
-    await settle()
-    expect(screen.getByText(UNKNOWN_HOURS_NOTE)).toBeInTheDocument()
-    expect(screen.getByText('Aucune activation pour l’instant.')).toBeInTheDocument()
-    expect(screen.queryByText(/Total/)).toBeNull()
-  })
-
-  it('relit le journal quand la version change, sans défaire ce qui est tapé', async () => {
+  it('relit les réglages quand la version change, sans défaire ce qui est tapé', async () => {
     const { rerender } = render(<HeatingSection apiKey="k" version={0} />)
     await settle()
     fireEvent.change(screen.getByLabelText('Durée (min)'), { target: { value: '9' } })
-    vi.mocked(api.fetchHeatingLog).mockResolvedValue([entries[0]])
     rerender(<HeatingSection apiKey="k" version={1} />)
     await settle()
     expect(api.fetchHeating).toHaveBeenCalledTimes(2)
     expect(screen.getByLabelText('Durée (min)')).toHaveValue(9)
-    expect(screen.queryByText('Manuel')).toBeNull()
   })
 
   it('ignore une lecture arrivée après le démontage', async () => {
@@ -109,7 +76,7 @@ describe('HeatingSection', () => {
   })
 
   it('« Enregistrer » envoie les champs et remet ce que l’API a gardé', async () => {
-    vi.mocked(api.saveHeating).mockResolvedValue(status({ thresholdC: 2.5, enabled: false, heaterWatts: null }))
+    vi.mocked(api.saveHeating).mockResolvedValue(status({ thresholdC: 2.5, enabled: false }))
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
     fireEvent.click(screen.getByRole('checkbox'))
@@ -121,14 +88,8 @@ describe('HeatingSection', () => {
       thresholdC: 2.5,
       minutes: 5,
       cooldownMinutes: 20,
-      priceKwh: 0.1589,
-      peakPriceKwh: 0.2142,
-      offPeakStart: '23:10',
-      offPeakEnd: '07:10',
-      heaterWatts: 2000,
-    })
+        })
     expect(screen.getByLabelText('Température (°C)')).toHaveValue('2,5')
-    expect(screen.getByLabelText(/Puissance du chauffage/)).toHaveValue(null)
     expect(screen.getByRole('checkbox')).not.toBeChecked()
   })
 

@@ -68,4 +68,4 @@ export type { TimelineMarker, TimelineProps, TimelineRange, TimelineSegment, Tim
 export { default as Totals } from './components/Totals'
 export type { Total, TotalsProps } from './components/Totals'
 export { default as HeatingPanel } from './components/HeatingPanel'
-export type { HeatingColumns, HeatingField, HeatingPanelProps, HeatingRow } from './components/HeatingPanel'
+export type { HeatingField, HeatingPanelProps } from './components/HeatingPanel'

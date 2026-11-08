@@ -11,7 +11,7 @@ Règles du paquet (dumb, imports relatifs, Storybook, mobile, tests) : `../../CL
 ## Formulaires
 
 - `Checkbox` (une case à cocher et son texte), `Select` (une liste déroulante stylée, clavier compris, à la place du `<select>` natif).
-- `HeatingPanel` : la règle du chauffage automatique de la prise (onglet Prise de la WebApp) : une case, des champs `number` / `decimal` / `time` (texte tapé, le parent convertit), « Enregistrer » (envoi au parent, erreur à côté), l'état de la règle, une phrase discrète, le journal des activations (`SimpleTable`, une fiche par ligne sur téléphone) et son total en pied.
+- `HeatingPanel` : la règle du chauffage automatique de la prise (onglet Prise de la WebApp) : une case, des champs `number` / `decimal` / `time` (texte tapé, le parent convertit), « Enregistrer » (envoi au parent, erreur à côté). Sans titre, sans message d'état, sans journal : le parent n'y met que les champs.
 
 ## Données
 

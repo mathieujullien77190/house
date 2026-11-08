@@ -9,9 +9,4 @@ export interface HeatingForm {
   threshold: string
   minutes: string
   cooldown: string
-  price: string
-  peakPrice: string
-  offPeakStart: string
-  offPeakEnd: string
-  watts: string
 }
