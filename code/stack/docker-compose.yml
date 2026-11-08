@@ -92,6 +92,7 @@ services:
       # les clips sauvegardés depuis la WebApp (liste écrite par l'API dans data/house) ne le sont jamais.
       CLIP_RETENTION_DAYS: ${CLIP_RETENTION_DAYS:-15}
       SAVED_CLIPS_FILE: /house/saved-clips.json
+      ZONES_FILE: /house/zones.json
       GUEST_STATE_FILE: /guest/state.json
       # Les visites de la page invité (une ligne JSON par visite, importée toutes les 15 s dans la table guest_visits), lues dans le dossier que la page remplit.
       GUEST_VISITS_FILE: /guest-visits/visits.jsonl

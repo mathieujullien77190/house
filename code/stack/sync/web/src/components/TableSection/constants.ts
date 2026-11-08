@@ -7,7 +7,10 @@ export const DESCRIPTIONS: Record<string, string> = {
 }
 
 /** Les tables dont la ligne ne montre que les colonnes principales : le reste est dans le détail qui s'ouvre au clic. */
-export const MAIN_COLUMNS: Record<string, string[]> = { guest_visits: ['id', 'started_at', 'ip', 'origin', 'cle', 'camera', 'path'] }
+export const MAIN_COLUMNS: Record<string, string[]> = {
+  plan: ['kind', 'id', 'x', 'y', 'data'],
+  guest_visits: ['id', 'started_at', 'ip', 'origin', 'cle', 'camera', 'status', 'path'],
+}
 export const DETAILS_CLASS = 'm-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 font-mono text-[0.78rem]'
 export const DETAIL_LABEL_CLASS = 'm-0 text-muted'
 export const DETAIL_VALUE_CLASS = 'm-0 [overflow-wrap:anywhere]'
@@ -24,7 +27,11 @@ export const NUM_CLASS = 'whitespace-normal tabular-nums lg:whitespace-nowrap'
 export const MEDIA_CLASS = 'inline-flex flex-wrap items-center gap-2'
 
 /** Ce que le filtre « valeur » choisit, selon la colonne de la table. */
-export const MATCH_LABELS: Record<'camera' | 'name' | 'cle', string> = { camera: 'Caméra', name: 'Matériel Hue', cle: 'Clé' }
+export const MATCH_LABELS: Record<'camera' | 'name' | 'cle', string> = {
+  camera: 'Caméra',
+  name: 'Matériel Hue',
+  cle: 'Clé',
+}
 export const MATCH_ALL: Record<'camera' | 'name' | 'cle', string> = { camera: 'Toutes', name: 'Tous', cle: 'Toutes' }
 export const DATE_LABEL = 'Date'
 export const CLEAR_LABEL = 'Effacer les filtres'

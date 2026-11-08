@@ -12,6 +12,8 @@ import { createCamerasService } from './services/camerasService.ts'
 import { createEventsService } from './services/eventsService.ts'
 import { createHueClient } from './lib/hueClient.ts'
 import { createPositionsStore } from './lib/positionsStore.ts'
+import { createPlanStore } from './lib/planStore.ts'
+import { createZonesStore } from './lib/zonesStore.ts'
 import { createSavedClipsStore } from './lib/savedClipsStore.ts'
 import { createKasaClient } from './lib/kasaClient.ts'
 import { createSwitchClient } from './lib/switchClient.ts'
@@ -29,7 +31,9 @@ export const createApp = (config: Config): Express => {
   const motion = hueClient
     ? {
         presence: async (): Promise<boolean | null> => {
-          const found = Object.values(await hueClient.sensors()).find((sensor) => sensor.type === 'ZLLPresence' && sensor.name === config.plugMotionSensor)
+          const found = Object.values(await hueClient.sensors()).find(
+            (sensor) => sensor.type === 'ZLLPresence' && sensor.name === config.plugMotionSensor,
+          )
           return found?.state.presence ?? null
         },
       }
@@ -41,6 +45,8 @@ export const createApp = (config: Config): Express => {
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
     files: createBackupFiles(config.dataDir),
+    zones: createZonesStore(`${config.stateDir}/zones.json`),
+    plan: createPlanStore(`${config.stateDir}/plan.json`),
     hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     guest: config.guest,
     plug: config.plug ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json` }) : null,

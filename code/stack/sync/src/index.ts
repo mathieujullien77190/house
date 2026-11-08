@@ -26,6 +26,8 @@ import { isNight } from './sun.ts'
 import { readGuestEnabled, writeGuestEnabled } from './guestState.ts'
 import { createGuestVisitsTable, importGuestVisits, purgeGuestVisits } from './guestVisits.ts'
 import { readSavedIds } from './savedClips.ts'
+import { createPlanTable, importPlan, readPlan } from './plan.ts'
+import { readZones } from './zones.ts'
 import { readPower, type ApiTarget } from './power.ts'
 import { clipCameras, clipFilterParams, filterClips, filterParams, groupClips, listBackup, pageParams, paginate, readDiskSpace, readTable, summarizeTables, sumSize } from './data.ts'
 
@@ -407,8 +409,13 @@ const DETECTION_REFRESH_SECONDS = 60
 const detectionSent = new Map<string, { enabled: boolean; at: number }>()
 // La sensibilité de la détection : envoyée de la même façon (quand elle change, et chaque minute au cas où l'enregistreur aurait redémarré).
 const sensitivitySent = new Map<string, { level: number; at: number }>()
+// La zone surveillée de chaque caméra (un polygone dessiné dans la WebApp, lu dans le fichier de l'API) : envoyée aussi quand elle change et chaque minute.
+const ZONES_FILE = process.env.ZONES_FILE ?? '/house/zones.json'
+const zoneSent = new Map<string, { zone: string; at: number }>()
 const syncDetection = async (base: string, cameras: string[]) => {
   const now = Math.floor(Date.now() / 1000)
+  // null (fichier illisible) : on ne change rien, l'enregistreur garde sa zone.
+  const zones = await readZones(ZONES_FILE)
   for (const camera of cameras) {
     const enabled = keepsClip(camera, now)
     const sent = detectionSent.get(camera)
@@ -421,6 +428,20 @@ const syncDetection = async (base: string, cameras: string[]) => {
     if (!levelSent || levelSent.level !== level || now - levelSent.at >= DETECTION_REFRESH_SECONDS) {
       const res = await fetch(`${base}/api/cameras/${camera}/sensitivity?level=${level}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
       if (res?.ok) sensitivitySent.set(camera, { level, at: now })
+    }
+    if (zones) {
+      const points = zones[camera] ?? null
+      const zone = JSON.stringify(points)
+      const zoneAt = zoneSent.get(camera)
+      if (!zoneAt || zoneAt.zone !== zone || now - zoneAt.at >= DETECTION_REFRESH_SECONDS) {
+        const res = await fetch(`${base}/api/cameras/${camera}/zone`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }).catch(() => null)
+        if (res?.ok) zoneSent.set(camera, { zone, at: now })
+      }
     }
   }
 }
@@ -606,6 +627,19 @@ const GUEST_STATE_FILE = process.env.GUEST_STATE_FILE ?? '/guest/state.json'
 const GUEST_VISITS_FILE = process.env.GUEST_VISITS_FILE ?? '/guest-visits/visits.jsonl'
 const GUEST_VISITS_DAYS = Number(process.env.GUEST_VISITS_DAYS ?? 365)
 createGuestVisitsTable(db)
+// Le plan de la maison : House API l'écrit dans un fichier (lecture seule ici), House Sync l'importe toutes les 30 s dans la table plan (onglet Base) quand il a changé.
+const PLAN_FILE = process.env.PLAN_FILE ?? '/house/plan.json'
+createPlanTable(db)
+const syncPlan = async () => {
+  try {
+    const written = importPlan(db, await readPlan(PLAN_FILE))
+    if (written > 0) log(`Plan de la maison : ${written} élément(s) enregistré(s)`)
+  } catch (error) {
+    log(`Plan de la maison : ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+void syncPlan()
+setInterval(() => void syncPlan(), 30_000)
 let lastVisitsPurgeAt = 0
 const syncGuestVisits = async () => {
   try {

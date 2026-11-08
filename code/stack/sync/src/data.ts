@@ -2,7 +2,7 @@
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'plan']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {
@@ -79,6 +79,7 @@ const orderOf = (columns: string[]): string => {
   if (columns.includes('absorbed_started_at')) return 'ORDER BY absorbed_started_at DESC'
   if (columns.includes('taken_at')) return 'ORDER BY taken_at DESC'
   if (columns.includes('happened_ms')) return 'ORDER BY happened_ms DESC, id DESC'
+  if (columns.includes('kind')) return 'ORDER BY kind, id'
   return 'ORDER BY camera'
 }
 
@@ -121,9 +122,17 @@ export const readTable = (
   const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM ${name} ${clause}`).get(...args) as { n: number }).n
   const select = shown(name, columns).join(', ')
-  const items = db.prepare(`SELECT ${select} FROM ${name} ${clause} ${orderOf(columns)} LIMIT ? OFFSET ?`).all(...args, size, page * size) as Record<string, unknown>[]
+  const items = db
+    .prepare(`SELECT ${select} FROM ${name} ${clause} ${orderOf(columns)} LIMIT ? OFFSET ?`)
+    .all(...args, size, page * size) as Record<string, unknown>[]
   const options = config?.match
-    ? (db.prepare(`SELECT DISTINCT ${config.match} AS value FROM ${name} WHERE ${config.match} IS NOT NULL${name === 'hue_events' ? " AND resource IN ('light', 'motion')" : ''} ORDER BY value LIMIT 300`).all() as { value: string }[]).map((row) => row.value)
+    ? (
+        db
+          .prepare(
+            `SELECT DISTINCT ${config.match} AS value FROM ${name} WHERE ${config.match} IS NOT NULL${name === 'hue_events' ? " AND resource IN ('light', 'motion')" : ''} ORDER BY value LIMIT 300`,
+          )
+          .all() as { value: string }[]
+      ).map((row) => row.value)
     : []
   return { items, total, page, size, options }
 }
@@ -181,7 +190,11 @@ export const readDiskSpace = async (dir: string): Promise<DiskSpace> => {
   try {
     const info = await statfs(dir)
     const size = Number(info.bsize)
-    return { total: Number(info.blocks) * size, free: Number(info.bavail) * size, reserved: (Number(info.bfree) - Number(info.bavail)) * size }
+    return {
+      total: Number(info.blocks) * size,
+      free: Number(info.bavail) * size,
+      reserved: (Number(info.bfree) - Number(info.bavail)) * size,
+    }
   } catch {
     return { total: 0, free: 0, reserved: 0 }
   }
@@ -239,7 +252,9 @@ export const clipCameras = (groups: ClipGroup[]): string[] =>
   [...new Set(groups.map((group) => clipCamera(group.id)).filter((camera): camera is string => camera !== null))].sort()
 
 /** Les filtres d'une demande de clips : `camera`, `from`, `to` et `saved` (`1` : les sauvegardés, `0` : les autres, absent : tous). */
-export const clipFilterParams = (params: URLSearchParams): { camera?: string; from?: number; to?: number; saved: 'saved' | 'others' | null } => {
+export const clipFilterParams = (
+  params: URLSearchParams,
+): { camera?: string; from?: number; to?: number; saved: 'saved' | 'others' | null } => {
   const camera = params.get('camera')
   const saved = params.get('saved')
   return {

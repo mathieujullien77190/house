@@ -2,7 +2,17 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
-import { clipCameras, clipEventId, clipFilterParams, clipStart, filterClips, filterParams, readTable, summarizeTables, type ClipGroup } from './data.ts'
+import {
+  clipCameras,
+  clipEventId,
+  clipFilterParams,
+  clipStart,
+  filterClips,
+  filterParams,
+  readTable,
+  summarizeTables,
+  type ClipGroup,
+} from './data.ts'
 
 const database = () => {
   const db = new DatabaseSync(':memory:')
@@ -15,6 +25,7 @@ const database = () => {
     CREATE TABLE merges (absorbed_id TEXT, kept_id TEXT, camera TEXT, absorbed_started_at INTEGER, merged_at INTEGER);
     CREATE TABLE settings (camera TEXT PRIMARY KEY);
     CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT, cle TEXT);
+    CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, x REAL, y REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id));
   `)
   const insert = db.prepare('INSERT INTO events (id, camera, started_at) VALUES (?, ?, ?)')
   insert.run('a', 'voliere-interieur', 1000)
@@ -40,10 +51,16 @@ test('readTable filtre par caméra et par période, et rend les valeurs du filtr
   assert.equal(all?.total, 3)
   assert.deepEqual(all?.options, ['voliere-exterieur', 'voliere-interieur'])
   assert.equal(readTable(db, 'events', 0, 20, { match: 'voliere-interieur' })?.total, 2)
-  assert.deepEqual(readTable(db, 'events', 0, 20, { from: 1500, to: 3000 })?.items.map((row) => row.id), ['b'])
+  assert.deepEqual(
+    readTable(db, 'events', 0, 20, { from: 1500, to: 3000 })?.items.map((row) => row.id),
+    ['b'],
+  )
   assert.equal(readTable(db, 'events', 0, 20, { match: 'voliere-interieur', from: 2500 })?.total, 1)
   // Le plus récent d'abord, et la pagination suit le filtre.
-  assert.deepEqual(readTable(db, 'events', 0, 1, { match: 'voliere-interieur' })?.items.map((row) => row.id), ['c'])
+  assert.deepEqual(
+    readTable(db, 'events', 0, 1, { match: 'voliere-interieur' })?.items.map((row) => row.id),
+    ['c'],
+  )
 })
 
 test('hue_events se filtre par nom du matériel et par date ; guest_visits par clé et par date', () => {
@@ -56,7 +73,7 @@ test('hue_events se filtre par nom du matériel et par date ; guest_visits par c
   assert.deepEqual(readTable(db, 'guest_visits', 0, 20)?.options, ['avec clé', 'sans clé'])
 })
 
-test('une table sans filtre ignore ceux qu\'on lui donne ; summarizeTables dit ce que chaque table filtre', () => {
+test("une table sans filtre ignore ceux qu'on lui donne ; summarizeTables dit ce que chaque table filtre", () => {
   const db = database()
   assert.equal(readTable(db, 'settings', 0, 20, { match: 'x', from: 1, to: 2 })?.total, 0)
   const tables = Object.fromEntries(summarizeTables(db).map((table) => [table.name, table.filters]))
@@ -72,7 +89,11 @@ test('un nom de colonne ne vient jamais de la demande : une valeur piégée rest
 })
 
 const clip = (id: string): ClipGroup => ({ id, original: null, light: null, modifiedMs: 0 })
-const CLIPS = [clip('clips/voliere-interieur/3000.5-voliere-interieur'), clip('clips/voliere-exterieur/2000.1-voliere-exterieur'), clip('clips/voliere-interieur/1000.9-voliere-interieur')]
+const CLIPS = [
+  clip('clips/voliere-interieur/3000.5-voliere-interieur'),
+  clip('clips/voliere-exterieur/2000.1-voliere-exterieur'),
+  clip('clips/voliere-interieur/1000.9-voliere-interieur'),
+]
 
 test('un clip dit sa caméra, son début et son événement', () => {
   assert.equal(clipStart(CLIPS[0].id), 3000)
@@ -85,7 +106,10 @@ test('filterClips : caméra, période, sauvegardés ou non', () => {
   assert.equal(filterClips(CLIPS, { camera: 'voliere-interieur' }).length, 2)
   assert.equal(filterClips(CLIPS, { from: 1500, to: 3000 }).length, 1)
   const ids = new Set(['2000.1-voliere-exterieur'])
-  assert.deepEqual(filterClips(CLIPS, { saved: { ids, keep: true } }).map((group) => clipEventId(group.id)), ['2000.1-voliere-exterieur'])
+  assert.deepEqual(
+    filterClips(CLIPS, { saved: { ids, keep: true } }).map((group) => clipEventId(group.id)),
+    ['2000.1-voliere-exterieur'],
+  )
   assert.equal(filterClips(CLIPS, { saved: { ids, keep: false } }).length, 2)
   assert.equal(filterClips(CLIPS, { camera: 'voliere-interieur', saved: { ids, keep: true } }).length, 0)
 })
@@ -96,4 +120,17 @@ test('clipFilterParams : sauvegardés (1), les autres (0), tous (absent) ; une c
   assert.equal(clipFilterParams(new URLSearchParams()).saved, null)
   assert.equal(clipFilterParams(new URLSearchParams('camera=../etc')).camera, undefined)
   assert.equal(clipFilterParams(new URLSearchParams('camera=voliere-interieur&from=5')).camera, 'voliere-interieur')
+})
+
+test('la table plan se lit, triée par genre et identifiant, sans filtre', () => {
+  const db = new DatabaseSync(':memory:')
+  db.exec(
+    `CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, x REAL, y REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id))`,
+  )
+  db.exec(`INSERT INTO plan VALUES ('arbre', 't2', 1, 2, '{}', 1), ('arbre', 't1', 3, 4, '{}', 1), ('cage', 'cage', 5, 6, '{}', 1)`)
+  const all = readTable(db, 'plan', 0, 10)
+  assert.deepEqual(
+    all?.items.map((row) => `${row.kind}:${row.id}`),
+    ['arbre:t1', 'arbre:t2', 'cage:cage'],
+  )
 })

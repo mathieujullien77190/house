@@ -1,6 +1,8 @@
 // Toutes les routes : welcome et logout sans clé, le reste derrière requireKey (clé ou session).
 import { Router } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
+import type { PlanStore } from '../lib/planStore.ts'
+import type { ZonesStore } from '../lib/zonesStore.ts'
 import { createRequireKey } from '../middleware/requireKey.ts'
 import { createSessions } from '../middleware/session.ts'
 import type { CamerasService } from '../services/camerasService.ts'
@@ -21,6 +23,8 @@ import { plugRouter } from './plug.ts'
 import { poeRouter } from './poe.ts'
 import { snapshotsRouter } from './snapshots.ts'
 import { welcomeRouter } from './welcome.ts'
+import { planRouter } from './plan.ts'
+import { zonesRouter } from './zones.ts'
 
 export interface Services {
   cameras: CamerasService
@@ -36,10 +40,30 @@ export interface Services {
   /** Null sans GUEST_KEY : /guest répond 503. */
   guest: GuestLink | null
   files: BackupFiles
+  /** Les zones de surveillance du mouvement, une par caméra. */
+  zones: ZonesStore
+  /** Le plan de la maison (la carte de la WebApp). */
+  plan: PlanStore
 }
 
 /** Les chemins derrière la clé ; tout le reste (welcome, logout, le certificat public, les fichiers de la WebApp) est public. */
-export const SECURED_PATHS = ['/auth', '/direct', '/image', '/events', '/clips', '/snapshots', '/snapshot', '/stream', '/frame', '/poe', '/plug', '/hue', '/guest']
+export const SECURED_PATHS = [
+  '/auth',
+  '/direct',
+  '/image',
+  '/events',
+  '/clips',
+  '/snapshots',
+  '/snapshot',
+  '/stream',
+  '/frame',
+  '/poe',
+  '/plug',
+  '/hue',
+  '/guest',
+  '/zones',
+  '/plan',
+]
 
 export const createRoutes = (apiKey: string, services: Services, caCert = ''): Router => {
   const router = Router()
@@ -56,5 +80,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(plugRouter(services.plug))
   router.use(hueRouter(services.hue))
   router.use(guestRouter(services.guest))
+  router.use(zonesRouter(services.zones))
+  router.use(planRouter(services.plan))
   return router
 }
