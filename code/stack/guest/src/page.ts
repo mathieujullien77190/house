@@ -1,4 +1,4 @@
-// La page invité : UNE seule page. Une indication « Cliquer pour agrandir », puis les caméras en vignettes alignées, qui passent à la ligne quand la place manque ;
+// La page invité : UNE seule page. Une indication « Cliquer pour passer en 4K », puis les caméras en vignettes alignées, qui passent à la ligne quand la place manque ;
 // chaque vignette fait au plus la taille du flux léger (640 px de large : au-delà il serait étiré donc flou ; sur un écran plus étroit elle prend la largeur de l'écran).
 // Toucher une vignette ouvre cette caméra en grand en 4K, sans changer de page : sur ordinateur dessous, sur téléphone (moins de 1024 px) en plein écran, vue paysage,
 // avec un bouton retour. Une fois agrandie, l'image se zoome au doigt (pincer, déplacer, double toucher). Ni titre, ni nom de caméra.
@@ -8,7 +8,13 @@ import { createHash } from 'node:crypto'
 /** La largeur du flux léger (voir go2rtc/go2rtc.yaml : le flux secondaire des caméras fait 640 × 360) : la taille où une vignette est la plus nette. */
 export const THUMB_WIDTH = 640
 
-export const HINT_TEXT = 'Cliquer pour agrandir'
+/** Les caméras posées de côté : leur image est tournée d'un quart de tour horaire (portrait), comme dans la WebApp (`TURNED_CAMERAS`). */
+export const TURNED_CAMERAS = ['voliere-exterieur']
+
+export const HINT_TEXT = 'Cliquer pour passer en 4K'
+
+/** Écrit (avec le rond qui tourne, comme `SnapshotImage` de @house/ui) sur le noir tant que la première image d'un flux n'est pas arrivée. */
+export const LOADING_TEXT = 'Chargement…'
 
 const STYLE = `
   html { background: #0b0d10; color: #e6e8eb; font-family: system-ui, sans-serif; }
@@ -16,20 +22,27 @@ const STYLE = `
   img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; -webkit-user-drag: none; }
   .hint { margin: 0 0 8px; font-size: 14px; color: #9aa3ad; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .thumb { flex: 0 0 min(100%, ${THUMB_WIDTH}px); margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
+  .thumb { position: relative; flex: 0 0 min(100%, ${THUMB_WIDTH}px); margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
   .thumb.on { outline: 2px solid #4da3ff; outline-offset: -2px; }
+  .wait { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: #000; color: #9aa3ad; font-size: 14px; pointer-events: none; }
+  .spin { width: 16px; height: 16px; box-sizing: border-box; border: 2px solid #9aa3ad; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .big { position: relative; flex: 1; min-height: 50vh; margin-top: 12px; overflow: hidden; }
   .big img { position: absolute; inset: 0; height: 100%; aspect-ratio: auto; }
   .full { display: none; position: fixed; inset: 0; z-index: 10; background: #000; }
   .full.on { display: block; }
   .stage { position: absolute; inset: 0; overflow: hidden; }
   .stage img { height: 100%; aspect-ratio: auto; }
+  .big, .stage, .thumb.turned { container-type: size; }
+  .thumb.turned { flex-basis: min(100%, ${(THUMB_WIDTH * 9) / 16}px); aspect-ratio: 9 / 16; }
+  .thumb.turned img, .big .turn img, .stage .turn img { position: absolute; left: 50%; top: 50%; width: 100cqh; height: 100cqw; aspect-ratio: auto; transform: translate(-50%, -50%) rotate(90deg); transform-origin: center; }
+  .turn { position: absolute; inset: 0; transform-origin: 0 0; }
   .big, .stage { touch-action: none; user-select: none; -webkit-user-select: none; }
   .big img, .stage img { transform-origin: 0 0; }
   .back { position: absolute; top: 12px; left: 12px; z-index: 2; padding: 8px 14px; border: 0; border-radius: 8px; background: rgba(11, 13, 16, 0.7); color: #e6e8eb; font-size: 16px; cursor: pointer; }
   @media (max-width: 1023px) { .big { display: none; } }
   @media (orientation: portrait) {
-    .stage { inset: auto; top: 0; left: 100%; width: 100vh; height: 100vw; transform-origin: top left; transform: rotate(90deg); }
+    .full:not(.keep) .stage { inset: auto; top: 0; left: 100%; width: 100vh; height: 100vw; transform-origin: top left; transform: rotate(90deg); }
   }
 `
 
@@ -53,7 +66,7 @@ const zoomable = (container) => {
   let lastTap = 0
   let pinch = null
   const pointers = new Map()
-  const rotated = () => container === stage && window.matchMedia('(orientation: portrait)').matches
+  const rotated = () => container === stage && !full.classList.contains('keep') && window.matchMedia('(orientation: portrait)').matches
   const local = (event) => {
     if (rotated()) return { x: event.clientY, y: window.innerWidth - event.clientX }
     const box = container.getBoundingClientRect()
@@ -63,7 +76,7 @@ const zoomable = (container) => {
     scale = Math.min(MAX_ZOOM, Math.max(1, scale))
     tx = Math.min(0, Math.max(container.offsetWidth * (1 - scale), tx))
     ty = Math.min(0, Math.max(container.offsetHeight * (1 - scale), ty))
-    const image = container.querySelector('img')
+    const image = container.querySelector('.turn, img')
     if (image) image.style.transform = scale === 1 ? '' : 'translate(' + tx + 'px, ' + ty + 'px) scale(' + scale + ')'
   }
   const reset = () => {
@@ -131,25 +144,45 @@ const zoomable = (container) => {
 }
 const zoomBig = zoomable(big)
 const zoomStage = zoomable(stage)
-const picture = (src) => {
+const watch = (image, holder) => {
+  const veil = document.createElement('span')
+  veil.className = 'wait'
+  veil.setAttribute('role', 'status')
+  veil.innerHTML = '<span class="spin" aria-hidden="true"></span>${LOADING_TEXT}'
+  holder.append(veil)
+  const done = () => veil.remove()
+  image.addEventListener('load', done, { once: true })
+  image.addEventListener('error', done, { once: true })
+  if (image.complete && image.naturalWidth > 0) done()
+}
+const picture = (src, holder, turned) => {
   const image = document.createElement('img')
   image.alt = ''
+  watch(image, holder)
   image.src = src
-  return image
+  if (!turned) return image
+  const turn = document.createElement('div')
+  turn.className = 'turn'
+  turn.append(image)
+  return turn
 }
-const openFull = (src) => {
+thumbs.forEach((thumb) => watch(thumb.querySelector('img'), thumb))
+const openFull = (src, turned) => {
   zoomStage.reset()
-  stage.querySelector('img')?.remove()
-  stage.prepend(picture(src))
+  stage.querySelector('.turn, img')?.remove()
+  stage.prepend(picture(src, stage, turned))
+  // Une image en portrait reste en portrait ; les autres passent en paysage.
+  full.classList.toggle('keep', turned)
   full.classList.add('on')
   if (full.requestFullscreen) {
-    full.requestFullscreen().then(() => screen.orientation?.lock?.('landscape')?.catch?.(() => {})).catch(() => {})
+    full.requestFullscreen().then(() => screen.orientation?.lock?.(turned ? 'portrait' : 'landscape')?.catch?.(() => {})).catch(() => {})
   }
 }
 const closeFull = () => {
   zoomStage.reset()
-  stage.querySelector('img')?.remove()
-  full.classList.remove('on')
+  stage.querySelector('.turn, img')?.remove()
+  stage.querySelector('.wait')?.remove()
+  full.classList.remove('on', 'keep')
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
   try {
     screen.orientation?.unlock?.()
@@ -162,7 +195,7 @@ document.addEventListener('fullscreenchange', () => {
 thumbs.forEach((thumb) => {
   thumb.addEventListener('click', () => {
     if (phone.matches) {
-      openFull(thumb.dataset.src)
+      openFull(thumb.dataset.src, thumb.dataset.turned === '1')
       return
     }
     const wasOn = thumb.classList.contains('on')
@@ -171,7 +204,7 @@ thumbs.forEach((thumb) => {
     zoomBig.reset()
     if (wasOn) return
     thumb.classList.add('on')
-    big.append(picture(thumb.dataset.src))
+    big.append(picture(thumb.dataset.src, big, thumb.dataset.turned === '1'))
   })
 })
 `
@@ -180,7 +213,8 @@ thumbs.forEach((thumb) => {
 export const SCRIPT_HASH = `sha256-${createHash('sha256').update(SCRIPT).digest('base64')}`
 
 /** Une adresse de flux (clé comprise), écrite dans un attribut HTML. */
-const streamUrl = (camera: string, key: string, hd: boolean): string => `/stream?camera=${camera}${hd ? '&amp;quality=4k' : ''}&amp;k=${encodeURIComponent(key)}`
+const streamUrl = (camera: string, key: string, hd: boolean): string =>
+  `/stream?camera=${camera}${hd ? '&amp;quality=4k' : ''}&amp;k=${encodeURIComponent(key)}`
 
 /** La page, qui se recharge toute seule juste avant que les flux se coupent (la clé reste dans l'adresse rechargée). */
 export const renderPage = (cameras: string[], key: string, refreshSeconds: number): string => `<!doctype html>
@@ -196,7 +230,7 @@ export const renderPage = (cameras: string[], key: string, refreshSeconds: numbe
 <body>
 <p class="hint">${HINT_TEXT}</p>
 <div class="row">
-${cameras.map((name) => `<button type="button" class="thumb" aria-label="Agrandir" data-src="${streamUrl(name, key, true)}"><img src="${streamUrl(name, key, false)}" alt=""></button>`).join('\n')}
+${cameras.map((name) => `<button type="button" class="thumb${TURNED_CAMERAS.includes(name) ? ' turned' : ''}" aria-label="Agrandir" data-src="${streamUrl(name, key, true)}"${TURNED_CAMERAS.includes(name) ? ' data-turned="1"' : ''}><img src="${streamUrl(name, key, false)}" alt=""></button>`).join('\n')}
 </div>
 <div class="big" id="big"></div>
 <div class="full" id="full"><div class="stage" id="stage"><button type="button" class="back" id="back">← Retour</button></div></div>

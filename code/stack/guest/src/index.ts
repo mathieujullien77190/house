@@ -10,6 +10,7 @@ import { createAttemptLimiter } from './attempts.ts'
 import { clientIp } from './client.ts'
 import { loadConfig } from './config.ts'
 import { renderPage, SCRIPT_HASH } from './page.ts'
+import { NOT_FOUND_HTML } from './notFound.ts'
 import { readEnabled, STATE_POLL_MS } from './state.ts'
 import { createVisitLog, describeAgent, originOf, type VisitEntry } from './visits.ts'
 
@@ -60,6 +61,9 @@ const send = (res: ServerResponse, status: number, body = '', type = 'text/plain
   res.writeHead(status, { 'Content-Type': type, ...headers })
   res.end(body)
 }
+
+/** La page 404 banale (voir notFound.ts). */
+const notFound = (res: ServerResponse) => send(res, 404, NOT_FOUND_HTML, 'text/html; charset=utf-8')
 
 const stream = async (req: IncomingMessage, res: ServerResponse, camera: string, hd: boolean, ip: string) => {
   // Chaque personne ouvre un flux léger par caméra et un 4K pour la caméra agrandie.
@@ -116,7 +120,7 @@ const handle = (req: IncomingMessage, res: ServerResponse) => {
   const given = url.searchParams.get('k')
   if (given === null) {
     noteRefused(req, 404, url.pathname, 'sans clé')
-    return send(res, 404, 'Not found')
+    return notFound(res)
   }
   if (limiter.isBlocked(ip)) {
     noteRefused(req, 429, url.pathname, sameSecret(given, config.key) ? 'avec clé' : 'clé fausse')
@@ -125,7 +129,7 @@ const handle = (req: IncomingMessage, res: ServerResponse) => {
   if (!sameSecret(given, config.key)) {
     limiter.fail(ip)
     noteRefused(req, 404, url.pathname, 'clé fausse')
-    return send(res, 404, 'Not found')
+    return notFound(res)
   }
   limiter.clear(ip)
   if (url.pathname === '/') {
@@ -134,10 +138,10 @@ const handle = (req: IncomingMessage, res: ServerResponse) => {
   }
   if (url.pathname === '/stream') {
     const camera = url.searchParams.get('camera') ?? ''
-    if (!config.cameras.includes(camera)) return send(res, 404, 'Not found')
+    if (!config.cameras.includes(camera)) return notFound(res)
     return void stream(req, res, camera, url.searchParams.get('quality') === '4k', ip)
   }
-  return send(res, 404, 'Not found')
+  return notFound(res)
 }
 
 // Le serveur n'existe que tant que la page est en ligne : coupée (House Sync), il est fermé (port fermé, flux en cours coupés) puis rouvert à la remise en ligne.
