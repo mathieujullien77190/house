@@ -15,12 +15,12 @@ json() { node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const 
 
 # Le workflow ne se déclenche que si le commit touche code/stack/ ; sinon il n'y a rien à attendre.
 RUN=""
-for _ in $(seq 1 20); do
+for TRY in $(seq 1 20); do
   RUN="$(curl -s "$API/actions/runs?head_sha=$SHA&per_page=20" | json "
     const r=(j.workflow_runs||[]).find(r=>r.name==='Stack');
     console.log(r?r.id+' '+r.status+' '+(r.conclusion||''):'')")"
   [ -n "$RUN" ] && [ "$(echo "$RUN" | cut -d' ' -f2)" = completed ] && break
-  if [ -z "$RUN" ] && [ "$_" -ge 4 ]; then echo "Aucun run « Stack » pour ${SHA:0:7} (le commit ne touche pas code/stack/ ?)."; exit 2; fi
+  if [ -z "$RUN" ] && [ "$TRY" -ge 4 ]; then echo "Aucun run « Stack » pour ${SHA:0:7} (le commit ne touche pas code/stack/ ?)."; exit 2; fi
   sleep 30
 done
 [ -n "$RUN" ] && [ "$(echo "$RUN" | cut -d' ' -f2)" = completed ] || { echo "Run « Stack » pas fini pour ${SHA:0:7} après 10 min."; exit 2; }
