@@ -6,6 +6,7 @@ import Home from '@/components/Home'
 import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
+import ShuttersPanel from '@/components/ShuttersPanel'
 import {
   BACK_CLASS,
   NOTIFY_LABEL,
@@ -121,6 +122,7 @@ const AppUI = ({
             )
           ) : null}
           {tab === 'lights' ? <Lights apiKey={apiKey} /> : null}
+          {tab === 'shutters' ? <ShuttersPanel apiKey={apiKey} /> : null}
           {tab === 'plug' ? <PlugPanel apiKey={apiKey} /> : null}
           {tab === 'api' ? <ApiExplorer apiKey={apiKey} /> : null}
         </>

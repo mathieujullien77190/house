@@ -7,6 +7,7 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'cameras', label: 'Caméras' },
   { id: 'lights', label: 'Lumière' },
+  { id: 'shutters', label: 'Volet' },
   { id: 'plug', label: 'Prise' },
   { id: 'api', label: 'API' },
 ]

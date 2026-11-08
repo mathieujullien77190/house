@@ -43,7 +43,7 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'home' | 'cameras' | 'lights' | 'plug' | 'api'
+export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'plug' | 'api'
 
 /** La prise connectée (TP-Link Kasa), telle que House API la décrit. */
 export interface PlugState {
@@ -78,6 +78,32 @@ export interface HeatingStatus {
 export type HeatingSettingsBody = Partial<
   Pick<HeatingStatus, 'enabled' | 'thresholdC' | 'minutes' | 'cooldownMinutes'>
 >
+
+/** Les trois ordres d'un volet roulant (le Somfy RTS ne rend aucune position). */
+export type ShutterCommand = 'up' | 'down' | 'stop'
+
+/** Un volet roulant et son dernier ordre (GET /shutters). */
+export interface ShutterInfo {
+  id: string
+  name: string
+  lastCommand: ShutterCommand | null
+  /** Secondes depuis 1970. */
+  lastAt: number | null
+  /** L'action automatique : null si le volet n'en a pas, sinon ses deux options (ouvrir au lever du soleil, fermer à son coucher), activées ou non. */
+  auto: ShutterAuto | null
+}
+
+/** Les deux options de l'action automatique d'un volet. */
+export interface ShutterAuto {
+  open: boolean
+  close: boolean
+}
+
+/** Les volets ; `mock` : simulation, aucun ordre radio n'est envoyé. */
+export interface ShuttersState {
+  mock: boolean
+  shutters: ShutterInfo[]
+}
 
 /** Une lampe du pont Hue. */
 export interface HueLight {

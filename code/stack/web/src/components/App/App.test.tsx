@@ -24,6 +24,7 @@ vi.mock('@/components/Lights', () => ({
   useLampCount: () => h.lampCount,
 }))
 vi.mock('@/components/Home', () => ({ default: () => <div data-testid="home" /> }))
+vi.mock('@/components/ShuttersPanel', () => ({ default: () => <div data-testid="shutters" /> }))
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
 vi.mock('@/components/ApiExplorer', () => ({ default: () => <div data-testid="api" /> }))
 vi.mock('@/components/CameraCard', () => ({
@@ -167,6 +168,7 @@ describe('App : onglets', () => {
   it.each([
     ['Home', 'home'],
     ['Lumière', 'lights'],
+    ['Volet', 'shutters'],
     ['Prise', 'plug'],
     ['API', 'api'],
   ])('l’onglet %s', (name, id) => {

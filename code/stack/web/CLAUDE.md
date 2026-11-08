@@ -8,8 +8,8 @@ Le rendu vient du paquet **`@house/ui`** (`../ui`, voir son CLAUDE.md) : ici ne 
 
 - `lib/api.ts` : le client de House API. La clé est dans l'en-tête `X-House-Key` le temps de la saisie, jamais gardée (ni code, ni stockage du navigateur) : `/auth` ouvre la session par cookie, que le navigateur renvoie ensuite tout seul (clé vide dans l'en-tête, le cookie suffit). Principe : `../docs/securite.md`.
 - `lib/useHouse.ts` : la clé et son statut (au départ il essaie le cookie : une page rouverte ne redemande pas la clé), les caméras et les événements, rafraîchis chaque seconde.
-- `components/App` : **une barre du haut toujours visible** (`TopBar` de `@house/ui` : le titre, qui ramène à Home, les onglets, le nombre de caméras, de lampes et de prises (« 2 caméras / 19 lampes / 1 prise » ; `lib/usePlugCount.ts`, 1 tant que `/plug` répond ; les lampes : `Lights/useLampCount.ts`), « Oublier la clé » ; **sur téléphone, un bouton « sandwich » en haut à droite ouvre un menu** avec les onglets, le compte et « Oublier la clé »), la clé (`KeyForm`), puis cinq onglets (`Tabs`, `TABS`, la page s'ouvre sur **Caméras**, `DEFAULT_TAB`).
-- `ApiExplorer` : les services de l'API (liste dans `constants.ts`, à compléter quand l'API gagne un service), rangés par type : Général, Caméra, Lumière, Prise ; un clic montre la réponse JSON.
+- `components/App` : **une barre du haut toujours visible** (`TopBar` de `@house/ui` : le titre, qui ramène à Home, les onglets, le nombre de caméras, de lampes et de prises (« 2 caméras / 19 lampes / 1 prise » ; `lib/usePlugCount.ts`, 1 tant que `/plug` répond ; les lampes : `Lights/useLampCount.ts`), « Oublier la clé » ; **sur téléphone, un bouton « sandwich » en haut à droite ouvre un menu** avec les onglets, le compte et « Oublier la clé »), la clé (`KeyForm`), puis six onglets (`Tabs`, `TABS`, la page s'ouvre sur **Caméras**, `DEFAULT_TAB`).
+- `ApiExplorer` : les services de l'API (liste dans `constants.ts`, à compléter quand l'API gagne un service), rangés par type : Général, Caméra, Lumière, Volet, Prise ; un clic montre la réponse JSON.
 
 ## Le détail par onglet et par composant (un CLAUDE.md dans chaque dossier)
 
@@ -21,6 +21,7 @@ Le rendu vient du paquet **`@house/ui`** (`../ui`, voir son CLAUDE.md) : ici ne 
 | Le détail d'une caméra (direct, clip, zone, alimentation, portrait, zoom, partage, enregistrer) | `src/components/CameraCard/CLAUDE.md` |
 | La frise (fenêtre, événements, version téléphone) | `src/components/Timeline/CLAUDE.md` |
 | **Lumière** (liste Hue, carte, positions des lampes) | `src/components/Lights/CLAUDE.md` |
+| **Volet** (volets roulants, simulation tant que l'ESP32 n'est pas branché) | `src/components/ShuttersPanel/CLAUDE.md` |
 | **Prise** | `src/components/PlugPanel/CLAUDE.md` |
 
 ## Notifications de mouvement

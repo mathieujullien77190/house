@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState } from '@/types'
+import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -83,6 +83,32 @@ export const setPlug = async (key: string, on: boolean, minutes?: number, offOnM
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/plug : HTTP ${res.status}`)
   return res.json()
+}
+
+/** Les volets roulants et leur dernier ordre (503 si aucun volet n'est configuré). */
+export const fetchShutters = async (key: string): Promise<ShuttersState> => (await request(key, '/shutters')).json()
+
+/** Envoie un ordre (monter, descendre, stop) à un volet ; 502 si l'ESP32 ne répond pas. */
+export const sendShutter = async (key: string, id: string, command: ShutterCommand): Promise<ShutterInfo> => {
+  const res = await fetch(`/shutters/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/shutters : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Change une option de l'action automatique d'un volet (`open` : ouvrir au lever du soleil, `close` : fermer à son coucher) ; 404 si le volet n'en a pas. */
+export const setShutterAuto = async (key: string, id: string, patch: Partial<ShutterAuto>): Promise<void> => {
+  const res = await fetch(`/shutters/${encodeURIComponent(id)}/auto`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/shutters : HTTP ${res.status}`)
 }
 
 /** Les réglages du chauffage automatique et l'état de la règle (503 sans prise ou sans pont Hue). */
