@@ -40,6 +40,8 @@ const Lights = ({ apiKey }: LightsProps) => {
   // Le plan de la maison (la carte) : arbres, haies, cage… et la place des lampes, gardés par l'API.
   const plan = usePlan(apiKey)
   const legacy = useLegacyPositions(apiKey)
+  // La carte est repliée au départ : elle n'est fabriquée (et ses tuiles chargées) qu'une fois la section ouverte.
+  const [planOpen, setPlanOpen] = useState(false)
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
 
@@ -164,8 +166,8 @@ const Lights = ({ apiKey }: LightsProps) => {
       {status === 'error' ? <Notice text={ERROR_TEXT} /> : null}
       {/* Sur téléphone (sous 1024 px) : la liste seule, pas de carte. */}
       {mobile ? null : (
-        <Collapsible title={PLAN_SECTION_TITLE} defaultOpen>
-          {map}
+        <Collapsible title={PLAN_SECTION_TITLE} defaultOpen={false} onToggle={setPlanOpen}>
+          {planOpen ? map : null}
         </Collapsible>
       )}
       <LightsPanel

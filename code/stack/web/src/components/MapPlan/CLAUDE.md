@@ -22,7 +22,7 @@ Le plan de la maison de la WebApp est une **carte MapLibre GL** (`maplibre-gl` d
 
 ## Deux modes et le toit
 
-`mode` : `cameras` ou `lights`. Le bouton **« Cacher le toit »** / « Montrer le toit » (en bas à droite, **seulement sur la carte des caméras** : sur celle des lumières le toit est caché et le bouton n’existe pas) : le toit (`plan-toit`) laisse place aux pièces, aux cloisons (trait plein) et aux claustras (pointillés) toit caché, et aux lampes de la maison. Dans l'onglet Lumière, le toit est caché au départ. La lampe « Perruche » et la prise connectée gardent leur état (orange / gris / contour rouge pâle ; vert / rouge).
+`mode` : `cameras` ou `lights`. **Aucun bouton du toit** : sur la carte des caméras le toit (`plan-toit`) se voit, sur celle des lumières il est caché et laisse voir les pièces, les cloisons (trait plein), les claustras (pointillés) et les lampes de la maison. La lampe « Perruche » et la prise connectée gardent leur état (orange / gris / contour rouge pâle ; vert / rouge).
 
 ## Modifier
 

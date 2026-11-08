@@ -61,9 +61,6 @@ export const ICON_STROKE_WIDTH = 2
 export const FIT_PADDING = 48
 /** Les crans de zoom ajoutés au cadrage exact des lampes. */
 export const FIT_EXTRA_ZOOM = 1
-/** Le toit se cache pour voir les pièces, les cloisons et les lampes. */
-export const HIDE_ROOF_LABEL = 'Cacher le toit'
-export const SHOW_ROOF_LABEL = 'Montrer le toit'
 /** Les pièces vues toit caché. */
 export const ROOM_FILL = '#f3f4f6'
 export const ROOM_LINE = '#374151'

@@ -2,18 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { PlanCamera } from '@house/ui'
 import MapPlan from './MapPlan'
 import type { MapPlanProps } from './types'
-import {
-  BASES_LABEL,
-  EDIT_LABEL,
-  FIT_EXTRA_ZOOM,
-  HIDE_ROOF_LABEL,
-  LINK_LABEL,
-  MAP_MAX_ZOOM,
-  MAP_ROTATION_DEG,
-  MAP_ZOOM,
-  RECENTER_LABEL,
-  SHOW_ROOF_LABEL,
-} from './constants'
+import { BASES_LABEL, EDIT_LABEL, FIT_EXTRA_ZOOM, LINK_LABEL, MAP_MAX_ZOOM, MAP_ROTATION_DEG, MAP_ZOOM, RECENTER_LABEL } from './constants'
 
 type Handler = (event?: unknown) => void
 
@@ -274,41 +263,25 @@ const lamp = (id: string, over: Record<string, unknown> = {}) => ({
 })
 
 describe('MapPlan : le toit', () => {
-  it('« Cacher le toit » bascule le toit et les pièces, et le dit', () => {
+  it('carte des caméras : le toit se voit, les pièces sont cachées, et aucun bouton ne les bascule', () => {
     render(<MapPlan {...baseProps()} />)
     const map = loaded()
-    const toggle = screen.getByRole('button', { name: HIDE_ROOF_LABEL })
-    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: /toit/i })).toBeNull()
     expect(map.visibility.get('plan-toit')).toBe('visible')
-    expect(map.visibility.get('plan-pieces')).toBe('none')
-    fireEvent.click(toggle)
-    expect(screen.getByRole('button', { name: SHOW_ROOF_LABEL })).toHaveAttribute('aria-pressed', 'true')
-    expect(map.visibility.get('plan-toit')).toBe('none')
-    for (const id of ['plan-pieces', 'plan-pieces-trait', 'plan-cloisons', 'plan-claustras']) expect(map.visibility.get(id)).toBe('visible')
-    fireEvent.click(screen.getByRole('button', { name: SHOW_ROOF_LABEL }))
-    expect(map.visibility.get('plan-toit')).toBe('visible')
-    expect(map.visibility.get('plan-pieces')).toBe('none')
+    for (const id of ['plan-pieces', 'plan-pieces-trait', 'plan-cloisons', 'plan-claustras']) expect(map.visibility.get(id)).toBe('none')
   })
 
   it('une couche absente est sautée ; rien avant le chargement du style', () => {
     render(<MapPlan {...baseProps()} />)
-    fireEvent.click(screen.getByRole('button', { name: HIDE_ROOF_LABEL }))
     expect(lastMap().visibility.size).toBe(0)
     const map = loaded()
-    map.layers.delete('plan-toit')
-    map.layers.delete('plan-pieces')
-    map.visibility.clear()
-    fireEvent.click(screen.getByRole('button', { name: SHOW_ROOF_LABEL }))
-    expect(map.visibility.has('plan-toit')).toBe(false)
-    expect(map.visibility.has('plan-pieces')).toBe(false)
-    expect(map.visibility.get('plan-cloisons')).toBe('none')
+    expect(map.visibility.get('plan-toit')).toBe('visible')
   })
 
-  it('carte des lumières : le toit est caché au départ et son bouton n’existe pas', () => {
+  it('carte des lumières : le toit est caché et les pièces se voient, sans bouton', () => {
     render(<MapPlan {...baseProps({ mode: 'lights' })} />)
     const map = loaded()
-    expect(screen.queryByRole('button', { name: SHOW_ROOF_LABEL })).toBeNull()
-    expect(screen.queryByRole('button', { name: HIDE_ROOF_LABEL })).toBeNull()
+    expect(screen.queryByRole('button', { name: /toit/i })).toBeNull()
     expect(map.visibility.get('plan-toit')).toBe('none')
     expect(map.visibility.get('plan-pieces')).toBe('visible')
   })
@@ -360,15 +333,10 @@ describe('MapPlan : cadrer les lampes', () => {
 })
 
 describe('MapPlan : les lampes', () => {
-  it('carte des caméras : les lampes d’intérieur ne se voient que toit caché, celle de la cage toujours', () => {
+  it('carte des caméras : seule la lampe de la cage se voit, celles d’intérieur sont sous le toit', () => {
     const lamps = [lamp('1'), lamp('26', { indoor: false })]
     render(<MapPlan {...baseProps({ lamps })} />)
-    const map = loaded()
-    expect(pointKinds(map).filter((k) => k === 'lamp-hit')).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: HIDE_ROOF_LABEL }))
-    expect(pointKinds(map).filter((k) => k === 'lamp-hit')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: SHOW_ROOF_LABEL }))
-    expect(pointKinds(map).filter((k) => k === 'lamp-hit')).toHaveLength(1)
+    expect(pointKinds(loaded()).filter((k) => k === 'lamp-hit')).toHaveLength(1)
   })
 
   it('une lampe à placer ne se voit qu’en modification', () => {

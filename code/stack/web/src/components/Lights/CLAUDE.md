@@ -14,7 +14,7 @@ Rangée par **zone de la maison** (`ZONES` dans `constants.ts`, par identifiant 
 
 ## La carte
 
-Sous la liste, une section repliable « Plan », ouverte au départ : **la même carte que celle des caméras** (`MapPlan` avec `mode="lights"` : même fond, même dessin, mêmes arbres, haies, cage et portes ; `../MapPlan/CLAUDE.md`), sauf que les **lampes remplacent les caméras** et que **le toit est caché au départ**. On voit alors les pièces de `PLAN_ROOMS` et les cloisons de `PLAN_WALLS` (`constants.ts`, repère de l'ancien plan 540 × 300 ; `fromHousePlan` de `MapPlan/helpers.ts` les passe dans celui de la carte : x + `HOUSE_SHIFT`, y × `MAP_HOUSE_HEIGHT` / 300) et une ampoule par lampe :
+Sous la liste, une section repliable « Plan », **repliée au départ** (la carte n'est fabriquée, tuiles comprises, qu'une fois la section ouverte : `onToggle` de `Collapsible`) : **la même carte que celle des caméras** (`MapPlan` avec `mode="lights"` : même fond, même dessin, mêmes arbres, haies, cage et portes ; `../MapPlan/CLAUDE.md`), sauf que les **lampes remplacent les caméras** et que **le toit est caché au départ**. On voit alors les pièces de `PLAN_ROOMS` et les cloisons de `PLAN_WALLS` (`constants.ts`, repère de l'ancien plan 540 × 300 ; `fromHousePlan` de `MapPlan/helpers.ts` les passe dans celui de la carte : x + `HOUSE_SHIFT`, y × `MAP_HOUSE_HEIGHT` / 300) et une ampoule par lampe :
 
 - rond orange allumée, de la couleur du fond éteinte, contour rouge pâle injoignable (alors montrée éteinte, `allLights` force `on` à faux) ;
 - **opacité selon la luminosité** (`bulbOpacity`) ; « Nom · 60 % » en bas de la carte au survol ou au toucher (`bulbLabel`) ;
@@ -24,7 +24,7 @@ Sous la liste, une section repliable « Plan », ouverte au départ : **la même
 
 **Sur téléphone (sous 1024 px) il n'y a pas de carte** : l'onglet montre seulement la liste des lampes (et les automatisations), avec la barre du haut et les onglets comme les autres onglets.
 
-**Sur la carte des caméras**, la lampe « Perruche » se voit toujours ; les autres lampes (`indoor`) n'apparaissent qu'une fois le toit caché (`lib/useLampPlan.ts`, relues toutes les 5 s, toucher = allumer ou éteindre).
+**Sur la carte des caméras**, la lampe « Perruche » se voit toujours ; les autres lampes (`indoor`) n'y sont pas (elles sont sous le toit, qui n'a plus de bouton) (`lib/useLampPlan.ts`, relues toutes les 5 s, toucher = allumer ou éteindre).
 
 ## Positions des lampes
 

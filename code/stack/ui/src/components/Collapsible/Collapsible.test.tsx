@@ -64,4 +64,20 @@ describe('Collapsible', () => {
     // fireEvent renvoie false si l action par défaut (plier) a été retenue.
     expect(notPrevented).toBe(false)
   })
+
+  it('dit au parent quand on l’ouvre ou le ferme', () => {
+    const onToggle = vi.fn()
+    const { container } = render(
+      <Collapsible title="Plan" defaultOpen={false} onToggle={onToggle}>
+        contenu
+      </Collapsible>,
+    )
+    const details = container.querySelector('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(onToggle).toHaveBeenLastCalledWith(true)
+    details.open = false
+    fireEvent(details, new Event('toggle'))
+    expect(onToggle).toHaveBeenLastCalledWith(false)
+  })
 })

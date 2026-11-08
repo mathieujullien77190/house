@@ -10,7 +10,6 @@ import {
   BASES_LABEL,
   DEFAULT_BASE,
   EDIT_LABEL,
-  HIDE_ROOF_LABEL,
   LAMP_LABEL_CLASS,
   LINK_LABEL,
   LINK_NONE,
@@ -27,7 +26,6 @@ import {
   RASTER_TILE_SIZE,
   ACTIONS_CLASS,
   RECENTER_LABEL,
-  SHOW_ROOF_LABEL,
   VECTOR_STYLE_URL,
   WRAPPER_CLASS,
   type BaseId,
@@ -59,10 +57,10 @@ const ROOM_LAYERS = ['plan-pieces', 'plan-pieces-trait', 'plan-cloisons', 'plan-
  * (carte des caméras), une lampe à placer qu'en modification ; hors modification, plus de déplacement ni de réglage (choisir une caméra et toucher une lampe restent) ;
  * en modification de la carte des lumières, seules les lampes se déplacent.
  */
-const resolve = (given: MapPlanProps, editing: boolean, roofHidden: boolean): ResolvedProps => {
+const resolve = (given: MapPlanProps, editing: boolean): ResolvedProps => {
   const mode = given.mode ?? 'cameras'
   const lights = mode === 'lights'
-  const lamps = (given.lamps ?? EMPTY_LAMPS).filter((lamp) => (editing || !lamp.waiting) && (lights || roofHidden || !lamp.indoor))
+  const lamps = (given.lamps ?? EMPTY_LAMPS).filter((lamp) => (editing || !lamp.waiting) && (lights || !lamp.indoor))
   const base: ResolvedProps = {
     ...given,
     mode,
@@ -123,11 +121,11 @@ const MapPlan = (given: MapPlanProps) => {
   const lights = given.mode === 'lights'
   // Le plan ne se modifie que si on l'a demandé : sinon seuls les clics sur une caméra (son champ de vision) ou une lampe (l'allumer) restent.
   const [editing, setEditing] = useState(false)
-  // Le toit est caché au départ sur la carte des lumières (les lampes sont dedans).
-  const [roofHidden, setRoofHidden] = useState(lights)
+  // Le toit est caché sur la carte des lumières (les pièces et les lampes sont dessous), visible sur celle des caméras.
+  const roofHidden = lights
   // L'ampoule survolée ou touchée, dont le nom s'écrit en bas de la carte.
   const [activeLamp, setActiveLamp] = useState('')
-  const props = resolve({ ...given, onHoverLamp: setActiveLamp }, editing, roofHidden)
+  const props = resolve({ ...given, onHoverLamp: setActiveLamp }, editing)
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const paletteRef = useRef<Palette | null>(null)
@@ -238,8 +236,9 @@ const MapPlan = (given: MapPlanProps) => {
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    for (const id of ROOF_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', roofHidden ? 'none' : 'visible')
-    for (const id of ROOM_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', roofHidden ? 'visible' : 'none')
+    // Les couches existent dès que le style est prêt (addPlanLayers passe avant styleReady).
+    for (const id of ROOF_LAYERS) map.setLayoutProperty(id, 'visibility', roofHidden ? 'none' : 'visible')
+    for (const id of ROOM_LAYERS) map.setLayoutProperty(id, 'visibility', roofHidden ? 'visible' : 'none')
   }, [roofHidden, styleReady])
 
   // Les éléments du plan ont changé (déplacés, choisis, allumés) : les données de la carte suivent.
@@ -271,11 +270,6 @@ const MapPlan = (given: MapPlanProps) => {
       </div>
       {lamp ? <p className={LAMP_LABEL_CLASS}>{bulbLabel(lamp.name, lamp.on, lamp.reachable, lamp.brightness)}</p> : null}
       <div className={ACTIONS_CLASS}>
-        {lights ? null : (
-          <Button variant={roofHidden ? 'active' : 'default'} aria-pressed={roofHidden} onClick={() => setRoofHidden((hidden) => !hidden)}>
-            {roofHidden ? SHOW_ROOF_LABEL : HIDE_ROOF_LABEL}
-          </Button>
-        )}
         <Button
           onClick={() => {
             const map = mapRef.current

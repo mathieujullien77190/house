@@ -12,5 +12,7 @@ export interface CollapsibleProps {
   compact?: boolean
   /** Ouvert au départ ; le visiteur l'ouvre et le ferme ensuite (le navigateur retient l'état). */
   defaultOpen?: boolean
+  /** Le visiteur l'ouvre ou le ferme : le parent peut ainsi ne fabriquer son contenu (une carte, par exemple) qu'une fois ouvert. */
+  onToggle?: (open: boolean) => void
   children: ReactNode
 }

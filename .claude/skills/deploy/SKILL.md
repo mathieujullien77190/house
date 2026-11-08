@@ -55,6 +55,20 @@ Suivre le skill **commit-push** (message en anglais, Conventional Commits, un co
 
 Vérifier ensuite : `git log -1 --format='%an <%ae>%n%B'` (auteur attendu, pas de trailer) et `git status -sb`.
 
-## 5. Rapport (court)
+## 5. Résultat de GitHub (après chaque push)
 
-Services déployés et leur état, résultat des vérifications, commits poussés (hashes et sujets).
+Le push lance le workflow « Stack » de GitHub (typecheck, lint, tests et build de chaque paquet, sur Linux). **Toujours attendre son résultat** :
+
+```
+code/stack/ci-status.sh          # le commit HEAD ; sortie 0 = vert, 1 = échec, 2 = pas de run ou trop long
+```
+
+(il ne se déclenche que si le commit touche `code/stack/` ; le script le dit sinon). Pour un push de plusieurs commits, vérifier le dernier.
+
+- **Vert** : le dire dans le rapport.
+- **Rouge** : ne pas s'arrêter là. Lire le job en échec et son message (le script les affiche ; les journaux complets demandent un jeton), **reproduire en local dans les conditions de GitHub** (copie propre du dépôt avec `npm ci`, ou sur le mini PC, qui est un Linux : `docker run --rm -v <dossier>:/app:ro -w /app node:24-alpine …`), corriger, redéployer si le code a changé, commiter, pousser, et revérifier. Causes déjà vues : un `eslint .` qui descend dans un sous-projet dont les dépendances ne sont pas installées (`sync/web`), et des tests qui supposent Windows (chemins `dir/fichier/..`, séparateurs).
+- Ne pas sonder l'API de GitHub en boucle à la main (60 requêtes par heure sans jeton) : le script s'en charge.
+
+## 6. Rapport (court)
+
+Services déployés et leur état, résultat des vérifications, commits poussés (hashes et sujets), résultat du workflow GitHub.
