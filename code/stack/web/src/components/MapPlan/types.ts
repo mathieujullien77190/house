@@ -24,10 +24,6 @@ export interface MapPlanProps extends Omit<EditContext, 'cameras' | 'trees' | 'h
   onLink?: (planId: string, camera: string) => void
   selectedTreeId?: string
   selectedHedgeId?: string
-  /** L'écran du téléphone : la carte en plein écran, sans commandes de zoom, avec une flèche retour. */
-  screen?: boolean
-  onBack?: () => void
-  backLabel?: string
 }
 
 /** Les props une fois complétées : rien n'y manque. */

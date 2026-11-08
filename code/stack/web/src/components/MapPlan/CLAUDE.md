@@ -5,7 +5,7 @@ Le plan de la maison de la WebApp est une **carte MapLibre GL** (`maplibre-gl` d
 ## Fond et vue
 
 - Fond **Satellite** (photo aérienne IGN, par défaut) ou **Vectoriel** (Plan IGN en tuiles vectorielles, net à tout zoom ; style officiel de la Géoplateforme, sans clé), choisi en haut à droite.
-- La carte est **tournée de 37,7°** (`MAP_ROTATION_DEG`) pour que la maison soit droite à l'écran ; zoom de départ 19,7, jusqu'à 22. Hauteur 530 px (`MAP_CLASS`) ; en plein écran téléphone `SCREEN_MAP_CLASS`.
+- La carte est **tournée de 37,7°** (`MAP_ROTATION_DEG`) pour que la maison soit droite à l'écran ; zoom de départ 19,7, jusqu'à 22. Hauteur 530 px (`MAP_CLASS`).
 - **Le plan de la maison est dessiné par la carte elle-même, en longitude et latitude** : `projection.ts` pose le plan en unités (43,5 par mètre : le bâti de la maison au cadastre, parcelle AO 0018, fait 12,4 m sur 7,65 m, `MAP_UNITS_PER_METER`, `MAP_HOUSE_HEIGHT`) sur le centre du bâti et le tourne comme lui, donc il ne glisse jamais pendant un zoom.
 
 ## Les couches

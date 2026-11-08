@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Collapsible, LightsPanel, Notice, SpecList } from '@house/ui'
+import { Collapsible, LightsPanel, Notice, SpecList } from '@house/ui'
 import { CAMERA_LAMP } from '@/components/CameraCard/constants'
 import FadeButton from '@/components/FadeButton'
 import MapPlan from '@/components/MapPlan'
@@ -11,7 +11,6 @@ import { ApiError, fetchAutomations, fetchLights, fetchSensors, setHue } from '@
 import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
 import {
   ALL_KEY,
-  BACK_LABEL,
   AUTOMATIONS_POLL_MS,
   AUTOMATIONS_TITLE,
   EMPTY_TEXT,
@@ -31,7 +30,7 @@ import type { LightsProps, LightsStatus } from './types'
  * zone entière (lampe par lampe) ou d'une lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie).
  * Les positions des ampoules sont gardées dans le plan de l'API (longitude et latitude) : elles restent où on les a mises, sur tous les appareils.
  */
-const Lights = ({ apiKey, onBack }: LightsProps) => {
+const Lights = ({ apiKey }: LightsProps) => {
   const [rooms, setRooms] = useState<HueRoom[]>([])
   const [sensors, setSensors] = useState<HueSensor[]>([])
   const [automations, setAutomations] = useState<HueAutomation[]>([])
@@ -139,12 +138,7 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
     if (light?.reachable) void changeLight(id, { on: !light.on })
   }
 
-  const notice = (text: string) => (
-    <>
-      {mobile && onBack ? <Button onClick={onBack}>{BACK_LABEL}</Button> : null}
-      <Notice text={text} />
-    </>
-  )
+  const notice = (text: string) => <Notice text={text} />
   if (rooms.length === 0) {
     if (status === 'unavailable') return notice(NOT_CONFIGURED_TEXT)
     if (status === 'error') return notice(ERROR_TEXT)
@@ -154,9 +148,6 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
   const map = (
     <MapPlan
       mode="lights"
-      screen={mobile}
-      onBack={onBack}
-      backLabel={BACK_LABEL}
       lamps={lamps}
       onMoveLamp={plan.moveItem}
       onToggleLamp={toggle}
@@ -167,14 +158,15 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
       gates={PARCEL_GATES}
     />
   )
-  // Sur téléphone (sous 1024 px) l'onglet est un écran : le plan seul, en plein écran paysage, sans titre ni menu ni liste.
-  if (mobile) return map
   return (
     <>
       {status === 'error' ? <Notice text={ERROR_TEXT} /> : null}
-      <Collapsible title={PLAN_SECTION_TITLE} defaultOpen>
-        {map}
-      </Collapsible>
+      {/* Sur téléphone (sous 1024 px) : la liste seule, pas de carte. */}
+      {mobile ? null : (
+        <Collapsible title={PLAN_SECTION_TITLE} defaultOpen>
+          {map}
+        </Collapsible>
+      )}
       <LightsPanel
         rooms={zones}
         busy={busy}

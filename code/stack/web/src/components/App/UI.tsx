@@ -6,23 +6,73 @@ import Home from '@/components/Home'
 import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
-import { BACK_CLASS, NOTIFY_LABEL, BACK_LABEL, CAMERA_WORD, COUNTS_SEPARATOR, LAMP_WORD, PLUG_WORD, CHECKING_TEXT, FORGET_LABEL, LOCKED_TEXT, NO_CAMERA_TEXT, TABS_LABEL, TITLE } from './constants'
+import {
+  BACK_CLASS,
+  NOTIFY_LABEL,
+  BACK_LABEL,
+  CAMERA_WORD,
+  COUNTS_SEPARATOR,
+  LAMP_WORD,
+  PLUG_WORD,
+  CHECKING_TEXT,
+  FORGET_LABEL,
+  LOCKED_TEXT,
+  NO_CAMERA_TEXT,
+  TABS_LABEL,
+  TITLE,
+} from './constants'
 import { countText, eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, apiKey, cameras, events, lampCount, plugCount, mobile, notify, onNotify, tab, openCamera, openEvent, isRead, onRead, onOpenCamera, tabs, onTab, onConnect, onForget }: AppUIProps) => {
+const AppUI = ({
+  status,
+  message,
+  apiKey,
+  cameras,
+  events,
+  lampCount,
+  plugCount,
+  mobile,
+  notify,
+  onNotify,
+  tab,
+  openCamera,
+  openEvent,
+  isRead,
+  onRead,
+  onOpenCamera,
+  tabs,
+  onTab,
+  onConnect,
+  onForget,
+}: AppUIProps) => {
   const ready = status === 'ready'
   // La caméra ouverte en détail, si elle existe encore ; sinon la mosaïque.
   const current = cameras.find((camera) => camera.name === openCamera)
-  const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : [countText(cameras.length, CAMERA_WORD), ...(lampCount === null ? [] : [countText(lampCount, LAMP_WORD)]), ...(plugCount === null ? [] : [countText(plugCount, PLUG_WORD)])].join(COUNTS_SEPARATOR)
+  const statusText =
+    status === 'checking'
+      ? CHECKING_TEXT
+      : status === 'locked'
+        ? LOCKED_TEXT
+        : [
+            countText(cameras.length, CAMERA_WORD),
+            ...(lampCount === null ? [] : [countText(lampCount, LAMP_WORD)]),
+            ...(plugCount === null ? [] : [countText(plugCount, PLUG_WORD)]),
+          ].join(COUNTS_SEPARATOR)
   // Sur téléphone, la vue d'une caméra est un écran à part : ni titre, ni menu, ni son, ni « Oublier la clé » (le bouton retour est dans la carte).
   if (ready && mobile && tab === 'cameras' && current) {
-    return <CameraCard apiKey={apiKey} camera={current} events={eventsOf(events, current.name)} initialEventId={openEvent} onRead={onRead} onBack={() => onOpenCamera(null)} />
+    return (
+      <CameraCard
+        apiKey={apiKey}
+        camera={current}
+        events={eventsOf(events, current.name)}
+        initialEventId={openEvent}
+        onRead={onRead}
+        onBack={() => onOpenCamera(null)}
+      />
+    )
   }
   // Pareil pour le plan des lumières : un écran à part, la flèche retour ramène aux caméras.
-  if (ready && mobile && tab === 'lights') {
-    return <Lights apiKey={apiKey} onBack={() => onTab('cameras')} />
-  }
   return (
     <Page>
       <TopBar
@@ -58,7 +108,13 @@ const AppUI = ({ status, message, apiKey, cameras, events, lampCount, plugCount,
                 <div className={BACK_CLASS}>
                   <Button onClick={() => onOpenCamera(null)}>{BACK_LABEL}</Button>
                 </div>
-                <CameraCard apiKey={apiKey} camera={current} events={eventsOf(events, current.name)} initialEventId={openEvent} onRead={onRead} />
+                <CameraCard
+                  apiKey={apiKey}
+                  camera={current}
+                  events={eventsOf(events, current.name)}
+                  initialEventId={openEvent}
+                  onRead={onRead}
+                />
               </>
             ) : (
               <CameraMosaic apiKey={apiKey} cameras={cameras} events={events} isRead={isRead} onOpen={onOpenCamera} />

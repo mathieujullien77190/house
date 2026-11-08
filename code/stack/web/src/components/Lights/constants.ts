@@ -17,7 +17,6 @@ export const PLAN_TITLE = 'Rez-de-chaussée'
 /** Le titre de la section repliable du plan. */
 export const PLAN_SECTION_TITLE = 'Plan'
 /** Le nom du bouton retour de l'écran du plan (téléphone), lu par les lecteurs d'écran. */
-export const BACK_LABEL = 'Retour'
 export const ERROR_TEXT = 'Le pont Hue n’a pas répondu.'
 export const NOT_CONFIGURED_TEXT = 'Le pont Hue n’est pas configuré (HUE_APP_KEY).'
 export const EMPTY_TEXT = 'Aucune lampe trouvée.'

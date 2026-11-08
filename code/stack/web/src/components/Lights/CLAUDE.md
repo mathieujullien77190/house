@@ -22,7 +22,7 @@ Sous la liste, une section repliable « Plan », ouverte au départ : **la même
 - **la vue cadre toutes les lampes** (`lampBounds`, `cameraForBounds`, plus `FIT_EXTRA_ZOOM` = 1 cran de zoom) dès qu’elles sont arrivées, une seule fois ; « Recentrer » refait ce cadrage ; pas de bouton du toit sur cette carte ;
 - les lampes pas encore placées attendent en rangées sur le carrelage au sud de la maison (`waitingSlot`) et **ne se voient qu'en mode Modifier**.
 
-**Sur téléphone (sous 1024 px) l'onglet est un écran à part** : la carte seule en plein écran (`screen`, pas de boutons + et −, le pincement suffit ; tenu droit, la carte est tournée d'un quart de tour de plus pour que la maison remplisse l'écran), sans titre ni menu ni liste, avec une flèche retour en haut à gauche vers l'onglet Caméras (`onBack`).
+**Sur téléphone (sous 1024 px) il n'y a pas de carte** : l'onglet montre seulement la liste des lampes (et les automatisations), avec la barre du haut et les onglets comme les autres onglets.
 
 **Sur la carte des caméras**, la lampe « Perruche » se voit toujours ; les autres lampes (`indoor`) n'apparaissent qu'une fois le toit caché (`lib/useLampPlan.ts`, relues toutes les 5 s, toucher = allumer ou éteindre).
 

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { flush } from '@/test/fetch'
 import { setDesktop } from '@/test/viewport'
@@ -98,41 +98,20 @@ describe('Lights : états', () => {
     expect(screen.getByText(/Aucune lampe/)).toBeInTheDocument()
   })
 
-  it('sur téléphone, les messages ont un bouton retour', async () => {
+  it('sur téléphone : la liste des lampes, pas de carte', async () => {
     setDesktop(false)
-    vi.mocked(api.fetchLights).mockRejectedValue(new Error('x'))
-    const onBack = vi.fn()
-    render(<Lights apiKey="k" onBack={onBack} />)
+    render(<Lights apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getByRole('button'))
-    expect(onBack).toHaveBeenCalled()
+    expect(screen.getByTestId('panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('plan')).toBeNull()
   })
 
-  it('sur téléphone sans retour, pas de bouton', async () => {
+  it('sur téléphone, un message d’erreur n’a pas de bouton retour', async () => {
     setDesktop(false)
     vi.mocked(api.fetchLights).mockRejectedValue(new Error('x'))
     render(<Lights apiKey="k" />)
     await settle()
     expect(screen.queryByRole('button')).toBeNull()
-  })
-
-  it('sur téléphone : le plan seul', async () => {
-    setDesktop(false)
-    render(<Lights apiKey="k" />)
-    await settle()
-    expect(screen.getByTestId('plan')).toBeInTheDocument()
-    expect(screen.queryByTestId('panel')).toBeNull()
-    expect(ui.plan.screen).toBe(true)
-    expect(ui.plan.mode).toBe('lights')
-  })
-
-  it('sur téléphone : la flèche retour de la carte est celle de l’onglet', async () => {
-    setDesktop(false)
-    const onBack = vi.fn()
-    render(<Lights apiKey="k" onBack={onBack} />)
-    await settle()
-    expect(ui.plan.onBack).toBe(onBack)
-    expect(ui.plan.backLabel).toBe('Retour')
   })
 
   it('une erreur passagère garde l’écran avec un bandeau', async () => {
@@ -300,7 +279,6 @@ describe('Lights : la carte et les lampes', () => {
     await settle()
     expect(ui.plan).toMatchObject({
       mode: 'lights',
-      screen: false,
       trees: ui.state.trees,
       hedges: ui.state.hedges,
       cage: ui.state.cage,

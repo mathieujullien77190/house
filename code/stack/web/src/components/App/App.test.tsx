@@ -20,9 +20,7 @@ vi.mock('@/lib/usePlugCount', () => ({ usePlugCount: () => h.plugCount }))
 vi.mock('@/lib/useReadClips', () => ({ useReadClips: () => h.read }))
 vi.mock('@/lib/useMotionNotifications', () => ({ useMotionNotifications: () => h.notify }))
 vi.mock('@/components/Lights', () => ({
-  default: (p: { onBack?: () => void }) => (
-    <div data-testid="lights">{p.onBack ? <button onClick={p.onBack}>retour lumières</button> : null}</div>
-  ),
+  default: () => <div data-testid="lights" />,
   useLampCount: () => h.lampCount,
 }))
 vi.mock('@/components/Home', () => ({ default: () => <div data-testid="home" /> }))
@@ -209,12 +207,11 @@ describe('App : téléphone', () => {
     fireEvent.click(screen.getByRole('button', { name: 'retour carte' }))
     expect(screen.getByTestId('mosaic')).toBeInTheDocument()
   })
-  it('l’onglet Lumière est un écran à part dont la flèche ramène aux caméras', () => {
+  it('l’onglet Lumière garde la barre et les onglets (la liste, sans carte)', () => {
     render(<App />)
     tab('Lumière')
-    expect(screen.queryByRole('tablist')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'retour lumières' }))
-    expect(screen.getByTestId('mosaic')).toBeInTheDocument()
+    expect(screen.getByTestId('lights')).toBeInTheDocument()
+    expect(screen.getAllByRole('tablist').length).toBeGreaterThan(0)
   })
   it('verrouillé, la page reste la page normale', () => {
     h.house = ready({ status: 'locked' })

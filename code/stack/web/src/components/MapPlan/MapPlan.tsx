@@ -6,8 +6,6 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { Button, Select, Tabs, type PlanCamera, type PlanLamp, type PlanPlug } from '@house/ui'
 import {
   ATTRIBUTION,
-  BACK_ARROW,
-  BACK_CLASS,
   BASES,
   BASES_LABEL,
   DEFAULT_BASE,
@@ -29,9 +27,6 @@ import {
   RASTER_TILE_SIZE,
   ACTIONS_CLASS,
   RECENTER_LABEL,
-  SCREEN_MAP_CLASS,
-  SCREEN_WRAPPER_CLASS,
-  SCREEN_ZOOM,
   SHOW_ROOF_LABEL,
   VECTOR_STYLE_URL,
   WRAPPER_CLASS,
@@ -48,10 +43,6 @@ setWorkerUrl(workerUrl)
 
 /** Le centre en [longitude, latitude], l'ordre de MapLibre. */
 const CENTER_LNG_LAT: [number, number] = [MAP_CENTER[1], MAP_CENTER[0]]
-
-/** L'angle de départ : sur l'écran du téléphone tenu droit, la carte est tournée d'un quart de tour de plus pour que la maison (plus longue que large) remplisse la hauteur. */
-const startBearing = (screen: boolean): number =>
-  screen && window.matchMedia('(orientation: portrait)').matches ? MAP_ROTATION_DEG + 90 : MAP_ROTATION_DEG
 
 const EMPTY_CAMERAS: PlanCamera[] = []
 const EMPTY_LAMPS: PlanLamp[] = []
@@ -130,7 +121,6 @@ const liveData = (props: ResolvedProps): LiveData => ({
  */
 const MapPlan = (given: MapPlanProps) => {
   const lights = given.mode === 'lights'
-  const screen = Boolean(given.screen)
   // Le plan ne se modifie que si on l'a demandé : sinon seuls les clics sur une caméra (son champ de vision) ou une lampe (l'allumer) restent.
   const [editing, setEditing] = useState(false)
   // Le toit est caché au départ sur la carte des lumières (les lampes sont dedans).
@@ -163,9 +153,9 @@ const MapPlan = (given: MapPlanProps) => {
       container: element,
       style: VECTOR_STYLE_URL,
       center: CENTER_LNG_LAT,
-      zoom: screen ? SCREEN_ZOOM : MAP_ZOOM,
+      zoom: MAP_ZOOM,
       maxZoom: MAP_MAX_ZOOM,
-      bearing: startBearing(screen),
+      bearing: MAP_ROTATION_DEG,
       pitch: 0,
       dragRotate: false,
       pitchWithRotate: false,
@@ -173,8 +163,7 @@ const MapPlan = (given: MapPlanProps) => {
       attributionControl: false,
     })
     map.touchZoomRotate.disableRotation()
-    // Sur l'écran du téléphone le pincement suffit : pas de boutons + et −, la flèche retour est à leur place.
-    if (!screen) map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
+    map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
     mapRef.current = map
     map.on('error', (event) => setProblem(event.error?.message ?? 'Erreur de la carte'))
 
@@ -209,19 +198,13 @@ const MapPlan = (given: MapPlanProps) => {
     })
     const detach = attachEditing(map, () => latest.current)
 
-    // Le téléphone qu'on tourne : la carte suit (maison toujours dans le sens de l'écran).
-    const orientation = screen ? window.matchMedia('(orientation: portrait)') : null
-    const turn = () => map.easeTo({ bearing: startBearing(true), duration: 300 })
-    orientation?.addEventListener('change', turn)
-
     return () => {
-      orientation?.removeEventListener('change', turn)
       detach()
       mapRef.current = null
       setStyleReady(false)
       map.remove()
     }
-  }, [screen])
+  }, [])
 
   // Le fond choisi : les couches du vecteur ou l'une des deux images.
   useEffect(() => {
@@ -238,11 +221,10 @@ const MapPlan = (given: MapPlanProps) => {
   const fitLamps = (map: MapLibreMap): boolean => {
     const bounds = lampBounds(props.lamps)
     if (!bounds) return false
-    const bearing = startBearing(screen)
-    const camera = map.cameraForBounds(bounds, { padding: FIT_PADDING, bearing })
+    const camera = map.cameraForBounds(bounds, { padding: FIT_PADDING, bearing: MAP_ROTATION_DEG })
     if (!camera) return false
     // Le cadrage exact, un cran de zoom en plus (les lampes du bord se rejoignent en glissant).
-    map.jumpTo({ center: camera.center, zoom: Math.min(MAP_MAX_ZOOM, camera.zoom! + FIT_EXTRA_ZOOM), bearing, pitch: 0 })
+    map.jumpTo({ center: camera.center, zoom: Math.min(MAP_MAX_ZOOM, camera.zoom! + FIT_EXTRA_ZOOM), bearing: MAP_ROTATION_DEG, pitch: 0 })
     return true
   }
   useEffect(() => {
@@ -273,13 +255,8 @@ const MapPlan = (given: MapPlanProps) => {
   const lamp = props.lamps.find((item) => item.id === activeLamp)
 
   return (
-    <div className={screen ? SCREEN_WRAPPER_CLASS : WRAPPER_CLASS}>
-      <div ref={container} className={screen ? SCREEN_MAP_CLASS : MAP_CLASS} />
-      {screen && given.onBack ? (
-        <button type="button" className={BACK_CLASS} aria-label={given.backLabel} title={given.backLabel} onClick={given.onBack}>
-          {BACK_ARROW}
-        </button>
-      ) : null}
+    <div className={WRAPPER_CLASS}>
+      <div ref={container} className={MAP_CLASS} />
       <div className={LAYERS_CLASS}>
         <Tabs label={BASES_LABEL} options={BASES.map(({ id, label }) => ({ id, label }))} value={base} onChange={setBase} />
         {props.onLink && props.selectedCameraId ? (
@@ -305,8 +282,8 @@ const MapPlan = (given: MapPlanProps) => {
             if (map && lights && fitLamps(map)) return
             map?.jumpTo({
               center: CENTER_LNG_LAT,
-              zoom: screen ? SCREEN_ZOOM : MAP_ZOOM,
-              bearing: startBearing(screen),
+              zoom: MAP_ZOOM,
+              bearing: MAP_ROTATION_DEG,
               pitch: 0,
             })
           }}

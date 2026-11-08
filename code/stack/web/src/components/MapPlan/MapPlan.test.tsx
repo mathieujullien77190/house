@@ -12,7 +12,6 @@ import {
   MAP_ROTATION_DEG,
   MAP_ZOOM,
   RECENTER_LABEL,
-  SCREEN_ZOOM,
   SHOW_ROOF_LABEL,
 } from './constants'
 
@@ -459,60 +458,5 @@ describe('MapPlan : les lampes', () => {
     expect(screen.getByText('Éteinte')).toBeInTheDocument()
     act(() => context().onHoverLamp('2'))
     expect(screen.getByText('Morte')).toBeInTheDocument()
-  })
-})
-
-describe('MapPlan : l’écran du téléphone', () => {
-  const portrait = (matches: boolean) => {
-    const listeners = new Set<() => void>()
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query.includes('portrait') ? matches : false,
-      media: query,
-      addEventListener: (_type: string, fn: () => void) => listeners.add(fn),
-      removeEventListener: (_type: string, fn: () => void) => listeners.delete(fn),
-    }))
-    return listeners
-  }
-
-  it('pas de boutons de zoom, zoom de départ de l’écran, flèche retour', () => {
-    portrait(false)
-    const onBack = vi.fn()
-    render(<MapPlan {...baseProps({ mode: 'lights', screen: true, onBack, backLabel: 'Retour' })} />)
-    const map = lastMap()
-    expect(map.addControl).not.toHaveBeenCalled()
-    expect(map.options).toMatchObject({ zoom: SCREEN_ZOOM, bearing: MAP_ROTATION_DEG })
-    fireEvent.click(screen.getByRole('button', { name: 'Retour' }))
-    expect(onBack).toHaveBeenCalled()
-  })
-
-  it('sans fonction retour, pas de flèche', () => {
-    portrait(false)
-    render(<MapPlan {...baseProps({ screen: true })} />)
-    expect(screen.queryByText('←')).toBeNull()
-  })
-
-  it('tenu droit, la carte est tournée d’un quart de tour de plus', () => {
-    portrait(true)
-    render(<MapPlan {...baseProps({ screen: true })} />)
-    expect(lastMap().options).toMatchObject({ bearing: MAP_ROTATION_DEG + 90 })
-    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(lastMap().jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: SCREEN_ZOOM, bearing: MAP_ROTATION_DEG + 90 }))
-  })
-
-  it('le téléphone qu’on tourne : la carte suit ; démonté, l’écoute est retirée', () => {
-    const listeners = portrait(true)
-    const { unmount } = render(<MapPlan {...baseProps({ screen: true })} />)
-    expect(listeners.size).toBe(1)
-    const map = lastMap()
-    listeners.forEach((fn) => fn())
-    expect(map.easeTo).toHaveBeenCalledWith({ bearing: MAP_ROTATION_DEG + 90, duration: 300 })
-    unmount()
-    expect(listeners.size).toBe(0)
-  })
-
-  it('hors écran du téléphone, aucune écoute de l’orientation', () => {
-    const listeners = portrait(true)
-    render(<MapPlan {...baseProps()} />)
-    expect(listeners.size).toBe(0)
   })
 })

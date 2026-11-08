@@ -1,7 +1,6 @@
 export interface LightsProps {
   apiKey: string
   /** Sur téléphone, l'onglet est un écran à part : la flèche retour le quitte. */
-  onBack?: () => void
 }
 
 export type LightsStatus = 'loading' | 'ready' | 'unavailable' | 'error'
