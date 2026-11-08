@@ -10,4 +10,6 @@ export interface TabsProps<T extends string> {
   /** L'onglet actif ; une valeur hors des options n'en active aucun. */
   value: T | ''
   onChange: (id: T) => void
+  /** Aussi haute qu'un `Button` (au lieu de l'être un peu plus) : pour une barre posée parmi des boutons. */
+  compact?: boolean
 }

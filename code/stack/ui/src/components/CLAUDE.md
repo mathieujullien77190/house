@@ -6,7 +6,7 @@ Règles du paquet (dumb, imports relatifs, Storybook, mobile, tests) : `../../CL
 
 - `Page` + `PageHeader` (`onTitle` rend le titre cliquable), `PageFrame`, `SectionTitle`, `Notice`, `Collapsible` (un bloc qui se replie).
 - `TopBar` : la barre du haut, collée en haut de l'écran : titre (`onTitle` le rend cliquable), onglets (`tabs`), état, boutons ; **sous 1024 px, le titre et un bouton « sandwich » en haut à droite qui ouvre un menu** : les pages, l'état, les boutons. Utilisée par les deux apps.
-- `Tabs`, `Button`, `KeyForm`, `Pager`.
+- `Tabs` (`compact` : aussi haute qu’un `Button`, pour une barre posée parmi des boutons, comme « Léger / 4K » de la caméra), `Button`, `KeyForm`, `Pager`.
 
 ## Formulaires
 

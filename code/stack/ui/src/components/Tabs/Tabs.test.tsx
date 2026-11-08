@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import Tabs from './Tabs'
 import { tabClass } from './helpers'
-import { ACTIVE_CLASS, IDLE_CLASS, ITEM_CLASS } from './constants'
+import { ACTIVE_CLASS, COMPACT_ITEM_CLASS, IDLE_CLASS, ITEM_CLASS } from './constants'
 
 const options = [
   { id: 'live', label: 'Direct' },
@@ -12,6 +12,11 @@ describe('tabClass', () => {
   it('distingue actif et inactif', () => {
     expect(tabClass(true)).toBe(`${ITEM_CLASS} ${ACTIVE_CLASS}`)
     expect(tabClass(false)).toBe(`${ITEM_CLASS} ${IDLE_CLASS}`)
+  })
+
+  it('a une version basse, de la hauteur d’un bouton', () => {
+    expect(tabClass(true, true)).toBe(`${COMPACT_ITEM_CLASS} ${ACTIVE_CLASS}`)
+    expect(tabClass(false, true)).toBe(`${COMPACT_ITEM_CLASS} ${IDLE_CLASS}`)
   })
 })
 
@@ -33,5 +38,10 @@ describe('Tabs', () => {
     render(<Tabs label="Vues" options={[...options]} value="live" onChange={onChange} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Clips' }))
     expect(onChange).toHaveBeenCalledWith('clips')
+  })
+
+  it('compact : les onglets prennent la version basse', () => {
+    render(<Tabs label="Qualité" options={[...options]} value="live" onChange={() => undefined} compact />)
+    expect(screen.getByRole('tab', { name: 'Direct' }).className).toContain(COMPACT_ITEM_CLASS)
   })
 })

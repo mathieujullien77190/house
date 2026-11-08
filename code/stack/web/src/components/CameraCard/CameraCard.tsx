@@ -182,7 +182,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   }
 
   // L'interrupteur « Sauvegardé » n'existe que sur grand écran : sur téléphone on ne sauvegarde pas un clip (seul le partage d'un clip déjà sauvegardé reste).
-  const saveToggle = <Tabs label={SAVE_LABEL} options={[...SAVE_OPTIONS]} value={isSaved ? 'yes' : 'no'} onChange={changeSaved} />
+  const saveToggle = <Tabs label={SAVE_LABEL} options={[...SAVE_OPTIONS]} value={isSaved ? 'yes' : 'no'} onChange={changeSaved} compact />
 
   // Un clip sauvegardé se partage : le menu de partage du système sur téléphone, le téléchargement ailleurs.
   const sharePath = selected ? (selected.clip_h264 ?? selected.clip) : null
@@ -259,13 +259,14 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
           {selected?.clip_h264 ? (
             <Tabs
               label={QUALITY_LABEL}
+              compact
               options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]}
               value={quality}
               onChange={changeQuality}
             />
           ) : null}
           {selected || cursor !== null ? null : (
-            <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} />
+            <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} compact />
           )}
           {isLive && !placeholder && !mobile ? (
             <Button variant={zoneEditing ? 'active' : 'default'} aria-pressed={zoneEditing} onClick={() => setEditingZone((on) => !on)}>
