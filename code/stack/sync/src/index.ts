@@ -76,6 +76,8 @@ type RecorderEvent = {
   start_time: number
   end_time: number | null
   has_clip: boolean
+  /** Lancé à la main (bouton « Enregistrer » de la WebApp) : son clip est toujours copié, quel que soit le réglage de la caméra. */
+  manual?: boolean
 }
 
 mkdirSync(DATA_DIR, { recursive: true })
@@ -135,10 +137,13 @@ addColumn('settings', 'live_fps', 'INTEGER')
 addColumn('settings', 'light_fps', 'INTEGER')
 // La cadence des directs sur un écran de moins de 1024 px (téléphone), réglée à part de celle du PC.
 for (const column of ['live_fps_mobile', 'light_fps_mobile', 'motion_sensitivity']) addColumn('settings', column, 'INTEGER')
-const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds FROM settings WHERE camera = ?')
+// L'orientation de la caméra (voir plus bas) : la colonne doit exister avant que la requête des réglages soit préparée.
+addColumn('settings', 'orientation', 'TEXT')
+const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds, orientation FROM settings WHERE camera = ?')
 const saveSettings = db.prepare(
   'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, motion_sensitivity = excluded.motion_sensitivity, snapshot_seconds = excluded.snapshot_seconds',
 )
+const setOrientation = db.prepare('UPDATE settings SET orientation = ? WHERE camera = ?')
 const knownCameras = db.prepare('SELECT camera FROM last_images ORDER BY camera')
 /** Les intervalles d'image proposés (secondes) : au-delà de 5 min, « l'image à cet instant » serait trop loin. */
 const SNAPSHOT_CHOICES = [30, 60, 120, 300]
@@ -164,10 +169,12 @@ interface CameraSettings {
   /** La sensibilité de la détection de mouvement, de 1 à 5 (3 : les seuils de base de l'enregistreur). */
   motion_sensitivity: number
   snapshot_seconds: number
+  /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : image tournée d'un quart de tour horaire). */
+  orientation: Orientation
 }
 const cameraSettings = (camera: string): CameraSettings => {
   const row = settingsOf.get(camera) as
-    | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; snapshot_seconds: number }
+    | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; snapshot_seconds: number; orientation: string | null }
     | undefined
   const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
   return {
@@ -179,6 +186,7 @@ const cameraSettings = (camera: string): CameraSettings => {
     light_fps_mobile: row?.light_fps_mobile ?? MAX_LIVE_FPS,
     motion_sensitivity: row?.motion_sensitivity ?? DEFAULT_SENSITIVITY,
     snapshot_seconds: row?.snapshot_seconds ?? SNAPSHOT_INTERVAL_SECONDS,
+    orientation: row?.orientation && ORIENTATIONS.includes(row.orientation) ? (row.orientation as Orientation) : DEFAULT_ORIENTATION,
   }
 }
 // Le clip d'un événement qui commence à cet instant est-il à garder ?
@@ -201,6 +209,35 @@ addColumn('events', 'clip_started_at', 'INTEGER')
 addColumn('events', 'clip_web_path', 'TEXT')
 // Idem pour le son du clip (AAC, à part de la vidéo), pour les caméras à son.
 addColumn('events', 'clip_audio_path', 'TEXT')
+
+// L'orientation de la caméra : « paysage » (le direct tel que la caméra le donne) ou « portrait » (caméra posée de côté : l'image est tournée d'un quart de tour horaire pour être droite). Elle se règle
+// par caméra dans la page (colonne `settings.orientation`, paysage par défaut) et chaque événement garde celle qu'avait sa caméra quand il a commencé (colonne `events.orientation`, posée par le
+// déclencheur ci-dessous) : un clip pris avant que la caméra soit tournée reste en paysage.
+const ORIENTATIONS = ['landscape', 'portrait']
+type Orientation = 'landscape' | 'portrait'
+const DEFAULT_ORIENTATION: Orientation = 'landscape'
+addColumn('settings', 'orientation', 'TEXT')
+addColumn('events', 'orientation', 'TEXT')
+db.exec(`
+  CREATE TRIGGER IF NOT EXISTS events_orientation AFTER INSERT ON events WHEN NEW.orientation IS NULL
+  BEGIN
+    UPDATE events SET orientation = COALESCE((SELECT orientation FROM settings WHERE camera = NEW.camera), '${DEFAULT_ORIENTATION}') WHERE id = NEW.id;
+  END;
+  CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+`)
+// Une fois : les événements d'avant (leur colonne est vide) sont étiquetés. La voliere-exterieur a été posée de côté le 8 novembre 2026 à 11 h (heure de Paris, 10 h UTC) : ses événements d'avant sont
+// en paysage, ceux d'après en portrait ; tout le reste est en paysage. Une copie de la base est faite avant (VACUUM INTO : un fichier complet et cohérent).
+const ORIENTATION_MIGRATION_KEY = 'orientation_migrated'
+if (!db.prepare('SELECT 1 FROM app_settings WHERE key = ?').get(ORIENTATION_MIGRATION_KEY)) {
+  const turnedAt = Date.UTC(2026, 10, 8, 10, 0, 0) / 1000
+  const backup = `${DATA_DIR}/events.db.pre-orientation-${new Date().toISOString().replace(/[:.]/g, '-')}`
+  db.exec(`VACUUM INTO '${backup}'`)
+  db.prepare("UPDATE events SET orientation = CASE WHEN camera = 'voliere-exterieur' AND started_at >= ? THEN 'portrait' ELSE 'landscape' END WHERE orientation IS NULL").run(turnedAt)
+  db.prepare("UPDATE settings SET orientation = 'portrait' WHERE camera = 'voliere-exterieur'").run()
+  db.prepare("UPDATE settings SET orientation = 'landscape' WHERE orientation IS NULL").run()
+  db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?)').run(ORIENTATION_MIGRATION_KEY, new Date().toISOString())
+  console.log(`Orientation : événements étiquetés (copie de la base : ${backup})`)
+}
 const findEvent = db.prepare('SELECT ended_at FROM events WHERE id = ?')
 // Le journal des fusions : un événement absorbé par un autre (ses clips se recouvraient) est noté ici avant d'être retiré de events.
 const insertMerge = db.prepare('INSERT OR IGNORE INTO merges (absorbed_id, kept_id, camera, absorbed_started_at, absorbed_ended_at, merged_at) VALUES (?, ?, ?, ?, ?, ?)')
@@ -333,11 +370,28 @@ const saveResponse = async (res: Response, path: string) => {
 
 // Copie le clip d'un événement dans DATA_DIR/clips/<caméra>/<id>.mp4 et renvoie ce chemin relatif et le début réel du clip.
 // Trop tôt après la fin de l'événement (segments pas tous écrits), on ne copie pas : la reprise le fera.
+// Un événement lancé à la main ? Dit par l'enregistreur (le champ manual) ; l'événement relu dans la base n'a pas ce champ, on le demande une fois et on s'en souvient.
+const manualKnown = new Map<string, boolean>()
+const isManual = async (event: RecorderEvent): Promise<boolean> => {
+  if (event.manual !== undefined) return event.manual
+  const known = manualKnown.get(event.id)
+  if (known !== undefined) return known
+  try {
+    const res = await recorder(event.camera, `/api/events/${event.id}`, 5000)
+    if (!res.ok) return false
+    const manual = ((await res.json()) as { manual?: boolean }).manual === true
+    manualKnown.set(event.id, manual)
+    return manual
+  } catch {
+    return false
+  }
+}
+
 const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
   // L'identifiant sert de nom de fichier : rien d'autre que des caractères sûrs.
   if (!/^[\w.-]+$/.test(event.id) || !/^[\w-]+$/.test(event.camera)) return null
-  // Clips désactivés pour cette caméra (réglage de la page) : l'événement est gardé, sans vidéo.
-  if (!keepsClip(event.camera, event.start_time)) return null
+  // Clips désactivés pour cette caméra (réglage de la page) : l'événement est gardé, sans vidéo. Sauf un clip enregistré à la main : on l'a voulu.
+  if (!keepsClip(event.camera, event.start_time) && !(await isManual(event))) return null
   if (event.end_time !== null && Date.now() / 1000 - event.end_time < CLIP_SETTLE_SECONDS) return null
   // Un clip qui n'arrive pas (délai, coupure, disque) est sauté et sera retenté : il ne doit pas bloquer le tour des autres.
   try {
@@ -545,7 +599,7 @@ const syncMerges = async (base: string, cameras: string[]) => {
 const retryMissingClips = async () => {
   const now = Math.floor(Date.now() / 1000)
   let repaired = 0
-  const rows = eventsWithoutClip.all(now - CLIP_SETTLE_SECONDS, now - CLIP_RETRY_SECONDS) as (Omit<RecorderEvent, 'has_clip' | 'start_time' | 'end_time'> & { started_at: number; ended_at: number })[]
+  const rows = eventsWithoutClip.all(now - CLIP_SETTLE_SECONDS, now - CLIP_RETRY_SECONDS) as (Omit<RecorderEvent, 'has_clip' | 'start_time' | 'end_time' | 'manual'> & { started_at: number; ended_at: number })[]
   for (const row of rows) {
     const clip = await copyClip({ ...row, has_clip: true, start_time: row.started_at, end_time: row.ended_at })
     if (!clip) continue
@@ -864,7 +918,7 @@ const route = async (req: IncomingMessage, res: ServerResponse) => {
   if (req.method === 'POST' && pathname === '/logout') {
     return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, '') })
   }
-  // PUT /api/settings : { camera, clips_mode?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, snapshot_seconds? }, derrière la session.
+  // PUT /api/settings : { camera, clips_mode?, orientation?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, snapshot_seconds? }, derrière la session.
   if (req.method === 'PUT' && pathname === '/api/settings') {
     if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
     const body = await readJsonObject(req)
@@ -886,7 +940,10 @@ const route = async (req: IncomingMessage, res: ServerResponse) => {
     if (lightMobile === null) return sendJson(res, 400, { error: `light_fps_mobile must be an integer from 1 to ${MAX_LIVE_FPS}` })
     const sensitivity = intSetting(body.motion_sensitivity, current.motion_sensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY)
     if (sensitivity === null) return sendJson(res, 400, { error: `motion_sensitivity must be an integer from ${MIN_SENSITIVITY} to ${MAX_SENSITIVITY}` })
+    const orientation = body.orientation === undefined ? current.orientation : body.orientation
+    if (typeof orientation !== 'string' || !ORIENTATIONS.includes(orientation)) return sendJson(res, 400, { error: `orientation must be one of ${ORIENTATIONS.join(', ')}` })
     saveSettings.run(camera, mode === 'off' ? 0 : 1, mode, fps, light, fpsMobile, lightMobile, sensitivity, seconds)
+    setOrientation.run(orientation, camera)
     log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, une image toutes les ${seconds} s`)
     liveFpsCheckedAt.clear()
     return sendJson(res, 200, cameraSettings(camera))

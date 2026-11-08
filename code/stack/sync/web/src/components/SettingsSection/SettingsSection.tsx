@@ -5,6 +5,8 @@ import {
   CHOICES_CLASS,
   CLIPS_LABEL,
   CLIPS_OPTIONS,
+  ORIENTATION_LABEL,
+  ORIENTATION_OPTIONS,
   FPS_FULL_TEXT,
   FPS_MAX,
   FPS_MIN,
@@ -161,6 +163,15 @@ const SettingsSection = () => {
               <div className={GROUP_CLASS}>
                 <span className={LABEL_CLASS}>{CLIPS_LABEL}</span>
                 <Tabs label={CLIPS_LABEL} options={[...CLIPS_OPTIONS]} value={setting.clips_mode} onChange={(id) => change(setting.camera, { clips_mode: id })} />
+              </div>
+              <div className={GROUP_CLASS}>
+                <span className={LABEL_CLASS}>{ORIENTATION_LABEL}</span>
+                <Tabs
+                  label={ORIENTATION_LABEL}
+                  options={[...ORIENTATION_OPTIONS]}
+                  value={setting.orientation}
+                  onChange={(id) => change(setting.camera, { orientation: id })}
+                />
               </div>
               <div className={GROUP_CLASS}>
                 <span className={LABEL_CLASS}>{SNAPSHOT_LABEL}</span>

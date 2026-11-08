@@ -25,7 +25,7 @@ const database = () => {
     CREATE TABLE merges (absorbed_id TEXT, kept_id TEXT, camera TEXT, absorbed_started_at INTEGER, merged_at INTEGER);
     CREATE TABLE settings (camera TEXT PRIMARY KEY);
     CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT, cle TEXT);
-    CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, x REAL, y REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id));
+    CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, longitude REAL, latitude REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id));
   `)
   const insert = db.prepare('INSERT INTO events (id, camera, started_at) VALUES (?, ?, ?)')
   insert.run('a', 'voliere-interieur', 1000)

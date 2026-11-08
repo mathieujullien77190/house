@@ -1,9 +1,13 @@
 export type ClipMode = 'always' | 'night' | 'off'
 
+export type Orientation = 'landscape' | 'portrait'
+
 export interface CameraSetting {
   camera: string
   /** Les clips gardés : toujours, seulement la nuit, ou jamais. */
   clips_mode: ClipMode
+  /** Paysage ou portrait (caméra posée de côté) : les nouveaux clips gardent celle de leur début. */
+  orientation: Orientation
   /** Images par seconde du direct 4K, de 1 à 25. */
   live_fps: number
   /** Images par seconde du direct léger, de 1 à 25. */

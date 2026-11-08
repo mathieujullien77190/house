@@ -8,7 +8,7 @@ export const DESCRIPTIONS: Record<string, string> = {
 
 /** Les tables dont la ligne ne montre que les colonnes principales : le reste est dans le détail qui s'ouvre au clic. */
 export const MAIN_COLUMNS: Record<string, string[]> = {
-  plan: ['kind', 'id', 'x', 'y', 'data'],
+  plan: ['kind', 'id', 'longitude', 'latitude', 'data'],
   guest_visits: ['id', 'started_at', 'ip', 'origin', 'cle', 'camera', 'status', 'path'],
 }
 export const DETAILS_CLASS = 'm-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 font-mono text-[0.78rem]'

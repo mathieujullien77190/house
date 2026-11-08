@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { createPlanTable, importPlan, planRows } from './plan.ts'
 
 const PLAN = {
+  version: 2,
   trees: [{ id: 't1', x: 10, y: 20, r: 30 }],
   hedges: [
     {
@@ -29,6 +30,8 @@ test('une ligne par élément du plan, la caméra liée dans la ligne de la cam�
   )
   assert.equal(JSON.parse(rows[5]?.data ?? '{}').camera, 'voliere-exterieur')
   assert.deepEqual(planRows(null), [])
+  // Un plan encore en unités du dessin (version 1) n'est pas importé.
+  assert.deepEqual(planRows({ ...PLAN, version: 1 }), [])
 })
 
 test('la table est refaite quand le plan change, pas sinon ; un plan illisible ne la touche pas', () => {

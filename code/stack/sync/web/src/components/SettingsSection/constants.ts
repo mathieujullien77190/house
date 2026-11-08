@@ -19,6 +19,12 @@ export const CLIPS_OPTIONS = [
   { id: 'night', label: 'La nuit' },
   { id: 'off', label: 'Jamais' },
 ] as const
+/** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire). Les clips déjà pris gardent l'orientation qu'avait la caméra à ce moment. */
+export const ORIENTATION_LABEL = 'Orientation'
+export const ORIENTATION_OPTIONS = [
+  { id: 'landscape', label: 'Paysage' },
+  { id: 'portrait', label: 'Portrait' },
+] as const
 /** Les curseurs de cadence : le direct 4K et le léger, sur un écran de 1024 px et plus (PC) puis en dessous (téléphone). */
 export const FPS_SLIDERS = [
   { key: 'live_fps', label: 'Direct 4K · PC' },
