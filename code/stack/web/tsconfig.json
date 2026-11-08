@@ -13,11 +13,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "isolatedModules": true,
     "types": [
       "vite/client",
-      "node"
+      "node",
+      "vitest/globals"
     ],
     "paths": {
       "@/*": [
@@ -29,6 +31,7 @@
   "include": [
     "src",
     "vite.config.ts",
+    "vitest.config.ts",
     "eslint.config.ts"
   ]
 }

@@ -1,4 +1,4 @@
-export const OPEN_PREFIX = 'Ouvrir la camÃ©ra '
+export const OPEN_PREFIX = 'Ouvrir la caméra '
 
 export const TILE_CLASS =
   'relative overflow-hidden rounded-md border border-line bg-card transition-colors duration-150 hover:border-accent'

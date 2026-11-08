@@ -183,6 +183,8 @@ export const usePinchZoom = (active: boolean, rotated = true, resetKey = '', whe
     if (!pointers.has(event.pointerId)) return
     pointers.set(event.pointerId, toLocal(event, rotated))
     const { anchor } = gestureRef.current
+    // Garde défensive : un pointeur suivi a toujours une ancre (begin() la pose à chaque changement de doigts) ; inatteignable.
+    /* v8 ignore next */
     if (!anchor) return
     const points = [...pointers.values()]
     const [a, b] = points

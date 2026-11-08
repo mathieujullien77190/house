@@ -38,6 +38,8 @@ const Home = ({ apiKey }: HomeProps) => {
     setFailedSave(false)
     setClipSaved(apiKey, id, false).then(
       () => {
+        // Un clip n'est ouvert que si la liste est lue : `current` n'est jamais null ici (garde pour TypeScript).
+        /* v8 ignore next */
         setEvents((current) => current?.filter((event) => event.id !== id) ?? current)
         setOpenId('')
       },

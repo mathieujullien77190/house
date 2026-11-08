@@ -3,18 +3,23 @@ import { Map as MapLibreMap, NavigationControl, setWorkerUrl, type GeoJSONSource
 // Le travailleur de MapLibre (décodage des tuiles) est un fichier à part : Vite le copie dans les ressources et donne son adresse (sans cela MapLibre le cherche à côté du script, où il n'est pas).
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { Button, Select, Tabs } from '@house/ui'
+import { Button, Select, Tabs, type PlanCamera, type PlanLamp, type PlanPlug } from '@house/ui'
 import {
   ATTRIBUTION,
+  BACK_ARROW,
+  BACK_CLASS,
   BASES,
   BASES_LABEL,
   DEFAULT_BASE,
   EDIT_LABEL,
+  HIDE_ROOF_LABEL,
+  LAMP_LABEL_CLASS,
   LINK_LABEL,
   LINK_NONE,
   LAYERS_CLASS,
   MAP_CENTER,
   MAP_CLASS,
+  FIT_PADDING,
   MAP_MAX_ZOOM,
   MAP_ROTATION_DEG,
   MAP_ZOOM,
@@ -23,41 +28,83 @@ import {
   RASTER_TILE_SIZE,
   ACTIONS_CLASS,
   RECENTER_LABEL,
+  SCREEN_MAP_CLASS,
+  SCREEN_WRAPPER_CLASS,
+  SCREEN_ZOOM,
+  SHOW_ROOF_LABEL,
   VECTOR_STYLE_URL,
   WRAPPER_CLASS,
   type BaseId,
 } from './constants'
 import { attachEditing } from './edit'
 import { liveFeatures, readPalette, staticFeatures, type LiveData, type Palette } from './features'
+import { bulbLabel } from './helpers'
+import { lampBounds } from './projection'
 import { addPlanLayers, POINTS_SOURCE, SHAPES_SOURCE } from './layers'
-import type { MapPlanProps } from './types'
+import type { MapPlanProps, ResolvedProps } from './types'
 
 setWorkerUrl(workerUrl)
 
 /** Le centre en [longitude, latitude], l'ordre de MapLibre. */
 const CENTER_LNG_LAT: [number, number] = [MAP_CENTER[1], MAP_CENTER[0]]
 
-/** Le plan sans ses moyens de modification : plus de déplacement ni de réglage, plus de choix d'arbre ou de haie ; choisir une caméra (voir son champ de vision) reste. */
-const readOnly = (props: MapPlanProps): MapPlanProps => ({
-  ...props,
-  onMoveCamera: undefined,
-  onAdjustCamera: undefined,
-  onMoveTree: undefined,
-  onResizeTree: undefined,
-  onSelectTree: undefined,
-  onMoveHedge: undefined,
-  onSelectHedge: undefined,
-  onMoveCage: undefined,
-  onMoveOffset: undefined,
-  onMoveLamp: undefined,
-  onMovePlug: undefined,
-  onLink: undefined,
-  selectedTreeId: '',
-  selectedHedgeId: '',
-})
+/** L'angle de départ : sur l'écran du téléphone tenu droit, la carte est tournée d'un quart de tour de plus pour que la maison (plus longue que large) remplisse la hauteur. */
+const startBearing = (screen: boolean): number =>
+  screen && window.matchMedia('(orientation: portrait)').matches ? MAP_ROTATION_DEG + 90 : MAP_ROTATION_DEG
+
+const EMPTY_CAMERAS: PlanCamera[] = []
+const EMPTY_LAMPS: PlanLamp[] = []
+const EMPTY_PLUGS: PlanPlug[] = []
+const EMPTY_NAMES: string[] = []
+const EMPTY_LINKS: Record<string, string> = {}
+
+/** Les couches du toit et celles des pièces : l'une se cache quand l'autre se montre. */
+const ROOF_LAYERS = ['plan-toit']
+const ROOM_LAYERS = ['plan-pieces', 'plan-pieces-trait', 'plan-cloisons', 'plan-claustras']
+
+/**
+ * Les props complétées et réduites à ce que la carte montre et permet : la carte des lumières n'a ni caméras ni prise ; une lampe d'intérieur ne se voit que toit caché
+ * (carte des caméras), une lampe à placer qu'en modification ; hors modification, plus de déplacement ni de réglage (choisir une caméra et toucher une lampe restent) ;
+ * en modification de la carte des lumières, seules les lampes se déplacent.
+ */
+const resolve = (given: MapPlanProps, editing: boolean, roofHidden: boolean): ResolvedProps => {
+  const mode = given.mode ?? 'cameras'
+  const lights = mode === 'lights'
+  const lamps = (given.lamps ?? EMPTY_LAMPS).filter((lamp) => (editing || !lamp.waiting) && (lights || roofHidden || !lamp.indoor))
+  const base: ResolvedProps = {
+    ...given,
+    mode,
+    cameras: lights ? EMPTY_CAMERAS : (given.cameras ?? EMPTY_CAMERAS),
+    plugs: lights ? EMPTY_PLUGS : (given.plugs ?? EMPTY_PLUGS),
+    lamps,
+    selectedCameraId: given.selectedCameraId ?? '',
+    cameraNames: given.cameraNames ?? EMPTY_NAMES,
+    links: given.links ?? EMPTY_LINKS,
+    selectedTreeId: given.selectedTreeId ?? '',
+    selectedHedgeId: given.selectedHedgeId ?? '',
+  }
+  if (editing && !lights) return base
+  return {
+    ...base,
+    onMoveCamera: undefined,
+    onAdjustCamera: undefined,
+    onMoveTree: undefined,
+    onResizeTree: undefined,
+    onSelectTree: undefined,
+    onMoveHedge: undefined,
+    onSelectHedge: undefined,
+    onMoveCage: undefined,
+    onMoveOffset: undefined,
+    onMoveLamp: editing ? base.onMoveLamp : undefined,
+    onMovePlug: undefined,
+    onLink: undefined,
+    selectedTreeId: '',
+    selectedHedgeId: '',
+  }
+}
 
 /** Les éléments vivants d'après les props. */
-const liveData = (props: MapPlanProps): LiveData => ({
+const liveData = (props: ResolvedProps): LiveData => ({
   cage: props.cage,
   offsets: props.offsets,
   gates: props.gates,
@@ -75,14 +122,21 @@ const liveData = (props: MapPlanProps): LiveData => ({
 })
 
 /**
- * Une carte (MapLibre GL) centrée sur la maison, tournée pour que la maison soit droite à l'écran : trois fonds au choix (Plan IGN en images, photo aérienne,
- * Plan IGN en vecteur, net à tout zoom), et le plan de la maison dessiné par la carte elle-même, en longitude et latitude : il ne glisse pas
- * pendant un zoom. Les caméras, arbres, haies, lampe et prise se prennent à la souris ; le reste de la carte se déplace. « Recentrer » ramène la vue de départ.
+ * Une carte (MapLibre GL) centrée sur la maison, tournée pour que la maison soit droite à l'écran : deux fonds au choix (photo aérienne, Plan IGN en vecteur, net à tout zoom),
+ * et le plan de la maison dessiné par la carte elle-même, en longitude et latitude : il ne glisse pas pendant un zoom. Deux modes, même dessin : les caméras (la carte de la
+ * mosaïque) ou les lampes (l'onglet Lumière). « Cacher le toit » montre les pièces, les cloisons et les lampes. Les caméras, lampes, arbres, haies et prise se prennent à la
+ * souris en mode modification ; le reste de la carte se déplace. « Recentrer » ramène la vue de départ.
  */
 const MapPlan = (given: MapPlanProps) => {
-  // Le plan ne se modifie que si on l'a demandé : sinon seuls les clics sur une caméra (son champ de vision) restent.
+  const lights = given.mode === 'lights'
+  const screen = Boolean(given.screen)
+  // Le plan ne se modifie que si on l'a demandé : sinon seuls les clics sur une caméra (son champ de vision) ou une lampe (l'allumer) restent.
   const [editing, setEditing] = useState(false)
-  const props = editing ? given : readOnly(given)
+  // Le toit est caché au départ sur la carte des lumières (les lampes sont dedans).
+  const [roofHidden, setRoofHidden] = useState(lights)
+  // L'ampoule survolée ou touchée, dont le nom s'écrit en bas de la carte.
+  const [activeLamp, setActiveLamp] = useState('')
+  const props = resolve({ ...given, onHoverLamp: setActiveLamp }, editing, roofHidden)
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const paletteRef = useRef<Palette | null>(null)
@@ -101,14 +155,16 @@ const MapPlan = (given: MapPlanProps) => {
 
   useEffect(() => {
     const element = container.current
+    // Garde pour TypeScript : le conteneur est toujours posé quand l'effet tourne.
+    /* v8 ignore next */
     if (!element) return
     const map = new MapLibreMap({
       container: element,
       style: VECTOR_STYLE_URL,
       center: CENTER_LNG_LAT,
-      zoom: MAP_ZOOM,
+      zoom: screen ? SCREEN_ZOOM : MAP_ZOOM,
       maxZoom: MAP_MAX_ZOOM,
-      bearing: MAP_ROTATION_DEG,
+      bearing: startBearing(screen),
       pitch: 0,
       dragRotate: false,
       pitchWithRotate: false,
@@ -116,7 +172,8 @@ const MapPlan = (given: MapPlanProps) => {
       attributionControl: false,
     })
     map.touchZoomRotate.disableRotation()
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
+    // Sur l'écran du téléphone le pincement suffit : pas de boutons + et −, la flèche retour est à leur place.
+    if (!screen) map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
     mapRef.current = map
     map.on('error', (event) => setProblem(event.error?.message ?? 'Erreur de la carte'))
 
@@ -151,13 +208,19 @@ const MapPlan = (given: MapPlanProps) => {
     })
     const detach = attachEditing(map, () => latest.current)
 
+    // Le téléphone qu'on tourne : la carte suit (maison toujours dans le sens de l'écran).
+    const orientation = screen ? window.matchMedia('(orientation: portrait)') : null
+    const turn = () => map.easeTo({ bearing: startBearing(true), duration: 300 })
+    orientation?.addEventListener('change', turn)
+
     return () => {
+      orientation?.removeEventListener('change', turn)
       detach()
       mapRef.current = null
       setStyleReady(false)
       map.remove()
     }
-  }, [])
+  }, [screen])
 
   // Le fond choisi : les couches du vecteur ou l'une des deux images.
   useEffect(() => {
@@ -169,6 +232,29 @@ const MapPlan = (given: MapPlanProps) => {
     }
   }, [base, styleReady])
 
+  // Carte des lumières : la vue cadre toutes les lampes, une fois qu'elles sont là (elles arrivent après la carte).
+  const fitted = useRef(false)
+  const fitLamps = (map: MapLibreMap): boolean => {
+    const bounds = lampBounds(props.lamps)
+    if (!bounds) return false
+    map.fitBounds(bounds, { padding: FIT_PADDING, maxZoom: MAP_MAX_ZOOM, bearing: startBearing(screen), duration: 0 })
+    return true
+  }
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !lights || fitted.current) return
+    fitted.current = fitLamps(map)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lights, props.lamps, styleReady])
+
+  // Le toit ou les pièces : l'un se cache quand l'autre se montre.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    for (const id of ROOF_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', roofHidden ? 'none' : 'visible')
+    for (const id of ROOM_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', roofHidden ? 'visible' : 'none')
+  }, [roofHidden, styleReady])
+
   // Les éléments du plan ont changé (déplacés, choisis, allumés) : les données de la carte suivent.
   useEffect(() => {
     const map = mapRef.current
@@ -179,9 +265,16 @@ const MapPlan = (given: MapPlanProps) => {
     ;(map.getSource(POINTS_SOURCE) as GeoJSONSource | undefined)?.setData(live.points)
   }, [props, styleReady])
 
+  const lamp = props.lamps.find((item) => item.id === activeLamp)
+
   return (
-    <div className={WRAPPER_CLASS}>
-      <div ref={container} className={MAP_CLASS} />
+    <div className={screen ? SCREEN_WRAPPER_CLASS : WRAPPER_CLASS}>
+      <div ref={container} className={screen ? SCREEN_MAP_CLASS : MAP_CLASS} />
+      {screen && given.onBack ? (
+        <button type="button" className={BACK_CLASS} aria-label={given.backLabel} title={given.backLabel} onClick={given.onBack}>
+          {BACK_ARROW}
+        </button>
+      ) : null}
       <div className={LAYERS_CLASS}>
         <Tabs label={BASES_LABEL} options={BASES.map(({ id, label }) => ({ id, label }))} value={base} onChange={setBase} />
         {props.onLink && props.selectedCameraId ? (
@@ -194,8 +287,25 @@ const MapPlan = (given: MapPlanProps) => {
         ) : null}
         {problem ? <p className={PROBLEM_CLASS}>{problem}</p> : null}
       </div>
+      {lamp ? <p className={LAMP_LABEL_CLASS}>{bulbLabel(lamp.name, lamp.on, lamp.reachable, lamp.brightness)}</p> : null}
       <div className={ACTIONS_CLASS}>
-        <Button onClick={() => mapRef.current?.jumpTo({ center: CENTER_LNG_LAT, zoom: MAP_ZOOM, bearing: MAP_ROTATION_DEG, pitch: 0 })}>
+        {lights ? null : (
+          <Button variant={roofHidden ? 'active' : 'default'} aria-pressed={roofHidden} onClick={() => setRoofHidden((hidden) => !hidden)}>
+            {roofHidden ? SHOW_ROOF_LABEL : HIDE_ROOF_LABEL}
+          </Button>
+        )}
+        <Button
+          onClick={() => {
+            const map = mapRef.current
+            if (map && lights && fitLamps(map)) return
+            map?.jumpTo({
+              center: CENTER_LNG_LAT,
+              zoom: screen ? SCREEN_ZOOM : MAP_ZOOM,
+              bearing: startBearing(screen),
+              pitch: 0,
+            })
+          }}
+        >
           {RECENTER_LABEL}
         </Button>
         <Button variant={editing ? 'active' : 'default'} aria-pressed={editing} onClick={() => setEditing((on) => !on)}>

@@ -1,20 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Collapsible, LightsPanel, LightsPlan, Notice, SpecList } from '@house/ui'
+import { useCallback, useEffect, useState } from 'react'
+import { Button, Collapsible, LightsPanel, Notice, SpecList } from '@house/ui'
 import { CAMERA_LAMP } from '@/components/CameraCard/constants'
 import FadeButton from '@/components/FadeButton'
+import MapPlan from '@/components/MapPlan'
+import { PARCEL_GATES } from '@/components/MapPlan/parcel'
+import { useLegacyPositions } from '@/lib/useLegacyPositions'
 import { useMobile } from '@/lib/useMobile'
-import { usePinchZoom } from '@/lib/usePinchZoom'
-import { ApiError, fetchAutomations, fetchLampPositions, fetchLights, fetchSensors, saveLampPositions, setHue } from '@/lib/api'
+import { usePlan } from '@/lib/usePlan'
+import { ApiError, fetchAutomations, fetchLights, fetchSensors, setHue } from '@/lib/api'
 import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
-import { ALL_KEY, BACK_LABEL, AUTOMATIONS_POLL_MS, AUTOMATIONS_TITLE, EMPTY_TEXT, EXCLUDED_FROM_ALL, ERROR_TEXT, LOADING_TEXT, NOT_CONFIGURED_TEXT, PLAN_ROOMS, PLAN_SECTION_TITLE, PLAN_TITLE, PLAN_WALLS, POLL_MS, SAVE_DELAY_MS } from './constants'
-import { allLights, buildAutomationItems, buildZones, clearLegacyPositions, defaultPositions, planLamps, readLegacyPositions } from './helpers'
-import type { LightsProps, LightsStatus, Positions } from './types'
+import {
+  ALL_KEY,
+  BACK_LABEL,
+  AUTOMATIONS_POLL_MS,
+  AUTOMATIONS_TITLE,
+  EMPTY_TEXT,
+  EXCLUDED_FROM_ALL,
+  ERROR_TEXT,
+  LOADING_TEXT,
+  NOT_CONFIGURED_TEXT,
+  PLAN_SECTION_TITLE,
+  POLL_MS,
+} from './constants'
+import { allLights, buildAutomationItems, buildZones, planLamps } from './helpers'
+import type { LightsProps, LightsStatus } from './types'
 
 /**
- * Les lumières du pont Hue : le plan de la maison avec une ampoule par lampe (qu'on glisse pour la placer, qu'on touche pour
- * l'allumer), puis les zones de la maison et leurs lampes, relues toutes les 5 s. Allumer, éteindre ou régler la luminosité d'une
+ * Les lumières du pont Hue : la carte de la maison (la même que celle des caméras, toit caché) avec une ampoule par lampe (qu'on touche pour
+ * l'allumer, qu'on glisse en mode « Modifier » pour la placer), puis les zones de la maison et leurs lampes, relues toutes les 5 s. Allumer, éteindre ou régler la luminosité d'une
  * zone entière (lampe par lampe) ou d'une lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie).
- * Les positions des ampoules sont gardées par l'API : elles restent où on les a mises, sur tous les appareils.
+ * Les positions des ampoules sont gardées dans le plan de l'API (longitude et latitude) : elles restent où on les a mises, sur tous les appareils.
  */
 const Lights = ({ apiKey, onBack }: LightsProps) => {
   const [rooms, setRooms] = useState<HueRoom[]>([])
@@ -22,14 +37,11 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
   const [automations, setAutomations] = useState<HueAutomation[]>([])
   const [status, setStatus] = useState<LightsStatus>('loading')
   const mobile = useMobile()
-  // Le zoom au doigt de l'écran du téléphone (le plan y est toujours en grand).
-  const pinchZoom = usePinchZoom(mobile)
+  // Le plan de la maison (la carte) : arbres, haies, cage… et la place des lampes, gardés par l'API.
+  const plan = usePlan(apiKey)
+  const legacy = useLegacyPositions(apiKey)
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
-  const [positions, setPositions] = useState<Positions>({})
-  // Les positions déplacées et pas encore envoyées à l'API, et le délai avant de les envoyer.
-  const pending = useRef<Positions>({})
-  const timer = useRef<number | undefined>(undefined)
 
   const fail = useCallback((error: unknown) => setStatus(error instanceof ApiError && error.status === 503 ? 'unavailable' : 'error'), [])
 
@@ -54,27 +66,6 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
     }
   }, [apiKey, fail])
 
-  // Les positions gardées par l'API. Celles que ce navigateur gardait avant (une version précédente) partent chez l'API une fois,
-  // sans écraser ce qu'elle a déjà, puis sont effacées d'ici.
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const saved = await fetchLampPositions(apiKey)
-        const legacy = readLegacyPositions()
-        const missing = Object.fromEntries(Object.entries(legacy).filter(([id]) => !saved[id]))
-        const all = Object.keys(missing).length > 0 ? await saveLampPositions(apiKey, missing) : saved
-        clearLegacyPositions()
-        if (!cancelled) setPositions((current) => ({ ...all, ...current }))
-      } catch {
-        // Sans positions de l'API, les ampoules restent à leur place de départ.
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [apiKey])
-
   // Les règles d'automatisation du pont : lues rarement, et sans bloquer le reste si le pont ne les donne pas.
   useEffect(() => {
     let cancelled = false
@@ -92,15 +83,6 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
     }
   }, [apiKey])
 
-  // Les positions déplacées partent chez l'API quand le glisser s'arrête, et aussi si on quitte l'onglet avant.
-  const flush = useCallback(() => {
-    window.clearTimeout(timer.current)
-    const changes = pending.current
-    pending.current = {}
-    if (Object.keys(changes).length > 0) void saveLampPositions(apiKey, changes).catch(() => undefined)
-  }, [apiKey])
-  useEffect(() => flush, [flush])
-
   const run = async (key: string, task: () => Promise<HueRoom[] | null>) => {
     setBusy(key)
     try {
@@ -117,14 +99,7 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
 
   const lights = allLights(rooms)
   const zones = buildZones(lights, sensors)
-  const lamps = planLamps(lights, positions, defaultPositions(lights))
-
-  const move = (id: string, x: number, y: number) => {
-    setPositions((current) => ({ ...current, [id]: { x, y } }))
-    pending.current[id] = { x, y }
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(flush, SAVE_DELAY_MS)
-  }
+  const lamps = planLamps(lights, plan.items, legacy)
 
   const changeLight = (id: string, state: HueState) => run(`light:${id}`, () => setHue(apiKey, 'lights', id, state))
 
@@ -147,11 +122,17 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
   }
 
   // Une zone se commande lampe par lampe.
-  const changeZone = (id: string, state: HueState) => run(`room:${id}`, () => eachLight(zones.find((zone) => zone.id === id)?.lights ?? [], state))
+  const changeZone = (id: string, state: HueState) =>
+    run(`room:${id}`, () => eachLight(zones.find((zone) => zone.id === id)?.lights ?? [], state))
 
   // Tout allumer ou tout éteindre : les lampes des zones (pas les lampes à placer, pas la volière) qui répondent, une par une.
   const changeAll = (on: boolean) =>
-    run(ALL_KEY, () => eachLight(zones.filter((item) => !item.ungrouped && !EXCLUDED_FROM_ALL.includes(item.id)).flatMap((zone) => zone.lights), { on }))
+    run(ALL_KEY, () =>
+      eachLight(
+        zones.filter((item) => !item.ungrouped && !EXCLUDED_FROM_ALL.includes(item.id)).flatMap((zone) => zone.lights),
+        { on },
+      ),
+    )
 
   const toggle = (id: string) => {
     const light = lights.find((item) => item.id === id)
@@ -170,28 +151,49 @@ const Lights = ({ apiKey, onBack }: LightsProps) => {
     if (status === 'loading') return notice(LOADING_TEXT)
     return notice(EMPTY_TEXT)
   }
-  const plan = <LightsPlan title={PLAN_TITLE} rooms={PLAN_ROOMS} walls={PLAN_WALLS} lamps={lamps} onMove={move} onToggle={toggle} screen={mobile} gesture={pinchZoom} onBack={onBack} backLabel={BACK_LABEL} />
+  const map = (
+    <MapPlan
+      mode="lights"
+      screen={mobile}
+      onBack={onBack}
+      backLabel={BACK_LABEL}
+      lamps={lamps}
+      onMoveLamp={plan.moveItem}
+      onToggleLamp={toggle}
+      trees={plan.trees}
+      hedges={plan.hedges}
+      cage={plan.cage}
+      offsets={plan.offsets}
+      gates={PARCEL_GATES}
+    />
+  )
   // Sur téléphone (sous 1024 px) l'onglet est un écran : le plan seul, en plein écran paysage, sans titre ni menu ni liste.
-  if (mobile) return plan
+  if (mobile) return map
   return (
     <>
       {status === 'error' ? <Notice text={ERROR_TEXT} /> : null}
       <Collapsible title={PLAN_SECTION_TITLE} defaultOpen>
-        {plan}
+        {map}
       </Collapsible>
       <LightsPanel
         rooms={zones}
         busy={busy}
         drafts={drafts}
         // La lampe de la perruche a en plus son bouton d'extinction en douceur (15 min), comme dans le détail de sa caméra.
-        lampExtra={(light) => (light.id === CAMERA_LAMP['voliere-interieur'] ? <FadeButton apiKey={apiKey} lampId={light.id} on={light.on} /> : null)}
+        lampExtra={(light) =>
+          light.id === CAMERA_LAMP['voliere-interieur'] ? <FadeButton apiKey={apiKey} lampId={light.id} on={light.on} /> : null
+        }
         onAll={(on) => void changeAll(on)}
         onRoom={(id, state) => void changeZone(id, state)}
         onLight={(id, state) => void changeLight(id, state)}
         onDraft={(key, percent) => setDrafts((current) => ({ ...current, [key]: percent }))}
       />
       {automations.length > 0 ? (
-        <Collapsible title={AUTOMATIONS_TITLE} detail={`${automations.filter((automation) => automation.enabled).length}/${automations.length} actives`} defaultOpen={!mobile}>
+        <Collapsible
+          title={AUTOMATIONS_TITLE}
+          detail={`${automations.filter((automation) => automation.enabled).length}/${automations.length} actives`}
+          defaultOpen={!mobile}
+        >
           <SpecList items={buildAutomationItems(automations)} />
         </Collapsible>
       ) : null}

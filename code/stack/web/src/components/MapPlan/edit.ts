@@ -25,6 +25,10 @@ export interface EditContext {
   cage: { x: number; y: number; w: number; h: number }
   onMoveCage?: (x: number, y: number) => void
   onMoveLamp?: (id: string, x: number, y: number) => void
+  /** Un toucher (sans glisser) sur une ampoule : l'allumer ou l'éteindre. */
+  onToggleLamp?: (id: string) => void
+  /** L'ampoule survolée ou touchée (vide : aucune), dont la carte écrit le nom. */
+  onHoverLamp?: (id: string) => void
   onMovePlug?: (id: string, x: number, y: number) => void
 }
 
@@ -88,7 +92,7 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
       garage: here.onMoveOffset,
       gate: here.onMoveOffset,
       'hedge-vertex': here.onMoveHedge,
-      lamp: here.onMoveLamp,
+      lamp: here.onMoveLamp ?? here.onToggleLamp,
       plug: here.onMovePlug,
     }
     if (kind === 'tree') here.onSelectTree?.(id)
@@ -112,7 +116,12 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
 
   const move = (event: MapMouseEvent | MapTouchEvent) => {
     if (!grab) {
-      if (!('points' in event)) map.getCanvas().style.cursor = pick(event.point) ? 'grab' : ''
+      if (!('points' in event)) {
+        const hit = pick(event.point)
+        const lamp = hit?.kind === 'lamp-hit'
+        map.getCanvas().style.cursor = hit ? (lamp && !context().onMoveLamp ? 'pointer' : 'grab') : ''
+        context().onHoverLamp?.(lamp ? String(hit?.id) : '')
+      }
       return
     }
     if (!grab.moved && Math.hypot(event.point.x - grab.screen.x, event.point.y - grab.screen.y) <= MOVE_THRESHOLD) return
@@ -167,6 +176,10 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
     const here = context()
     if (current.kind === 'camera') here.onSelectCamera?.(current.id)
     else if (current.kind === 'hedge') here.onSelectHedge?.(current.id)
+    else if (current.kind === 'lamp') {
+      here.onToggleLamp?.(current.id)
+      here.onHoverLamp?.(current.id)
+    }
   }
 
   // Un clic à côté de tout : rien n'est plus choisi.
@@ -180,6 +193,7 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
     here.onSelectCamera?.('')
     here.onSelectTree?.('')
     here.onSelectHedge?.('')
+    here.onHoverLamp?.('')
   }
 
   map.on('mousedown', down)

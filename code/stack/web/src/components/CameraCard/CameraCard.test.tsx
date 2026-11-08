@@ -1,0 +1,552 @@
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { flush } from '@/test/fetch'
+import type { Camera, EventRow, HueLight, HueSensor, PlugState } from '@/types'
+import CameraCard from './CameraCard'
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- doubles : les props des composants remplacés sont inspectées librement */
+const h = vi.hoisted(() => {
+  const fresh = () => ({
+    mobile: false,
+    power: null as any,
+    powerFailed: false,
+    sensors: [] as any[],
+    lamp: null as any,
+    plug: null as any,
+    recorder: { recording: false, seconds: 0, busy: false, failed: false, stopped: false, toggle: () => undefined } as any,
+    zone: { points: [], reduced: false, failed: false, change: () => undefined, commit: () => undefined, reset: () => undefined } as any,
+    big: { ref: { current: null }, big: false, open: () => undefined, close: () => undefined } as any,
+    now: 1_800_000_000,
+    pinchArgs: null as any,
+  })
+  return {
+    fresh,
+    s: fresh(),
+    card: null as any,
+    clip: null as any,
+    timeline: null as any,
+    zoneEditor: null as any,
+    setPower: undefined as any,
+  }
+})
+
+vi.mock('@/lib/useMobile', () => ({ useMobile: () => h.s.mobile }))
+vi.mock('@/lib/usePower', () => ({ usePower: () => ({ power: h.s.power, setPower: h.setPower, failed: h.s.powerFailed }) }))
+vi.mock('@/lib/useSensors', () => ({ useSensors: () => h.s.sensors }))
+vi.mock('@/lib/useLamp', () => ({ useLamp: () => h.s.lamp }))
+vi.mock('@/lib/usePlug', () => ({ usePlug: () => h.s.plug }))
+vi.mock('@/lib/useRecording', () => ({ useRecording: () => h.s.recorder }))
+vi.mock('@/lib/useZone', () => ({ useZone: () => h.s.zone }))
+vi.mock('@/lib/useBigView', () => ({ useBigView: () => h.s.big }))
+vi.mock('@/lib/useClock', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/useClock')>()),
+  useClock: () => h.s.now,
+}))
+vi.mock('@/lib/usePinchZoom', () => ({
+  usePinchZoom: (...args: unknown[]) => {
+    h.s.pinchArgs = args
+    return { handlers: {}, style: {} }
+  },
+}))
+vi.mock('@/lib/api', () => ({ setClipSaved: vi.fn() }))
+vi.mock('@/components/ClipPlayer', () => ({
+  default: (props: any) => {
+    h.clip = props
+    return <div data-testid="clip" />
+  },
+}))
+vi.mock('@/components/Timeline', () => ({
+  default: (props: any) => {
+    h.timeline = props
+    return <div data-testid="timeline" />
+  },
+}))
+vi.mock('@/components/SnapshotImage', () => ({ default: (props: any) => <div data-testid="snapshot">{props.at}</div> }))
+vi.mock('@/components/PowerButton', () => ({ default: (props: any) => <div data-testid="power">{String(props.hideOff)}</div> }))
+vi.mock('@/components/ShareButton', () => ({ default: (props: any) => <div data-testid="share">{props.path}</div> }))
+vi.mock('@house/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@house/ui')>()),
+  ZoneEditor: (props: any) => {
+    h.zoneEditor = props
+    return <div data-testid="zone-editor" />
+  },
+  CameraCard: (props: any) => {
+    h.card = props
+    const slot = (name: string, node: ReactNode) => (node ? <div data-testid={name}>{node}</div> : null)
+    return (
+      <section>
+        <h2>{props.name}</h2>
+        <p data-testid="caption">{props.caption}</p>
+        {slot('actions', props.actions)}
+        {slot('media', props.media)}
+        {slot('details', props.details)}
+        {slot('clock', props.clock)}
+        {slot('overlay', props.overlay)}
+        {slot('timeline-slot', props.timeline)}
+        <button onClick={props.onBack}>retour</button>
+        <button onClick={props.onExpand}>agrandir</button>
+        <button onClick={props.onCollapse}>réduire</button>
+      </section>
+    )
+  },
+}))
+
+const api = await import('@/lib/api')
+
+const camera = (over: Partial<Camera> = {}): Camera => ({ name: 'voliere-interieur', orientation: 'landscape', ...over })
+const event = (id: string, over: Partial<EventRow> = {}): EventRow =>
+  ({
+    id,
+    camera: 'voliere-interieur',
+    label: 'person',
+    started_at: 1000,
+    ended_at: 1020,
+    clip: `/clips/${id}`,
+    clip_h264: `/clips/${id}/h264`,
+    clip_audio: null,
+    clip_started_at: 995,
+    saved: false,
+    orientation: 'landscape',
+    ...over,
+  }) as EventRow
+
+const sensor = { id: '54', name: 'motion interieur', temperature: 9.5 } as HueSensor
+const lamp = { id: '26', name: 'P', on: true, bri: 100, reachable: true } as HueLight
+const plug = { on: true } as PlugState
+
+const mount = (props: Partial<Parameters<typeof CameraCard>[0]> = {}) =>
+  render(<CameraCard apiKey="k" camera={camera()} events={[]} {...props} />)
+
+const power = (over: Record<string, unknown> = {}) => ({
+  camera: 'c',
+  port: 1,
+  on: true,
+  powered: true,
+  watts: 5,
+  streaming: true,
+  ...over,
+})
+
+beforeEach(() => {
+  h.s = h.fresh()
+  h.card = h.clip = h.timeline = h.zoneEditor = null
+  h.setPower = vi.fn()
+})
+
+/** Choisit un événement comme le fait la frise. */
+const pick = (e: EventRow, at: number | null = 995) => act(() => h.timeline.onEvent(e, at))
+
+describe('CameraCard : le direct', () => {
+  it('montre le nom, la légende du direct et l’adresse du flux (4K par défaut)', () => {
+    mount()
+    expect(screen.getByRole('heading')).toHaveTextContent('voliere-interieur')
+    expect(screen.getByTestId('caption')).toHaveTextContent('Direct')
+    expect(document.querySelector('img')).toHaveAttribute('src', '/stream?camera=voliere-interieur&quality=hd')
+  })
+  it('la première image donne la résolution du direct', () => {
+    mount()
+    const img = document.querySelector('img') as HTMLImageElement
+    Object.defineProperty(img, 'naturalWidth', { value: 640 })
+    Object.defineProperty(img, 'naturalHeight', { value: 360 })
+    fireEvent.load(img)
+    expect(screen.getByTestId('caption')).toHaveTextContent('640×360')
+  })
+  it('« Léger » change le flux et oublie la résolution ; le même choix ne fait rien', () => {
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: '4K' }))
+    expect(document.querySelector('img')).toHaveAttribute('src', '/stream?camera=voliere-interieur&quality=hd')
+    fireEvent.click(screen.getByRole('tab', { name: 'Léger' }))
+    expect(document.querySelector('img')).toHaveAttribute('src', '/stream?camera=voliere-interieur')
+  })
+  it('sur téléphone, le flux ajoute screen=mobile', () => {
+    h.s.mobile = true
+    mount()
+    expect(document.querySelector('img')?.getAttribute('src')).toContain('screen=mobile')
+    expect(h.card.screen).toBe(true)
+  })
+  it('caméra éteinte ou en démarrage : image noire avec le message', () => {
+    h.s.power = power({ on: false })
+    const first = mount()
+    expect(document.querySelector('img')).toBeNull()
+    expect(screen.getByText('Caméra éteinte')).toBeInTheDocument()
+    first.unmount()
+    h.s.power = power({ streaming: false })
+    mount()
+    expect(screen.getByText('Caméra en démarrage…')).toBeInTheDocument()
+  })
+  it('caméra allumée et qui diffuse : le flux', () => {
+    h.s.power = power()
+    mount()
+    expect(document.querySelector('img')).not.toBeNull()
+  })
+  it('passe l’état du bouton d’alimentation (caché sur téléphone)', () => {
+    h.s.mobile = true
+    mount()
+    expect(screen.getByTestId('power')).toHaveTextContent('true')
+  })
+})
+
+describe('CameraCard : température, lampe, prise', () => {
+  it('en direct : sur la vidéo (bureau) ou dans les détails (téléphone)', () => {
+    h.s.sensors = [sensor]
+    h.s.lamp = lamp
+    h.s.plug = plug
+    const desktop = mount()
+    expect(screen.getByTestId('overlay')).toHaveTextContent('9,5 °C')
+    expect(screen.queryByTestId('details')).toBeNull()
+    desktop.unmount()
+    h.s.mobile = true
+    mount()
+    expect(screen.getByTestId('details')).toHaveTextContent('9,5 °C')
+    expect(screen.queryByTestId('overlay')).toBeNull()
+  })
+  it('une caméra sans détecteur ni lampe n’a rien', () => {
+    mount({ camera: camera({ name: 'autre' }) })
+    expect(screen.queryByTestId('overlay')).toBeNull()
+  })
+  it('pas de température hors direct (clip ou image passée)', () => {
+    h.s.sensors = [sensor]
+    mount({ events: [event('a')] })
+    pick(event('a'))
+    expect(screen.queryByTestId('overlay')).toBeNull()
+    act(() => h.timeline.onEvent(null, null))
+    act(() => h.timeline.onCursor(900))
+    expect(screen.queryByTestId('overlay')).toBeNull()
+  })
+  it('un détecteur absent de la liste, sans lampe ni prise : pas d’indicateurs', () => {
+    mount()
+    expect(screen.queryByTestId('overlay')).toBeNull()
+  })
+  it('l’autre caméra a son détecteur', () => {
+    h.s.sensors = [{ ...sensor, id: '57' }]
+    mount({ camera: camera({ name: 'voliere-exterieur' }) })
+    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+  })
+})
+
+describe('CameraCard : le clip', () => {
+  const e = event('a')
+
+  it('ouvert directement sur un clip', () => {
+    mount({ events: [e], initialEventId: 'a' })
+    expect(h.clip.path).toBe('/clips/a/h264')
+    expect(h.timeline.playhead).toBe(995)
+    expect(h.timeline.selectedEventId).toBe('a')
+  })
+  it('un événement sans clip n’est pas ouvert directement', () => {
+    mount({ events: [event('a', { clip: null })], initialEventId: 'a' })
+    expect(h.clip).toBeNull()
+  })
+  it('un événement sans début de clip : le début du mouvement', () => {
+    mount({ events: [event('a', { clip_started_at: null })], initialEventId: 'a' })
+    expect(h.timeline.playhead).toBe(1000)
+  })
+  it('un identifiant inconnu : le direct', () => {
+    mount({ events: [e], initialEventId: 'zzz' })
+    expect(h.clip).toBeNull()
+  })
+
+  it('un clic de la frise ouvre le clip, le marque lu, relance la lecture', () => {
+    const onRead = vi.fn()
+    mount({ events: [e], onRead })
+    pick(e)
+    expect(h.clip.path).toBe('/clips/a/h264')
+    expect(onRead).toHaveBeenCalledWith('a')
+    expect(h.clip.restart).toBe(1)
+    pick(e)
+    expect(h.clip.restart).toBe(2)
+    expect(screen.getByTestId('caption').textContent).toMatch(/^Clip · /)
+  })
+  it('sans rappel de lecture, ouvrir un clip ne casse rien', () => {
+    mount({ events: [e] })
+    pick(e)
+    expect(h.clip).not.toBeNull()
+  })
+  it('la version à jour de la liste remplace celle qu’on avait cliquée', () => {
+    const { rerender } = mount({ events: [event('a', { saved: false })] })
+    pick(e)
+    rerender(<CameraCard apiKey="k" camera={camera()} events={[event('a', { saved: true })]} />)
+    expect(screen.getByRole('tab', { name: 'Sauvegardé' })).toHaveAttribute('aria-selected', 'true')
+  })
+  it('un événement disparu de la liste garde sa version cliquée', () => {
+    const { rerender } = mount({ events: [e] })
+    pick(e)
+    rerender(<CameraCard apiKey="k" camera={camera()} events={[]} />)
+    expect(h.clip.path).toBe('/clips/a/h264')
+  })
+
+  it('la lecture avance : position et durée', () => {
+    mount({ events: [e] })
+    pick(e)
+    act(() => h.clip.onTime(10))
+    expect(h.timeline.playhead).toBe(1000 - 5 + 10)
+    act(() => h.clip.onDuration(30))
+    expect(h.timeline.clipRange).toEqual({ start: 995, end: 1025 })
+  })
+  it('un clip sans fichier original n’a pas de plage', () => {
+    mount({ events: [event('a', { clip: null })] })
+    pick(event('a', { clip: null }))
+    act(() => h.timeline.onEvent(event('a', { clip: null }), 995))
+    expect(h.timeline.clipRange).toBeNull()
+  })
+  it('même clip rouvert : garde sa durée ; autre événement : l’oublie ; fermeture : l’oublie', () => {
+    const b = event('b')
+    mount({ events: [e, b] })
+    pick(e)
+    act(() => h.clip.onDuration(30))
+    pick(e)
+    expect(h.timeline.clipRange).not.toBeNull()
+    pick(b)
+    expect(h.timeline.clipRange).toBeNull()
+    act(() => h.clip.onDuration(12))
+    act(() => h.timeline.onEvent(null, null))
+    expect(h.clip).toBeDefined()
+    expect(h.timeline.selectedEventId).toBe('')
+  })
+  it('la vidéo prête remplace l’image', () => {
+    mount({ events: [e] })
+    pick(e)
+    expect(screen.getByTestId('media')).toContainElement(document.querySelector('img'))
+    act(() => h.clip.onReady())
+    expect(document.querySelector('img')).toBeNull()
+  })
+  it('un clip qui ne se lit pas : son message remplace l’image ; fermer revient au direct', () => {
+    mount({ events: [e] })
+    pick(e)
+    act(() => h.clip.onFailure())
+    expect(document.querySelector('img')).toBeNull()
+    act(() => h.clip.onClose())
+    expect(screen.getByTestId('timeline')).toBeInTheDocument()
+    expect(h.clip).toBeDefined()
+    expect(document.querySelector('img')).not.toBeNull()
+  })
+  it('son du clip', () => {
+    mount({ events: [event('a', { clip_audio: '/clips/a/audio' })] })
+    pick(event('a', { clip_audio: '/clips/a/audio' }))
+    expect(h.clip.audioSrc).toBe('/clips/a/audio')
+  })
+
+  it('un événement en cours ou pas encore copié : cadre noir qui dit ce qu’on attend', () => {
+    const first = mount({ events: [event('a', { clip: null, ended_at: null })] })
+    pick(event('a', { clip: null, ended_at: null }))
+    expect(screen.getByText(/Événement en cours/)).toBeInTheDocument()
+    first.unmount()
+    mount({ events: [event('b', { clip: null })] })
+    pick(event('b', { clip: null }))
+    expect(screen.getByText(/en cours de copie/)).toBeInTheDocument()
+  })
+
+  it('une image d’un instant passé', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(screen.getByTestId('snapshot')).toHaveTextContent('900')
+    expect(screen.getByTestId('caption').textContent).toMatch(/^Image à /)
+    expect(screen.queryByRole('tab', { name: 'Léger' })).toBeNull()
+  })
+})
+
+describe('CameraCard : version du clip', () => {
+  const e = event('a')
+  it('H.264 / H.265 : change la version et reprend là où on en était', () => {
+    mount({ events: [e] })
+    pick(e)
+    act(() => h.timeline.onEvent(e, 995))
+    act(() => h.clip.onTime(12))
+    fireEvent.click(screen.getByRole('tab', { name: 'H.264 · 720p' }))
+    expect(h.clip.path).toBe('/clips/a/h264')
+    fireEvent.click(screen.getByRole('tab', { name: 'H.265 · 4K' }))
+    expect(h.clip.path).toBe('/clips/a')
+    expect(h.clip.startAt).toBe(12)
+  })
+  it('sans position de lecture : repart du début', () => {
+    mount({ events: [e] })
+    act(() => h.timeline.onEvent(e, null))
+    fireEvent.click(screen.getByRole('tab', { name: 'H.265 · 4K' }))
+    expect(h.clip.startAt).toBe(0)
+  })
+  it('sur téléphone : libellés courts', () => {
+    h.s.mobile = true
+    mount({ events: [e] })
+    pick(e)
+    expect(screen.getByRole('tab', { name: '720p' })).toBeInTheDocument()
+  })
+  it('pas de choix sans copie légère', () => {
+    mount({ events: [event('a', { clip_h264: null })] })
+    pick(event('a', { clip_h264: null }))
+    expect(h.clip.path).toBe('/clips/a')
+    expect(screen.queryByRole('tab', { name: '720p' })).toBeNull()
+  })
+})
+
+describe('CameraCard : sauvegarde et partage', () => {
+  const e = event('a')
+  it('sauvegarde, puis libère ; le même état ne fait rien', async () => {
+    vi.mocked(api.setClipSaved).mockResolvedValue(undefined)
+    mount({ events: [e] })
+    pick(e)
+    fireEvent.click(screen.getByRole('tab', { name: 'Non sauvegardé' }))
+    expect(api.setClipSaved).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('tab', { name: 'Sauvegardé' }))
+    expect(api.setClipSaved).toHaveBeenCalledWith('k', 'a', true)
+    expect(screen.getByTestId('share')).toHaveTextContent('/clips/a/h264')
+    fireEvent.click(screen.getByRole('tab', { name: 'Non sauvegardé' }))
+    expect(api.setClipSaved).toHaveBeenLastCalledWith('k', 'a', false)
+    expect(screen.queryByTestId('share')).toBeNull()
+  })
+  it('un échec remet l’état d’avant', async () => {
+    vi.mocked(api.setClipSaved).mockRejectedValue(new Error('x'))
+    mount({ events: [e] })
+    pick(e)
+    fireEvent.click(screen.getByRole('tab', { name: 'Sauvegardé' }))
+    await act(flush)
+    expect(screen.getByRole('tab', { name: 'Non sauvegardé' })).toHaveAttribute('aria-selected', 'true')
+  })
+  it('un clip déjà sauvegardé se partage ; sans copie légère, l’original', () => {
+    mount({ events: [event('a', { saved: true, clip_h264: null })] })
+    pick(event('a', { saved: true, clip_h264: null }))
+    expect(screen.getByTestId('share')).toHaveTextContent('/clips/a')
+  })
+  it('sur téléphone : pas d’interrupteur, le partage est dans les détails', () => {
+    h.s.mobile = true
+    mount({ events: [event('a', { saved: true })] })
+    pick(event('a', { saved: true }))
+    expect(screen.queryByRole('tab', { name: 'Sauvegardé' })).toBeNull()
+    expect(screen.getByTestId('details')).toContainElement(screen.getByTestId('share'))
+    expect(screen.getAllByTestId('share')).toHaveLength(1)
+  })
+  it('sur téléphone, un clip non sauvegardé : rien dans les détails', () => {
+    h.s.mobile = true
+    mount({ events: [e] })
+    pick(e)
+    expect(screen.queryByTestId('details')).toBeNull()
+  })
+  it('un événement sans clip n’a pas d’interrupteur', () => {
+    mount({ events: [event('a', { clip: null })] })
+    pick(event('a', { clip: null }))
+    expect(screen.queryByRole('tab', { name: 'Sauvegardé' })).toBeNull()
+  })
+  it('changer d’état sans clip choisi ne fait rien (frise fermée)', () => {
+    mount({ events: [e] })
+    pick(e)
+    act(() => h.timeline.onEvent(null, null))
+    expect(api.setClipSaved).not.toHaveBeenCalled()
+  })
+})
+
+describe('CameraCard : zone de surveillance et enregistrement', () => {
+  it('le bouton montre ou cache l’éditeur de zone, « Toute l’image » remet', () => {
+    h.s.zone = { ...h.s.zone, reduced: true, failed: true, reset: vi.fn() }
+    mount()
+    expect(screen.queryByTestId('zone-editor')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
+    expect(screen.getByTestId('zone-editor')).toBeInTheDocument()
+    expect(screen.getByText('Zone non enregistrée')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Toute l’image' }))
+    expect(h.s.zone.reset).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
+    expect(screen.queryByTestId('zone-editor')).toBeNull()
+  })
+  it('zone intacte : ni remise à zéro ni message', () => {
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
+    expect(screen.queryByRole('button', { name: 'Toute l’image' })).toBeNull()
+    expect(screen.queryByText('Zone non enregistrée')).toBeNull()
+  })
+  it('ni zone ni enregistrement sur téléphone, ni caméra éteinte, ni hors direct', () => {
+    h.s.mobile = true
+    const phone = mount()
+    expect(screen.queryByRole('button', { name: 'Zone de surveillance' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Enregistrer/ })).toBeNull()
+    phone.unmount()
+    h.s.mobile = false
+    h.s.power = power({ on: false })
+    const off = mount()
+    expect(screen.queryByRole('button', { name: 'Zone de surveillance' })).toBeNull()
+    off.unmount()
+    h.s.power = null
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(screen.queryByRole('button', { name: 'Zone de surveillance' })).toBeNull()
+  })
+  it('enregistrer un clip : lance, puis arrête avec le temps écoulé', () => {
+    const toggle = vi.fn()
+    h.s.recorder = { ...h.s.recorder, toggle }
+    const { unmount } = mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer un clip' }))
+    expect(toggle).toHaveBeenCalled()
+    unmount()
+    h.s.recorder = { ...h.s.recorder, recording: true, seconds: 72 }
+    mount()
+    expect(screen.getByRole('button', { name: 'Arrêter (1:12)' })).toBeInTheDocument()
+  })
+  it('échec d’enregistrement et message de copie', () => {
+    h.s.recorder = { ...h.s.recorder, failed: true, stopped: true }
+    mount()
+    expect(screen.getByText('Enregistrement impossible')).toBeInTheDocument()
+    expect(screen.getByText(/en cours de copie par House Sync/)).toBeInTheDocument()
+  })
+  it('« arrêté » pendant qu’on enregistre encore : pas de message', () => {
+    h.s.recorder = { ...h.s.recorder, recording: true, stopped: true }
+    mount()
+    expect(screen.queryByText(/en cours de copie par House Sync/)).toBeNull()
+  })
+})
+
+describe('CameraCard : vue en grand, caméra tournée', () => {
+  it('l’agrandissement est délégué à la vue en grand', () => {
+    const open = vi.fn()
+    const close = vi.fn()
+    h.s.big = { ...h.s.big, open, close }
+    const onBack = vi.fn()
+    mount({ onBack })
+    fireEvent.click(screen.getByText('agrandir'))
+    fireEvent.click(screen.getByText('réduire'))
+    fireEvent.click(screen.getByText('retour'))
+    expect([open, close, onBack].map((f) => f.mock.calls.length)).toEqual([1, 1, 1])
+  })
+  it('en grand : l’heure présente, ou celle du curseur', () => {
+    h.s.big = { ...h.s.big, big: true }
+    mount()
+    expect(screen.getByTestId('clock').textContent).toMatch(/\d{2}:\d{2}:\d{2}/)
+    act(() => h.timeline.onCursor(0))
+    expect(screen.getByTestId('clock').textContent).toMatch(/\d{2}:\d{2}:\d{2}/)
+    expect(h.s.pinchArgs[2]).toBe('image:big')
+  })
+  it('le zoom : actif en grand ou sur téléphone, molette seulement sur bureau en grand', () => {
+    mount()
+    expect(h.s.pinchArgs).toEqual([false, false, 'live', false])
+    h.s.big = { ...h.s.big, big: true }
+    mount()
+    expect(h.s.pinchArgs).toEqual([true, true, 'live:big', true])
+    h.s.mobile = true
+    mount()
+    expect(h.s.pinchArgs[3]).toBe(false)
+  })
+  it('l’identifiant du zoom suit le clip choisi', () => {
+    mount({ events: [event('a')] })
+    pick(event('a'))
+    expect(h.s.pinchArgs[2]).toBe('a')
+  })
+  it('caméra posée de côté : tournée, commandes droites dans un cadre dédié', () => {
+    const turned = event('a', { orientation: 'portrait' })
+    mount({ camera: camera({ orientation: 'portrait' }), events: [turned] })
+    expect(h.card.portraitMedia).toBe(true)
+    pick(turned)
+    const frame = document.querySelector('[data-rotated-frame]') as HTMLElement
+    expect(frame).not.toBeNull()
+    // le cadre des commandes devient l'hôte du lecteur
+    expect(frame.children).toHaveLength(2)
+    expect(h.clip.controlsHost).toBe(frame.children[1])
+  })
+  it('un clip pris en paysage sur une caméra tournée reste en paysage', () => {
+    mount({ camera: camera({ orientation: 'portrait' }), events: [event('a', { orientation: 'landscape' })] })
+    pick(event('a', { orientation: 'landscape' }))
+    expect(h.card.portraitMedia).toBe(false)
+  })
+  it('le zoom au doigt est coupé pendant le dessin de la zone', () => {
+    mount()
+    expect(h.card.mediaGesture).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
+    expect(h.card.mediaGesture).toBeUndefined()
+  })
+})

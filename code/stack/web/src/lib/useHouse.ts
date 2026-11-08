@@ -92,8 +92,9 @@ export const useHouse = (): HouseState => {
         setMessage('')
       } catch (error) {
         if (cancelled) return
-        setMessage(errorMessage(error))
+        // `forget` efface le message : on l'écrit après, pour que « clé refusée » reste visible.
         if (isKeyRefused(error)) forget()
+        setMessage(errorMessage(error))
       } finally {
         busy = false
       }

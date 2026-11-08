@@ -7,7 +7,6 @@ export const MOSAIC_ORDER = ['voliere-interieur', 'voliere-exterieur']
 /** La section du plan : cachée sous 1024 px. Son cadre (un carré) entoure tout le dessin. */
 export const PLAN_SECTION_CLASS = 'hidden lg:col-span-2 lg:col-start-1 lg:row-start-2 lg:block'
 export const PLAN_CLASS = 'mt-2 overflow-hidden border border-line lg:w-[calc((200%_-_3rem)/3_+_0.75rem)] [&>figure]:mt-0'
-export const noop = (): void => {}
 /** Ni pièces ni cloisons : la maison du plan de la mosaïque n'est qu'un toit gris. */
 export const NO_ROOMS: never[] = []
 /** La vignette dont la caméra est sélectionnée sur le plan : en surbrillance (un anneau bleu autour). */

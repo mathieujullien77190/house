@@ -81,7 +81,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   // Le direct en 4K par défaut (le 4K est recodé en MJPEG par le mini PC : lourd) ; « Léger » reste au choix.
   const [liveQuality, setLiveQuality] = useState<LiveQuality>('hd')
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
-  const [readyClip, setReadyClip] = useState('')
+  const [readyClip, setReadyClip] = useState<string | null>(null)
   // Le clip que l'appareil n'arrive pas à lire : son message (et « Fermer ») doivent se voir, pas rester dans le lecteur caché.
   const [failedClip, setFailedClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
@@ -142,11 +142,13 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const clipRange =
     selected?.clip && videoDuration !== null ? { start: selected.started_at - lead, end: selected.started_at - lead + videoDuration } : null
   const clipPath = selected ? clipPathOf(selected, quality) : null
-  const onReady = useCallback(() => setReadyClip(clipPath ?? ''), [clipPath])
+  const onReady = useCallback(() => setReadyClip(clipPath), [clipPath])
   const selectedForDuration = selected?.id
   const onDuration = useCallback(
     (seconds: number) => {
       setVideoDuration(seconds)
+      // Le lecteur n'existe que pour un événement choisi : l'identifiant est toujours là (garde pour TypeScript).
+      /* v8 ignore next */
       if (selectedForDuration) rememberClipDuration(selectedForDuration, seconds)
     },
     [selectedForDuration],

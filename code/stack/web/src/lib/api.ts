@@ -110,21 +110,6 @@ export const fetchSensors = async (key: string): Promise<HueSensor[]> => (await 
 export const fetchLampPositions = async (key: string): Promise<Record<string, { x: number; y: number }>> =>
   (await request(key, '/hue/positions')).json()
 
-/** Garde ces positions d'ampoules (les autres restent) ; rend l'ensemble. */
-export const saveLampPositions = async (
-  key: string,
-  changes: Record<string, { x: number; y: number }>,
-): Promise<Record<string, { x: number; y: number }>> => {
-  const res = await fetch('/hue/positions', {
-    method: 'PUT',
-    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
-    body: JSON.stringify(changes),
-  })
-  if (res.status === 401) throw new ApiError(401, 'clé refusée')
-  if (!res.ok) throw new ApiError(res.status, `/hue/positions : HTTP ${res.status}`)
-  return res.json()
-}
-
 /** Les instants (secondes) où House Sync a gardé une image de cette caméra, entre from et to. */
 export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>
   (await request(key, `/snapshots?camera=${encodeURIComponent(camera)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()

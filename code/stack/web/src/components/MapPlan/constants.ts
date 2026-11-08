@@ -48,3 +48,30 @@ export const LAYERS_CLASS = 'absolute right-2.5 top-2.5 z-10 flex flex-col items
 export const ACTIONS_CLASS = 'absolute bottom-2.5 right-2.5 z-10 flex gap-2'
 /** L'erreur de la carte, sous les commandes (courte, qui se coupe). */
 export const PROBLEM_CLASS = 'max-w-[16rem] text-[0.75rem] text-danger [overflow-wrap:anywhere]'
+
+/** L'opacité d'une ampoule allumée selon sa luminosité (1 à 254) : jamais sous ce plancher (une lampe à 1 % reste visible). */
+export const BRIGHTNESS_MAX = 254
+export const BRIGHTNESS_FLOOR = 0.25
+/** Le rayon d'une ampoule sur la carte, en unités du plan (assez gros pour la toucher du doigt). */
+export const LAMP_RADIUS = 6
+/** Le contour d'une lampe, d'une caméra ou d'une prise : 1 px de loin, 2 px dès ce zoom. */
+export const ICON_STROKE_ZOOM = 20.5
+export const ICON_STROKE_WIDTH = 2
+/** La marge autour des lampes quand la carte des lumières les cadre toutes, en pixels. */
+export const FIT_PADDING = 48
+/** Le toit se cache pour voir les pièces, les cloisons et les lampes. */
+export const HIDE_ROOF_LABEL = 'Cacher le toit'
+export const SHOW_ROOF_LABEL = 'Montrer le toit'
+export const BACK_ARROW = '←'
+/** Les pièces vues toit caché. */
+export const ROOM_FILL = '#f3f4f6'
+export const ROOM_LINE = '#374151'
+/** L'écran du téléphone : la carte prend tout l'écran, avec un zoom de départ plus grand (la maison le remplit, en paysage comme en portrait). */
+export const SCREEN_ZOOM = 20.6
+export const SCREEN_WRAPPER_CLASS = 'fixed inset-0 z-30 bg-bg'
+export const SCREEN_MAP_CLASS = 'h-full w-full overflow-hidden'
+export const BACK_CLASS =
+  'absolute left-2 top-2 z-10 cursor-pointer rounded-lg border border-line bg-bg/80 px-3 py-2 text-[0.9rem] text-fg focus-visible:outline-2 focus-visible:outline-accent'
+/** Le nom de l'ampoule touchée ou survolée, en bas de la carte et centré. */
+export const LAMP_LABEL_CLASS =
+  'pointer-events-none absolute bottom-2.5 left-1/2 z-10 -translate-x-1/2 rounded-md border border-line bg-bg/85 px-2 py-1 text-[0.8rem] text-fg'

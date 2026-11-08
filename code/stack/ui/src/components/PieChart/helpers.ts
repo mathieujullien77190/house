@@ -3,6 +3,8 @@ import type { PieSlice } from './types'
 
 export interface Arc {
   id: string
+  /** La part que l'arc dessine. */
+  slice: PieSlice
   /** Le tracé de la part : un arc de cercle, de son début à sa fin. */
   path: string
   /** La zone de survol, plus large que l'arc quand il est très court (sinon la même). */
@@ -58,6 +60,7 @@ export const buildArcs = (slices: PieSlice[]): Arc[] => {
     const hitStart = start - (hit - length) / 2
     arcs.push({
       id: slice.id,
+      slice,
       path: arcPath(start, start + length, circumference),
       hitPath: arcPath(hitStart, hitStart + hit, circumference),
     })

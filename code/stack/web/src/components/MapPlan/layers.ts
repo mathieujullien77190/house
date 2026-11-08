@@ -2,13 +2,16 @@
 // se donnent en unités du plan (donc en mètres) : elles suivent le zoom comme le plan lui-même.
 import type { FeatureCollection } from 'geojson'
 import type { ExpressionSpecification, FilterSpecification, Map as MapLibreMap } from 'maplibre-gl'
-import { MAP_CENTER, MAP_PLAN_OPACITY, MAP_UNITS_PER_METER } from './constants'
+import { ICON_STROKE_WIDTH, ICON_STROKE_ZOOM, MAP_CENTER, MAP_PLAN_OPACITY, MAP_UNITS_PER_METER, ROOM_FILL, ROOM_LINE } from './constants'
 import type { Palette } from './features'
 import { metersPerPixel } from './helpers'
 
 export const STATIC_SOURCE = 'plan-fixe'
 export const SHAPES_SOURCE = 'plan-formes'
 export const POINTS_SOURCE = 'plan-points'
+
+/** Le contour des lampes, des caméras et des prises : 1 px de loin, 2 px dès `ICON_STROKE_ZOOM`. */
+const ICON_STROKE: ExpressionSpecification = ['step', ['zoom'], 1, ICON_STROKE_ZOOM, ICON_STROKE_WIDTH]
 
 /** Les couches du plan, de bas en haut. */
 export const PLAN_LAYERS = [
@@ -18,6 +21,10 @@ export const PLAN_LAYERS = [
   'plan-cage',
   'plan-cage-trait',
   'plan-toit',
+  'plan-pieces',
+  'plan-pieces-trait',
+  'plan-cloisons',
+  'plan-claustras',
   'plan-haies',
   'plan-portails',
   'plan-portes',
@@ -27,7 +34,9 @@ export const PLAN_LAYERS = [
   'plan-cameras',
   'plan-cameras-trait',
   'plan-lampes',
+  'plan-lampes-trait',
   'plan-prises',
+  'plan-prises-trait',
   'plan-saisie',
   'plan-poignees',
 ] as const
@@ -102,6 +111,35 @@ export const addPlanLayers = (
     ...only(STATIC_SOURCE, part('roof')),
     paint: { 'fill-color': '#374151', 'fill-opacity': opacity },
   })
+  // Toit caché : les pièces (un fond clair), leurs murs, les cloisons et les claustras (en pointillés).
+  map.addLayer({
+    id: 'plan-pieces',
+    type: 'fill',
+    ...only(STATIC_SOURCE, part('room')),
+    layout: { visibility: 'none' },
+    paint: { 'fill-color': ROOM_FILL, 'fill-opacity': 0.6 },
+  })
+  map.addLayer({
+    id: 'plan-pieces-trait',
+    type: 'line',
+    ...only(STATIC_SOURCE, part('room')),
+    layout: { visibility: 'none', 'line-join': 'round' },
+    paint: { 'line-color': ROOM_LINE, 'line-width': widthByZoom(5) },
+  })
+  map.addLayer({
+    id: 'plan-cloisons',
+    type: 'line',
+    ...only(STATIC_SOURCE, part('wall'), ['!=', ['get', 'screen'], 1]),
+    layout: { visibility: 'none', 'line-cap': 'round' },
+    paint: { 'line-color': ROOM_LINE, 'line-width': widthByZoom(5) },
+  })
+  map.addLayer({
+    id: 'plan-claustras',
+    type: 'line',
+    ...only(STATIC_SOURCE, part('wall'), ['==', ['get', 'screen'], 1]),
+    layout: { visibility: 'none' },
+    paint: { 'line-color': ROOM_LINE, 'line-width': widthByZoom(5), 'line-dasharray': [2, 2] },
+  })
   map.addLayer({
     id: 'plan-haies',
     type: 'line',
@@ -152,19 +190,34 @@ export const addPlanLayers = (
     type: 'line',
     ...only(SHAPES_SOURCE, kind('camera')),
     layout: { 'line-join': 'round' },
-    paint: { 'line-color': ['get', 'stroke'], 'line-width': 1 },
+    paint: { 'line-color': ['get', 'stroke'], 'line-width': ICON_STROKE },
   })
   map.addLayer({
     id: 'plan-lampes',
     type: 'fill',
     ...only(SHAPES_SOURCE, kind('lamp')),
-    paint: { 'fill-color': ['get', 'color'], 'fill-outline-color': ['get', 'stroke'] },
+    paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'opacity'], 'fill-outline-color': ['get', 'stroke'] },
+  })
+  // Le contour des lampes : 1 px de loin, 2 px zoomé (celui d’un remplissage n’en a qu’un fixe).
+  map.addLayer({
+    id: 'plan-lampes-trait',
+    type: 'line',
+    ...only(SHAPES_SOURCE, kind('lamp')),
+    layout: { 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'stroke'], 'line-width': ICON_STROKE },
   })
   map.addLayer({
     id: 'plan-prises',
     type: 'fill',
     ...only(SHAPES_SOURCE, kind('plug')),
     paint: { 'fill-color': ['get', 'color'], 'fill-outline-color': ['get', 'stroke'] },
+  })
+  map.addLayer({
+    id: 'plan-prises-trait',
+    type: 'line',
+    ...only(SHAPES_SOURCE, kind('plug')),
+    layout: { 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'stroke'], 'line-width': ICON_STROKE },
   })
   // La zone de saisie des caméras, lampes et prises : un rond transparent plus large que le dessin, pour les attraper même de loin.
   map.addLayer({

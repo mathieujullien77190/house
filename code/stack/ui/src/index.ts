@@ -26,19 +26,7 @@ export { default as LampDot } from './components/LampDot'
 export type { LampDotProps } from './components/LampDot'
 export { default as LightsPanel } from './components/LightsPanel'
 export type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './components/LightsPanel'
-export { default as LightsPlan } from './components/LightsPlan'
-export type {
-  LightsPlanProps,
-  PlanCamera,
-  PlanGate,
-  PlanLamp,
-  PlanPlug,
-  PlanRect,
-  PlanRoom,
-  PlanHedge,
-  PlanTree,
-  PlanWall,
-} from './components/LightsPlan'
+export type { PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanRect, PlanRoom, PlanTree, PlanWall } from './plan'
 export { default as LineChart } from './components/LineChart'
 export type { LineChartProps } from './components/LineChart'
 export { default as MediaPanel } from './components/MediaPanel'

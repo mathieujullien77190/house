@@ -79,8 +79,8 @@ export const ringPieces = (points: Point[], gaps: { along: number; half: number 
     }
     cuts.sort((a, b) => a - b)
     for (let k = 0; k < cuts.length - 1; k += 1) {
-      const a = cuts[k] ?? 0
-      const b = cuts[k + 1] ?? 1
+      const a = cuts[k]
+      const b = cuts[k + 1]
       if (b - a < 1e-9) continue
       if (inGap(walked + ((a + b) / 2) * length)) {
         if (piece.length > 1) pieces.push(piece)

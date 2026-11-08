@@ -45,11 +45,9 @@ export const OTHER_ZONE = 'other'
 export const OTHER_ZONE_NAME = 'À placer'
 
 /**
- * Les positions que le navigateur gardait avant que l'API ne les garde : lues une fois, envoyées à l'API, puis effacées.
+ * Les positions que le navigateur gardait avant que l'API ne les garde : lues comme les plus anciennes, jamais effacées ni réécrites.
  */
 export const LEGACY_STORAGE_KEY = 'house-lights-positions-v1'
-/** Le temps de calme après un déplacement avant d'envoyer la position à l'API (le glisser en produit des dizaines). */
-export const SAVE_DELAY_MS = 400
 
 /**
  * Les pièces du rez-de-chaussée, la même géométrie que GROUND_ROOMS dans src/plan.ts du site, ramenée à l'origine de la maison
@@ -73,7 +71,6 @@ export const PLAN_ROOMS: PlanRoom[] = [
       { x: 210, y: 140, w: 270, h: 160 },
       { x: 420, y: 190, w: 120, h: 110 },
     ],
-    outline: 'M 210 140 H 480 V 190 H 540 V 300 H 210 Z',
   },
 ]
 
@@ -112,12 +109,8 @@ export const LAMP_POSITIONS: Positions = {
   '28': { x: 204, y: 115 },
 }
 
-/** La zone « À placer » (la même que SIDE_ZONE de LightsPlan dans @house/ui) : les ampoules s'y rangent en colonnes de 10. */
+/** La zone « À placer » de l ancien plan : une position gardée à droite de cette abscisse veut dire « pas encore placée ». */
 export const SIDE_ZONE = { x: 590, w: 98 }
-export const SIDE_TOP = -2
-export const SIDE_ROW_HEIGHT = 32
-export const SIDE_ROWS = 10
-export const SIDE_COLUMN_WIDTH = 48
 /** La cage à perruches : 5 m sur 3 m (tournée d'un quart de tour : 117 × 195 unités), dans l'angle nord-est du jardin, à droite de la maison. */
 // La cage fait exactement 6 × 85 cm sur 4 × 85 cm (5,1 m sur 3,4 m, le grand côté vertical), à l'échelle réelle de la carte (la maison de 12,4 m fait 540 unités) ; elle est
 // décalée de 50 cm vers le bas par rapport au dessin d'origine (y = -262).
@@ -166,8 +159,8 @@ export const PLAN_GATES = [
 ]
 /** La maison est poussée de 1 m vers la droite (vers l'est). */
 export const HOUSE_SHIFT = UNITS_PER_METER
-/** L entrée : une avancée de 1,5 m (sur 2 m de large) à 1 m au-dessus du milieu du mur est, fondue dans le toit de la maison (un seul contour). */
-export const PLAN_EXTENSION = { x: 540, y: 72, w: Math.round(1.5 * UNITS_PER_METER), h: 2 * UNITS_PER_METER }
+/** L entrée : une avancée de 1,5 m (sur 2 m de large), fondue dans le toit de la maison (un seul contour) et centrée sur la pièce Entrée (centre à 183 sur la carte de 333 de haut, d où y = 140). */
+export const PLAN_EXTENSION = { x: 540, y: 140, w: Math.round(1.5 * UNITS_PER_METER), h: 2 * UNITS_PER_METER }
 /** Le sol carrelé : à droite de la maison, de sa terrasse à la limite de propriété (x = 700) et jusqu au bas de la cage ; le sol de la cage elle-même ; le chemin du portillon. */
 export const PLAN_FLOORS = [
   {

@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 import { CAMERA_LAMP } from '@/components/CameraCard/constants'
-import { useLamp } from '@/lib/useLamp'
+import { useLampPlan } from '@/lib/useLampPlan'
 import { usePower } from '@/lib/usePower'
 import { usePlug } from '@/lib/usePlug'
 import { useMatchHeight } from '@/lib/useMatchHeight'
 import { useMobile } from '@/lib/useMobile'
 import { usePlan } from '@/lib/usePlan'
-import { PLAN_LAMP_POSITION, PLAN_PLUG_POSITION } from '@/components/Lights'
+import { PLAN_PLUG_POSITION } from '@/components/Lights'
 import LiveTile from '@/components/LiveTile'
 import MapPlan from '@/components/MapPlan'
 import { PARCEL_GATES } from '@/components/MapPlan/parcel'
@@ -34,12 +34,13 @@ const CameraMosaic = ({ apiKey, cameras, events, isRead, onOpen }: CameraMosaicP
   const [selectedHedge, setSelectedHedge] = useState('')
   // L'arbre choisi : une poignée sur son bord règle sa taille.
   const [selectedTree, setSelectedTree] = useState('')
-  // La lampe « Perruche » dans la cage, avec son état actuel (relu toutes les 5 s) ; rien sans pont Hue.
-  const lamp = useLamp(apiKey, CAMERA_LAMP['voliere-interieur'], true)
-  // Les positions de la lampe et de la prise (déplacées, sinon leur place de départ).
-  const lampAt = plan.items[lamp?.id ?? ''] ?? PLAN_LAMP_POSITION
+  // Sur téléphone (sous 1024 px) : pas de carte du tout (elle n'est même pas chargée).
+  const mobile = useMobile()
+  // Toutes les lampes du pont (relues toutes les 5 s ; rien sans pont Hue) : « Perruche » dans la cage se voit toujours, les autres une fois le toit caché.
+  const { lamps: planLamps, toggle: toggleLamp } = useLampPlan(apiKey, plan.items, !mobile)
+  const lamp = planLamps.find((item) => item.id === CAMERA_LAMP['voliere-interieur'])
+  // La position de la prise (déplacée, sinon sa place de départ) ; celle de la lampe vient de `planLamps`.
   const plugAt = plan.items[PLUG_ID] ?? PLAN_PLUG_POSITION
-  const planLamps = lamp ? [{ id: lamp.id, name: lamp.name, x: lampAt.x, y: lampAt.y, on: lamp.on, reachable: lamp.reachable }] : []
   // La prise connectée, avec son état (marche ou arrêt) ; rien sans prise configurée.
   const plug = usePlug(apiKey, true)
   const planPlugs = plug ? [{ id: PLUG_ID, name: plug.alias, x: plugAt.x, y: plugAt.y, on: plug.on }] : []
@@ -49,7 +50,7 @@ const CameraMosaic = ({ apiKey, cameras, events, isRead, onOpen }: CameraMosaicP
     const dy = y - cage.y
     if (dx === 0 && dy === 0) return
     plan.moveCage(x, y)
-    if (lamp) moveItem(lamp.id, lampAt.x + dx, lampAt.y + dy)
+    if (lamp) moveItem(lamp.id, lamp.x + dx, lamp.y + dy)
     if (plug) moveItem(PLUG_ID, plugAt.x + dx, plugAt.y + dy)
   }
   // Une caméra du plan dont la vraie caméra est éteinte (PoE coupé) a un contour rouge.
@@ -102,8 +103,6 @@ const CameraMosaic = ({ apiKey, cameras, events, isRead, onOpen }: CameraMosaicP
   }
   // En haut à gauche, les caméras en paysage (réduites) ; dessous, le plan sur deux colonnes, et tout contre lui, à droite, celles posées de côté (en portrait).
   const ordered = orderedCameras(cameras)
-  // Sur téléphone (sous 1024 px) : pas de carte du tout (elle n'est même pas chargée).
-  const mobile = useMobile()
   // La vignette de droite a exactement la hauteur de la carte.
   const mapBox = useRef<HTMLDivElement>(null)
   const sideBox = useRef<HTMLDivElement>(null)
@@ -143,6 +142,7 @@ const CameraMosaic = ({ apiKey, cameras, events, isRead, onOpen }: CameraMosaicP
                 gates={PARCEL_GATES}
                 lamps={planLamps}
                 onMoveLamp={moveItem}
+                onToggleLamp={toggleLamp}
                 plugs={planPlugs}
                 onMovePlug={moveItem}
               />

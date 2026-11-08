@@ -25,3 +25,15 @@ export const lngLatToPlan = (lng: number, lat: number): Point => {
   const south = -(lat - MAP_CENTER[0]) * METERS_PER_DEGREE
   return [MAP_ANCHOR.x + (east * COS + south * SIN) * MAP_UNITS_PER_METER, MAP_ANCHOR.y + (-east * SIN + south * COS) * MAP_UNITS_PER_METER]
 }
+
+/** Le rectangle (sud-ouest, nord-est, en longitude et latitude) qui contient toutes ces lampes ; rien s'il n'y en a pas. */
+export const lampBounds = (lamps: { x: number; y: number }[]): [Point, Point] | null => {
+  if (lamps.length === 0) return null
+  const points = lamps.map((lamp) => planToLngLat(lamp.x, lamp.y))
+  const lngs = points.map(([lng]) => lng)
+  const lats = points.map(([, lat]) => lat)
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ]
+}

@@ -30,7 +30,6 @@ import type { PieChartProps } from './types'
 const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) => {
   const [hovered, setHovered] = useState<string | null>(null)
   const arcs = buildArcs(slices)
-  const sliceOf = (id: string) => slices.find((slice) => slice.id === id)
   const enter = (id: string) => () => setHovered(id)
   const leave = () => setHovered(null)
 
@@ -38,20 +37,17 @@ const PieChart = ({ slices, centerValue, centerLabel, label }: PieChartProps) =>
     <div className={WRAP_CLASS}>
       <div className={CHART_CLASS}>
         <svg className={SVG_CLASS} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={label}>
-          {arcs.map((arc) => {
-            const slice = sliceOf(arc.id)
-            return (
-              <path
-                key={arc.id}
-                d={arc.path}
-                fill="none"
-                strokeWidth={STROKE}
-                className={`${STROKE_CLASS[slice?.tone ?? 'line']} ${ARC_CLASS} ${hovered === arc.id ? ARC_ACTIVE_CLASS : ''}`}
-              >
-                <title>{slice ? `${slice.label} : ${slice.display}` : arc.id}</title>
-              </path>
-            )
-          })}
+          {arcs.map((arc) => (
+            <path
+              key={arc.id}
+              d={arc.path}
+              fill="none"
+              strokeWidth={STROKE}
+              className={`${STROKE_CLASS[arc.slice.tone]} ${ARC_CLASS} ${hovered === arc.id ? ARC_ACTIVE_CLASS : ''}`}
+            >
+              <title>{`${arc.slice.label} : ${arc.slice.display}`}</title>
+            </path>
+          ))}
           {arcs.map((arc) => (
             <path
               key={`${arc.id}-hit`}

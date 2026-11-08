@@ -1,21 +1,20 @@
 import type { LightsRoom, LightsSensor, PlanLamp, SpecItem } from '@house/ui'
+import { CAMERA_LAMP } from '@/components/CameraCard/constants'
 import type { HueAutomation, HueLight, HueRoom, HueSensor } from '@/types'
 import {
   CALM_TEXT,
   DARK_TEXT,
   LAMP_POSITIONS,
   LEGACY_STORAGE_KEY,
+  PLAN_LAMP_POSITION,
   OTHER_ZONE,
   MOTION_TEXT,
   OTHER_ZONE_NAME,
-  SIDE_COLUMN_WIDTH,
-  SIDE_ROW_HEIGHT,
-  SIDE_ROWS,
-  SIDE_TOP,
   SIDE_ZONE,
   UNKNOWN_MOTION_TEXT,
   ZONES,
 } from './constants'
+import { fromHousePlan, waitingSlot } from '@/components/MapPlan/helpers'
 import type { Positions } from './types'
 
 /**
@@ -29,14 +28,22 @@ export const allLights = (rooms: HueRoom[]): HueLight[] => {
 }
 
 /** « 02/11 15:44 » : un instant du pont (ISO, UTC) à l'heure et à la date de la maison. */
-const formatSince = (iso: string): string => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+const formatSince = (iso: string): string =>
+  new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
 /** Un détecteur de mouvement prêt à afficher : l'état du mouvement et ses mesures (température, luminosité, pile) déjà écrits. */
 const toLightsSensor = (sensor: HueSensor): LightsSensor => ({
   id: sensor.id,
   name: sensor.name,
   motion: sensor.presence,
-  motionText: sensor.presence === null ? UNKNOWN_MOTION_TEXT : sensor.presence ? MOTION_TEXT : sensor.presenceSince ? `${CALM_TEXT} ${formatSince(sensor.presenceSince)}` : 'Calme',
+  motionText:
+    sensor.presence === null
+      ? UNKNOWN_MOTION_TEXT
+      : sensor.presence
+        ? MOTION_TEXT
+        : sensor.presenceSince
+          ? `${CALM_TEXT} ${formatSince(sensor.presenceSince)}`
+          : 'Calme',
   readings: [
     sensor.temperature === null ? null : `${sensor.temperature.toFixed(1).replace('.', ',')} °C`,
     sensor.lux === null ? null : `${sensor.lux} lx${sensor.dark ? ` · ${DARK_TEXT}` : ''}`,
@@ -70,26 +77,9 @@ export const buildZones = (lights: HueLight[], sensors: HueSensor[] = []): Light
   return rest.length > 0 ? [...zones, { ...toZone(OTHER_ZONE, OTHER_ZONE_NAME, rest), ungrouped: true }] : zones
 }
 
-/**
- * Où poser chaque ampoule tant qu'on ne l'a pas placée soi-même : celle que tu as placée (LAMP_POSITIONS), sinon dans la zone
- * « À placer » à droite de la maison, en colonnes de 10, dans l'ordre des identifiants.
- */
-export const defaultPositions = (lights: HueLight[]): Positions => {
-  const positions: Positions = { ...LAMP_POSITIONS }
-  const waiting = lights.filter((light) => !LAMP_POSITIONS[light.id])
-  const columns = Math.ceil(waiting.length / SIDE_ROWS)
-  const centre = SIDE_ZONE.x + SIDE_ZONE.w / 2
-  waiting.forEach((light, index) => {
-    positions[light.id] = {
-      x: Math.round(centre + (Math.floor(index / SIDE_ROWS) - (columns - 1) / 2) * SIDE_COLUMN_WIDTH),
-      y: SIDE_TOP + (index % SIDE_ROWS) * SIDE_ROW_HEIGHT,
-    }
-  })
-  return positions
-}
-
 /** Le nombre de lampes qui sont dans une zone de la maison : celles du groupe « À placer » ne comptent pas. */
-export const placedLampCount = (rooms: HueRoom[]): number => allLights(rooms).filter((light) => ZONES.some((zone) => zone.lights.includes(light.id))).length
+export const placedLampCount = (rooms: HueRoom[]): number =>
+  allLights(rooms).filter((light) => ZONES.some((zone) => zone.lights.includes(light.id))).length
 
 /** Les règles du pont pour la liste : leur nom (et « désactivée »), puis ce qu'elles font en une ligne. */
 export const buildAutomationItems = (automations: HueAutomation[]): SpecItem[] =>
@@ -99,16 +89,30 @@ export const buildAutomationItems = (automations: HueAutomation[]): SpecItem[] =
     value: automation.lines.join(' · '),
   }))
 
-/** Les ampoules du plan : la position gardée par l'API, sinon celle de départ. */
-export const planLamps = (lights: HueLight[], positions: Positions, defaults: Positions): PlanLamp[] =>
-  lights.map((light) => ({
-    id: light.id,
-    name: light.name,
-    on: light.on,
-    reachable: light.reachable,
-    brightness: light.bri,
-    ...(positions[light.id] ?? defaults[light.id] ?? { x: 0, y: 0 }),
-  }))
+/** La lampe de la cage (« Perruche ») : sa place est celle de la carte (en unités du plan), jamais celle de l'ancien plan. */
+const CAGE_LAMP = CAMERA_LAMP['voliere-interieur']
+
+/**
+ * Les ampoules de la carte, en unités du plan (le repère de la carte). La place d'une lampe, par ordre :
+ * 1. celle gardée dans le plan de l'API (`items`, en longitude et latitude, déjà convertie) ;
+ * 2. pour la lampe de la cage, sa place de départ sur la carte ;
+ * 3. celle de l'ancien plan des lumières (`/hue/positions` et la copie du navigateur, `legacy`), convertie à la lecture ; elle n'est jamais effacée ni réécrite ;
+ *    une position dans l'ancienne zone « À placer » (x au-delà de `SIDE_ZONE.x`) compte pour « pas placée » ;
+ * 4. celle de `LAMP_POSITIONS` (l'ancien plan, convertie) ;
+ * 5. sinon elle attend sur le carrelage au sud de la maison (visible seulement en modification).
+ */
+export const planLamps = (lights: HueLight[], items: Positions, legacy: Positions): PlanLamp[] => {
+  let waiting = 0
+  return lights.map((light) => {
+    const common = { id: light.id, name: light.name, on: light.on, reachable: light.reachable, brightness: light.bri }
+    const kept = items[light.id]
+    if (kept) return { ...common, ...kept, indoor: light.id !== CAGE_LAMP }
+    if (light.id === CAGE_LAMP) return { ...common, ...PLAN_LAMP_POSITION }
+    const old = legacy[light.id] ?? LAMP_POSITIONS[light.id]
+    if (old && old.x < SIDE_ZONE.x) return { ...common, ...fromHousePlan(old.x, old.y), indoor: true }
+    return { ...common, ...waitingSlot(waiting++), indoor: true, waiting: true }
+  })
+}
 
 /** Les positions que le navigateur gardait avant que l'API ne les garde ; vide s'il n'y en a pas ou si elles sont illisibles. */
 export const readLegacyPositions = (): Positions => {
@@ -117,14 +121,5 @@ export const readLegacyPositions = (): Positions => {
     return typeof parsed === 'object' && parsed !== null ? (parsed as Positions) : {}
   } catch {
     return {}
-  }
-}
-
-/** Efface celles du navigateur, une fois qu'elles sont à l'abri chez l'API. */
-export const clearLegacyPositions = (): void => {
-  try {
-    localStorage.removeItem(LEGACY_STORAGE_KEY)
-  } catch {
-    // Stockage indisponible : rien à effacer.
   }
 }

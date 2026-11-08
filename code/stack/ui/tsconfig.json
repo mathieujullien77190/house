@@ -11,7 +11,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "stories", ".storybook", "vite.config.ts", "eslint.config.ts"]
+  "include": ["src", "stories", ".storybook", "vite.config.ts", "vitest.config.ts", "eslint.config.ts"]
 }

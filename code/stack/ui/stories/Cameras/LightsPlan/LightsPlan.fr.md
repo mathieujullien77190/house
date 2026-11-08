@@ -1,2 +1,0 @@
-Le plan de la maison (540 × 300, ses pièces reprennent celles du rez-de-chaussée du site) avec une ampoule par lampe (son nom s’affiche au survol, en bas du jardin) : on la glisse pour la placer, on la touche pour l'allumer ou l'éteindre, les flèches la déplacent au clavier.
-Un glissement de plus de 4 unités déplace ; en deçà, c'est un clic. La maison est dans son jardin (« Extérieur ») et peut avoir des cloisons qui s’arrêtent avant le mur d’en face. À droite, une zone « À placer » accueille les ampoules pas encore posées. Les positions sont au parent, qui les garde.

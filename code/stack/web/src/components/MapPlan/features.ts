@@ -2,17 +2,19 @@
 // lampe, prise, poignées), reconstruite quand elles changent. Chaque élément porte son genre (`kind`) et son identifiant pour qu'on puisse le saisir à la souris.
 import type { Feature as GeoFeature, FeatureCollection, Geometry } from 'geojson'
 import polygonClipping from 'polygon-clipping'
-import type { PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanTree } from '@house/ui'
+import type { PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanRoom, PlanTree } from '@house/ui'
 import {
   HOUSE_SHIFT,
   PLAN_EXTENSION,
   PLAN_FLOOR_PATHS,
   PLAN_FLOORS,
-  PLAN_LAMP_RADIUS,
+  PLAN_ROOMS,
+  PLAN_WALLS,
   PLAN_PATHS,
   PLAN_TERRACE,
 } from '@/components/Lights/constants'
-import { MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from './constants'
+import { LAMP_RADIUS, MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from './constants'
+import { bulbOpacity, fromHousePlan } from './helpers'
 import { eastLimitAt } from './parcel'
 import { planToLngLat, type Point } from './projection'
 import { cameraRing, circleRing, fovRing, pathRings, rectRing } from './shapes'
@@ -50,7 +52,7 @@ const lngLat = (point: Point): Point => planToLngLat(point[0], point[1])
 const polygon = (ring: Point[], properties: Properties): Feature => ({
   type: 'Feature',
   properties,
-  geometry: { type: 'Polygon', coordinates: [[...ring, ring[0] ?? [0, 0]].map(lngLat)] },
+  geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]].map(lngLat)] },
 })
 const line = (points: Point[], properties: Properties): Feature => ({
   type: 'Feature',
@@ -73,6 +75,29 @@ const treeColor = (radius: number): string => {
 /** La largeur du carrelage au sud de la maison : la terrasse de 1,5 m et 50 cm de plus, en unités du plan (39 par mètre). */
 const SOUTH_TILES = PLAN_TERRACE + 0.5 * MAP_UNITS_PER_METER
 
+/** Une pièce de l'ancien plan des lumières en un seul contour (l'union de ses rectangles : une pièce en L n'a pas de trait au milieu), dans le repère de la carte. */
+const roomFeature = (room: PlanRoom): Feature => {
+  const pieces = room.rects.map(
+    (rect) =>
+      [
+        rectRing(rect.x, rect.y, rect.w, rect.h).map(([x, y]): [number, number] => {
+          const mapped = fromHousePlan(x, y)
+          return [mapped.x, mapped.y]
+        }),
+      ] as [number, number][][],
+  )
+  const [first, ...rest] = pieces
+  const merged = first ? polygonClipping.union(first, ...rest) : []
+  return {
+    type: 'Feature',
+    properties: { part: 'room', name: room.name },
+    geometry: {
+      type: 'MultiPolygon',
+      coordinates: merged.map((area) => area.map((ring) => ring.map(([x, y]) => planToLngLat(x, y)))),
+    },
+  }
+}
+
 /** La partie fixe : chemins de béton, pavage (terrasse et sols), cage, toit, portails. Le toit est celui du plan : 540 unités de large, poussé de `HOUSE_SHIFT`. */
 export const staticFeatures = (): Collection => {
   const inset = 2
@@ -91,6 +116,18 @@ export const staticFeatures = (): Collection => {
     // Le côté nord de la terrasse en béton gris clair (du bout gauche de la terrasse à l'angle haut droit de la maison).
     polygon(rectRing(HOUSE_SHIFT - PLAN_TERRACE, -PLAN_TERRACE, width + PLAN_TERRACE, PLAN_TERRACE), { part: 'concrete' }),
     polygon(roof, { part: 'roof' }),
+    ...PLAN_ROOMS.map(roomFeature),
+    ...PLAN_WALLS.map((wall) => {
+      const from = fromHousePlan(wall.x1, wall.y1)
+      const to = fromHousePlan(wall.x2, wall.y2)
+      return line(
+        [
+          [from.x, from.y],
+          [to.x, to.y],
+        ],
+        { part: 'wall', screen: wall.screen ? 1 : 0 },
+      )
+    }),
   ]
   return collection(features)
 }
@@ -158,8 +195,9 @@ const tilesFeature = (cage: { x: number; y: number; w: number; h: number }): Fea
     ...(joint ? [rectRing(cage.x, cageBottom, joint.w, joint.h)] : []),
     ...PLAN_FLOOR_PATHS.flatMap(pathRings),
   ]
+  // Il y a toujours au moins la terrasse : `pieces` n'est jamais vide.
   const [first, ...rest] = pieces.map((ring) => [ring.map(([x, y]): [number, number] => [x, y])] as [number, number][][])
-  const merged = first ? polygonClipping.union(first, ...rest) : []
+  const merged = polygonClipping.union(first, ...rest)
   return {
     type: 'Feature',
     properties: { kind: 'tiles', id: 'tiles' },
@@ -230,7 +268,15 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
   for (const lamp of data.lamps) {
     const color = lamp.on && lamp.reachable ? palette.orange : palette.bg
     const stroke = !lamp.reachable ? palette.danger : lamp.on ? palette.fg : palette.muted
-    shapes.push(polygon(circleRing(lamp.x, lamp.y, PLAN_LAMP_RADIUS, 20), { kind: 'lamp', id: lamp.id, color, stroke }))
+    shapes.push(
+      polygon(circleRing(lamp.x, lamp.y, LAMP_RADIUS, 96), {
+        kind: 'lamp',
+        id: lamp.id,
+        color,
+        stroke,
+        opacity: bulbOpacity(lamp.on, lamp.reachable, lamp.brightness),
+      }),
+    )
     points.push(dot([lamp.x, lamp.y], { kind: 'lamp-hit', id: lamp.id }))
   }
   for (const plug of data.plugs) {

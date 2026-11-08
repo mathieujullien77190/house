@@ -96,7 +96,6 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
 
   // Éteindre : la prise ne s'allume jamais sans fin (seulement pour un temps donné), donc ce bouton ne sert qu'à l'éteindre.
   const turnOff = () => {
-    if (!plug || busy) return
     setBusy(true)
     setPlug(apiKey, false)
       .then(apply)
@@ -106,7 +105,6 @@ const PlugPanel = ({ apiKey }: PlugPanelProps) => {
 
   // Allumer pendant N minutes : c'est la prise qui s'éteint ensuite, même si le mini PC tombe.
   const startTimer = () => {
-    if (!plug || busy) return
     setBusy(true)
     setPlug(apiKey, true, minutes, offOnMotion)
       .then(apply)

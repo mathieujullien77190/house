@@ -135,16 +135,14 @@ const ClipPlayer = ({
     }
   }, [src])
 
+  // Les commandes (`bar`) n'existent que si la vidéo est montée : `video.current` est alors toujours là.
   const togglePlay = () => {
-    const element = video.current
-    if (!element) return
+    const element = video.current!
     if (element.paused) element.play().catch(() => undefined)
     else element.pause()
   }
   const seek = (seconds: number) => {
-    const element = video.current
-    if (!element) return
-    element.currentTime = seconds
+    video.current!.currentTime = seconds
     setTime(seconds)
   }
   // Les commandes maison, posées dans l'élément donné par le parent (hors du lecteur, donc droites même si la vidéo est tournée).
@@ -174,8 +172,9 @@ const ClipPlayer = ({
 
   const enableSound = () => {
     const sound = audio.current
-    if (!sound) return
-    sound.currentTime = video.current?.currentTime ?? 0
+    const movie = video.current
+    if (!sound || !movie) return
+    sound.currentTime = movie.currentTime
     sound.play().then(
       () => setSoundBlocked(false),
       () => undefined,

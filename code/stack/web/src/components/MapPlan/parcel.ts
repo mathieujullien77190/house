@@ -38,7 +38,7 @@ const hedgeRing = parcel
 export const eastLimitAt = (y: number): number => {
   let limit = -Infinity
   parcel.forEach(([x1, y1], index) => {
-    const [x2, y2] = parcel[(index + 1) % parcel.length] ?? [x1, y1]
+    const [x2, y2] = parcel[(index + 1) % parcel.length]
     if ((y1 <= y && y <= y2) || (y2 <= y && y <= y1)) {
       const t = y2 === y1 ? 0 : (y - y1) / (y2 - y1)
       limit = Math.max(limit, x1 + t * (x2 - x1))

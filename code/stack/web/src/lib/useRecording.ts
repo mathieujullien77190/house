@@ -15,13 +15,14 @@ export const useRecording = (apiKey: string, camera: string, enabled: boolean) =
   // Un clip vient d'être arrêté : il se fabrique (environ une minute).
   const [stopped, setStopped] = useState(false)
 
-  const refresh = useCallback(async () => {
+  // Vrai ou faux selon l'enregistreur ; `null` quand la relecture échoue (réseau) : on ne sait pas, l'enregistrement continue peut-être.
+  const refresh = useCallback(async (): Promise<boolean | null> => {
     try {
       const state = await fetchRecording(apiKey, camera)
       setStartedAt(state.recording ? state.started_at : null)
       return state.recording
     } catch {
-      return false
+      return null
     }
   }, [apiKey, camera])
 
@@ -42,7 +43,7 @@ export const useRecording = (apiKey: string, camera: string, enabled: boolean) =
   const recording = startedAt !== null
   useEffect(() => {
     if (!enabled || !recording) return
-    const poll = setInterval(() => void refresh().then((still) => still || setStopped(true)), POLL_MS)
+    const poll = setInterval(() => void refresh().then((still) => still === false && setStopped(true)), POLL_MS)
     const tick = setInterval(() => setNow(Date.now() / 1000), TICK_MS)
     return () => {
       clearInterval(poll)
