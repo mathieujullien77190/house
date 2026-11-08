@@ -76,3 +76,21 @@ test('syncHeatingLog : importe les activations, se tait quand il n’y a rien de
   await imports.syncHeatingLog()
   assert.match(ctx.logs[1] ?? '', /^Journal du chauffage : /)
 })
+
+test('syncShutterLog : importe les ordres, se tait quand il n’y a rien de neuf, garde l’erreur dans le journal', async () => {
+  const ctx = testContext()
+  const imports = createImports(ctx)
+  await imports.syncShutterLog()
+  assert.deepEqual(ctx.logs, [])
+  writeFileSync(ctx.config.shutterLogFile, `${JSON.stringify({ at: 1_800_000_000, shutter: '1', name: 'Volet PC', command: 'up', ok: true, note: null })}
+`)
+  await imports.syncShutterLog()
+  assert.deepEqual(ctx.logs, ['Volets : 1 ordre(s) noté(s)'])
+  await imports.syncShutterLog()
+  assert.equal(ctx.logs.length, 1)
+  ctx.db.exec('DROP TABLE shutter_log')
+  appendFileSync(ctx.config.shutterLogFile, `${JSON.stringify({ at: 1_800_000_100, shutter: '1', name: 'Volet PC', command: 'down', ok: true, note: null })}
+`)
+  await imports.syncShutterLog()
+  assert.match(ctx.logs[1] ?? '', /^Journal des volets : /)
+})

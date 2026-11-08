@@ -19,6 +19,7 @@ import { createSnapshots } from './snapshots.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createCameraEnergy, createCameraEnergyTable } from './cameraEnergy.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
+import { createShutterLogTable } from './shutterLog.ts'
 import { createPlanTable } from './plan.ts'
 
 export interface AppDeps {
@@ -49,6 +50,7 @@ export const startApp = async (deps: AppDeps) => {
   db.exec('CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
   createGuestVisitsTable(db)
   createHeatingLogTable(db)
+  createShutterLogTable(db)
   createCameraEnergyTable(db)
   createPlanTable(db)
 
@@ -68,6 +70,8 @@ export const startApp = async (deps: AppDeps) => {
   const visitsTimer = setInterval(() => void imports.syncGuestVisits(), 15_000)
   void imports.syncHeatingLog()
   const heatingTimer = setInterval(() => void imports.syncHeatingLog(), 30_000)
+  void imports.syncShutterLog()
+  const shutterTimer = setInterval(() => void imports.syncShutterLog(), 30_000)
 
   const { server, secure } = createPageServer(config, page.handlePage)
   server.listen(config.pagePort, () => deps.log(`Page de House Sync en ${secure ? 'HTTPS' : 'HTTP'} sur le port ${config.pagePort}`))
@@ -88,6 +92,7 @@ export const startApp = async (deps: AppDeps) => {
     clearInterval(planTimer)
     clearInterval(visitsTimer)
     clearInterval(heatingTimer)
+    clearInterval(shutterTimer)
     clearInterval(energyTimer)
     hueLog.stop()
     server.closeAllConnections()

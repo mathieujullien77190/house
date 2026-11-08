@@ -36,6 +36,7 @@ const database = () => {
     CREATE TABLE settings (camera TEXT PRIMARY KEY);
     CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT, cle TEXT);
     CREATE TABLE heating_log (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, origin TEXT, minutes INTEGER, cost REAL);
+    CREATE TABLE shutter_log (id INTEGER PRIMARY KEY, happened_at INTEGER NOT NULL, shutter TEXT, command TEXT);
     CREATE TABLE camera_energy (camera TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (camera, hour));
     CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, longitude REAL, latitude REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id));
   `)

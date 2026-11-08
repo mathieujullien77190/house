@@ -3,6 +3,7 @@
 import { messageOf, type Context } from './context.ts'
 import { importGuestVisits, purgeGuestVisits } from './guestVisits.ts'
 import { importHeatingLog } from './heatingLog.ts'
+import { importShutterLog } from './shutterLog.ts'
 import { importPlan, readPlan } from './plan.ts'
 
 export const createImports = (ctx: Context) => {
@@ -41,5 +42,14 @@ export const createImports = (ctx: Context) => {
     }
   }
 
-  return { syncPlan, syncGuestVisits, syncHeatingLog }
+  const syncShutterLog = async (): Promise<void> => {
+    try {
+      const imported = await importShutterLog(db, config.shutterLogFile)
+      if (imported > 0) ctx.log(`Volets : ${imported} ordre(s) noté(s)`)
+    } catch (error) {
+      ctx.log(`Journal des volets : ${messageOf(error)}`)
+    }
+  }
+
+  return { syncPlan, syncGuestVisits, syncHeatingLog, syncShutterLog }
 }

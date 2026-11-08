@@ -2,7 +2,7 @@
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'plan', 'camera_energy']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'shutter_log', 'plan', 'camera_energy']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {
@@ -34,6 +34,7 @@ export const TABLE_FILTERS: Record<string, TableFilterConfig> = {
   hue_events: { match: 'name', date: 'happened_at' },
   guest_visits: { match: 'cle', date: 'started_at' },
   heating_log: { match: null, date: 'started_at' },
+  shutter_log: { match: null, date: 'happened_at' },
 }
 
 /** Les colonnes dont la page montre la somme (sur toutes les lignes du filtre, pas seulement la page) : heating_log, le temps activé et le coût. */

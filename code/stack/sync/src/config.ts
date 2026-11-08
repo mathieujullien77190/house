@@ -33,6 +33,8 @@ export interface Config {
   guestVisitsDays: number
   /** Le journal des activations du chauffage, écrit par House API (HEATING_LOG_FILE). */
   heatingLogFile: string
+  /** Le journal des ordres aux volets roulants, écrit par House API (SHUTTER_LOG_FILE). */
+  shutterLogFile: string
   planFile: string
   hueAddress: string
   hueKey: string
@@ -73,6 +75,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   guestVisitsFile: env.GUEST_VISITS_FILE ?? '/guest-visits/visits.jsonl',
   guestVisitsDays: Number(env.GUEST_VISITS_DAYS ?? 365),
   heatingLogFile: env.HEATING_LOG_FILE ?? '/house/heating-log.jsonl',
+  shutterLogFile: env.SHUTTER_LOG_FILE ?? '/house/shutters-log.jsonl',
   planFile: env.PLAN_FILE ?? '/house/plan.json',
   hueAddress: env.HUE_BRIDGE_IP ?? '',
   hueKey: env.HUE_APP_KEY ?? '',
