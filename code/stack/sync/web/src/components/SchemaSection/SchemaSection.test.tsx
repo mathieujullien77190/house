@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import SchemaSection from '@/components/SchemaSection'
-import SchemaUI from './UI'
 
 describe('SchemaSection', () => {
   it('les deux architectures, la matérielle puis la logicielle', () => {
@@ -11,17 +10,11 @@ describe('SchemaSection', () => {
     expect(hardware.compareDocumentPosition(software) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('des boîtes et des textes de liaison', () => {
+  it('un dessin SVG par architecture, avec ses textes', () => {
     render(<SchemaSection />)
-    expect(screen.getByText('Mini PC ACEMAGIC K1')).toBeTruthy()
+    expect(screen.getAllByRole('img')).toHaveLength(2)
+    expect(screen.getByText('Mini PC · Docker Compose')).toBeTruthy()
     expect(screen.getByText('go2rtc')).toBeTruthy()
-    expect(screen.getByText('RJ45 vers la box')).toBeTruthy()
-    expect(screen.getByText('RTSP interne')).toBeTruthy()
-  })
-
-  it('un étage sans lien n’a pas de flèche', () => {
-    render(<SchemaUI diagrams={[{ id: 'd', title: 'Titre', intro: 'Intro', tiers: [{ id: 't', nodes: [{ id: 'n', title: 'Boîte', detail: 'Détail', tone: 'muted' }] }] }]} />)
-    expect(screen.getByText('Boîte')).toBeTruthy()
-    expect(screen.queryByText('▼')).toBeNull()
+    expect(screen.getByText('tunnel WireGuard (UDP)')).toBeTruthy()
   })
 })

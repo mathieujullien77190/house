@@ -12,6 +12,8 @@
   --green: #1f9d6b;
   --orange: #d98a1c;
   --danger: #d64545;
+  --vpn: #0e9bb5;
+  --switch: #7a4fd6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,6 +27,8 @@
     --green: #3fc590;
     --orange: #f0a940;
     --danger: #f06a6a;
+    --vpn: #3ccbe0;
+    --switch: #a07df0;
   }
 }
 
@@ -38,4 +42,6 @@
   --color-green: var(--green);
   --color-orange: var(--orange);
   --color-danger: var(--danger);
+  --color-vpn: var(--vpn);
+  --color-switch: var(--switch);
 }
