@@ -37,7 +37,13 @@ export const domains: Record<DomainId, DomainInfo> = {
         text: 'Fait tourner la pile Docker : go2rtc (le direct), motion (l’enregistreur), House Sync, House API et la WebApp. Accessible hors de la maison par le VPN WireGuard de la Freebox.',
       },
     ],
-    planned: [],
+    planned: [
+      {
+        id: 'cable-cam',
+        title: 'Caméra sur câble motorisé',
+        text: 'Une caméra WiFi sur un chariot qui roule le long d’un câble d’acier tendu (20 m à terme, essai sur 5 m d’abord). Un seul moteur pas à pas à un bout, piloté par un ESP32 avec des fins de course, et une poulie à l’autre bout pour fermer la boucle. Alimentation de la caméra à trancher : caméra sur batterie rechargée à un bout, ou deux conducteurs 12 V avec des frotteurs. Une page de House commanderait la position, comme pour les volets. Prix à relever.',
+      },
+    ],
   },
   lights: {
     id: 'lights',
