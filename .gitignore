@@ -8,3 +8,5 @@ code/stack/data/
 .DS_Store
 code/stack/**/node_modules/
 code/stack/**/dist/
+
+.claude/worktrees/

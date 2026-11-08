@@ -1,6 +1,6 @@
 # certs – la CA de la maison
 
-Conteneur éphémère (`Dockerfile` : Alpine + openssl) qui lance `make-certs.sh` puis s'arrête. House Sync et l'API attendent qu'il ait fini (`depends_on: service_completed_successfully`).
+Conteneur éphémère (`Dockerfile` : Alpine + openssl) qui lance `make-certs.sh` puis s'arrête. House Sync et l'API attendent qu'il ait fini (`depends_on: service_completed_successfully`). Comment la CA s'installe sur un appareil et ce que les apps en font : `../docs/securite.md` (section HTTPS).
 
 - Crée une fois `data/certs/rootCA.pem` (la CA, à installer sur chaque appareil) et `rootCA-key.pem` (sa clé, jamais copiée ailleurs, mode 600).
 - Crée un certificat pour les hôtes de `CERT_HOSTS` (IP du mini PC, `mini.local` et `localhost`, en SAN : Chrome l'exige), signé par la CA, valable 820 jours ; refait si la liste change ou à moins de 30 jours de l'expiration.

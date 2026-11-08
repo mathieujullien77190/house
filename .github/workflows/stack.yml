@@ -1,0 +1,61 @@
+name: Stack
+
+# Vérifie la pile Docker (code/stack) à chaque changement ; sur main, la déploie sur le mini PC
+# si le runner auto-hébergé est installé (variable de dépôt DEPLOY_ENABLED=true, voir code/stack/docs/deploiement.md).
+on:
+  push:
+    branches: [main]
+    paths: ['code/stack/**', '.github/workflows/stack.yml']
+  pull_request:
+    paths: ['code/stack/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: code/stack/api, scripts: 'typecheck lint test' }
+          - { dir: code/stack/sync, scripts: 'typecheck lint test' }
+          - { dir: code/stack/motion, scripts: 'typecheck lint test' }
+          - { dir: code/stack/web, scripts: 'typecheck lint test build', ui: true }
+          - { dir: code/stack/sync/web, scripts: 'typecheck lint test build', ui: true }
+          - { dir: code/stack/ui, scripts: 'typecheck lint test' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Les apps consomment @house/ui en source (file:../ui) : ses dépendances d'abord.
+      - if: ${{ matrix.ui }}
+        run: npm --prefix code/stack/ui ci
+      - run: npm ci
+        working-directory: ${{ matrix.dir }}
+      # Un script absent est ignoré (tous les paquets n'ont pas encore leurs tests).
+      - run: |
+          for s in ${{ matrix.scripts }}; do
+            if node -e "process.exit(require('./package.json').scripts?.['$s'] ? 0 : 1)"; then npm run "$s"; fi
+          done
+        working-directory: ${{ matrix.dir }}
+
+  deploy:
+    needs: check
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: [self-hosted, house]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Les vérifications viennent de `check` ; le script envoie les dossiers changés dans ~/house/code/phase0 et reconstruit.
+      - run: ./code/stack/deploy.sh --skip-checks
+        env:
+          DEPLOY_HOST: local
