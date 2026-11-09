@@ -32,6 +32,6 @@ Le rendu vient du paquet **`@house/ui`** (`../ui`, voir son CLAUDE.md) : ici ne 
 
 `npm install`, `npm run dev` (port 5180, services relayés vers l'API).
 
-**Tests** : Vitest + Testing Library + jsdom (`vitest.config.ts`, init dans `src/test/setup.ts`, doubles de `fetch` dans `src/test/fetch.ts`), un `*.test.ts(x)` à côté du code ; `npm test` les lance, `npm run test:coverage` exige **100 %** (lignes, fonctions, branches, instructions) sur `src/**` (hors `main.tsx`, `types.ts` et les `index.ts` de réexport). Les tests ne sont pas dans le build ; MapLibre, `@house/ui` (pour les composants à gestes) et les hooks sont simulés avec `vi.mock`.
+**Tests** : Vitest + Testing Library + jsdom (`vitest.config.ts`, init dans `src/test/setup.ts`, doubles de `fetch` dans `src/test/fetch.ts`), un `*.test.ts(x)` à côté du code ; `npm test` les lance, `npm run test:coverage` exige **100 %** (lignes, fonctions, branches, instructions) sur `src/**` (hors `main.tsx`, `types.ts` et les `index.ts` de réexport). Les tests ne sont pas dans le build ; MapLibre, `@house/ui` (pour les composants à gestes) et les hooks sont simulés avec `vi.mock`. React Compiler (`vite.config.ts`) n'est pas appliqué sous Vitest (`process.env.VITEST`) : son code ajouté fausserait la couverture.
 
 Vérifications : `npm run typecheck && npm run lint && npm run test:coverage && npm run build`. Déploiement : `../docs/deploiement.md` (la WebApp part avec l'API).
