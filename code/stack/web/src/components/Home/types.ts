@@ -20,6 +20,8 @@ export interface HomeUIProps {
   onSave: (saved: boolean) => void
   /** La libération du clip a échoué. */
   saveFailed: boolean
+  /** Pose la note d'un clip (vide : la supprime). */
+  onNote: (id: string, note: string) => Promise<unknown>
   onOpen: (id: string) => void
   onBack: () => void
 }

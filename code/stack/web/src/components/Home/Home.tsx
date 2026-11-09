@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import GuestLink from '@/components/GuestLink'
-import { fetchSavedEvents, setClipSaved } from '@/lib/api'
+import { fetchSavedEvents, setClipNote, setClipSaved } from '@/lib/api'
 import type { EventRow } from '@/types'
 import HomeUI from './UI'
 import type { HomeProps } from './types'
@@ -46,6 +46,13 @@ const Home = ({ apiKey }: HomeProps) => {
       () => setFailedSave(true),
     )
   }
+  // La note d'un clip : l'API la garde (sans espaces autour), la liste montre ce qu'elle a gardé. Un échec laisse l'ancienne note.
+  const note = async (id: string, text: string) => {
+    const kept = await setClipNote(apiKey, id, text)
+    // Même garde que ci-dessus : la liste est lue quand une note se pose.
+    /* v8 ignore next */
+    setEvents((current) => current?.map((event) => (event.id === id ? { ...event, note: kept } : event)) ?? current)
+  }
   // Le lien de la page invité se montre en haut de la liste, pas pendant la lecture d'un clip.
   return (
     <>
@@ -60,6 +67,7 @@ const Home = ({ apiKey }: HomeProps) => {
         onSave={save}
         saveFailed={failedSave}
         onDuration={(id, seconds) => setDurations((current) => (current[id] === seconds ? current : { ...current, [id]: seconds }))}
+        onNote={note}
         onOpen={setOpenId}
         onBack={() => setOpenId('')}
       />

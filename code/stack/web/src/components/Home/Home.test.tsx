@@ -3,7 +3,7 @@ import { flush } from '@/test/fetch'
 import type { EventRow } from '@/types'
 import Home from './Home'
 
-vi.mock('@/lib/api', () => ({ fetchSavedEvents: vi.fn(), setClipSaved: vi.fn() }))
+vi.mock('@/lib/api', () => ({ fetchSavedEvents: vi.fn(), setClipSaved: vi.fn(), setClipNote: vi.fn() }))
 vi.mock('@/components/GuestLink', () => ({ default: () => <i data-testid="guest" /> }))
 vi.mock('@/components/ShareButton', () => ({ default: () => <i data-testid="share" /> }))
 vi.mock('@/components/FullscreenBox', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
@@ -25,6 +25,7 @@ const event = (id: string, over: Partial<EventRow> = {}): EventRow =>
     clip_audio: null,
     clip_started_at: null,
     saved: true,
+    note: '',
     orientation: 'landscape',
     ...over,
   }) as EventRow
@@ -136,6 +137,36 @@ describe('Home', () => {
     expect(screen.queryByText(/n’a pas pu être libéré/)).toBeNull()
   })
 
+  it('la note d’un clip : posée depuis la liste, la liste montre celle que l’API a gardée', async () => {
+    vi.mocked(api.setClipNote).mockResolvedValue('renard')
+    await mount([event('a'), event('b', { note: 'chat' })])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Note du clip' })[0])
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note du clip' }), { target: { value: ' renard ' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note du clip' }), { key: 'Enter' })
+    await act(flush)
+    expect(api.setClipNote).toHaveBeenCalledWith('k', 'a', 'renard')
+    expect(screen.getByText('renard')).toBeInTheDocument()
+    expect(screen.getByText('chat')).toBeInTheDocument()
+  })
+
+  it('la note d’un clip ouvert, puis la liste vidée entre-temps', async () => {
+    let done: (note: string) => void = () => undefined
+    vi.mocked(api.setClipNote).mockReturnValue(new Promise((resolve) => (done = resolve)))
+    await mount([event('a')])
+    fireEvent.click(screen.getByLabelText(/voliere-interieur/))
+    fireEvent.click(screen.getByRole('button', { name: 'Note du clip' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note du clip' }), { target: { value: 'x' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note du clip' }), { key: 'Enter' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Non sauvegardé' }))
+    vi.mocked(api.setClipSaved).mockResolvedValue(undefined)
+    await act(flush)
+    await act(async () => {
+      done('x')
+      await flush()
+    })
+    expect(screen.getByText(/Aucun clip sauvegardé/)).toBeInTheDocument()
+  })
+
   it('libérer pendant que la liste a été vidée entre-temps', async () => {
     let done: () => void = () => undefined
     vi.mocked(api.setClipSaved).mockReturnValue(new Promise((resolve) => (done = resolve)))
@@ -164,6 +195,7 @@ describe('HomeUI : cas que le conteneur ne produit pas', () => {
         saved={false}
         onSave={vi.fn()}
         saveFailed={false}
+        onNote={vi.fn()}
         onOpen={vi.fn()}
         onBack={vi.fn()}
       />,

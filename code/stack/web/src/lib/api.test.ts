@@ -17,6 +17,7 @@ import {
   fetchShutters,
   sendShutter,
   setShutterAuto,
+  fetchHeatmap,
   fetchPower,
   fetchRecording,
   fetchSavedEvents,
@@ -29,6 +30,7 @@ import {
   putPlan,
   putZone,
   setCameraPower,
+  setClipNote,
   setClipSaved,
   setHue,
   setPlug,
@@ -57,6 +59,7 @@ describe('lectures (GET)', () => {
     ['fetchLive', (k) => fetchLive(k), '/direct'],
     ['fetchEvents', (k) => fetchEvents(k), '/events'],
     ['fetchSavedEvents', (k) => fetchSavedEvents(k), '/events?saved=1'],
+    ['fetchHeatmap', (k) => fetchHeatmap(k, 'a b'), '/heatmap?camera=a%20b'],
     ['fetchGuest', (k) => fetchGuest(k), '/guest'],
     ['fetchPower', (k) => fetchPower(k), '/poe'],
     ['fetchPlug', (k) => fetchPlug(k), '/plug'],
@@ -130,6 +133,7 @@ describe('écritures', () => {
   const plan = { trees: [], hedges: [], cage: null, offsets: {}, items: {}, cameras: [], links: {} } as PlanDocument
   const writes: [string, (k: string) => Promise<unknown>, string, string, unknown][] = [
     ['setClipSaved', (k) => setClipSaved(k, 'a/b', true), '/clips/a%2Fb/saved', 'PUT', { saved: true }],
+    ['setClipNote', (k) => setClipNote(k, 'a/b', 'renard'), '/clips/a%2Fb/note', 'PUT', { note: 'renard' }],
     ['setCameraPower', (k) => setCameraPower(k, 'c 1', false), '/poe/c%201', 'POST', { on: false }],
     ['saveHeating', (k) => saveHeating(k, { thresholdC: 2 }), '/plug/heating', 'PUT', { thresholdC: 2 }],
     ['sendShutter', (k) => sendShutter(k, 'a 1', 'stop'), '/shutters/a%201', 'POST', { command: 'stop' }],
@@ -167,6 +171,10 @@ describe('écritures', () => {
     await expect(saveHeating('k', {})).rejects.toMatchObject({ status: 400, message: '/plug/heating : HTTP 400' })
     stubFetch(() => reply({ error: 3 }, 400))
     await expect(saveHeating('k', {})).rejects.toMatchObject({ message: '/plug/heating : HTTP 400' })
+  })
+  it('setClipNote rend la note gardée par l’API', async () => {
+    stubFetch(() => reply({ id: 'a', note: 'renard' }))
+    expect(await setClipNote('k', 'a', ' renard ')).toBe('renard')
   })
   it('cancelFade envoie DELETE sans corps', async () => {
     const spy = stubFetch(() => reply({ fading: false, ends_at: null }))

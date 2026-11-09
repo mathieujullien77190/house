@@ -26,6 +26,8 @@ export interface EventRow {
   clip_started_at: number | null
   /** Sauvegardé : jamais effacé par le ménage (les autres clips le sont après la durée de garde réglée dans House Sync). */
   saved: boolean
+  /** La note du clip (« renard »), posée depuis la Home ; vide s'il n'y en a pas. */
+  note: string
   /** L'orientation qu'avait la caméra au début de l'événement : un clip pris avant que la caméra soit tournée reste en paysage. */
   orientation: Orientation
 }
@@ -165,4 +167,21 @@ export interface GuestInfo {
   port: number
   /** L'adresse publique, vide tant que la page n'est pas ouverte à internet. */
   url: string
+}
+
+/** La carte de chaleur d'une caméra, telle que l'API l'a calculée jusqu'ici (service heatmap). */
+export interface HeatmapStatus {
+  /** La grille : `cols` × `rows` cases. */
+  cols: number
+  rows: number
+  /** Les seuils de changement (écart de gris d'une case entre deux images), du plus fin au plus gros. */
+  thresholds: number[]
+  /** Le nombre de paires d'images comparées. */
+  pairs: number
+  /** Le calcul tourne encore ; `done` sur `total` images de ce passage. */
+  computing: boolean
+  done: number
+  total: number
+  /** Un compteur par seuil : des Uint16 petit-boutistes en base64, une valeur par case. */
+  levels: string[]
 }
