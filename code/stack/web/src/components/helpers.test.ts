@@ -4,7 +4,7 @@ import { rememberClipDuration } from '@/lib/clipDurations'
 import { describeEvent, formatTime } from '@/lib/format'
 import type { Camera, CameraPower, EventRow, GuestInfo, HueLight, HueSensor, PlugState } from '@/types'
 import { prettify } from './ApiExplorer/helpers'
-import { countText, eventsOf } from './App/helpers'
+import { eventsOf } from './App/helpers'
 import { captionOf, clipLead, clipPathOf, liveCaption, orientationShown, temperatureItems } from './CameraCard/helpers'
 import { lampLabel, plugLabel } from './CameraIndicators/helpers'
 import { orderedCameras } from './CameraMosaic/helpers'
@@ -30,11 +30,6 @@ const event = (over: Partial<EventRow> = {}): EventRow =>
   }) as EventRow
 
 describe('App/helpers', () => {
-  it('countText accorde au pluriel', () => {
-    expect(countText(0, 'lampe')).toBe('0 lampe')
-    expect(countText(1, 'lampe')).toBe('1 lampe')
-    expect(countText(2, 'lampe')).toBe('2 lampes')
-  })
   it('eventsOf garde les événements de la caméra', () => {
     expect(eventsOf([event({ id: 'a' }), event({ id: 'b', camera: 'autre' })], 'cam').map((e) => e.id)).toEqual(['a'])
   })

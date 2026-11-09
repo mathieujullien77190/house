@@ -9,3 +9,7 @@ Les volets roulants Somfy RTS (API `/shutters`, relue toutes les 10 s). Quatre v
 - Le journal des ordres (`shutters-log.jsonl`) est importé par House Sync dans la table `shutter_log` (onglet Base).
 
 Ce que fait l'API, le pilote radio et ce qu'il reste à ajuster avec le matériel : `../../../../api/src/routes/CLAUDE.md` (section « Les volets roulants »). Schémas matériel et logiciel des volets : onglet Architecture du site, vue « Volet ».
+
+## Fermer à moitié
+
+Un volet qui a un temps de fermeture (`closeSeconds`, donné dans `SHUTTERS` côté API) a un bouton **« ◧ Fermer à moitié »** : `POST /shutters/<id>/half`, l'API fait monter le volet à fond, attend, le redescend pendant la moitié de son temps de fermeture puis l'arrête (détail : `api/src/routes/CLAUDE.md`). Pendant ce temps la carte dit « Ouvre à fond, puis ferme à moitié… (Stop l'arrête) », le bouton est grisé et la liste est relue toutes les 2 s (`halfRunning`). Le bouton **Stop** annule la suite.

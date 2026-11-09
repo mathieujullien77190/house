@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState, HeatmapStatus } from '@/types'
+import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -65,8 +65,6 @@ export const setClipNote = async (key: string, id: string, note: string): Promis
 }
 /** Les clips sauvegardés (à garder pour toujours), les plus récents d'abord. */
 export const fetchSavedEvents = async (key: string): Promise<EventRow[]> => (await request(key, '/events?saved=1')).json()
-/** La carte de chaleur d'une caméra : la demande lance (ou reprend) le calcul des images arrivées depuis, la réponse dit où il en est. */
-export const fetchHeatmap = async (key: string, camera: string): Promise<HeatmapStatus> => (await request(key, `/heatmap?camera=${encodeURIComponent(camera)}`)).json()
 /** De quoi bâtir le lien de la page invité (sa clé, son port, son adresse publique) ; échoue (503) sans page invité configurée. */
 export const fetchGuest = async (key: string): Promise<GuestInfo> => (await request(key, '/guest')).json()
 export const fetchPower = async (key: string): Promise<CameraPower[]> => (await request(key, '/poe')).json()
@@ -114,6 +112,13 @@ export const sendShutter = async (key: string, id: string, command: ShutterComma
 }
 
 /** Change une option de l'action automatique d'un volet (`open` : ouvrir au lever du soleil, `close` : fermer à son coucher) ; 404 si le volet n'en a pas. */
+/** « Fermer à moitié » : le volet monte à fond puis redescend de moitié (l'API fait l'attente) ; rend le volet, en cours. */
+export const closeShutterHalf = async (key: string, id: string): Promise<ShutterInfo> => {
+  const res = await fetch(`/shutters/${encodeURIComponent(id)}/half`, { method: 'POST', headers: { [KEY_HEADER]: key } })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/shutters : HTTP ${res.status}`)
+  return res.json()
+}
 export const setShutterAuto = async (key: string, id: string, patch: Partial<ShutterAuto>): Promise<void> => {
   const res = await fetch(`/shutters/${encodeURIComponent(id)}/auto`, {
     method: 'PUT',

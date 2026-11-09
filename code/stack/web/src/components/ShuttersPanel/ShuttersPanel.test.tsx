@@ -2,7 +2,18 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { flush } from '@/test/fetch'
 import type { ShutterInfo, ShuttersState } from '@/types'
 import ShuttersPanel from './ShuttersPanel'
-import { AUTO_CLOSE_LABEL, AUTO_ERROR_TEXT, AUTO_OPEN_LABEL, LOADING_TEXT, MOCK_TEXT, NEVER_TEXT, NOT_CONFIGURED_TEXT, POLL_MS, SEND_ERROR_TEXT, UNAVAILABLE_TEXT } from './constants'
+import {
+  AUTO_CLOSE_LABEL,
+  AUTO_ERROR_TEXT,
+  AUTO_OPEN_LABEL,
+  LOADING_TEXT,
+  MOCK_TEXT,
+  NEVER_TEXT,
+  NOT_CONFIGURED_TEXT,
+  POLL_MS,
+  SEND_ERROR_TEXT,
+  UNAVAILABLE_TEXT,
+} from './constants'
 import { lastText } from './helpers'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -13,7 +24,14 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 }))
 const api = await import('@/lib/api')
 
-const shutter = (over: Partial<ShutterInfo> = {}): ShutterInfo => ({ id: '1', name: 'Volet PC', lastCommand: null, lastAt: null, auto: { open: false, close: true }, ...over })
+const shutter = (over: Partial<ShutterInfo> = {}): ShutterInfo => ({
+  id: '1',
+  name: 'Volet PC',
+  lastCommand: null,
+  lastAt: null,
+  auto: { open: false, close: true },
+  ...over,
+})
 const state = (shutters: ShutterInfo[], mock = true): ShuttersState => ({ mock, shutters })
 
 beforeEach(() => {
@@ -42,7 +60,9 @@ describe('lastText', () => {
 
 describe('ShuttersPanel', () => {
   it('montre le chargement puis les volets, avec la simulation', async () => {
-    vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter(), shutter({ id: '2', name: 'Volet salon', auto: null, lastCommand: 'stop', lastAt: 1_000_000_000 })]))
+    vi.mocked(api.fetchShutters).mockResolvedValue(
+      state([shutter(), shutter({ id: '2', name: 'Volet salon', auto: null, lastCommand: 'stop', lastAt: 1_000_000_000 })]),
+    )
     render(<ShuttersPanel apiKey="k" />)
     expect(screen.getByText(LOADING_TEXT)).toBeInTheDocument()
     await settle()
@@ -121,7 +141,9 @@ describe('ShuttersPanel', () => {
 
   it('un ordre qui échoue affiche l’erreur, qui s’efface à l’ordre suivant', async () => {
     vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter()]))
-    vi.mocked(api.sendShutter).mockRejectedValueOnce(new Error('502')).mockResolvedValueOnce(shutter({ lastCommand: 'stop', lastAt: 1_000_000_000 }))
+    vi.mocked(api.sendShutter)
+      .mockRejectedValueOnce(new Error('502'))
+      .mockResolvedValueOnce(shutter({ lastCommand: 'stop', lastAt: 1_000_000_000 }))
     render(<ShuttersPanel apiKey="k" />)
     await settle()
     fireEvent.click(screen.getByRole('button', { name: '■ Stop' }))
@@ -133,7 +155,9 @@ describe('ShuttersPanel', () => {
   })
 
   it('un ordre dont la réponse arrive après un échec de lecture ne casse rien', async () => {
-    vi.mocked(api.fetchShutters).mockResolvedValueOnce(state([shutter()])).mockRejectedValue(new Error('réseau'))
+    vi.mocked(api.fetchShutters)
+      .mockResolvedValueOnce(state([shutter()]))
+      .mockRejectedValue(new Error('réseau'))
     let done: (value: ShutterInfo) => void = () => undefined
     vi.mocked(api.sendShutter).mockReturnValue(new Promise((resolve) => (done = resolve)))
     render(<ShuttersPanel apiKey="k" />)
@@ -147,7 +171,13 @@ describe('ShuttersPanel', () => {
   })
 
   it('une case : change tout de suite et envoie l’option', async () => {
-    vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter(), shutter({ id: '2', name: 'Volet salon', auto: { open: true, close: true } }), shutter({ id: '3', name: 'Volet porte', auto: null })]))
+    vi.mocked(api.fetchShutters).mockResolvedValue(
+      state([
+        shutter(),
+        shutter({ id: '2', name: 'Volet salon', auto: { open: true, close: true } }),
+        shutter({ id: '3', name: 'Volet porte', auto: null }),
+      ]),
+    )
     vi.mocked(api.setShutterAuto).mockResolvedValue(undefined)
     render(<ShuttersPanel apiKey="k" />)
     await settle()
@@ -173,7 +203,9 @@ describe('ShuttersPanel', () => {
   })
 
   it('une case changée pendant que la liste est perdue ne casse rien', async () => {
-    vi.mocked(api.fetchShutters).mockResolvedValueOnce(state([shutter()])).mockRejectedValue(new Error('réseau'))
+    vi.mocked(api.fetchShutters)
+      .mockResolvedValueOnce(state([shutter()]))
+      .mockRejectedValue(new Error('réseau'))
     let fail: (reason: unknown) => void = () => undefined
     vi.mocked(api.setShutterAuto).mockReturnValue(new Promise((_resolve, reject) => (fail = reject)))
     render(<ShuttersPanel apiKey="k" />)

@@ -8,10 +8,6 @@ export interface AppUIProps {
   apiKey: string
   cameras: Camera[]
   events: EventRow[]
-  /** Le nombre de lampes des zones de la maison (sans celles à placer), ou null tant qu'il n'est pas connu. */
-  lampCount: number | null
-  /** Le nombre de prises connectées (0 ou 1), ou null tant qu'il n'est pas connu. */
-  plugCount: number | null
   /** Écran de téléphone (sous 1024 px) : la vue d'une caméra prend tout l'écran, sans titre ni menu. */
   mobile: boolean
   /** Les notifications de mouvement : non prises en charge, bloquées par le navigateur, coupées ou activées. */

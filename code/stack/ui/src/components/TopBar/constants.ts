@@ -8,6 +8,8 @@ export const DESKTOP_TABS_CLASS = 'min-w-0 max-lg:hidden'
 export const STATUS_CLASS = 'm-0 min-w-0 flex-1 text-right text-[0.85rem] text-muted max-lg:hidden'
 export const ERROR_CLASS = 'm-0 min-w-0 flex-1 text-right text-[0.85rem] text-danger max-lg:hidden'
 export const SPACER_CLASS = 'flex-1'
+/** L'information de la barre : à sa taille, jamais écrasée ; sur téléphone elle reste avant le bouton sandwich. */
+export const INFO_CLASS = 'flex shrink-0 items-center'
 export const DESKTOP_ACTIONS_CLASS = 'flex items-center gap-2 max-lg:hidden'
 /** Le bouton sandwich, en haut à droite, sur téléphone seulement. */
 export const BURGER_CLASS = 'ml-auto flex size-11 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-bg lg:hidden focus-visible:outline-2 focus-visible:outline-accent'

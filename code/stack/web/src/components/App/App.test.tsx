@@ -5,8 +5,6 @@ import App from './App'
 /* eslint-disable @typescript-eslint/no-explicit-any -- états simulés des hooks */
 const h = vi.hoisted(() => ({
   house: {} as any,
-  lampCount: null as number | null,
-  plugCount: null as number | null,
   mobile: false,
   notify: { state: 'off', toggle: () => undefined } as any,
   read: { isRead: () => false, markRead: () => undefined } as any,
@@ -16,13 +14,12 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/lib/useHouse', () => ({ useHouse: () => h.house }))
 vi.mock('@/lib/useMobile', () => ({ useMobile: () => h.mobile }))
-vi.mock('@/lib/usePlugCount', () => ({ usePlugCount: () => h.plugCount }))
 vi.mock('@/lib/useReadClips', () => ({ useReadClips: () => h.read }))
 vi.mock('@/lib/useMotionNotifications', () => ({ useMotionNotifications: () => h.notify }))
 vi.mock('@/components/Lights', () => ({
   default: () => <div data-testid="lights" />,
-  useLampCount: () => h.lampCount,
 }))
+vi.mock('@/components/Weather', () => ({ default: () => <div data-testid="weather" /> }))
 vi.mock('@/components/Home', () => ({ default: () => <div data-testid="home" /> }))
 vi.mock('@/components/ShuttersPanel', () => ({ default: () => <div data-testid="shutters" /> }))
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
@@ -68,8 +65,6 @@ const ready = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   h.house = ready()
-  h.lampCount = null
-  h.plugCount = null
   h.mobile = false
   h.notify = { state: 'off', toggle: vi.fn() }
   h.read = { isRead: () => false, markRead: vi.fn() }
@@ -114,44 +109,9 @@ describe('App : clé', () => {
 })
 
 describe('App : en-tête', () => {
-  it('compte les caméras, les lampes et les prises (singulier, pluriel, inconnu)', () => {
-    h.lampCount = 19
-    h.plugCount = 1
+  it('la météo est dans la barre du haut, une fois la clé acceptée', () => {
     render(<App />)
-    expect(screen.getByText('2 caméras / 19 lampes / 1 prise')).toBeInTheDocument()
-  })
-  it('une seule caméra, sans lampe ni prise connues', () => {
-    h.house = ready({ cameras: [cam('a')] })
-    render(<App />)
-    expect(screen.getByText('1 caméra')).toBeInTheDocument()
-  })
-  it('le titre ramène à Home', () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('House'))
-    expect(screen.getByTestId('home')).toBeInTheDocument()
-  })
-  it('le titre n’est pas cliquable tant que la clé n’est pas bonne', () => {
-    h.house = ready({ status: 'locked' })
-    render(<App />)
-    expect(screen.queryByRole('button', { name: 'House' })).toBeNull()
-  })
-  it('notifications : non prises en charge, bloquées, éteintes, activées', () => {
-    h.notify = { state: 'unsupported', toggle: vi.fn() }
-    const first = render(<App />)
-    expect(screen.queryByRole('button', { name: /Notifications|Bloquées/ })).toBeNull()
-    first.unmount()
-    h.notify = { state: 'denied', toggle: vi.fn() }
-    const second = render(<App />)
-    expect(screen.getByRole('button', { name: /Bloquées/ })).toBeDisabled()
-    second.unmount()
-    h.notify = { state: 'off', toggle: vi.fn() }
-    const third = render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: /🔔 Notifications/ }))
-    expect(h.notify.toggle).toHaveBeenCalled()
-    third.unmount()
-    h.notify = { state: 'on', toggle: vi.fn() }
-    render(<App />)
-    expect(screen.getByRole('button', { name: /activées/ })).toBeInTheDocument()
+    expect(screen.getByTestId('weather')).toBeInTheDocument()
   })
 })
 

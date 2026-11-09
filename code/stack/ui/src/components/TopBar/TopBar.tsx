@@ -11,6 +11,7 @@ import {
   DESKTOP_ACTIONS_CLASS,
   DESKTOP_TABS_CLASS,
   ERROR_CLASS,
+  INFO_CLASS,
   ITEM_ACTIVE_CLASS,
   ITEM_CLASS,
   ITEM_IDLE_CLASS,
@@ -31,7 +32,7 @@ import type { TopBarProps } from './types'
  * La barre du haut d'une page, toujours visible : le titre, les onglets, l'état et les boutons dès 1024 px ; en dessous, le titre et un bouton
  * « sandwich » en haut à droite qui ouvre un menu (les pages, l'état, les boutons). Le menu se ferme au choix d'une page, d'un clic ailleurs ou d'Échap.
  */
-const TopBar = <T extends string>({ title, onTitle, status = '', tone = 'muted', tabs, actions }: TopBarProps<T>) => {
+const TopBar = <T extends string>({ title, onTitle, status = '', tone = 'muted', tabs, info, actions }: TopBarProps<T>) => {
   const [open, setOpen] = useState(false)
   const wrap = useRef<HTMLElement>(null)
   const hasMenu = tabs !== undefined || actions !== undefined
@@ -70,6 +71,7 @@ const TopBar = <T extends string>({ title, onTitle, status = '', tone = 'muted',
           </div>
         ) : null}
         {status ? <p className={tone === 'error' ? ERROR_CLASS : STATUS_CLASS}>{status}</p> : <span className={SPACER_CLASS} />}
+        {info ? <div className={INFO_CLASS}>{info}</div> : null}
         {actions ? <div className={DESKTOP_ACTIONS_CLASS}>{actions}</div> : null}
         {hasMenu ? (
           <button type="button" className={BURGER_CLASS} aria-label={BURGER_LABEL} aria-expanded={open} onClick={() => setOpen((value) => !value)}>

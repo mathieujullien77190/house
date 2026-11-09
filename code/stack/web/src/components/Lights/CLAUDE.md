@@ -9,7 +9,6 @@ Rangée par **zone de la maison** (`ZONES` dans `constants.ts`, par identifiant 
 - Les détecteurs de mouvement de la cage sont dans le groupe « Volière » avec mouvement, température, luminosité et pile.
 - Une section « Automatisations » en bas montre les règles du pont ; « Tout allumer » et « Tout éteindre » en haut ne touchent ni la volière ni les lampes à placer.
 - Chaque zone est un rectangle repliable : sur la ligne de son nom, le compte et deux petits boutons **ON / OFF** pour toute la zone (pas de curseur de zone) ; dedans, une **grille de petites cases** (3 par ligne sur téléphone, 4 dès `sm:`, 6 dès `lg:`), une par lampe, qui bascule ON / OFF. **ON = puissance max** : allumer envoie `{ on: true, bri: 254 }` (`MAX_BRI`, `constants.ts`) pour une case, une zone, « Tout allumer » et une ampoule de la carte ; éteindre envoie `{ on: false }`. Tous les groupes sont ouverts au départ sauf « À placer ».
-- `Lights/useLampCount.ts` : le nombre de lampes de l'en-tête (celles des zones de la maison, sans « À placer »), relu chaque minute.
 - **Extinction de la lumière de la perruche** (`components/FadeButton`, `lib/useFade.ts`, API `/hue/lights/26/fade`) : dans la ligne à curseur de la lampe « Perruche » sous la grille de sa zone (liste de bureau, pas dans le détail d'une caméra), le bouton **« Éteindre la lumière en 15 min »** lance une descente de la luminosité au minimum par le pont, puis l'extinction ; il devient **« Annuler l'extinction (14:32) »** avec le temps restant (relu du pont toutes les 10 s).
 
 ## La carte

@@ -3,10 +3,6 @@ import { Button, CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, Va
 import ClipPlayer from '@/components/ClipPlayer'
 import CameraIndicators from '@/components/CameraIndicators'
 import FastScroll from '@/components/FastScroll'
-import HeatmapControls from '@/components/HeatmapControls'
-import { DEFAULT_SENSITIVITY } from '@/components/HeatmapControls/constants'
-import { levelOf } from '@/components/HeatmapControls/helpers'
-import HeatmapOverlay from '@/components/HeatmapOverlay'
 import { NORMAL_RATE } from '@/components/FastScroll/constants'
 import { speedOf } from '@/components/FastScroll/helpers'
 import PowerButton from '@/components/PowerButton'
@@ -17,7 +13,6 @@ import { rememberClipDuration } from '@/lib/clipDurations'
 import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
-import { useHeatmap } from '@/lib/useHeatmap'
 import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
@@ -135,11 +130,6 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const zoneEditing = editingZone && isLive && !placeholder && !mobile
   // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
   const [rate, setRate] = useState(NORMAL_RATE)
-  // La carte de chaleur : où l'image change d'une image gardée à la suivante, posée sur le direct (grand écran seulement) ; le curseur choisit la sensibilité.
-  const [heatmap, setHeatmap] = useState(false)
-  const [sensitivity, setSensitivity] = useState(DEFAULT_SENSITIVITY)
-  const heatmapOn = heatmap && isLive && !placeholder && !mobile
-  const heat = useHeatmap(apiKey, camera.name, heatmapOn)
   // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
   const recorder = useRecording(apiKey, camera.name, isLive && !placeholder && !mobile)
   // Caméra tournée : les commandes natives de la vidéo tourneraient avec elle ; le lecteur les pose ici, sous la vidéo, droites (hors vue en grand, où il n'y a pas de place).
@@ -207,19 +197,6 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   // Les flèches du défilement des images : à côté de « 10 min, 1 h… » sous la vidéo, et sur la vidéo (en bas à gauche) en vue en grand, où la frise ne se voit pas.
   const fastScroll = !selected && cursor !== null ? <FastScroll rate={rate} onRate={setRate} /> : undefined
 
-  // Le bouton de la carte de chaleur : avec les commandes du haut, et sur la vidéo (bas gauche) en vue en grand.
-  const heatControls =
-    isLive && !placeholder && !mobile ? (
-      <HeatmapControls
-        on={heatmap}
-        onToggle={() => setHeatmap((on) => !on)}
-        sensitivity={sensitivity}
-        onSensitivity={setSensitivity}
-        data={heat.data}
-        failed={heat.failed}
-      />
-    ) : undefined
-
   const back = () => {
     setFailedClip('')
     setCursor(null)
@@ -252,7 +229,6 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       overlay={uprightControls && clipPath ? <div ref={setControlsHost} className={CONTROLS_OVERLAY_CLASS} /> : undefined}
     >
       <div className={MEDIA_HOST_CLASS}>
-        {heatmapOn && heat.data ? <HeatmapOverlay data={heat.data} level={levelOf(sensitivity, heat.data.levels.length)} /> : null}
         {selected && clipPath ? (
           <div className={clipReady || clipFailed ? undefined : HIDDEN_PLAYER_CLASS}>
             <ClipPlayer
@@ -312,7 +288,6 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
                 : RECORD_LABEL}
             </Button>
           ) : null}
-          {heatControls}
           {recorder.failed ? <span className={ZONE_FAILED_CLASS}>{RECORD_FAILED_TEXT}</span> : null}
           {recorder.stopped && !recorder.recording ? (
             <span className={RECORD_NOTE_CLASS}>
@@ -340,10 +315,9 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
       overlay={
-        (!mobile && indicators) || (bigView.big && (fastScroll || heatControls)) ? (
+        (!mobile && indicators) || (bigView.big && fastScroll) ? (
           <div className="flex flex-col items-start gap-1">
             {!mobile ? indicators : null}
-            {bigView.big ? heatControls : null}
             {bigView.big ? fastScroll : null}
           </div>
         ) : undefined

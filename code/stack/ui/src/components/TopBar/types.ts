@@ -10,6 +10,8 @@ export interface TopBarProps<T extends string = string> {
   tone?: 'muted' | 'error'
   /** Les pages : des onglets dans la barre dès 1024 px, et dans le menu « sandwich » (en haut à droite) en dessous. Sans elles, ni onglets ni menu. */
   tabs?: { label: string; options: TabOption<T>[]; value: T | ''; onChange: (id: T) => void }
+  /** Une petite information toujours visible dans la barre, à droite du texte d'état et avant les boutons (par exemple la météo), sur téléphone comme sur grand écran. */
+  info?: ReactNode
   /** Les boutons à droite (dans le menu sur téléphone). */
   actions?: ReactNode
 }

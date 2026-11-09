@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { flush } from '@/test/fetch'
 import type { Camera, EventRow, HueLight, HueSensor, PlugState } from '@/types'
@@ -18,8 +18,6 @@ const h = vi.hoisted(() => {
     big: { ref: { current: null }, big: false, open: () => undefined, close: () => undefined } as any,
     now: 1_800_000_000,
     pinchArgs: null as any,
-    heat: { data: null, failed: false } as any,
-    heatArgs: null as any,
   })
   return {
     fresh,
@@ -39,15 +37,6 @@ vi.mock('@/lib/useLamp', () => ({ useLamp: () => h.s.lamp }))
 vi.mock('@/lib/usePlug', () => ({ usePlug: () => h.s.plug }))
 vi.mock('@/lib/useRecording', () => ({ useRecording: () => h.s.recorder }))
 vi.mock('@/lib/useZone', () => ({ useZone: () => h.s.zone }))
-vi.mock('@/lib/useHeatmap', () => ({
-  useHeatmap: (...args: unknown[]) => {
-    h.s.heatArgs = args
-    return h.s.heat
-  },
-}))
-vi.mock('@/components/HeatmapOverlay', () => ({
-  default: (props: any) => <div data-testid="heatmap" data-level={props.level} />,
-}))
 vi.mock('@/lib/useBigView', () => ({ useBigView: () => h.s.big }))
 vi.mock('@/lib/useClock', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/useClock')>()),
@@ -623,48 +612,3 @@ describe('CameraCard : défilement des images sur téléphone en vue en grand', 
   })
 })
 
-describe('CameraCard : carte de chaleur', () => {
-  const data = { cols: 1, rows: 1, thresholds: [], pairs: 1, computing: false, done: 0, total: 0, levels: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] }
-
-  it('le bouton allume la carte : demandée à l’API, posée sur la vidéo au seuil de la sensibilité', () => {
-    h.s.heat = { data, failed: false }
-    mount()
-    expect(h.s.heatArgs).toEqual(['k', 'voliere-interieur', false])
-    expect(screen.queryByTestId('heatmap')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Carte de chaleur' }))
-    expect(h.s.heatArgs).toEqual(['k', 'voliere-interieur', true])
-    expect(screen.getByTestId('heatmap')).toHaveAttribute('data-level', '4')
-    fireEvent.change(screen.getByRole('slider', { name: 'Sensibilité' }), { target: { value: '8' } })
-    expect(screen.getByTestId('heatmap')).toHaveAttribute('data-level', '0')
-    fireEvent.click(screen.getByRole('button', { name: 'Carte de chaleur' }))
-    expect(screen.queryByTestId('heatmap')).toBeNull()
-  })
-
-  it('allumée mais pas encore calculée : pas de carte', () => {
-    mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Carte de chaleur' }))
-    expect(screen.queryByTestId('heatmap')).toBeNull()
-  })
-
-  it('ni sur téléphone, ni caméra éteinte, ni hors direct', () => {
-    h.s.mobile = true
-    const phone = mount()
-    expect(screen.queryByRole('button', { name: 'Carte de chaleur' })).toBeNull()
-    phone.unmount()
-    h.s.mobile = false
-    h.s.power = power({ on: false })
-    const off = mount()
-    expect(screen.queryByRole('button', { name: 'Carte de chaleur' })).toBeNull()
-    off.unmount()
-    h.s.power = null
-    mount()
-    act(() => h.timeline.onCursor(900))
-    expect(screen.queryByRole('button', { name: 'Carte de chaleur' })).toBeNull()
-  })
-
-  it('en vue en grand, les commandes passent sur la vidéo (overlay)', () => {
-    h.s.big = { ...h.s.big, big: true }
-    mount()
-    expect(within(screen.getByTestId('overlay')).getByRole('button', { name: 'Carte de chaleur' })).toBeInTheDocument()
-  })
-})

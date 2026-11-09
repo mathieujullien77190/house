@@ -93,6 +93,10 @@ export interface ShutterInfo {
   lastAt: number | null
   /** L'action automatique : null si le volet n'en a pas, sinon ses deux options (ouvrir au lever du soleil, fermer à son coucher), activées ou non. */
   auto: ShutterAuto | null
+  /** Le temps (secondes) que le volet met à se fermer en entier ; null : pas de « Fermer à moitié » pour lui. */
+  closeSeconds?: number | null
+  /** « Fermer à moitié » est en cours (ouvrir à fond, puis fermer à moitié). */
+  halfRunning?: boolean
 }
 
 /** Les deux options de l'action automatique d'un volet. */
@@ -169,19 +173,3 @@ export interface GuestInfo {
   url: string
 }
 
-/** La carte de chaleur d'une caméra, telle que l'API l'a calculée jusqu'ici (service heatmap). */
-export interface HeatmapStatus {
-  /** La grille : `cols` × `rows` cases. */
-  cols: number
-  rows: number
-  /** Les seuils de changement (écart de gris d'une case entre deux images), du plus fin au plus gros. */
-  thresholds: number[]
-  /** Le nombre de paires d'images comparées. */
-  pairs: number
-  /** Le calcul tourne encore ; `done` sur `total` images de ce passage. */
-  computing: boolean
-  done: number
-  total: number
-  /** Un compteur par seuil : des Uint16 petit-boutistes en base64, une valeur par case. */
-  levels: string[]
-}

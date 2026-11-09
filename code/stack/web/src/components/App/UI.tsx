@@ -1,4 +1,5 @@
 import { Button, Notice, Page, TopBar } from '@house/ui'
+import Weather from '@/components/Weather'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
@@ -11,10 +12,6 @@ import {
   BACK_CLASS,
   NOTIFY_LABEL,
   BACK_LABEL,
-  CAMERA_WORD,
-  COUNTS_SEPARATOR,
-  LAMP_WORD,
-  PLUG_WORD,
   CHECKING_TEXT,
   FORGET_LABEL,
   LOCKED_TEXT,
@@ -22,7 +19,7 @@ import {
   TABS_LABEL,
   TITLE,
 } from './constants'
-import { countText, eventsOf } from './helpers'
+import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
 const AppUI = ({
@@ -31,8 +28,6 @@ const AppUI = ({
   apiKey,
   cameras,
   events,
-  lampCount,
-  plugCount,
   mobile,
   notify,
   onNotify,
@@ -50,16 +45,7 @@ const AppUI = ({
   const ready = status === 'ready'
   // La caméra ouverte en détail, si elle existe encore ; sinon la mosaïque.
   const current = cameras.find((camera) => camera.name === openCamera)
-  const statusText =
-    status === 'checking'
-      ? CHECKING_TEXT
-      : status === 'locked'
-        ? LOCKED_TEXT
-        : [
-            countText(cameras.length, CAMERA_WORD),
-            ...(lampCount === null ? [] : [countText(lampCount, LAMP_WORD)]),
-            ...(plugCount === null ? [] : [countText(plugCount, PLUG_WORD)]),
-          ].join(COUNTS_SEPARATOR)
+  const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : ''
   // Sur téléphone, la vue d'une caméra est un écran à part : ni titre, ni menu, ni son, ni « Oublier la clé » (le bouton retour est dans la carte).
   if (ready && mobile && tab === 'cameras' && current) {
     return (
@@ -81,6 +67,7 @@ const AppUI = ({
         onTitle={ready ? () => onTab('home') : undefined}
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
+        info={ready ? <Weather /> : undefined}
         tabs={ready ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
         actions={
           ready ? (
