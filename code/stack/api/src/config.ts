@@ -92,7 +92,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     shuttersEspUrl: env.SHUTTERS_ESP_URL ? env.SHUTTERS_ESP_URL.replace(/\/+$/, '') : null,
     plugMotionSensor: env.PLUG_MOTION_SENSOR ?? 'motion interieur',
     plugTemperatureSensor: env.PLUG_TEMPERATURE_SENSOR || env.PLUG_MOTION_SENSOR || 'motion interieur',
-    housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.6), longitude: Number(env.HOUSE_LONGITUDE ?? 2.7) },
+    housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },
     plug: env.PLUG_HOST ? { host: env.PLUG_HOST, port: Number(env.PLUG_PORT ?? 9999), mac: env.PLUG_MAC ?? '' } : null,
     recorderUrl: env.RECORDER_URL ? env.RECORDER_URL.replace(/\/+$/, '') : null,
     guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,

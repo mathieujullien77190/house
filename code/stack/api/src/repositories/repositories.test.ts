@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { openFixture, withTempDir } from '../testing/helpers.ts'
+import { FIXTURE_ROWS, openFixture, withTempDir } from '../testing/helpers.ts'
 import { createCamerasRepository } from './camerasRepository.ts'
 import { createEventsRepository } from './eventsRepository.ts'
 import { createSnapshotsRepository } from './snapshotsRepository.ts'
@@ -8,18 +8,34 @@ import { createSnapshotsRepository } from './snapshotsRepository.ts'
 /** Les lignes de SQLite n'ont pas de prototype : on les copie pour comparer. */
 const plain = <T extends object>(rows: T[]): T[] => rows.map((row) => ({ ...row }))
 
-test('les caméras : orientation réglée ou paysage, dernières images triées', async () => {
+test('les caméras : orientation réglée ou paysage, pluie en cours, dernières images triées', async () => {
   await withTempDir((dir) => {
     const db = openFixture(dir)
     try {
       const cameras = createCamerasRepository(db)
       assert.deepEqual(plain(cameras.liveStreams()), [
-        { camera: 'cam-a', url: 'http://go2rtc:1984/stream.html?src=cam-a_sub', orientation: 'portrait' },
-        { camera: 'cam-b', url: 'pas une adresse', orientation: 'landscape' },
+        { camera: 'cam-a', url: 'http://go2rtc:1984/stream.html?src=cam-a_sub', orientation: 'portrait', rain: 'heavy' },
+        { camera: 'cam-b', url: 'pas une adresse', orientation: 'landscape', rain: 'off' },
       ])
+      assert.deepEqual(plain(cameras.lastImages()).length, 2)
       assert.deepEqual(plain(cameras.lastImages()), [
         { camera: 'cam-a', url: 'http://x/a.jpg' },
         { camera: 'cam-b', url: 'http://x/b.jpg' },
+      ])
+    } finally {
+      db.close()
+    }
+  })
+})
+
+test('les caméras : une pluie faible, et une caméra sans réglage (paysage, pas de pluie)', async () => {
+  await withTempDir((dir) => {
+    const rows = `${FIXTURE_ROWS} INSERT INTO live_streams VALUES ('cam-c', 'x'), ('cam-d', 'y'); INSERT INTO settings VALUES ('cam-c', 'landscape', 'rain');`
+    const db = openFixture(dir, rows)
+    try {
+      assert.deepEqual(plain(createCamerasRepository(db).liveStreams()).slice(2), [
+        { camera: 'cam-c', url: 'x', orientation: 'landscape', rain: 'rain' },
+        { camera: 'cam-d', url: 'y', orientation: 'landscape', rain: 'off' },
       ])
     } finally {
       db.close()

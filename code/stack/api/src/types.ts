@@ -18,11 +18,16 @@ export interface EventRow {
 
 export type Orientation = 'landscape' | 'portrait'
 
+/** Le mode pluie d'une caméra (réglé dans House Sync) : éteint, pluie ou pluie forte. */
+export type RainMode = 'off' | 'rain' | 'heavy'
+
 export interface CameraRow {
   camera: string
   url: string
   /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire) ; réglé dans House Sync. */
   orientation?: Orientation
+  /** Le niveau de pluie qui s'applique à la caméra (le mode pluie réglé dans House Sync et la météo) : pluie ou pluie forte, la détection est coupée et une image est gardée toutes les 5 s ; la WebApp montre le symbole. */
+  rain?: RainMode
 }
 
 /** Un événement tel que l'API le renvoie : le chemin du clip devient une adresse de service. */

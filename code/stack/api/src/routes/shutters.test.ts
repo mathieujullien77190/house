@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
-import { UnknownShutter, type ShuttersService } from '../services/shuttersService.ts'
+import { NoCloseTime, UnknownShutter, type ShuttersService } from '../services/shuttersService.ts'
 import { call, routerApp, withServer } from '../testing/helpers.ts'
 import { shuttersRouter } from './shutters.ts'
 
@@ -21,6 +21,13 @@ const setup = () => {
       if (id === '9') throw new UnknownShutter(id)
       calls.push(`${id} ${command}`)
       return { id, name: 'Salon', lastCommand: command, lastAt: 7 }
+    },
+    closeHalf: async (id: string) => {
+      if (fail.error) throw fail.error
+      if (id === '9') throw new UnknownShutter(id)
+      if (id === '3') throw new NoCloseTime(id)
+      calls.push(`${id} half`)
+      return { id, name: 'Salon', lastCommand: 'up', lastAt: 7, closeSeconds: 19, halfRunning: true }
     },
   } as unknown as ShuttersService
   const auto = {
@@ -88,5 +95,25 @@ test('PUT /shutters/:id/auto : 400, 404, 503, ok', async () => {
   })
   await withServer(routerApp(shuttersRouter(shutters, null)), async (url) => {
     assert.equal((await call(`${url}/shutters/1/auto`, 'PUT', { open: true })).status, 503)
+  })
+})
+
+test('POST /shutters/:id/half : 503, 404, 409, 502, 202', async () => {
+  await withServer(routerApp(shuttersRouter(null)), async (url) => {
+    assert.equal((await call(`${url}/shutters/1/half`, 'POST')).status, 503)
+  })
+  const { shutters, auto, calls, fail } = setup()
+  await withServer(routerApp(shuttersRouter(shutters, auto)), async (url) => {
+    assert.equal((await call(`${url}/shutters/9/half`, 'POST')).status, 404)
+    assert.equal((await call(`${url}/shutters/3/half`, 'POST')).status, 409)
+    const ok = await call(`${url}/shutters/1/half`, 'POST')
+    assert.deepEqual([ok.status, ok.body], [202, { id: '1', name: 'Salon', lastCommand: 'up', lastAt: 7, closeSeconds: 19, halfRunning: true, auto: { open: true, close: false } }])
+    assert.deepEqual(calls, ['1 half'])
+    fail.error = new Error('KO')
+    assert.equal((await call(`${url}/shutters/1/half`, 'POST')).status, 502)
+  })
+  fail.error = null
+  await withServer(routerApp(shuttersRouter(shutters)), async (url) => {
+    assert.equal(((await call(`${url}/shutters/1/half`, 'POST')).body as { auto: unknown }).auto, null)
   })
 })

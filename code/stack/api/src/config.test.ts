@@ -29,7 +29,7 @@ test('les valeurs par défaut', () => {
   assert.equal(config.shuttersEspUrl, null)
   assert.equal(config.plugMotionSensor, 'motion interieur')
   assert.equal(config.plugTemperatureSensor, 'motion interieur')
-  assert.deepEqual(config.housePosition, { latitude: 48.6, longitude: 2.7 })
+  assert.deepEqual(config.housePosition, { latitude: 48.52, longitude: 2.64 })
   assert.equal(config.recorderUrl, null)
   assert.equal(config.guest, null)
   assert.equal(config.tls, null)
@@ -78,6 +78,12 @@ test('toutes les variables renseignées', async () => {
     assert.deepEqual(config.shutters, [
       { id: '5', name: 'Cave', shadeId: 5 },
       { id: '6', name: 'Grenier', shadeId: 6 },
+    ])
+    // le temps de fermeture est facultatif ; zéro ne compte pas
+    assert.deepEqual(parseShutters('1:Cuisine:19,2:Salon:0,3:Porte'), [
+      { id: '1', name: 'Cuisine', shadeId: 1, closeSeconds: 19 },
+      { id: '2', name: 'Salon', shadeId: 2 },
+      { id: '3', name: 'Porte', shadeId: 3 },
     ])
     assert.deepEqual(config.shuttersAuto, ['6', '5'])
     assert.equal(config.shuttersEspUrl, 'http://esp')

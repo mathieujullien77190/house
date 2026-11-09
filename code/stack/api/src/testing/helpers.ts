@@ -54,7 +54,7 @@ export const withServer = async (handler: RequestListener, work: (url: string) =
 /** Le schéma de la base de House Sync, réduit aux colonnes que l'API lit. */
 export const SCHEMA = `
   CREATE TABLE live_streams (camera TEXT, url TEXT);
-  CREATE TABLE settings (camera TEXT, orientation TEXT);
+  CREATE TABLE settings (camera TEXT, orientation TEXT, rain_now TEXT);
   CREATE TABLE last_images (camera TEXT, url TEXT);
   CREATE TABLE events (
     id TEXT, camera TEXT, label TEXT, started_at INTEGER, ended_at INTEGER, clip_path TEXT,
@@ -73,7 +73,7 @@ export const createDatabaseFile = (path: string, sql: string): void => {
 /** Les lignes de départ des tests : deux caméras, trois événements, trois images. */
 export const FIXTURE_ROWS = `
   INSERT INTO live_streams VALUES ('cam-a', 'http://go2rtc:1984/stream.html?src=cam-a_sub'), ('cam-b', 'pas une adresse');
-  INSERT INTO settings VALUES ('cam-a', 'portrait'), ('cam-b', 'landscape');
+  INSERT INTO settings VALUES ('cam-a', 'portrait', 'heavy'), ('cam-b', 'landscape', NULL);
   INSERT INTO last_images VALUES ('cam-b', 'http://x/b.jpg'), ('cam-a', 'http://x/a.jpg');
   INSERT INTO events VALUES ('e1', 'cam-a', 'mouvement', 100, 200, 'clips/e1.mp4', 90, 'clips/e1.h264.mp4', 'clips/e1.aac', 'portrait');
   INSERT INTO events VALUES ('e2', 'cam-a', 'mouvement', 300, NULL, NULL, NULL, NULL, NULL, NULL);
