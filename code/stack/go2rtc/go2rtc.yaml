@@ -24,6 +24,15 @@ streams:
   voliere-interieur_main_mjpeg_m: ffmpeg:voliere-interieur_main#video=mjpeg
   voliere-interieur_guest_sub_mjpeg: ffmpeg:voliere-interieur_sub#video=mjpeg2
   voliere-interieur_guest_main_mjpeg: ffmpeg:voliere-interieur_main#video=mjpeg2
+  # La troisième caméra (à côté de la cage, regarde le jardin) : adresse, compte et mot de passe viennent de .env (CAMERA3_IP, CAMERA3_USER, CAMERA3_PASSWORD).
+  salon-de-jardin_main: rtsp://${CAMERA3_USER}:${CAMERA3_PASSWORD}@${CAMERA3_IP}:554/h264Preview_01_main
+  salon-de-jardin_sub: rtsp://${CAMERA3_USER}:${CAMERA3_PASSWORD}@${CAMERA3_IP}:554/h264Preview_01_sub
+  salon-de-jardin_sub_mjpeg: ffmpeg:salon-de-jardin_sub#video=mjpeg
+  salon-de-jardin_main_mjpeg: ffmpeg:salon-de-jardin_main#video=mjpeg
+  salon-de-jardin_sub_mjpeg_m: ffmpeg:salon-de-jardin_sub#video=mjpeg
+  salon-de-jardin_main_mjpeg_m: ffmpeg:salon-de-jardin_main#video=mjpeg
+  salon-de-jardin_guest_sub_mjpeg: ffmpeg:salon-de-jardin_sub#video=mjpeg2
+  salon-de-jardin_guest_main_mjpeg: ffmpeg:salon-de-jardin_main#video=mjpeg2
 
 # Le direct (4K et léger) en MJPEG avec moins d'images par seconde : House Sync change la source de <nom>_main_mjpeg et
 # <nom>_sub_mjpeg en ffmpeg:<nom>_main#video=mjpegN ou ffmpeg:<nom>_sub#video=mjpegN (N de 1 à 24) selon le curseur de sa page. Décoder reste complet, mais l'encodage JPEG et le

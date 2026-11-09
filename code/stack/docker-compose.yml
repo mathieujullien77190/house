@@ -23,6 +23,10 @@ services:
       CAMERA2_IP: ${CAMERA2_IP:-}
       CAMERA2_USER: ${CAMERA2_USER:-admin}
       CAMERA2_PASSWORD: ${CAMERA2_PASSWORD:-}
+      # La troisième caméra (salon-de-jardin) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA3_IP: ${CAMERA3_IP:-}
+      CAMERA3_USER: ${CAMERA3_USER:-admin}
+      CAMERA3_PASSWORD: ${CAMERA3_PASSWORD:-}
     volumes:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
     healthcheck:
@@ -36,7 +40,7 @@ services:
       # Le réseau de la page invité : elle ne voit que go2rtc.
       - guest_net
 
-  # L'enregistreur (voir motion/CLAUDE.md), pour les deux caméras (voliere-exterieur et voliere-interieur) : enregistre le flux principal
+  # L'enregistreur (voir motion/CLAUDE.md), pour les trois caméras (voliere-exterieur, voliere-interieur et salon-de-jardin) : enregistre le flux principal
   # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
@@ -44,7 +48,7 @@ services:
     depends_on:
       - go2rtc
     environment:
-      CAMERAS: voliere-exterieur,voliere-interieur
+      CAMERAS: voliere-exterieur,voliere-interieur,salon-de-jardin
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -54,6 +58,8 @@ services:
       # Le son de ces caméras, gardé seulement avec leurs clips de mouvement (un fichier .aac par clip, à part de la vidéo qui reste sans son) :
       # de petits fichiers de 10 s, gardés comme les segments vidéo (6 h), dont on tire le son de chaque clip.
       AUDIO_CAMERAS: voliere-interieur
+      # Les caméras dehors, sous la pluie : leur détection ignore les gouttes et les traits de pluie (seules les taches comptent). Pas pour la cage : un oiseau est petit.
+      RAIN_CAMERAS: ${RAIN_CAMERAS:-salon-de-jardin}
       AUDIO_SEGMENT_SECONDS: "10"
       # Le micro des Reolink est très faible (environ -55 dB) : le son des clips est amplifié de ce gain, en dB (0 : tel quel).
       AUDIO_GAIN_DB: "24"
@@ -113,8 +119,8 @@ services:
       # Le journal des ordres aux volets roulants (écrit par House API dans data/house, importé toutes les 30 s dans la table shutter_log).
       SHUTTER_LOG_FILE: /house/shutters-log.jsonl
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
-      HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
-      HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
+      HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
+      HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
       # go2rtc : House Sync y change la cadence des directs (curseurs de sa page).
       GO2RTC_URL: http://go2rtc:1984
       # La consommation : la puissance du processeur (fichier de power/house-power.sh) et le PoE des caméras (House API).
@@ -170,7 +176,7 @@ services:
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: voliere-exterieur:3,voliere-interieur:4
+      SWITCH_PORTS: voliere-exterieur:3,voliere-interieur:4,salon-de-jardin:7
       # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
@@ -189,8 +195,8 @@ services:
       # Le chauffage automatique de la prise (voliere) : la température vient du détecteur Hue nommé ici (par défaut celui de PLUG_MOTION_SENSOR,
       # « motion interieur »), la nuit se calcule pour la position de la maison (les mêmes valeurs par défaut que House Sync). Les réglages de la règle sont dans data/house/heating.json.
       PLUG_TEMPERATURE_SENSOR: ${PLUG_TEMPERATURE_SENSOR:-}
-      HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.6}
-      HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.7}
+      HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
+      HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
       # La page invité (guest/) : la WebApp en affiche le lien (clé comprise) et un bouton « Copier » (GET /guest, derrière la clé de l'API). GUEST_PUBLIC_URL : son adresse publique
       # si elle est ouverte à internet (sinon la WebApp prend son propre hôte et le port 8090).
       # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API.
