@@ -24,7 +24,7 @@ export const POWER_STEPS = [
 ]
 export const WARNING = '3V3, jamais 5 V : le fil rouge va sur la broche 3V3, tout en haut à gauche. La broche 5V, tout en bas à gauche, grille le module. Visse l’antenne avant de brancher l’USB.'
 export const NOTE =
-  'Les noms de broches du CC1101 suivent la disposition la plus courante (GND, VCC, GDO0, CSN, SCK, MOSI, MISO, GDO2). Lis la sérigraphie sur ton module : si l’ordre diffère, suis les noms, pas les positions.'
+  'Les broches du CC1101 suivent la numérotation courante des modules à 8 broches, par paires côte à côte : 1 GND et 2 VCC, 3 GDO0 et 4 CSN, 5 SCK et 6 MOSI, 7 MISO et 8 GDO2. Les numéros 1 et 2 sont imprimés à un bout du module, 7 et 8 à l’autre. Vérifie avant de brancher le courant : la broche 1 (GND) doit sonner au multimètre avec la couronne extérieure du connecteur d’antenne.'
 export const HINT = 'Glisse (clic gauche ou clic molette) pour tourner, clic droit pour déplacer, molette (ou pincement) pour zoomer. Dimensions approximatives.'
 export const ARIA_LABEL = 'Schéma 3D du montage d’une carte ESP32 et d’un module CC1101 : glisser pour tourner, molette pour zoomer'
 export const NAMES_LABEL = 'Noms des broches'
@@ -70,6 +70,9 @@ export const CC_PINS: Record<CcPin, [number, number]> = {
   MISO: [0, 3],
   GDO2: [1, 3],
 }
+
+/** Les numéros imprimés sur le module (1 et 2 à un bout, 7 et 8 à l'autre, par paires côte à côte) : la numérotation courante des modules à 8 broches. */
+export const CC_NUMBERS: Record<CcPin, number> = { GND: 1, VCC: 2, GDO0: 3, CSN: 4, SCK: 5, MOSI: 6, MISO: 7, GDO2: 8 }
 
 /** Les 8 fils. Source des numéros de broche : le wiki d'ESPSomfy-RTS (GDO0 pour l'émission, GDO2 pour la réception). */
 export const WIRES: WireSpec[] = [

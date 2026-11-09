@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { CC_ORIGIN, CC_PINS, COLORS, ESP_LEFT, ESP_RIGHT, PIN_TOP, PIN_X, PIN_Z0, PITCH, POWER, WIRES } from './constants'
+import { CC_NUMBERS, CC_ORIGIN, CC_PINS, COLORS, ESP_LEFT, ESP_RIGHT, PIN_TOP, PIN_X, PIN_Z0, PITCH, POWER, WIRES } from './constants'
 import type { CcPin, SceneParts, Side, WireLegendItem, WireSpec } from './types'
 
 /** Couleur CSS d'une couleur three.js. */
@@ -22,7 +22,7 @@ export const legendOf = (): WireLegendItem[] =>
   WIRES.map((wire) => ({
     id: wire.cc,
     color: cssColor(wire.color),
-    pair: `${wire.cc}  →  ${espName(wire.side, wire.index)}`,
+    pair: `${wire.cc} (broche ${CC_NUMBERS[wire.cc]})  →  ${espName(wire.side, wire.index)}`,
     where: wire.where,
   }))
 
@@ -107,7 +107,7 @@ const buildPins = (root: THREE.Group, pinNames: THREE.Group) => {
     const p = ccPin(wire.cc)
     const left = CC_PINS[wire.cc][0] === 0
     root.add(cylinder(0.32, 8, pinMaterial, p.x, 4.5, p.z))
-    root.add(textPlane(wire.cc, wireText(wire), left ? 'right' : 'left', left ? CC_ORIGIN.x - 5.9 : CC_ORIGIN.x + PITCH + 5.9, p.z, 8, 2, true))
+    root.add(textPlane(left ? `${wire.cc} ${CC_NUMBERS[wire.cc]}` : `${CC_NUMBERS[wire.cc]} ${wire.cc}`, wireText(wire), left ? 'right' : 'left', left ? CC_ORIGIN.x - 5.9 : CC_ORIGIN.x + PITCH + 5.9, p.z, 8, 2, true))
   }
 }
 
