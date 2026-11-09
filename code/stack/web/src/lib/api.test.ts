@@ -15,6 +15,7 @@ import {
   fetchPlan,
   fetchPlug,
   fetchShutters,
+  closeShutterHalf,
   sendShutter,
   setShutterAuto,
   fetchPower,
@@ -162,6 +163,15 @@ describe('écritures', () => {
       await expect(call('k')).rejects.toMatchObject({ status: 502 })
     },
   )
+  it('closeShutterHalf : POST sans corps, rend le volet ; 401 et erreurs HTTP', async () => {
+    const spy = stubFetch(() => reply({ id: 'a 1', halfRunning: true }))
+    expect(await closeShutterHalf('k', 'a 1')).toEqual({ id: 'a 1', halfRunning: true })
+    expect(spy).toHaveBeenCalledWith('/shutters/a%201/half', { method: 'POST', headers: { 'X-House-Key': 'k' } })
+    stubFetch(() => reply({}, 401))
+    await expect(closeShutterHalf('k', 'a')).rejects.toMatchObject({ status: 401 })
+    stubFetch(() => reply({}, 409))
+    await expect(closeShutterHalf('k', 'a')).rejects.toMatchObject({ status: 409 })
+  })
   it('saveHeating : le texte du refus de l’API, ou un message par défaut', async () => {
     stubFetch(() => reply({ error: 'minutes must be an integer from 1 to 120' }, 400))
     await expect(saveHeating('k', { minutes: 0 })).rejects.toMatchObject({ status: 400, message: 'minutes must be an integer from 1 to 120' })

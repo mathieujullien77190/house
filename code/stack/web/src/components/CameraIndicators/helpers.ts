@@ -7,3 +7,16 @@ export const lampLabel = (lamp: HueLight): string =>
 
 /** L'infobulle du carré : « Prise : allumée ». */
 export const plugLabel = (plug: PlugState): string => `${PLUG_NAME} : ${plug.on ? LAMP_ON_TEXT : LAMP_OFF_TEXT}`
+
+/** Le texte de l'infobulle du rond (un clic) : « Lampe Perruche éteinte », « Lampe Perruche allumée à 60 % », « Lampe Perruche injoignable ». */
+export const lampHint = (lamp: HueLight): string => {
+  if (!lamp.reachable) return `Lampe ${LAMP_NAME} ${LAMP_UNREACHABLE_TEXT}`
+  if (!lamp.on) return `Lampe ${LAMP_NAME} ${LAMP_OFF_TEXT}`
+  return `Lampe ${LAMP_NAME} ${LAMP_ON_TEXT} à ${Math.round((Math.min(Math.max(lamp.bri ?? 0, 0), 254) / 254) * 100)} %`
+}
+
+/** Le texte de l'infobulle du carré (un clic) : la prise commande le chauffage : « Chauffage allumé » ou « Chauffage éteint ». */
+export const plugHint = (plug: PlugState): string => `Chauffage ${plug.on ? 'allumé' : 'éteint'}`
+
+/** Le texte de l'infobulle des températures (un clic) : « Température 9,5 °C ». */
+export const temperatureHint = (temperatures: string[]): string => `Température ${temperatures.join(' · ')}`

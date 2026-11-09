@@ -254,7 +254,7 @@ export const PLAN_FLOOR_PATHS = ['M 498 358 H 556 V 800 A 1000 1000 0 0 1 498 78
  * Les caméras de la maison qui sont sur le plan : le nom de la caméra (celui de l'API, le titre de sa vignette) et l'identifiant de son icône.
  * Passer la souris sur la vignette sélectionne l'icône ; sélectionner l'icône met la vignette en surbrillance.
  */
-export const PLAN_CAMERA_LINKS: Record<string, string> = { 'voliere-interieur': 'cage-bas-droite', 'voliere-exterieur': 'cage-haut-gauche' }
+export const PLAN_CAMERA_LINKS: Record<string, string> = { 'voliere-interieur': 'cage-bas-droite', 'voliere-exterieur': 'cage-haut-gauche', 'salon-de-jardin': 'cage-jardin' }
 /** La lampe « Perruche » (identifiant 26 du pont) dans la cage : au milieu (la cage va de 583 à 700 sur x, de -262 à -67 sur y). Son état est celui du pont. */
 export const PLAN_LAMP_POSITION = { x: 657, y: -143 }
 /** La prise connectée dans la cage, sous la lampe : son état (marche ou arrêt) est lu sur la prise. */

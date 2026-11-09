@@ -115,6 +115,28 @@ describe('App : en-tête', () => {
   })
 })
 
+describe('App : barre', () => {
+  it('le titre ramène à Home', () => {
+    render(<App />)
+    tab('Lumière')
+    fireEvent.click(screen.getByRole('button', { name: 'House' }))
+    expect(screen.getByTestId('home')).toBeInTheDocument()
+  })
+  it('le bouton des notifications : absent si non géré, actif, bloqué', () => {
+    h.notify = { state: 'unsupported', toggle: vi.fn() }
+    const { unmount } = render(<App />)
+    expect(screen.queryByText(/Notifications/)).toBeNull()
+    unmount()
+    h.notify = { state: 'on', toggle: vi.fn() }
+    const on = render(<App />)
+    expect(screen.getByRole('button', { name: /Notifications activées/ })).toBeEnabled()
+    on.unmount()
+    h.notify = { state: 'denied', toggle: vi.fn() }
+    render(<App />)
+    expect(screen.getByRole('button', { name: /Bloquées/ })).toBeDisabled()
+  })
+})
+
 describe('App : onglets', () => {
   it('s’ouvre sur les caméras (la mosaïque)', () => {
     render(<App />)

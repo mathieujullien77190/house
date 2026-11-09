@@ -37,6 +37,13 @@ describe('TopBar sans menu', () => {
     expect(messages.map((message) => message.className)).toEqual([ERROR_CLASS, MOBILE_ERROR_CLASS])
   })
 
+  it('l information (la météo) a sa place dans la barre, et rien sans elle', () => {
+    const { container, rerender } = render(<TopBar title="M" />)
+    expect(container.querySelector('[data-info]')).toBeNull()
+    rerender(<TopBar title="M" info={<span data-info="">12 °C</span>} />)
+    expect(screen.getByText('12 °C')).toBeInTheDocument()
+  })
+
   it('sans état, une cale tient la place', () => {
     const { container } = render(<TopBar title="M" />)
     expect(container.querySelector('p')).toBeNull()

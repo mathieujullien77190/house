@@ -3,10 +3,15 @@
 /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire pour être droite). Réglé dans House Sync. */
 export type Orientation = 'landscape' | 'portrait'
 
+/** Le mode pluie d'une caméra (réglé dans House Sync) : éteint, pluie ou pluie forte. */
+export type RainMode = 'off' | 'rain' | 'heavy'
+
 export interface CameraRow {
   camera: string
   url: string
   orientation: Orientation
+  /** Le niveau de pluie qui s'applique à la caméra (le mode pluie de House Sync et la météo). */
+  rain?: RainMode
 }
 
 export interface EventRow {
@@ -163,6 +168,8 @@ export interface Camera {
   name: string
   /** L'orientation actuelle de la caméra (son direct). */
   orientation: Orientation
+  /** Le mode pluie (éteint, pluie, pluie forte) : allumé, la détection est coupée et une image est gardée toutes les 5 s. */
+  rain?: RainMode
 }
 
 /** De quoi bâtir le lien de la page invité (GET /guest). */

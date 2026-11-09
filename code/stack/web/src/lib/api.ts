@@ -111,7 +111,6 @@ export const sendShutter = async (key: string, id: string, command: ShutterComma
   return res.json()
 }
 
-/** Change une option de l'action automatique d'un volet (`open` : ouvrir au lever du soleil, `close` : fermer à son coucher) ; 404 si le volet n'en a pas. */
 /** « Fermer à moitié » : le volet monte à fond puis redescend de moitié (l'API fait l'attente) ; rend le volet, en cours. */
 export const closeShutterHalf = async (key: string, id: string): Promise<ShutterInfo> => {
   const res = await fetch(`/shutters/${encodeURIComponent(id)}/half`, { method: 'POST', headers: { [KEY_HEADER]: key } })
@@ -119,6 +118,8 @@ export const closeShutterHalf = async (key: string, id: string): Promise<Shutter
   if (!res.ok) throw new ApiError(res.status, `/shutters : HTTP ${res.status}`)
   return res.json()
 }
+
+/** Change une option de l'action automatique d'un volet (`open` : ouvrir au lever du soleil, `close` : fermer à son coucher) ; 404 si le volet n'en a pas. */
 export const setShutterAuto = async (key: string, id: string, patch: Partial<ShutterAuto>): Promise<void> => {
   const res = await fetch(`/shutters/${encodeURIComponent(id)}/auto`, {
     method: 'PUT',

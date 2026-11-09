@@ -1,4 +1,4 @@
-import type { HueLight, PlugState } from '@/types'
+import type { HueLight, PlugState, RainMode } from '@/types'
 
 export interface CameraIndicatorsProps {
   /** Les températures déjà mises en forme (« 9,5 °C »), un bloc chacune. */
@@ -7,4 +7,6 @@ export interface CameraIndicatorsProps {
   lamp: HueLight | null
   /** La prise connectée de la caméra, ou null : pas de carré. */
   plug: PlugState | null
+  /** Le mode pluie de la caméra : pluie ou pluie forte montre son symbole ; éteint ou absent, rien. */
+  rain?: RainMode
 }

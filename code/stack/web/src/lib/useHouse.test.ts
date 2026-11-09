@@ -24,7 +24,8 @@ beforeEach(() => {
   checkKey.mockResolvedValue(new Response('{}'))
   fetchLive.mockResolvedValue([
     { camera: 'a', url: '', orientation: 'portrait' },
-    { camera: 'b', url: '', orientation: 'landscape' },
+    { camera: 'b', url: '', orientation: 'landscape', rain: 'heavy' },
+    { camera: 'c', url: '', orientation: 'landscape', rain: 'rain' },
   ])
   fetchEvents.mockResolvedValue([])
 })
@@ -37,8 +38,9 @@ describe('useHouse', () => {
     await act(flush)
     expect(result.current.status).toBe('ready')
     expect(result.current.cameras).toEqual([
-      { name: 'a', orientation: 'portrait' },
-      { name: 'b', orientation: 'landscape' },
+      { name: 'a', orientation: 'portrait', rain: 'off' },
+      { name: 'b', orientation: 'landscape', rain: 'heavy' },
+      { name: 'c', orientation: 'landscape', rain: 'rain' },
     ])
     expect(api.clearStoredKey).toHaveBeenCalled()
   })
