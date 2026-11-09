@@ -14,6 +14,8 @@ import { createHueClient, type HueClient } from './lib/hueClient.ts'
 import { createPositionsStore } from './lib/positionsStore.ts'
 import { createPlanStore } from './lib/planStore.ts'
 import { createZonesStore } from './lib/zonesStore.ts'
+import { createClipNotesStore } from './lib/clipNotesStore.ts'
+import { createHeatmapStore } from './lib/heatmapStore.ts'
 import { createSavedClipsStore } from './lib/savedClipsStore.ts'
 import { createKasaClient } from './lib/kasaClient.ts'
 import { createSwitchClient } from './lib/switchClient.ts'
@@ -29,6 +31,7 @@ import { createShutterAutoStore } from './lib/shutterAutoStore.ts'
 import { createShuttersAuto } from './services/shuttersAutoService.ts'
 import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
+import { createHeatmapService } from './services/heatmapService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
 
 /** Le détecteur qui éteint la prise : son état de mouvement, lu chez le pont (null si le détecteur manque). */
@@ -51,6 +54,7 @@ export const createApp = (config: Config): Express => {
   const motion = hueClient ? createMotionSource(hueClient, config.plugMotionSensor) : null
   const live = createLiveService(config.go2rtcUrls, cameras)
   const savedClips = createSavedClipsStore(`${config.stateDir}/saved-clips.json`)
+  const clipNotes = createClipNotesStore(`${config.stateDir}/clip-notes.json`)
   const heatingLog = createHeatingLog(`${config.stateDir}/heating-log.jsonl`)
   const heatingSettings = createHeatingSettings(`${config.stateDir}/heating.json`)
   const plug = config.plug
@@ -76,8 +80,9 @@ export const createApp = (config: Config): Express => {
     : null
   const services = {
     cameras: createCamerasService(cameras),
-    events: createEventsService(createEventsRepository(db), savedClips),
+    events: createEventsService(createEventsRepository(db), savedClips, clipNotes),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
+    heatmap: createHeatmapService({ snapshots: createSnapshotsRepository(db), store: createHeatmapStore(config.stateDir), dataDir: config.dataDir }),
     live,
     files: createBackupFiles(config.dataDir),
     zones: createZonesStore(`${config.stateDir}/zones.json`),

@@ -2,7 +2,7 @@
 
 Express 5 en TypeScript exécuté par Node 24 (pas de compilation ; `npm run typecheck` vérifie). Sert aussi la WebApp compilée (`web/dist`, copiée dans l'image) sur le port 8080. Les règles de la pile (qui écrit quoi, le direct, les données) : `../CLAUDE.md`. Clé, session par cookie, HTTPS, pare-feu : `../docs/securite.md`.
 
-**Ce qu'il fait.** Lit `events.db` et le disque backup écrits par House Sync (lecture seule) ; relaie go2rtc pour le direct (`GO2RTC_URLS`, un par enregistreur, le premier par défaut, `http://go2rtc:1984` ; réseau `sync_net` ; la caméra choisit son go2rtc d'après son adresse de direct) ; pilote le PoE du switch, le pont Hue et la prise Kasa ; relaie l'enregistreur pour les clips faits à la main. Il n'écrit jamais la base ni le disque backup : ses seules écritures sont les ordres aux équipements et les fichiers de `STATE_DIR` (`/state`, volume `data/house`, à créer sur la machine avec l'utilisateur qui lance Docker : le conteneur écrit en `node`, uid 1000) : positions des ampoules, clips sauvegardés, zones de surveillance, plan de la maison, plus la garde de la prise, les réglages du chauffage automatique (`heating.json`) et son journal (`heating-log.jsonl`, que House Sync importe).
+**Ce qu'il fait.** Lit `events.db` et le disque backup écrits par House Sync (lecture seule) ; relaie go2rtc pour le direct (`GO2RTC_URLS`, un par enregistreur, le premier par défaut, `http://go2rtc:1984` ; réseau `sync_net` ; la caméra choisit son go2rtc d'après son adresse de direct) ; pilote le PoE du switch, le pont Hue et la prise Kasa ; relaie l'enregistreur pour les clips faits à la main. Il n'écrit jamais la base ni le disque backup : ses seules écritures sont les ordres aux équipements et les fichiers de `STATE_DIR` (`/state`, volume `data/house`, à créer sur la machine avec l'utilisateur qui lance Docker : le conteneur écrit en `node`, uid 1000) : positions des ampoules, clips sauvegardés, notes des clips, cartes de chaleur, zones de surveillance, plan de la maison, plus la garde de la prise, les réglages du chauffage automatique (`heating.json`) et son journal (`heating-log.jsonl`, que House Sync importe).
 
 Les routes, une à une, et les équipements : `src/routes/CLAUDE.md`.
 
@@ -17,16 +17,17 @@ src/
 ├── types.ts          lignes de la base et forme des réponses
 ├── db/database.ts    SQLite en lecture seule, ouverte au premier besoin (DatabaseNotReady → 503)
 ├── repositories/     le SQL : cameras, events, snapshots
-├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 5 min), hue, plug, heating (la règle du chauffage automatique, tour de 60 s), shutters (les volets roulants et leurs ordres), shuttersAuto (ouvrir au lever du soleil, fermer à son coucher, tour de 60 s), live (relais go2rtc : le flux <flux>_mjpeg)
+├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 5 min), hue, plug, heating (la règle du chauffage automatique, tour de 60 s), shutters (les volets roulants et leurs ordres), shuttersAuto (ouvrir au lever du soleil, fermer à son coucher, tour de 60 s), live (relais go2rtc : le flux <flux>_mjpeg), heatmap (la carte de chaleur, calculée en tâche de fond)
 ├── routes/           un fichier par service ; index.ts liste SECURED_PATHS (derrière la clé) ; welcome public
 ├── middleware/       requireKey (X-House-Key en temps constant, ou la session ; 10 clés fausses par adresse en 15 min, puis 429) ; session (cookie signé ouvert par /auth) ; errorHandler (JSON)
 ├── lib/hueClient.ts, automations.ts  le pont Hue (API v1 et v2) et ses règles en phrases
 ├── lib/kasaClient.ts  la prise Kasa (protocole local)
 ├── lib/switchClient.ts  client de la page web du switch ES208GP (connexion, lecture des ports, PoE on/off d'un port, une session à la fois)
-├── lib/positionsStore.ts, zonesStore.ts, planStore.ts, savedClipsStore.ts  les fichiers de STATE_DIR (positions des ampoules, zones de surveillance par caméra, plan de la maison, clips sauvegardés)
+├── lib/positionsStore.ts, zonesStore.ts, planStore.ts, savedClipsStore.ts, clipNotesStore.ts  les fichiers de STATE_DIR (positions des ampoules, zones de surveillance par caméra, plan de la maison, clips sauvegardés, notes des clips)
 ├── lib/heatingSettings.ts, heatingLog.ts, heatingCost.ts  les réglages de la règle du chauffage (`heating.json`), son journal (`heating-log.jsonl`, rotation à 5000 lignes) et le coût prévu d’une activation
 ├── lib/sun.ts  le lever et le coucher du soleil (la nuit du chauffage) : **copie assumée de `sync/src/sun.ts`** (l’API ne dépend pas de House Sync) ; si l’un change, changer l’autre
 ├── lib/shutterDriver.ts, shutterLog.ts, shutterAutoStore.ts  le pilote des volets (simulation ou ESP32 ESPSomfy), leur journal (`shutters-log.jsonl`, que House Sync importe) et les réglages de l’action automatique (`shutters-auto.json`)
+├── lib/heatmapMath.ts, heatmapStore.ts  la carte de chaleur des images gardées : le calcul pur (grille 96 × 54 de gris, écart de chaque case entre deux images, un compteur par seuil) et son fichier `heatmap-<caméra>.json` de STATE_DIR (donnée dérivée : un fichier abîmé est oublié, la carte se recalcule) ; `jpeg-js` décode les images
 ├── lib/attemptLimiter.ts  les essais de clé ratés par adresse (en mémoire)
 └── lib/backupFiles.ts  envoi d'un fichier du disque backup, jamais hors du disque, avec Range (la vidéo se déplace)
 ```

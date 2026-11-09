@@ -42,6 +42,8 @@ export interface EventDto {
   clip_started_at: number | null
   /** Sauvegardé : House Sync ne l'efface jamais (les autres le sont après la durée de garde). */
   saved: boolean
+  /** La note du clip (« renard »), posée depuis la Home ; vide s'il n'y en a pas. */
+  note: string
   /** Paysage ou portrait (caméra posée de côté) au début de l'événement : en portrait, la vidéo se lit tournée d'un quart de tour horaire. */
   orientation: Orientation
 }

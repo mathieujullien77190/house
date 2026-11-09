@@ -8,6 +8,7 @@ import { eventsRouter } from './events.ts'
 const setup = () => {
   const queries: EventsQuery[] = []
   const saves: [string, boolean][] = []
+  const notes: [string, string][] = []
   const state = { clip: 'clips/a.mp4' as string | null, audio: 'clips/a.aac' as string | null, saved: true, fail: false }
   const events = {
     list: (query: EventsQuery) => {
@@ -21,9 +22,14 @@ const setup = () => {
       saves.push([id, saved])
       return state.saved
     },
+    setNote: (id: string, note: string) => {
+      if (state.fail) throw new Error('disque plein')
+      notes.push([id, note])
+      return state.saved
+    },
   } as unknown as EventsService
   const files = { send: (res, path, type) => void res.send(`${path}|${type}`) } as BackupFiles
-  return { app: routerApp(eventsRouter(events, files)), queries, saves, state }
+  return { app: routerApp(eventsRouter(events, files)), queries, saves, notes, state }
 }
 
 test('GET /events : les paramètres sont lus et la limite arrondie vers le bas', async () => {
@@ -84,6 +90,28 @@ test('PUT /clips/:id/saved : sauvegarder ou libérer', async () => {
     const log = mock.method(console, 'error', () => undefined)
     try {
       assert.equal((await call(`${url}/clips/e1/saved`, 'PUT', { saved: true })).status, 500)
+    } finally {
+      log.mock.restore()
+    }
+  })
+})
+
+test('PUT /clips/:id/note : poser ou vider la note', async () => {
+  const { app, notes, state } = setup()
+  await withServer(app, async (url) => {
+    assert.deepEqual((await call(`${url}/clips/e1/note`, 'PUT', { note: '  renard  ' })).body, { id: 'e1', note: 'renard' })
+    assert.deepEqual((await call(`${url}/clips/e1/note`, 'PUT', { note: 'x'.repeat(300) })).body, { id: 'e1', note: 'x'.repeat(200) })
+    assert.deepEqual((await call(`${url}/clips/e1/note`, 'PUT', { note: '' })).body, { id: 'e1', note: '' })
+    assert.equal(notes.length, 3)
+    for (const body of [{ note: 3 }, {}, { note: 'x'.repeat(401) }]) assert.equal((await call(`${url}/clips/e1/note`, 'PUT', body)).status, 400)
+    assert.equal((await call(`${url}/clips/e1/note`, 'PUT')).status, 400)
+    assert.equal((await call(`${url}/clips/a%20b/note`, 'PUT', { note: 'x' })).status, 400)
+    state.saved = false
+    assert.deepEqual((await call(`${url}/clips/e1/note`, 'PUT', { note: 'x' })).body, { error: 'clip not found' })
+    state.fail = true
+    const log = mock.method(console, 'error', () => undefined)
+    try {
+      assert.equal((await call(`${url}/clips/e1/note`, 'PUT', { note: 'x' })).status, 500)
     } finally {
       log.mock.restore()
     }

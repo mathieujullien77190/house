@@ -1,4 +1,5 @@
 // Les événements : les lignes de la base deviennent des réponses (le chemin du clip devient un service).
+import type { ClipNotesStore } from '../lib/clipNotesStore.ts'
 import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
 import type { EventsRepository } from '../repositories/eventsRepository.ts'
 import type { EventDto, EventRow } from '../types.ts'
@@ -17,7 +18,7 @@ export interface EventsQuery {
   limit?: number
 }
 
-const toDto = (row: EventRow, saved: ReadonlySet<string>): EventDto => ({
+const toDto = (row: EventRow, saved: ReadonlySet<string>, notes: Readonly<Record<string, string>>): EventDto => ({
   id: row.id,
   camera: row.camera,
   label: row.label,
@@ -28,22 +29,24 @@ const toDto = (row: EventRow, saved: ReadonlySet<string>): EventDto => ({
   clip_audio: row.clip_audio_path ? `/clips/${row.id}/audio` : null,
   clip_started_at: row.clip_started_at,
   saved: saved.has(row.id),
+  note: notes[row.id] ?? '',
   orientation: row.orientation === 'portrait' ? 'portrait' : 'landscape',
 })
 
-export const createEventsService = (events: EventsRepository, savedClips: SavedClipsStore) => ({
+export const createEventsService = (events: EventsRepository, savedClips: SavedClipsStore, clipNotes: ClipNotesStore) => ({
   /**
    * Le dernier de chaque caméra (lastOnly) ; sinon, avec from, to ou camera, les événements qui touchent la fenêtre
    * (au plus 1000, `limit` pour moins) ; sinon les 200 derniers.
    */
   list: (query: EventsQuery): EventDto[] => {
     const saved = savedClips.ids()
-    if (query.savedOnly) return events.byIds([...saved]).slice(0, MAX_WINDOW_EVENTS).map((row) => toDto(row, saved))
-    if (query.lastOnly) return events.lastPerCamera().map((row) => toDto(row, saved))
+    const notes = clipNotes.all()
+    if (query.savedOnly) return events.byIds([...saved]).slice(0, MAX_WINDOW_EVENTS).map((row) => toDto(row, saved, notes))
+    if (query.lastOnly) return events.lastPerCamera().map((row) => toDto(row, saved, notes))
     const filtered = query.camera !== undefined || query.from !== undefined || query.to !== undefined
-    if (!filtered) return events.latest(MAX_EVENTS).map((row) => toDto(row, saved))
+    if (!filtered) return events.latest(MAX_EVENTS).map((row) => toDto(row, saved, notes))
     const limit = Math.min(MAX_WINDOW_EVENTS, Math.max(1, query.limit ?? MAX_WINDOW_EVENTS))
-    return events.between({ camera: query.camera, from: query.from, to: query.to }, limit).map((row) => toDto(row, saved))
+    return events.between({ camera: query.camera, from: query.from, to: query.to }, limit).map((row) => toDto(row, saved, notes))
   },
   /** Le chemin du clip d'un événement sur le disque backup (l'original, ou la copie H.264 avec `h264`), ou null. */
   clipPath: (id: string, h264 = false): string | null => events.clipPath(id, h264),
@@ -52,6 +55,12 @@ export const createEventsService = (events: EventsRepository, savedClips: SavedC
   setSaved: (id: string, saved: boolean): boolean => {
     if (!events.clipPath(id)) return false
     savedClips.set(id, saved)
+    return true
+  },
+  /** Pose (ou, vide, supprime) la note du clip d'un événement ; false s'il n'a pas de clip. */
+  setNote: (id: string, note: string): boolean => {
+    if (!events.clipPath(id)) return false
+    clipNotes.set(id, note)
     return true
   },
 })

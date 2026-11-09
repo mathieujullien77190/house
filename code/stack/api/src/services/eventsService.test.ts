@@ -1,19 +1,25 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { createClipNotesStore } from '../lib/clipNotesStore.ts'
 import { createSavedClipsStore } from '../lib/savedClipsStore.ts'
 import { createEventsRepository } from '../repositories/eventsRepository.ts'
 import { openFixture, withTempDir } from '../testing/helpers.ts'
 import { createEventsService } from './eventsService.ts'
 
 const setup = async (
-  work: (service: ReturnType<typeof createEventsService>, saved: ReturnType<typeof createSavedClipsStore>) => void,
+  work: (
+    service: ReturnType<typeof createEventsService>,
+    saved: ReturnType<typeof createSavedClipsStore>,
+    notes: ReturnType<typeof createClipNotesStore>,
+  ) => void,
 ): Promise<void> => {
   await withTempDir((dir) => {
     const db = openFixture(dir)
     try {
       const saved = createSavedClipsStore(join(dir, 'saved.json'))
-      work(createEventsService(createEventsRepository(db), saved), saved)
+      const notes = createClipNotesStore(join(dir, 'notes.json'))
+      work(createEventsService(createEventsRepository(db), saved, notes), saved, notes)
     } finally {
       db.close()
     }
@@ -23,8 +29,9 @@ const setup = async (
 const ids = (events: { id: string }[]) => events.map((event) => event.id)
 
 test('un événement devient une réponse avec les adresses de ses clips', async () => {
-  await setup((service, saved) => {
+  await setup((service, saved, notes) => {
     saved.set('e1', true)
+    notes.set('e1', 'renard')
     const [e2, e3, e1] = service.list({ lastOnly: false })
     assert.deepEqual(e1, {
       id: 'e1',
@@ -37,10 +44,11 @@ test('un événement devient une réponse avec les adresses de ses clips', async
       clip_audio: '/clips/e1/audio',
       clip_started_at: 90,
       saved: true,
+      note: 'renard',
       orientation: 'portrait',
     })
     // pas de clip, orientation inconnue : paysage
-    assert.deepEqual([e2.clip, e2.clip_h264, e2.clip_audio, e2.saved, e2.orientation], [null, null, null, false, 'landscape'])
+    assert.deepEqual([e2.clip, e2.clip_h264, e2.clip_audio, e2.saved, e2.note, e2.orientation], [null, null, null, false, '', 'landscape'])
     assert.deepEqual([e3.clip, e3.clip_h264, e3.clip_audio, e3.orientation], ['/clips/e3', null, null, 'landscape'])
   })
 })
@@ -79,5 +87,17 @@ test('les chemins des clips et la sauvegarde', async () => {
     assert.equal(service.setSaved('e2', true), false)
     assert.equal(service.setSaved('absent', true), false)
     assert.equal(saved.ids().size, 0)
+  })
+})
+
+test('la note d’un clip : posée, vidée, refusée sans clip', async () => {
+  await setup((service, _saved, notes) => {
+    assert.equal(service.setNote('e1', ' renard '), true)
+    assert.equal(notes.all().e1, 'renard')
+    assert.equal(service.setNote('e1', ''), true)
+    assert.deepEqual(notes.all(), {})
+    assert.equal(service.setNote('e2', 'x'), false)
+    assert.equal(service.setNote('absent', 'x'), false)
+    assert.deepEqual(notes.all(), {})
   })
 })

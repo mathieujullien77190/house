@@ -7,6 +7,9 @@ export const createSnapshotsRepository = (db: Database) => ({
     db
       .all<{ taken_at: number }>('SELECT taken_at FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY taken_at LIMIT ?', camera, from, to, limit)
       .map((row) => row.taken_at),
+  /** Les images arrivées après un instant, du plus ancien au plus récent : leur chemin et leur instant (la carte de chaleur reprend là où elle s'est arrêtée). */
+  after: (camera: string, after: number, limit: number): { path: string; taken_at: number }[] =>
+    db.all<{ path: string; taken_at: number }>('SELECT path, taken_at FROM snapshots WHERE camera = ? AND taken_at > ? ORDER BY taken_at LIMIT ?', camera, after, limit),
   /** L'image la plus proche d'un instant, dans une tolérance : son chemin et son instant (son identifiant). */
   nearest: (camera: string, at: number, tolerance: number): { path: string; taken_at: number } | null =>
     db.get<{ path: string; taken_at: number }>(

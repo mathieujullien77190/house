@@ -2,6 +2,7 @@
 // cette fenêtre, au plus 1000 (?limit= pour moins) ; sinon les 200 derniers) et clips/:id (la vidéo d'un événement).
 import express, { Router, type RequestHandler } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
+import { MAX_NOTE_LENGTH } from '../lib/clipNotesStore.ts'
 import type { EventsService } from '../services/eventsService.ts'
 
 const EVENT_ID = /^[\w.-]+$/
@@ -46,6 +47,18 @@ export const eventsRouter = (events: EventsService, files: BackupFiles): Router 
     try {
       if (!events.setSaved(id, saved)) return void res.status(404).json({ error: 'clip not found' })
       res.json({ id, saved })
+    } catch (error) {
+      next(error)
+    }
+  })
+  // La note d'un clip : { note: "renard" } (au plus 200 caractères ; vide : supprimée).
+  router.put('/clips/:id/note', express.json({ limit: '2kb' }), (req, res, next) => {
+    const id = String(req.params.id)
+    const note = (req.body as { note?: unknown } | undefined)?.note
+    if (!EVENT_ID.test(id) || typeof note !== 'string' || note.length > MAX_NOTE_LENGTH * 2) return void res.status(400).json({ error: 'body must be {"note": "text"}' })
+    try {
+      if (!events.setNote(id, note)) return void res.status(404).json({ error: 'clip not found' })
+      res.json({ id, note: note.trim().slice(0, MAX_NOTE_LENGTH) })
     } catch (error) {
       next(error)
     }
