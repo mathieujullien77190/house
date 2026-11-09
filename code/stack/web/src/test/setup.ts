@@ -1,8 +1,10 @@
 // Initialisation commune des tests : jsdom n'a ni lecteur média, ni matchMedia, ni ResizeObserver.
 import '@testing-library/jest-dom/vitest'
+import { queryClient } from '@/lib/queryClient'
 import { isDesktop, setDesktop } from './viewport'
 
 beforeEach(() => {
+  queryClient.clear()
   setDesktop(false)
   localStorage.clear()
   sessionStorage.clear()
