@@ -1,6 +1,5 @@
 export const RANGE_LABEL = 'Fenêtre'
 export const NOW_LABEL = 'Direct'
-export const NOW_MARK = 'maintenant'
 
 /** Le bouton « Direct » : se soulève au survol, s'enfonce au clic (et retombe en douceur). */
 export const NOW_BUTTON_CLASS =
@@ -11,7 +10,6 @@ export const CONTROLS_CLASS = 'flex flex-wrap items-center gap-2'
 export const AXIS_CLASS = 'relative mt-2 h-16 cursor-grab touch-none select-none overflow-hidden rounded-lg border border-line bg-card active:cursor-grabbing'
 export const FUTURE_CLASS = 'pointer-events-none absolute inset-y-0 right-0 bg-[repeating-linear-gradient(135deg,var(--color-line)_0_1px,transparent_1px_8px)] opacity-60'
 export const NOW_LINE_CLASS = 'pointer-events-none absolute z-10 top-0 h-full w-0.5 -translate-x-1/2 bg-accent'
-export const NOW_MARK_CLASS = 'absolute top-0.5 right-1.5 whitespace-nowrap text-[0.7rem] font-semibold text-accent'
 export const COVERAGE_CLASS = 'pointer-events-none absolute bottom-5 h-1.5 rounded-sm bg-accent/30'
 export const TICK_CLASS = 'pointer-events-none absolute top-0 h-full border-l border-line'
 export const TICK_LABEL_CLASS = 'absolute bottom-0.5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] text-muted'
@@ -33,7 +31,6 @@ export const CURSOR_CLASS = 'pointer-events-none absolute z-20 top-0 h-full w-0.
 export const AXIS_VERTICAL_CLASS = 'relative mt-2 h-[min(60dvh,30rem)] cursor-grab touch-none select-none overflow-hidden rounded-lg border border-line bg-card active:cursor-grabbing'
 export const FUTURE_VERTICAL_CLASS = 'pointer-events-none absolute inset-x-0 top-0 bg-[repeating-linear-gradient(135deg,var(--color-line)_0_1px,transparent_1px_8px)] opacity-60'
 export const NOW_LINE_VERTICAL_CLASS = 'pointer-events-none absolute z-10 left-0 h-0.5 w-full -translate-y-1/2 bg-accent'
-export const NOW_MARK_VERTICAL_CLASS = 'absolute right-1.5 top-0.5 whitespace-nowrap text-[0.7rem] font-semibold text-accent'
 export const COVERAGE_VERTICAL_CLASS = 'pointer-events-none absolute left-14 w-1.5 rounded-sm bg-accent/30'
 export const TICK_VERTICAL_CLASS = 'pointer-events-none absolute left-0 w-full border-t border-line'
 export const TICK_LABEL_VERTICAL_CLASS = 'absolute left-1 top-0.5 whitespace-nowrap text-[0.7rem] text-muted'

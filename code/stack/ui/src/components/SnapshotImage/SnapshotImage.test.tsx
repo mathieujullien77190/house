@@ -75,3 +75,11 @@ describe('SnapshotImage avec adresse', () => {
     expect(upright[1]).not.toBe(normal[1])
   })
 })
+
+describe('SnapshotImage quiet', () => {
+  it('quiet : pas de voile « Chargement… » pendant que l’image arrive', () => {
+    render(<SnapshotImage src="/frame.jpg" message="x" quiet />)
+    expect(screen.getByRole('img', { name: ALT })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+})

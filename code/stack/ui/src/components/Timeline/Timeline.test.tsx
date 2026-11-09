@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import Timeline from './Timeline'
 import { markerClass, pointStyle, spanStyle } from './helpers'
 import type { TimelineMarker, TimelineProps } from './types'
-import { CLIP_SPAN_TITLE, MARKER_IDLE_CLASS, MARKER_ONGOING_CLASS, MARKER_SELECTED_CLASS, NOW_LABEL, NOW_MARK, RANGE_LABEL } from './constants'
+import { CLIP_SPAN_TITLE, MARKER_IDLE_CLASS, MARKER_ONGOING_CLASS, MARKER_SELECTED_CLASS, NOW_LABEL, RANGE_LABEL } from './constants'
 
 const marker = (extra: Partial<TimelineMarker> = {}): TimelineMarker => ({
   id: 'm1',
@@ -135,22 +135,21 @@ describe('Timeline axe', () => {
   it('« maintenant » : futur, trait et repère, seulement avec nowX', () => {
     const { container, rerender } = render(<Timeline {...base()} />)
     const without = axisOf(container).children.length
-    expect(screen.queryByText(NOW_MARK)).toBeNull()
     rerender(<Timeline {...base()} nowX={80} />)
     expect(axisOf(container).children.length).toBe(without + 2)
-    expect((screen.getByText(NOW_MARK).parentElement as HTMLElement).style.left).toBe('80%')
+    expect((axisOf(container).lastElementChild as HTMLElement).style.left).toBe('80%')
     expect((axisOf(container).children[0] as HTMLElement).style.left).toBe('80%')
   })
 
   it('« maintenant » à la verticale : le futur est au-dessus', () => {
     const { container } = render(<Timeline {...base()} vertical nowX={80} />)
     expect((axisOf(container).children[0] as HTMLElement).style.height).toBe('20%')
-    expect((screen.getByText(NOW_MARK).parentElement as HTMLElement).style.top).toBe('20%')
+    expect((axisOf(container).lastElementChild as HTMLElement).style.top).toBe('20%')
   })
 
   it('nowX à 0 est une vraie position', () => {
-    render(<Timeline {...base()} nowX={0} />)
-    expect(screen.getByText(NOW_MARK)).toBeInTheDocument()
+    const { container } = render(<Timeline {...base()} nowX={0} />)
+    expect((axisOf(container).lastElementChild as HTMLElement).style.left).toBe('0%')
   })
 
   it('étendue du clip ouvert, avec infobulle', () => {
@@ -209,5 +208,17 @@ describe('Timeline blocs', () => {
     const block = screen.getByRole('button', { name: 'Mouvement 10:00' })
     expect(block.style.top).toBe('85%')
     expect(block.style.height).toBe('5%')
+  })
+})
+
+describe('Timeline : extra', () => {
+  it('le contenu extra suit les onglets de fenêtre', () => {
+    render(<Timeline {...base()} extra={<button>vitesse</button>} />)
+    expect(screen.getByRole('button', { name: 'vitesse' })).toBeInTheDocument()
+  })
+
+  it('sans extra, rien de plus', () => {
+    render(<Timeline {...base()} />)
+    expect(screen.queryByRole('button', { name: 'vitesse' })).toBeNull()
   })
 })

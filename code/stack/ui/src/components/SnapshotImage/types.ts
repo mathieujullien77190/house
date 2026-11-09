@@ -9,4 +9,6 @@ export interface SnapshotImageProps {
   onSize?: (width: number, height: number) => void
   /** Le cadre est tourné d'un quart de tour horaire par le parent : le texte (chargement, message, identifiant) est remis droit. */
   upright?: boolean
+  /** Pas de voile « Chargement… » pendant que l'image arrive (le parent la fait apparaître en fondu). */
+  quiet?: boolean
 }

@@ -9,6 +9,7 @@ import { Timeline } from '@house/ui'
   markers={markers}
   coverage={coverage}
   nowX={nowX}
+  extra={<button onClick={faster}>▶</button>}
   cursorX={cursorX}
   axisRef={axisRef}
   onRange={setRange}

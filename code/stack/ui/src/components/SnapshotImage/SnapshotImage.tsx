@@ -17,7 +17,7 @@ import {
 import type { SnapshotImageProps } from './types'
 
 /** Une image au format 16/9, ou un message dans le même cadre. Tant que l'image n'est pas arrivée, un voile « Chargement… » couvre le cadre noir. */
-const SnapshotImage = ({ src, label, message, onSize, upright = false }: SnapshotImageProps) => {
+const SnapshotImage = ({ src, label, message, onSize, upright = false, quiet = false }: SnapshotImageProps) => {
   // L'adresse dont l'image est arrivée (ou a échoué) : une nouvelle adresse remet le chargement.
   const [settled, setSettled] = useState('')
   if (src) {
@@ -34,7 +34,7 @@ const SnapshotImage = ({ src, label, message, onSize, upright = false }: Snapsho
           }}
           onError={done}
         />
-        {settled === src ? null : (
+        {settled === src || quiet ? null : (
           <div className={LOADING_CLASS} role="status">
             <span className={upright ? UPRIGHT_LOADING_CLASS : LOADING_ROW_CLASS}>
               <span className={SPINNER_CLASS} aria-hidden="true" />

@@ -19,9 +19,6 @@ import {
   NOW_LABEL,
   NOW_LINE_CLASS,
   NOW_LINE_VERTICAL_CLASS,
-  NOW_MARK,
-  NOW_MARK_CLASS,
-  NOW_MARK_VERTICAL_CLASS,
   RANGE_LABEL,
   TICK_CLASS,
   TICK_LABEL_CLASS,
@@ -40,6 +37,7 @@ import type { TimelineProps } from './types'
 const Timeline = <T extends string>({
   vertical = false,
   fill = false,
+  extra,
   ranges,
   range,
   live,
@@ -64,7 +62,8 @@ const Timeline = <T extends string>({
           <Button variant={live ? 'active' : 'default'} className={NOW_BUTTON_CLASS} onClick={onNow}>
             {NOW_LABEL}
           </Button>
-          <Tabs label={RANGE_LABEL} options={ranges} value={range} onChange={onRange} />
+          <Tabs label={RANGE_LABEL} options={ranges} value={range} onChange={onRange} compact />
+          {extra}
         </div>
       </div>
       <div
@@ -100,11 +99,7 @@ const Timeline = <T extends string>({
             onClick={() => onSelect(marker.id)}
           />
         ))}
-        {nowX !== null ? (
-          <div className={vertical ? NOW_LINE_VERTICAL_CLASS : NOW_LINE_CLASS} style={pointStyle(nowX, vertical)}>
-            <span className={vertical ? NOW_MARK_VERTICAL_CLASS : NOW_MARK_CLASS}>{NOW_MARK}</span>
-          </div>
-        ) : null}
+        {nowX !== null ? <div className={vertical ? NOW_LINE_VERTICAL_CLASS : NOW_LINE_CLASS} style={pointStyle(nowX, vertical)} /> : null}
         {cursorX !== null ? <div className={vertical ? CURSOR_VERTICAL_CLASS : CURSOR_CLASS} style={pointStyle(cursorX, vertical)} /> : null}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { PointerEvent, RefObject } from 'react'
+import type { PointerEvent, ReactNode, RefObject } from 'react'
 
 /** Une graduation de l'axe : position en % et libellé. */
 export interface TimelineTick {
@@ -35,6 +35,8 @@ export interface TimelineProps<T extends string> {
   vertical?: boolean
   /** La frise remplit la hauteur de son parent au lieu d'avoir une hauteur fixe (écran du téléphone, avec `vertical`). */
   fill?: boolean
+  /** Des commandes en plus, posées à côté des raccourcis de fenêtre (le défilement des images). */
+  extra?: ReactNode
   ranges: TimelineRange<T>[]
   /** Le raccourci qui correspond à la fenêtre courante, ou vide. */
   range: T | ''

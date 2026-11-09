@@ -46,6 +46,7 @@ const Day = ({ vertical = false }: { vertical?: boolean }) => {
       markers={MARKERS.map((marker) => ({ ...marker, selected: marker.id === selected }))}
       coverage={COVERAGE}
       nowX={87}
+      extra={<span className="text-xs text-muted">×1</span>}
       cursorX={cursorX}
       onRange={setRange}
       onNow={() => {
