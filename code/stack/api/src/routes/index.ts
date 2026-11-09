@@ -3,7 +3,6 @@ import { Router } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import type { PlanStore } from '../lib/planStore.ts'
 import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
-import type { HeatmapService } from '../services/heatmapService.ts'
 import type { ZonesStore } from '../lib/zonesStore.ts'
 import { createRequireKey } from '../middleware/requireKey.ts'
 import { createSessions } from '../middleware/session.ts'
@@ -27,7 +26,6 @@ import { liveRouter } from './live.ts'
 import { plugRouter } from './plug.ts'
 import { shuttersRouter } from './shutters.ts'
 import { poeRouter } from './poe.ts'
-import { heatmapRouter } from './heatmap.ts'
 import { snapshotsRouter } from './snapshots.ts'
 import { welcomeRouter } from './welcome.ts'
 import { planRouter } from './plan.ts'
@@ -62,8 +60,6 @@ export interface Services {
   recorderUrl: string | null
   /** La liste des clips sauvegardés (un clip enregistré à la main en fait partie d'office). */
   savedClips: SavedClipsStore
-  /** La carte de chaleur des images gardées. */
-  heatmap: HeatmapService
 }
 
 /** Les chemins derrière la clé ; tout le reste (welcome, logout, le certificat public, les fichiers de la WebApp) est public. */
@@ -75,7 +71,6 @@ export const SECURED_PATHS = [
   '/clips',
   '/snapshots',
   '/snapshot',
-  '/heatmap',
   '/stream',
   '/frame',
   '/poe',
@@ -98,7 +93,6 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(camerasRouter(services.cameras))
   router.use(eventsRouter(services.events, services.files))
   router.use(snapshotsRouter(services.snapshots, services.files))
-  router.use(heatmapRouter(services.heatmap))
   router.use(liveRouter(services.live))
   router.use(poeRouter(services.poe))
   router.use(plugRouter(services.plug, services.heating))

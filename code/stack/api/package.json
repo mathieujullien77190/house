@@ -13,8 +13,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "express": "^5.1.0",
-    "jpeg-js": "^0.4.4"
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

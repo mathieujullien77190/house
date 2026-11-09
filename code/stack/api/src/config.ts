@@ -20,8 +20,8 @@ export interface Config {
   hue: { url: string; key: string } | null
   /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
   plug: { host: string; port: number; mac: string } | null
-  /** Les volets roulants (SHUTTERS="1:Salon,2:Chambre" : le numéro du volet dans le firmware de l'ESP32, puis son nom) ; vide : shutters répond 503. Par défaut les quatre volets de la maison : PC, salon, porte, cuisine. */
-  shutters: { id: string; name: string; shadeId: number }[]
+  /** Les volets roulants (SHUTTERS="1:Salon,2:Chambre:19" : le numéro du volet dans le firmware de l'ESP32, son nom, puis, facultatif, le temps qu'il met à se fermer en entier, en secondes : il donne le bouton « Fermer à moitié ») ; vide : shutters répond 503. Par défaut les quatre volets de la maison : PC, salon, porte, cuisine. */
+  shutters: { id: string; name: string; shadeId: number; closeSeconds?: number }[]
   /** Les volets qui ont l'action automatique « ouvrir au lever du soleil, fermer à son coucher » (SHUTTERS_AUTO, leurs identifiants séparés par des virgules ; par défaut tous les volets). */
   shuttersAuto: string[]
   /** L'ESP32 (firmware ESPSomfy-RTS) qui envoie les ordres radio ; null : SIMULATION, aucun ordre n'est envoyé (SHUTTERS_ESP_URL). */
@@ -47,12 +47,12 @@ const MIN_KEY_LENGTH = 8
 /** « 1:Salon,2:Chambre » en volets : le numéro du volet dans le firmware (qui sert aussi d'identifiant) puis son nom. Une entrée mal écrite est ignorée. */
 const DEFAULT_SHUTTERS = '1:Volet PC,2:Volet salon,3:Volet porte,4:Volet cuisine'
 
-export const parseShutters = (text: string): { id: string; name: string; shadeId: number }[] =>
+export const parseShutters = (text: string): { id: string; name: string; shadeId: number; closeSeconds?: number }[] =>
   text
     .split(',')
-    .map((part) => /^\s*(\d+)\s*:\s*(.+?)\s*$/.exec(part))
+    .map((part) => /^\s*(\d+)\s*:\s*(.+?)\s*(?::\s*(\d+)\s*)?$/.exec(part))
     .filter((match): match is RegExpExecArray => match !== null)
-    .map((match) => ({ id: match[1], name: match[2], shadeId: Number(match[1]) }))
+    .map((match) => ({ id: match[1], name: match[2], shadeId: Number(match[1]), ...(match[3] && Number(match[3]) > 0 ? { closeSeconds: Number(match[3]) } : {}) }))
 
 /** SWITCH_PORTS : « voliere-exterieur:7,jardin:3 » (caméra:port du switch). */
 const parseSwitch = (env: NodeJS.ProcessEnv): Config['switchPoe'] => {

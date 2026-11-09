@@ -6,7 +6,7 @@
 import express, { Router } from 'express'
 import { SHUTTER_COMMANDS, type ShutterCommand } from '../lib/shutterDriver.ts'
 import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
-import { UnknownShutter, type ShuttersService } from '../services/shuttersService.ts'
+import { NoCloseTime, UnknownShutter, type ShuttersService } from '../services/shuttersService.ts'
 
 export const shuttersRouter = (shutters: ShuttersService | null, auto: ShuttersAuto | null = null): Router => {
   const router = Router()
@@ -28,6 +28,19 @@ export const shuttersRouter = (shutters: ShuttersService | null, auto: ShuttersA
       res.json({ ...shutter, auto: shutter.id in enabled ? enabled[shutter.id] : null })
     } catch (error) {
       if (error instanceof UnknownShutter) return void res.status(404).json({ error: 'unknown shutter' })
+      res.status(502).json({ error: 'shutter driver unreachable' })
+    }
+  })
+  // « Fermer à moitié » : monte à fond puis redescend pendant la moitié du temps de fermeture du volet (SHUTTERS="1:Volet cuisine:19") ; 202 : la suite se fait en tâche de fond.
+  router.post('/shutters/:id/half', async (req, res) => {
+    if (!shutters) return void res.status(503).json({ error: 'shutters not configured' })
+    try {
+      const shutter = await shutters.closeHalf(req.params.id)
+      const enabled = auto?.state() ?? {}
+      res.status(202).json({ ...shutter, auto: shutter.id in enabled ? enabled[shutter.id] : null })
+    } catch (error) {
+      if (error instanceof UnknownShutter) return void res.status(404).json({ error: 'unknown shutter' })
+      if (error instanceof NoCloseTime) return void res.status(409).json({ error: 'this shutter has no closing time (SHUTTERS="id:name:seconds")' })
       res.status(502).json({ error: 'shutter driver unreachable' })
     }
   })

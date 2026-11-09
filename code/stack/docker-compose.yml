@@ -182,6 +182,7 @@ services:
       # Les volets roulants Somfy RTS : « numéro dans le firmware:nom », séparés par des virgules. Sans SHUTTERS_ESP_URL (l'adresse de l'ESP32 qui fait
       # tourner ESPSomfy-RTS, par exemple http://192.168.1.60), c'est une SIMULATION : les ordres sont notés mais aucun signal radio ne part.
       SHUTTERS: ${SHUTTERS:-1:Volet PC,2:Volet salon,3:Volet porte,4:Volet cuisine}
+      # (facultatif : « id:nom:secondes » donne le temps de fermeture complète d'un volet et active son bouton « Fermer à moitié »)
       SHUTTERS_ESP_URL: ${SHUTTERS_ESP_URL:-}
       # Les volets qui ont l'action « ouvrir au lever du soleil, fermer à son coucher » (leurs numéros) : la Vide : tous. Activée ensuite dans la WebApp, volet par volet.
       SHUTTERS_AUTO: ${SHUTTERS_AUTO:-}

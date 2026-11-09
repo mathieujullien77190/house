@@ -67,15 +67,6 @@ test('les images : instants couverts et la plus proche dans la tolérance', asyn
       assert.deepEqual(snapshots.times('cam-a', 1001, 2000, 10), [1060])
       assert.deepEqual({ ...snapshots.nearest('cam-a', 1050, 300) }, { path: 'snaps/1060.jpg', taken_at: 1060 })
       assert.equal(snapshots.nearest('cam-a', 5000, 300), null)
-      assert.deepEqual(
-        snapshots.after('cam-a', 0, 10).map((row) => ({ ...row })),
-        [
-          { path: 'snaps/1000.jpg', taken_at: 1000 },
-          { path: 'snaps/1060.jpg', taken_at: 1060 },
-        ],
-      )
-      assert.deepEqual(snapshots.after('cam-a', 1000, 10).map((row) => row.taken_at), [1060])
-      assert.equal(snapshots.after('cam-a', 0, 1).length, 1)
     } finally {
       db.close()
     }

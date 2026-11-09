@@ -6,7 +6,6 @@ import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
 import type { ZonesStore } from '../lib/zonesStore.ts'
 import type { CamerasService } from '../services/camerasService.ts'
 import type { EventsService } from '../services/eventsService.ts'
-import type { HeatmapService } from '../services/heatmapService.ts'
 import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
 import { call, routerApp, withServer } from '../testing/helpers.ts'
@@ -31,7 +30,6 @@ const services: Services = {
   plan: { get: () => null } as unknown as PlanStore,
   recorderUrl: null,
   savedClips: {} as SavedClipsStore,
-  heatmap: {} as HeatmapService,
 }
 
 test('les chemins protégés exigent la clé, welcome et logout non', async () => {
