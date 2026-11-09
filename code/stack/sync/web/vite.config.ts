@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
+import react, { reactCompilerPreset } from '@vitejs/plugin-react'
+import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 
 // Les services de House Sync, relayés vers lui en développement (certificat de la maison accepté).
@@ -12,7 +13,8 @@ const CERT = fileURLToPath(new URL('../../data/certs/cert.pem', import.meta.url)
 const KEY = fileURLToPath(new URL('../../data/certs/key.pem', import.meta.url))
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // React Compiler : mémoïsation automatique des composants et hooks (pas sous Vitest : son code ajouté fausserait la couverture).
+  plugins: [react(), ...(process.env.VITEST ? [] : [babel({ presets: [reactCompilerPreset()] })]), tailwindcss()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     // @house/ui est un lien vers ../../ui, consommé en source : React doit venir d'ici, une seule fois.
