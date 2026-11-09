@@ -64,3 +64,12 @@ export const RECORD_FAILED_TEXT = 'Enregistrement impossible'
 export const RECORD_STOPPED_TEXT = 'Clip en cours de copie par House Sync…'
 export const RECORD_STOPPED_DETAIL = 'Il apparaîtra dès qu’il est prêt.'
 export const RECORD_NOTE_CLASS = 'text-[0.8rem] text-muted'
+
+/**
+ * Le fondu d'une image sur la précédente suit la vitesse du défilement : une image gardée par minute de frise, donc une toutes les 60 / vitesse secondes ;
+ * le fondu en dure `FADE_SHARE` (au moins `FADE_MIN_MS`, au plus `FADE_MAX_MS`) : plus ça va vite, plus il est court.
+ */
+export const FADE_MIN_MS = 40
+export const FADE_MAX_MS = 400
+export const FADE_SHARE = 0.8
+export const IMAGE_SECONDS = 60

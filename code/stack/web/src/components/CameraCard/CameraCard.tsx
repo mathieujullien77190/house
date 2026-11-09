@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button, CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips, ZoneEditor } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
 import CameraIndicators from '@/components/CameraIndicators'
+import FastScroll from '@/components/FastScroll'
+import { NORMAL_RATE } from '@/components/FastScroll/constants'
+import { speedOf } from '@/components/FastScroll/helpers'
 import PowerButton from '@/components/PowerButton'
 import RotatedMedia from '@/components/RotatedMedia'
 import ShareButton from '@/components/ShareButton'
@@ -53,7 +56,7 @@ import {
   ZONE_FAILED_TEXT,
   ZONE_RESET_LABEL,
 } from './constants'
-import { captionOf, clipLead, clipPathOf, liveCaption, orientationShown, temperatureItems } from './helpers'
+import { captionOf, clipLead, fadeFor, clipPathOf, liveCaption, orientationShown, temperatureItems } from './helpers'
 import type { CameraCardProps, LiveQuality, Quality } from './types'
 
 /**
@@ -125,6 +128,8 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const [editingZone, setEditingZone] = useState(false)
   const zone = useZone(apiKey, camera.name)
   const zoneEditing = editingZone && isLive && !placeholder && !mobile
+  // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
+  const [rate, setRate] = useState(NORMAL_RATE)
   // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
   const recorder = useRecording(apiKey, camera.name, isLive && !placeholder && !mobile)
   // Caméra tournée : les commandes natives de la vidéo tourneraient avec elle ; le lecteur les pose ici, sous la vidéo, droites (hors vue en grand, où il n'y a pas de place).
@@ -189,6 +194,9 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const shareButton =
     isSaved && selected && sharePath ? <ShareButton path={sharePath} name={selected.id} title={describeEvent(selected)} /> : null
 
+  // Les flèches du défilement des images : à côté de « 10 min, 1 h… » sous la vidéo, et sur la vidéo (en bas à gauche) en vue en grand, où la frise ne se voit pas.
+  const fastScroll = !selected && cursor !== null ? <FastScroll rate={rate} onRate={setRate} /> : undefined
+
   const back = () => {
     setFailedClip('')
     setCursor(null)
@@ -205,7 +213,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const still = pendingText ? (
     <ImageBox src="" message={pendingText} upright={turned} />
   ) : cursor !== null ? (
-    <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} upright={turned} />
+    <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} upright={turned} fade={fadeFor(speedOf(rate))} />
   ) : (
     <ImageBox
       src={placeholder ? '' : live}
@@ -306,7 +314,14 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
-      overlay={indicators && !mobile ? indicators : undefined}
+      overlay={
+        (!mobile && indicators) || (bigView.big && fastScroll) ? (
+          <div className="flex flex-col items-start gap-1">
+            {!mobile ? indicators : null}
+            {bigView.big ? fastScroll : null}
+          </div>
+        ) : undefined
+      }
       timeline={
         <Timeline
           fill={mobile}
@@ -316,7 +331,13 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
           selectedEventId={selected?.id ?? ''}
           playhead={playhead}
           clipRange={clipRange}
-          onCursor={setCursor}
+          rate={speedOf(rate)}
+          controls={bigView.big ? undefined : fastScroll}
+          onCursor={(time) => {
+            // Retour au direct : la vitesse du défilement repasse à ×1.
+            if (time === null) setRate(NORMAL_RATE)
+            setCursor(time)
+          }}
           onEvent={(event, at) => {
             // Le même clip rouvert garde sa durée (son lecteur ne la relit pas) ; un autre événement l'oublie.
             if (event?.id !== picked?.id) setVideoDuration(null)

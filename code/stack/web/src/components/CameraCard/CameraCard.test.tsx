@@ -58,7 +58,7 @@ vi.mock('@/components/ClipPlayer', () => ({
 vi.mock('@/components/Timeline', () => ({
   default: (props: any) => {
     h.timeline = props
-    return <div data-testid="timeline" />
+    return <div data-testid="timeline">{props.controls}</div>
   },
 }))
 vi.mock('@/components/SnapshotImage', () => ({ default: (props: any) => <div data-testid="snapshot">{props.at}</div> }))
@@ -548,5 +548,66 @@ describe('CameraCard : vue en grand, caméra tournée', () => {
     expect(h.card.mediaGesture).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
     expect(h.card.mediaGesture).toBeUndefined()
+  })
+})
+
+describe('CameraCard : défilement des images', () => {
+  it('les flèches sont dans la frise une fois une image choisie, pas en direct', () => {
+    mount()
+    expect(screen.queryByLabelText('Plus vite, ou en avant')).toBeNull()
+    act(() => h.timeline.onCursor(900))
+    expect(screen.getByLabelText('Plus vite, ou en avant')).toBeInTheDocument()
+    expect(h.timeline.controls).toBeTruthy()
+    expect(screen.getByTestId('timeline')).toContainElement(screen.getByLabelText('Plus vite, ou en avant'))
+  })
+
+  it('▶ accélère : la frise et le fondu suivent la vitesse', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(h.timeline.rate).toBe(1)
+    fireEvent.click(screen.getByLabelText('Plus vite, ou en avant'))
+    expect(h.timeline.rate).toBe(2)
+    expect(screen.getByText('×2')).toBeInTheDocument()
+  })
+
+  it('◀ au-delà de ×1 fait reculer', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    fireEvent.click(screen.getByLabelText('Plus lent, ou en arrière'))
+    expect(h.timeline.rate).toBe(-1)
+  })
+
+  it('le retour au direct remet la vitesse à ×1', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    fireEvent.click(screen.getByLabelText('Plus vite, ou en avant'))
+    act(() => h.timeline.onCursor(null))
+    act(() => h.timeline.onCursor(900))
+    expect(h.timeline.rate).toBe(1)
+  })
+
+  it('pas de flèches pendant un clip', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    pick(event('a'))
+    expect(screen.queryByLabelText('Plus vite, ou en avant')).toBeNull()
+  })
+
+  it('en vue en grand, les flèches passent sur la vidéo (overlay) et plus dans la frise', () => {
+    h.s.big = { ...h.s.big, big: true }
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(h.timeline.controls).toBeUndefined()
+    expect(screen.getByTestId('overlay')).toContainElement(screen.getByLabelText('Plus vite, ou en avant'))
+  })
+})
+
+describe('CameraCard : défilement des images sur téléphone en vue en grand', () => {
+  it('sans indicateurs, les flèches seules sont dans l’overlay', () => {
+    h.s.mobile = true
+    h.s.big = { ...h.s.big, big: true }
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(screen.getByTestId('overlay')).toContainElement(screen.getByLabelText('Plus vite, ou en avant'))
   })
 })

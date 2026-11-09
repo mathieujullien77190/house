@@ -36,3 +36,21 @@ body {
   color: var(--text);
   border-color: var(--line);
 }
+
+/* Le fondu d'une image gardée qui en remplace une autre (défilement des images de la frise). */
+@keyframes snapshot-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes snapshot-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

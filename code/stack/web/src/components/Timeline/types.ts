@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { EventRow } from '@/types'
 
 export type RangeId = '10m' | '1h' | '6h' | '24h'
@@ -19,6 +20,10 @@ export interface TimelineProps {
   selectedEventId?: string
   /** La frise remplit la hauteur de son parent (écran du téléphone) au lieu d'avoir une hauteur fixe. */
   fill?: boolean
+  /** La vitesse du curseur, en secondes de frise par seconde réelle : 1 (par défaut) temps réel, 60 une minute par seconde ; négatif : il recule. */
+  rate?: number
+  /** Des commandes posées à côté des raccourcis de fenêtre (le défilement des images). */
+  controls?: ReactNode
 }
 
 /** Un événement posé sur l'axe (le bloc de @house/ui, plus l'événement qu'il représente). */

@@ -5,46 +5,96 @@ import SnapshotImage from './SnapshotImage'
 vi.mock('@/lib/api', () => ({ fetchSnapshot: vi.fn() }))
 const api = await import('@/lib/api')
 
+let counter = 0
 beforeEach(() => {
-  URL.createObjectURL = vi.fn(() => 'blob:img')
+  counter = 0
+  URL.createObjectURL = vi.fn(() => `blob:img${++counter}`)
   URL.revokeObjectURL = vi.fn()
 })
 
+const loaded = () => vi.mocked(api.fetchSnapshot).mockResolvedValue({ blob: new Blob(['x']), takenAt: 1 })
+
 describe('SnapshotImage', () => {
-  it('charge, montre l’image et son identifiant, libère l’adresse au démontage', async () => {
-    vi.mocked(api.fetchSnapshot).mockResolvedValue({ blob: new Blob(['x']), takenAt: 1234 })
+  it('cadre noir sans texte tant que la première image arrive, puis l’image et le compteur 0', async () => {
+    loaded()
     const { unmount } = render(<SnapshotImage apiKey="k" camera="c" at={10} />)
-    expect(screen.getByText(/Chargement/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/Chargement/)
+    expect(document.querySelector('img')).toBeNull()
     await act(flush)
-    expect(document.querySelector('img')).toHaveAttribute('src', 'blob:img')
-    expect(screen.getByText(/1234/)).toBeInTheDocument()
+    expect(document.querySelector('img')).toHaveAttribute('src', 'blob:img1')
+    expect(screen.getByText('0')).toBeInTheDocument()
     unmount()
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:img')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:img1')
   })
-  it('sans identifiant d’image : pas d’étiquette', async () => {
-    vi.mocked(api.fetchSnapshot).mockResolvedValue({ blob: new Blob(['x']), takenAt: null })
-    render(<SnapshotImage apiKey="k" camera="c" at={10} />)
+
+  it('une nouvelle image apparaît en fondu par-dessus la précédente, le compteur passe de 0 à 1', async () => {
+    loaded()
+    const { rerender } = render(<SnapshotImage apiKey="k" camera="c" at={10} fade={120} />)
     await act(flush)
-    expect(document.querySelector('img')).not.toBeNull()
-    expect(document.body.textContent).not.toMatch(/null/)
+    rerender(<SnapshotImage apiKey="k" camera="c" at={20} fade={120} />)
+    await act(flush)
+    const images = [...document.querySelectorAll('img')].map((img) => img.getAttribute('src'))
+    expect(images).toEqual(['blob:img1', 'blob:img2'])
+    expect(screen.getByText('0')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('1').style.animationDuration).toBe('120ms')
   })
+
+  it('la précédente reste affichée pendant que la suivante arrive', async () => {
+    loaded()
+    const { rerender } = render(<SnapshotImage apiKey="k" camera="c" at={10} />)
+    await act(flush)
+    vi.mocked(api.fetchSnapshot).mockReturnValue(new Promise(() => undefined))
+    rerender(<SnapshotImage apiKey="k" camera="c" at={20} />)
+    expect(document.querySelector('img')).toHaveAttribute('src', 'blob:img1')
+  })
+
+  it('libère les adresses au-delà des deux dernières', async () => {
+    loaded()
+    const { rerender } = render(<SnapshotImage apiKey="k" camera="c" at={10} />)
+    await act(flush)
+    for (const at of [20, 30]) {
+      rerender(<SnapshotImage apiKey="k" camera="c" at={at} />)
+      await act(flush)
+    }
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:img1')
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:img3')
+  })
+
+  it('étiquette droite quand l’image est tournée', async () => {
+    loaded()
+    const { rerender } = render(<SnapshotImage apiKey="k" camera="c" at={10} upright />)
+    await act(flush)
+    rerender(<SnapshotImage apiKey="k" camera="c" at={20} upright />)
+    await act(flush)
+    expect(screen.getByText('1').className).toMatch(/-rotate-90/)
+  })
+
   it('une image absente donne le message', async () => {
     vi.mocked(api.fetchSnapshot).mockRejectedValue(new Error('404'))
     const { unmount } = render(<SnapshotImage apiKey="k" camera="c" at={10} upright />)
     await act(flush)
     expect(document.querySelector('img')).toBeNull()
-    expect(document.body.textContent).not.toMatch(/Chargement/)
+    expect(screen.getByText(/Pas d’image gardée/)).toBeInTheDocument()
     unmount()
     expect(URL.revokeObjectURL).not.toHaveBeenCalled()
   })
-  it('un nouvel instant remet le chargement', async () => {
-    vi.mocked(api.fetchSnapshot).mockResolvedValue({ blob: new Blob(['x']), takenAt: 1 })
+
+  it('une image absente après une image, puis une image qui revient : elle s’affiche seule', async () => {
+    loaded()
     const { rerender } = render(<SnapshotImage apiKey="k" camera="c" at={10} />)
     await act(flush)
-    vi.mocked(api.fetchSnapshot).mockReturnValue(new Promise(() => undefined))
+    vi.mocked(api.fetchSnapshot).mockRejectedValue(new Error('404'))
     rerender(<SnapshotImage apiKey="k" camera="c" at={20} />)
-    expect(screen.getByText(/Chargement/)).toBeInTheDocument()
+    await act(flush)
+    expect(screen.getByText(/Pas d’image gardée/)).toBeInTheDocument()
+    loaded()
+    rerender(<SnapshotImage apiKey="k" camera="c" at={30} />)
+    await act(flush)
+    expect(document.querySelectorAll('img')).toHaveLength(1)
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
+
   it('ignore une réponse arrivée après un changement', async () => {
     let ok: (v: { blob: Blob; takenAt: number | null }) => void = () => undefined
     let ko: (e: Error) => void = () => undefined

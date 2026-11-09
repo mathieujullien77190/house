@@ -6,6 +6,10 @@ import {
   AT_CAPTION_PREFIX,
   CLIP_CAPTION_PREFIX,
   CLIP_MAX_LEAD_SECONDS,
+  FADE_MAX_MS,
+  FADE_MIN_MS,
+  FADE_SHARE,
+  IMAGE_SECONDS,
   LIVE_CAPTION,
   LIVE_FORMAT,
   TEMPERATURE_LABEL,
@@ -59,3 +63,7 @@ export const orientationShown = (camera: Camera, selected: EventRow | null, curs
   }
   return camera.orientation
 }
+
+/** La durée du fondu d'une image sur l'autre (ms) pour un défilement à `speed` fois le temps réel (le signe, le sens, n'y change rien). */
+export const fadeFor = (speed: number): number =>
+  Math.round(Math.min(FADE_MAX_MS, Math.max(FADE_MIN_MS, ((IMAGE_SECONDS * 1000) / Math.max(1, Math.abs(speed))) * FADE_SHARE)))

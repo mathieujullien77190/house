@@ -6,10 +6,11 @@ Le conteneur de `Timeline` de `@house/ui` (option `vertical` : `../../../../ui/s
 
 - Une fenêtre de temps : raccourcis 10 min, 1 h, 6 h et 24 h (la molette et le glisser vont plus loin), molette pour zoomer, glisser pour se déplacer, « Direct » : zoome sur 60 s (c'est aussi la vue à l'arrivée), « maintenant » au centre, pour lire les secondes.
 - Un bloc par événement : commence 5 s avant le mouvement, comme le clip ; hachuré rouge et allongé jusqu'au bord droit tant qu'il est en cours.
-- La couverture en images (bande bleue), la ligne « maintenant » et le futur hachuré à sa droite (la moitié de la fenêtre en direct : « maintenant » est au centre, le futur se découvre en glissant).
+- La couverture en images (bande bleue), la ligne « maintenant » (un trait, sans le mot) et le futur hachuré à sa droite (la moitié de la fenêtre en direct : « maintenant » est au centre, le futur se découvre en glissant).
 - Le curseur rouge avance seul en temps réel après un clic sur l'axe : une seconde par seconde, l'image ne changeant qu'à chaque image gardée (le rythme se règle dans House Sync).
+- **Vitesse** (`rate`, en secondes de frise par seconde réelle, 1 par défaut) : `components/FastScroll` (une fois une image choisie sur la frise, aussi sur téléphone) pose, **à côté de « 10 min, 1 h… » (et sur la vidéo, en bas à gauche, en vue en grand)** (`controls`, `extra` de la frise de `@house/ui`), deux flèches **◀ ▶** : `▶` monte d'un cran (×1, 2, 5, 10, 30, 60… jusqu'à ×600), `◀` descend, passe ×1 puis **recule** (◀ ×1…). Le curseur recule jusqu'à la plus ancienne image gardée, avance jusqu'au direct, et la fenêtre le suit sur les deux bords.
 - Quand un clip est ouvert, un cadre en pointillés montre ce que la vidéo couvre (elle déborde de l'événement : marges et segments) : le curseur la suit jusqu'au bout de ce cadre.
-- Les événements de la fenêtre sont demandés à l'API (`/events?camera=&from=&to=`, après 250 ms de calme) et réunis aux 200 récents que la page relit chaque seconde : la frise voit tout l'historique.
+- Les instants d'images et les événements de la fenêtre passent par **TanStack Query** (`lib/queryClient.ts`, un client unique passé directement à `useQuery`, pas de fournisseur) : une fenêtre déjà vue revient du cache, l'ancienne reste affichée pendant qu'une nouvelle arrive (`keepPreviousData`). Les événements sont demandés à l'API (`/events?camera=&from=&to=`) tout de suite à l'ouverture, puis après 250 ms de calme quand la fenêtre bouge (`lib/useDebounced.ts`), et réunis aux 200 récents que la page relit chaque seconde : la frise voit tout l'historique.
 
 ## Clics
 

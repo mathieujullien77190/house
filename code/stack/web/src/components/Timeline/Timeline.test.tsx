@@ -48,6 +48,9 @@ const settle = async (ms = 0) => {
   await act(async () => {
     vi.advanceTimersByTime(ms)
     await flush()
+    // TanStack Query prévient les composants par une temporisation à 0 ms.
+    vi.advanceTimersByTime(0)
+    await flush()
   })
 }
 
@@ -71,13 +74,26 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 describe('Timeline : données', () => {
-  it('demande les images et (après 250 ms) les événements de la fenêtre', async () => {
+  it('demande tout de suite les images et les événements de la fenêtre', async () => {
     setup()
     await settle()
     expect(api.fetchSnapshotTimes).toHaveBeenCalledWith('k', 'c', NOW + 30 - 60, NOW + 30)
-    expect(api.fetchEvents).not.toHaveBeenCalled()
-    await settle(250)
     expect(api.fetchEvents).toHaveBeenCalledWith('k', { camera: 'c', from: NOW - 30, to: NOW + 30 })
+  })
+
+  it('une fenêtre qui change ne redemande les événements qu’après 250 ms de calme, et garde les précédents en attendant', async () => {
+    vi.mocked(api.fetchEvents).mockResolvedValue([event('old', NOW - 40)])
+    setup()
+    await settle()
+    expect(api.fetchEvents).toHaveBeenCalledTimes(1)
+    vi.mocked(api.fetchEvents).mockReturnValue(new Promise(() => undefined))
+    act(() => ui.props.onRange('10m'))
+    await settle(100)
+    expect(api.fetchEvents).toHaveBeenCalledTimes(1)
+    await settle(250)
+    expect(api.fetchEvents).toHaveBeenCalledTimes(2)
+    // la nouvelle fenêtre n'est pas encore arrivée : les événements précédents restent affichés
+    expect(ui.props.markers.map((m: { id: string }) => m.id)).toEqual(['old'])
   })
 
   it('les événements demandés s’ajoutent aux récents', async () => {
@@ -495,5 +511,57 @@ describe('Timeline : le curseur avance en temps réel', () => {
     await settle(3000)
     expect(onCursor).not.toHaveBeenCalled()
     up(axis, 1, 600)
+  })
+})
+
+describe('Timeline : vitesse du curseur (rate)', () => {
+  it('au-delà de ×1, le curseur avance plus vite, par pas de 250 ms', async () => {
+    vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 100, NOW - 14])
+    const { axis, onCursor } = setup({ rate: 10 })
+    await settle()
+    click(axis, 250)
+    onCursor.mockClear()
+    await settle(250)
+    // 10 s de frise par seconde réelle : 3 s en 250 ms, l'image la plus proche est celle de NOW-14
+    expect(onCursor).toHaveBeenCalledWith(NOW - 14)
+  })
+
+  it('une vitesse négative fait reculer le curseur', async () => {
+    vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 100, NOW - 20, NOW - 14])
+    const { axis, onCursor } = setup({ rate: -10 })
+    await settle()
+    click(axis, 250)
+    onCursor.mockClear()
+    await settle(250)
+    expect(onCursor).toHaveBeenCalledWith(NOW - 20)
+  })
+
+  it('en reculant, le curseur s’arrête à la plus ancienne image gardée', async () => {
+    vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 10])
+    const { axis, onCursor } = setup({ rate: -600 })
+    await settle()
+    click(axis, 250)
+    onCursor.mockClear()
+    await settle(250)
+    expect(onCursor).not.toHaveBeenCalled()
+    await settle(1000)
+    expect(onCursor).not.toHaveBeenCalled()
+  })
+
+  it('en reculant, la fenêtre suit le curseur sur le bord gauche', async () => {
+    const { axis } = setup({ rate: -600 })
+    await settle()
+    click(axis, 250)
+    const before = ui.props.ticks
+    await settle(250)
+    expect(ui.props.ticks).not.toEqual(before)
+    expect(ui.props.live).toBe(false)
+  })
+
+  it('les commandes passées sont transmises à la frise', async () => {
+    const controls = <b>commandes</b>
+    setup({ controls })
+    await settle()
+    expect(ui.props.extra).toBe(controls)
   })
 })

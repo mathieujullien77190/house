@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Timeline as TimelineUI } from '@house/ui'
 import { fetchEvents, fetchSnapshotTimes } from '@/lib/api'
+import { queryClient } from '@/lib/queryClient'
+import { useDebounced } from '@/lib/useDebounced'
 import { useMobile } from '@/lib/useMobile'
 import type { EventRow } from '@/types'
-import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
+import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FAST_TICK_MS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
 import { alongOf, axisLength, buildCoverage, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt } from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
+
+// Des listes vides toujours identiques : tant qu'il n'y a pas de réponse, les effets qui en dépendent ne repartent pas à chaque rendu.
+const NO_TIMES: number[] = []
+const NO_EVENTS: EventRow[] = []
 
 /**
  * La frise des événements d'une caméra : une fenêtre de temps qu'on fait glisser et qu'on zoome (molette,
@@ -15,7 +22,7 @@ const nowSeconds = () => Math.floor(Date.now() / 1000)
  * l'image d'un instant. Ce qu'on choisit (instant ou événement) remonte à la carte de la caméra.
  * Le dessin est celui de @house/ui ; ici, les calculs et les gestes.
  */
-const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange, selectedEventId, fill = false }: TimelineProps) => {
+const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange, selectedEventId, fill = false, rate = 1, controls }: TimelineProps) => {
   // Sur téléphone (sous 1024 px) la frise est verticale, le plus récent en haut ; sur grand écran, horizontale.
   const vertical = useMobile()
   const [seconds, setSeconds] = useState(NOW_ZOOM_SECONDS)
@@ -27,14 +34,12 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   // Le clip ouvert reste choisi dans la frise (un reclic sur son bloc ne le désélectionne pas).
   if (selectedEventId && selectedId !== selectedEventId) setSelectedId(selectedEventId)
   const [cursor, setCursor] = useState<number | null>(null)
-  const [times, setTimes] = useState<number[]>([])
   const bucket = fetchBucket(end, seconds)
   // L'instant de la dernière image demandée au parent et l'heure du dernier pas : le curseur avance en temps réel.
   const reported = useRef<number | null>(null)
   const lastStep = useRef(0)
   const [dragging, setDragging] = useState(false)
   // Les événements de la fenêtre (demandés avec from et to : l'historique, pas seulement les 200 derniers) et le nombre de plus anciens.
-  const [history, setHistory] = useState<EventRow[]>([])
   const axisRef = useRef<HTMLDivElement>(null)
   // La longueur de l'axe (largeur, ou hauteur s'il est vertical) : une frise courte porte moins de graduations.
   const [axisSize, setAxisSize] = useState(0)
@@ -70,39 +75,28 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     return () => clearInterval(timer)
   }, [live, seconds])
 
-  // Les instants couverts par une image, pour la fenêtre affichée (pas pendant un glisser).
-  useEffect(() => {
-    if (dragging) return
-    let cancelled = false
-    fetchSnapshotTimes(apiKey, camera, end - seconds, end)
-      .then((list) => {
-        if (!cancelled) setTimes(list)
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-    // end change à chaque seconde en direct : seul bucket (la fenêtre a assez avancé) relance la requête.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, camera, bucket, seconds, dragging])
+  // Les instants couverts par une image, pour la fenêtre affichée (pas pendant un glisser). TanStack Query : une fenêtre déjà vue revient du cache, et l'ancienne reste
+  // affichée pendant qu'une nouvelle arrive. `bucket` change quand la fenêtre a assez avancé (en direct, `end` change à chaque seconde).
+  const { data: times = NO_TIMES } = useQuery(
+    {
+      queryKey: ['snapshot-times', camera, bucket, seconds],
+      queryFn: () => fetchSnapshotTimes(apiKey, camera, end - seconds, end),
+      enabled: !dragging,
+      placeholderData: keepPreviousData,
+    },
+    queryClient,
+  )
 
-  // Les événements de la fenêtre affichée, demandés à l'API une fois la fenêtre posée (glisser et zoom changent vite).
-  useEffect(() => {
-    let cancelled = false
-    const timer = setTimeout(() => {
-      const start = end - seconds
-      fetchEvents(apiKey, { camera, from: start, to: end })
-        .then((inWindow) => {
-          if (!cancelled) setHistory(inWindow)
-        })
-        .catch(() => undefined)
-    }, EVENTS_DEBOUNCE_MS)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, camera, bucket, seconds])
+  // Les événements de la fenêtre affichée, demandés à l'API une fois la fenêtre posée (glisser et zoom changent vite : on attend `EVENTS_DEBOUNCE_MS` de calme).
+  const eventsWindow = useDebounced(`${bucket}:${seconds}`, EVENTS_DEBOUNCE_MS)
+  const { data: history = NO_EVENTS } = useQuery(
+    {
+      queryKey: ['events', camera, eventsWindow],
+      queryFn: () => fetchEvents(apiKey, { camera, from: end - seconds, to: end }),
+      placeholderData: keepPreviousData,
+    },
+    queryClient,
+  )
   const events = mergeEvents(recent, history)
 
   // Place la fenêtre [nextEnd - nextSeconds, nextEnd]. Le futur se découvre en glissant, jusqu'à centrer « maintenant » ;
@@ -124,16 +118,24 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   // Le curseur posé sur l'axe avance tout seul, en temps réel (une minute dure une minute), jusqu'à maintenant, où
   // l'on retrouve le direct. L'image ne change qu'à chaque image gardée (une par minute). Il s'arrête pendant un
   // glisser et quand un événement est ouvert.
+  // `rate` : la vitesse du curseur, en secondes de frise par seconde réelle (1 : temps réel ; négatif : il recule). Au-delà du temps réel il se met à jour plus souvent.
   useEffect(() => {
     if (cursor === null || selectedId || dragging) return
     const timer = setTimeout(() => {
       // Le pas se mesure à l'horloge : les temporisations dérivent, le curseur ne doit pas prendre de retard.
       const now = Date.now()
-      const next = cursor + Math.max(1, Math.round((now - lastStep.current) / 1000))
+      const move = Math.round((rate * (now - lastStep.current)) / 1000)
+      const next = cursor + move
       lastStep.current = now
       if (next >= nowSeconds()) {
         setCursor(null)
         onCursor(null)
+        return
+      }
+      // En reculant, on s'arrête à la plus ancienne image gardée.
+      const oldest = times[0]
+      if (rate < 0 && oldest !== undefined && next < oldest - FALLBACK_IMAGE_SECONDS) {
+        setCursor(oldest)
         return
       }
       setCursor(next)
@@ -144,10 +146,11 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
         onCursor(wanted)
       }
       const { seconds: current, end: currentEnd } = view.current
-      if (positionOf(next, currentEnd, current) > FOLLOW_EDGE * 100) place(next + current * 0.5, current)
-    }, PLAY_INTERVAL_MS)
+      const position = positionOf(next, currentEnd, current)
+      if (position > FOLLOW_EDGE * 100 || (rate < 0 && position < 100 - FOLLOW_EDGE * 100)) place(next + current * 0.5, current)
+    }, Math.abs(rate) > 1 ? FAST_TICK_MS : PLAY_INTERVAL_MS)
     return () => clearTimeout(timer)
-  }, [cursor, selectedId, dragging, onCursor, times])
+  }, [cursor, selectedId, dragging, onCursor, times, rate])
 
   // La molette zoome autour de l'instant sous le pointeur. Écouteur non passif : la page ne doit pas défiler.
   useEffect(() => {
@@ -290,6 +293,7 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
     <TimelineUI<RangeId>
       vertical={vertical}
       fill={fill}
+      extra={controls}
       ranges={RANGES}
       range={presetOf(seconds)}
       live={live}

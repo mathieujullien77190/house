@@ -55,3 +55,5 @@ export const NOW_ZOOM_SECONDS = 60
 /** En direct, la fenêtre avance au plus à ce rythme (ms) ; une fenêtre courte avance plus souvent, pour que la ligne « maintenant » reste juste. */
 export const MAX_REFRESH_MS = 60_000
 export const MIN_REFRESH_MS = 1000
+/** Plus vite que le temps réel, le curseur avance toutes les `FAST_TICK_MS` ms (au lieu de chaque seconde). */
+export const FAST_TICK_MS = 250
