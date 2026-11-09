@@ -53,7 +53,7 @@ const run = (
         const frame = Uint8Array.from(pending.subarray(0, frameSize))
         pending = pending.subarray(frameSize)
         if (previous) {
-          const event = detector.push(changedShare(previous, frame, config.detector.pixelThreshold, mask()), Date.now() / 1000)
+          const event = detector.push(changedShare(previous, frame, config.detector.pixelThreshold, mask(), config.rainFilter ? config.width : 0), Date.now() / 1000)
           if (event) onEvent(event)
         }
         previous = frame

@@ -27,9 +27,16 @@ export const DEFAULT_CONFIG: DetectorConfig = {
  * Part des pixels (0 à 1) qui ont changé de plus de `pixelThreshold` entre deux images de même taille. Avec un `mask` (1 = pixel surveillé),
  * seuls les pixels surveillés comptent, et la part est celle de la zone surveillée (une petite zone remplie par un mouvement vaut 1).
  */
-export const changedShare = (previous: Uint8Array, current: Uint8Array, pixelThreshold: number, mask: Uint8Array | null = null): number => {
+export const changedShare = (
+  previous: Uint8Array,
+  current: Uint8Array,
+  pixelThreshold: number,
+  mask: Uint8Array | null = null,
+  rainWidth = 0,
+): number => {
   if (previous.length !== current.length || current.length === 0) return 0
   if (mask && mask.length !== current.length) return 0
+  if (rainWidth > 0) return changedShareWithoutRain(previous, current, pixelThreshold, mask, rainWidth)
   let changed = 0
   let watched = 0
   for (let i = 0; i < current.length; i += 1) {
@@ -38,6 +45,36 @@ export const changedShare = (previous: Uint8Array, current: Uint8Array, pixelThr
     if (Math.abs(current[i] - previous[i]) > pixelThreshold) changed += 1
   }
   return watched === 0 ? 0 : changed / watched
+}
+
+/** Filtre pluie : un pixel changé ne compte que si au moins ce nombre de ses 8 voisins ont changé aussi (un objet est un bloc, une goutte ou un trait de pluie est fin et isolé). */
+export const RAIN_MIN_NEIGHBOURS = 6
+
+/**
+ * Comme `changedShare`, mais sans la pluie : seuls les pixels changés au cœur d'une tache (au moins `RAIN_MIN_NEIGHBOURS` voisins changés sur 8) comptent. Les gouttes,
+ * les traits de pluie et le bruit isolé disparaissent ; un animal ou une personne, qui fait une tache, reste. `width` : la largeur de l'image, pour retrouver les voisins.
+ */
+const changedShareWithoutRain = (previous: Uint8Array, current: Uint8Array, pixelThreshold: number, mask: Uint8Array | null, width: number): number => {
+  const height = Math.floor(current.length / width)
+  const changed = new Uint8Array(current.length)
+  let watched = 0
+  for (let i = 0; i < current.length; i += 1) {
+    if (mask && mask[i] === 0) continue
+    watched += 1
+    if (Math.abs(current[i] - previous[i]) > pixelThreshold) changed[i] = 1
+  }
+  if (watched === 0) return 0
+  let kept = 0
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const i = y * width + x
+      if (changed[i] === 0) continue
+      const around =
+        changed[i - width - 1] + changed[i - width] + changed[i - width + 1] + changed[i - 1] + changed[i + 1] + changed[i + width - 1] + changed[i + width] + changed[i + width + 1]
+      if (around >= RAIN_MIN_NEIGHBOURS) kept += 1
+    }
+  }
+  return kept / watched
 }
 
 export type MotionEvent =

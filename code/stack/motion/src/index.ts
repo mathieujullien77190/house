@@ -63,7 +63,7 @@ for (const camera of config.cameras) {
   )
   void watchMotion(
     `${config.go2rtcRtsp}/${camera}_sub`,
-    { ...config, detector: detectors.get(camera) ?? config.detector },
+    { ...config, detector: detectors.get(camera) ?? config.detector, rainFilter: config.rainCameras?.includes(camera) ?? false },
     (event) => {
       if (event.type === 'start') {
         const record = store.open(camera, event.at)
