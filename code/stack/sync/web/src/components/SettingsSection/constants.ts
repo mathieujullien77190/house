@@ -25,6 +25,14 @@ export const ORIENTATION_OPTIONS = [
   { id: 'landscape', label: 'Paysage' },
   { id: 'portrait', label: 'Portrait' },
 ] as const
+/** Le mode pluie : la pluie fait trop bouger l'image pour la détection. Sur ON, quand la météo dit pluie ou pluie forte, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent. Sur OFF, on ne fait rien. La WebApp montre le symbole sur la caméra. */
+export const RAIN_LABEL = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
+export const RAIN_OPTIONS = [
+  { id: 'off', label: 'OFF' },
+  { id: 'on', label: 'ON' },
+] as const
+/** Ce qui est actif maintenant, écrit sous le choix. */
+export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif' } as const
 /** Les curseurs de cadence : le direct 4K et le léger, sur un écran de 1024 px et plus (PC) puis en dessous (téléphone). */
 export const FPS_SLIDERS = [
   { key: 'live_fps', label: 'Direct 4K · PC' },
@@ -59,6 +67,9 @@ export const CHOICES_CLASS = 'flex flex-wrap gap-x-8 gap-y-3'
 export const VALUE_CLASS = 'font-mono text-[0.85rem]'
 export const SNAPSHOT_LABEL = 'Une image toutes les'
 export const SNAPSHOT_OPTIONS = [
+  { id: '5', label: '5 s' },
+  { id: '10', label: '10 s' },
+  { id: '15', label: '15 s' },
   { id: '30', label: '30 s' },
   { id: '60', label: '1 min' },
   { id: '120', label: '2 min' },

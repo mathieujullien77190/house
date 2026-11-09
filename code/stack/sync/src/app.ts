@@ -16,6 +16,7 @@ import { createPoller } from './poll.ts'
 import { createRecorder } from './recorder.ts'
 import { createSettings } from './settings.ts'
 import { createSnapshots } from './snapshots.ts'
+import { createWeather, WEATHER_POLL_MS } from './weather.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createCameraEnergy, createCameraEnergyTable } from './cameraEnergy.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
@@ -62,6 +63,12 @@ export const startApp = async (deps: AppDeps) => {
   const imports = createImports(ctx)
   const cameraEnergy = createCameraEnergy(ctx, () => apiTargetOf(config))
   const poller = createPoller(ctx, { rec, events, clips, control, snapshots })
+  // Les images toutes les 5, 10 ou 15 s : un minuteur à part (chaque seconde, pour tomber à une seconde près), car le tour de polling est de 30 s.
+  const snapshotTimer = setInterval(() => void snapshots.again(), 1_000)
+  // La pluie, pour le mode pluie automatique des caméras : la météo chez soi, relue toutes les 10 minutes.
+  const weather = createWeather(ctx)
+  void weather.poll()
+  const weatherTimer = setInterval(() => void weather.poll(), WEATHER_POLL_MS)
   const page = createPage(ctx, { hueLog, resetLiveFpsCheck: control.resetLiveFpsCheck })
 
   void imports.syncPlan()
@@ -89,6 +96,8 @@ export const startApp = async (deps: AppDeps) => {
   const stop = async (): Promise<void> => {
     poller.stop()
     clearInterval(timer)
+    clearInterval(snapshotTimer)
+    clearInterval(weatherTimer)
     clearInterval(planTimer)
     clearInterval(visitsTimer)
     clearInterval(heatingTimer)

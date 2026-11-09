@@ -2,6 +2,12 @@ export type ClipMode = 'always' | 'night' | 'off'
 
 export type Orientation = 'landscape' | 'portrait'
 
+/** Le mode pluie : off ou on (on : il suit la météo). */
+export type RainMode = 'off' | 'on'
+
+/** Le niveau de pluie qui s'applique maintenant : off, rain ou heavy. */
+export type RainLevel = 'off' | 'rain' | 'heavy'
+
 export interface CameraSetting {
   camera: string
   /** Les clips gardés : toujours, seulement la nuit, ou jamais. */
@@ -19,4 +25,8 @@ export interface CameraSetting {
   motion_sensitivity: number
   /** Une image gardée toutes les N secondes. */
   snapshot_seconds: number
+  /** Le mode pluie : allumé, pas de clips (détection coupée) et une image toutes les 5 s ; les autres réglages reviennent à l'extinction. */
+  rain_mode?: RainMode
+  /** Le niveau de pluie qui s'applique maintenant (le mode et la météo). */
+  rain_now?: RainLevel
 }

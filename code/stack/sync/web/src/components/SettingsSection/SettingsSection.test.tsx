@@ -26,6 +26,7 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
   snapshot_seconds: 60,
   ...patch,
 })
+const RAIN_GROUP = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
 const SAVE_ERROR = /n’a pas pu être enregistré/
 
 beforeEach(() => {
@@ -131,6 +132,23 @@ describe('réglages par caméra', () => {
     await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { snapshot_seconds: 300 }))
     expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { clips_mode: 'night' })
     expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { orientation: 'portrait' })
+  })
+
+  it('le mode pluie s’allume et s’éteint au clic, éteint tant que la caméra ne dit rien', async () => {
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
+    await loaded()
+    expect(tab(RAIN_GROUP, 'OFF').getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(tab(RAIN_GROUP, 'ON'))
+    await waitFor(() => expect(tab(RAIN_GROUP, 'ON').getAttribute('aria-selected')).toBe('true'))
+    expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { rain_mode: 'on' })
+  })
+
+  it('le mode pluie dit ce qui est actif en ce moment : pluie, pluie forte, ou rien', async () => {
+    m.fetchSettings.mockResolvedValue([camera({ rain_mode: 'on', rain_now: 'rain' }), camera({ camera: 'b', rain_mode: 'on', rain_now: 'heavy' }), camera({ camera: 'c', rain_mode: 'on', rain_now: 'off' })])
+    render(<SettingsSection />)
+    expect(await screen.findByText(/Pluie en ce moment/)).toBeTruthy()
+    expect(screen.getByText(/Pluie forte en ce moment/)).toBeTruthy()
+    expect(screen.getAllByText(/en ce moment/)).toHaveLength(2)
   })
 
   it('l’enregistrement d’un autre appareil laisse les autres caméras intactes', async () => {

@@ -16,25 +16,33 @@ export const createSnapshots = (ctx: Context, rec: Recorder) => {
   const deleteSnapshot = db.prepare('DELETE FROM snapshots WHERE camera = ? AND taken_at = ?')
   const lastSnapshotAt = new Map<string, number>()
   let lastCleanAt = 0
+  // Les caméras du dernier tour de polling, pour le minuteur rapide (`again`) qui prend les images toutes les 5, 10 ou 15 s entre deux tours (30 s).
+  let known: string[] = []
+  let running = false
 
-  return async (cameras: string[]): Promise<number> => {
+  const take = async (cameras: string[]): Promise<number> => {
+    known = cameras
     const now = seconds(ctx)
-    let taken = 0
-    for (const camera of cameras) {
-      // Chaque caméra a son rythme (réglé depuis la page).
-      if (now - (lastSnapshotAt.get(camera) ?? 0) < settings.cameraSettings(camera).snapshot_seconds) continue
-      lastSnapshotAt.set(camera, now)
-      // Une caméra qui ne répond pas ne doit pas priver les autres de leur image.
-      const image = await rec.recorder(camera, `/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
-        .then(async (res) => (res.ok ? Buffer.from(await res.arrayBuffer()) : null))
-        .catch(() => null)
-      if (!image) continue
-      mkdirSync(`${config.dataDir}/snapshots/${camera}`, { recursive: true })
-      const path = `snapshots/${camera}/${now}.jpg`
-      await writeFile(`${config.dataDir}/${path}`, image)
-      insertSnapshot.run(camera, now, path)
-      taken += 1
-    }
+    // Chaque caméra a son rythme (réglé depuis la page). L'image est la **prochaine image clé** du flux (go2rtc l'attend : environ 2 s) : les caméras sont prises
+    // en parallèle (sinon trois caméras feraient 6 s par tour), et l'image est datée de son arrivée, pas de la demande.
+    const due = cameras.filter((camera) => now - (lastSnapshotAt.get(camera) ?? 0) >= settings.effectiveSettings(camera).snapshot_seconds)
+    for (const camera of due) lastSnapshotAt.set(camera, now)
+    const results = await Promise.all(
+      due.map(async (camera): Promise<number> => {
+        // Une caméra qui ne répond pas ne doit pas priver les autres de leur image.
+        const image = await rec.recorder(camera, `/api/${camera}/latest.jpg?h=${SNAPSHOT_HEIGHT}`)
+          .then(async (res) => (res.ok ? Buffer.from(await res.arrayBuffer()) : null))
+          .catch(() => null)
+        if (!image) return 0
+        const takenAt = seconds(ctx)
+        mkdirSync(`${config.dataDir}/snapshots/${camera}`, { recursive: true })
+        const path = `snapshots/${camera}/${takenAt}.jpg`
+        await writeFile(`${config.dataDir}/${path}`, image)
+        insertSnapshot.run(camera, takenAt, path)
+        return 1
+      }),
+    )
+    const taken = results.reduce((sum, n) => sum + n, 0)
     if (now - lastCleanAt < 60) return taken
     lastCleanAt = now
     const limit = now - config.snapshotRetentionDays * 86400
@@ -44,4 +52,15 @@ export const createSnapshots = (ctx: Context, rec: Recorder) => {
     }
     return taken
   }
+  /** Un tour de plus, entre deux tours de polling : seules les caméras dont l'image est due en prennent une. Jamais deux à la fois. */
+  const again = async (): Promise<number> => {
+    if (running || known.length === 0) return 0
+    running = true
+    try {
+      return await take(known)
+    } finally {
+      running = false
+    }
+  }
+  return Object.assign(take, { again })
 }

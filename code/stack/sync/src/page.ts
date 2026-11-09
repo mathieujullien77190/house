@@ -23,7 +23,7 @@ import { readPower, type ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
-import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_SENSITIVITY, MIN_RETENTION_DAYS, MIN_SENSITIVITY, SNAPSHOT_CHOICES } from './settings.ts'
+import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_SENSITIVITY, MIN_RETENTION_DAYS, MIN_SENSITIVITY, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
 import { readSpecs } from './specs.ts'
 import { readSystem } from './system.ts'
 
@@ -179,7 +179,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     if (req.method === 'POST' && pathname === '/logout') {
       return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, '') })
     }
-    // PUT /api/settings : { camera, clips_mode?, orientation?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, snapshot_seconds? }, derrière la session.
+    // PUT /api/settings : { camera, clips_mode?, orientation?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, snapshot_seconds?, rain_mode? }, derrière la session.
     if (req.method === 'PUT' && pathname === '/api/settings') {
       if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
       const body = await readJsonObject(req)
@@ -203,7 +203,9 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (sensitivity === null) return sendJson(res, 400, { error: `motion_sensitivity must be an integer from ${MIN_SENSITIVITY} to ${MAX_SENSITIVITY}` })
       const orientation = body.orientation === undefined ? current.orientation : body.orientation
       if (typeof orientation !== 'string' || !ORIENTATIONS.includes(orientation)) return sendJson(res, 400, { error: `orientation must be one of ${ORIENTATIONS.join(', ')}` })
-      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, seconds: secs, orientation })
+      const rain = body.rain_mode === undefined ? current.rain_mode : body.rain_mode
+      if (typeof rain !== 'string' || !RAIN_MODES.includes(rain)) return sendJson(res, 400, { error: `rain_mode must be one of ${RAIN_MODES.join(', ')}` })
+      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, seconds: secs, orientation, rain })
       ctx.log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, une image toutes les ${secs} s`)
       resetLiveFpsCheck()
       return sendJson(res, 200, settings.cameraSettings(camera))

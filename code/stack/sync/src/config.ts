@@ -66,7 +66,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   snapshotIntervalSeconds: Number(env.SNAPSHOT_INTERVAL_SECONDS ?? 60),
   snapshotRetentionDays: Number(env.SNAPSHOT_RETENTION_DAYS ?? 7),
   // Le soleil se calcule pour la maison (HOUSE_LATITUDE et HOUSE_LONGITUDE ; par défaut la Seine-et-Marne, à quelques minutes près).
-  housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.6), longitude: Number(env.HOUSE_LONGITUDE ?? 2.7) },
+  housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },
   zonesFile: env.ZONES_FILE ?? '/house/zones.json',
   go2rtcUrl: (env.GO2RTC_URL ?? 'http://go2rtc:1984').replace(/\/$/, ''),
   savedClipsFile: env.SAVED_CLIPS_FILE ?? '/house/saved-clips.json',

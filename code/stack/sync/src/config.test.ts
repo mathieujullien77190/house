@@ -14,7 +14,7 @@ test('sans variable : les valeurs par défaut du compose', () => {
   assert.equal(config.intervalMs, 30_000)
   assert.equal(config.snapshotIntervalSeconds, 60)
   assert.equal(config.snapshotRetentionDays, 7)
-  assert.deepEqual(config.housePosition, { latitude: 48.6, longitude: 2.7 })
+  assert.deepEqual(config.housePosition, { latitude: 48.52, longitude: 2.64 })
   assert.equal(config.go2rtcUrl, 'http://go2rtc:1984')
   assert.equal(config.retentionDaysEnv, undefined)
   assert.equal(config.guestVisitsDays, 365)

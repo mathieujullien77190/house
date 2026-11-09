@@ -68,6 +68,10 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   for (const column of ['live_fps_mobile', 'light_fps_mobile', 'motion_sensitivity']) addColumn(db, 'settings', column, 'INTEGER')
   // L'orientation de la caméra (voir plus bas) : la colonne doit exister avant que la requête des réglages soit préparée.
   addColumn(db, 'settings', 'orientation', 'TEXT')
+  // Le mode pluie de la caméra (off ou on) : allumé, quand la météo annonce de la pluie, pas de clips (la détection est coupée) et une image toutes les 5 s.
+  addColumn(db, 'settings', 'rain_mode', 'TEXT')
+  // Le niveau de pluie qui s'applique vraiment à la caméra (off, rain, heavy) : le mode pluie et la météo ; écrit par House Sync, lu par l'API pour le symbole.
+  addColumn(db, 'settings', 'rain_now', 'TEXT')
   // Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
   addColumn(db, 'events', 'clip_started_at', 'INTEGER')
   // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).

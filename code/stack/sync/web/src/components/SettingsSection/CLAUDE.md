@@ -5,7 +5,8 @@
 - **Enregistrement : clips et images**
   - la durée de garde des clips non sauvegardés (liste de 7, 15, 30, 60, 90 ou 180 jours, `GET`/`PUT /api/retention`, `RETENTION_OPTIONS`) ;
   - par caméra, **Toujours / La nuit / Jamais** (hors des clips gardés la détection de la caméra est éteinte) ;
-  - par caméra, le rythme des images de la frise : **30 s, 1, 2 ou 5 min** ;
+  - par caméra, le rythme des images de la frise : **5, 10, 15, 30 s, 1, 2 ou 5 min** ;
+  - par caméra, le **Mode pluie** (OFF / ON) : allumé, quand la météo dit pluie ou forte pluie, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent (ils ne sont jamais modifiés). Sous le choix, un texte dit « Pluie en ce moment : mode pluie actif » quand il s'applique (`rain_now`) ;
   - par caméra, l'**Orientation** (Paysage / Portrait) à côté de « Clips vidéo » : elle s'applique aux nouveaux événements (les anciens gardent la leur).
 - **Détection du mouvement** : un curseur « Sensibilité du mouvement » de 1 à 5 par caméra ; sert quand une caméra rate un passage.
 - **Direct dans la WebApp** : quatre curseurs par caméra, « Direct 4K » et « Direct léger », chacun pour le PC (1024 px et plus) et pour le téléphone, de 1 à 25 images par seconde, envoyés au relâchement seulement si la valeur a changé.

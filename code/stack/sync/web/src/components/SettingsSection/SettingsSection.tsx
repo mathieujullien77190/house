@@ -35,6 +35,9 @@ import {
   SLIDER_GROUP_CLASS,
   SLIDER_HEAD_CLASS,
   SLIDERS_CLASS,
+  RAIN_LABEL,
+  RAIN_NOW_TEXT,
+  RAIN_OPTIONS,
   SNAPSHOT_LABEL,
   SNAPSHOT_OPTIONS,
   VALUE_CLASS,
@@ -163,6 +166,11 @@ const SettingsSection = () => {
               <div className={GROUP_CLASS}>
                 <span className={LABEL_CLASS}>{CLIPS_LABEL}</span>
                 <Tabs label={CLIPS_LABEL} options={[...CLIPS_OPTIONS]} value={setting.clips_mode} onChange={(id) => change(setting.camera, { clips_mode: id })} />
+              </div>
+              <div className={GROUP_CLASS}>
+                <span className={LABEL_CLASS}>{RAIN_LABEL}</span>
+                <Tabs label={RAIN_LABEL} options={[...RAIN_OPTIONS]} value={setting.rain_mode ?? 'off'} onChange={(id) => change(setting.camera, { rain_mode: id })} />
+                {setting.rain_now && setting.rain_now !== 'off' ? <span className={LABEL_CLASS}>{RAIN_NOW_TEXT[setting.rain_now]}</span> : null}
               </div>
               <div className={GROUP_CLASS}>
                 <span className={LABEL_CLASS}>{ORIENTATION_LABEL}</span>

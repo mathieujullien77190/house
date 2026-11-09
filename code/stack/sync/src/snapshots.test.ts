@@ -62,3 +62,49 @@ test('le ménage retire les images de plus de 7 jours (fichiers et lignes), au p
   await snapshot([])
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM snapshots').get()?.n, 1)
 })
+
+test('les caméras sont prises en parallèle, et l’image est datée de son arrivée', async () => {
+  const holder: { ctx?: ReturnType<typeof testContext> } = {}
+  const { ctx, snapshot } = setup(() => {
+    holder.ctx?.time.advance(2_000)
+    return new Response('JPEG')
+  }, ['a', 'b'])
+  holder.ctx = ctx
+  const start = sec(ctx.now())
+  assert.equal(await snapshot(['a', 'b']), 2)
+  // chaque image porte l'heure de son arrivée (après la demande), et son fichier le même nom
+  const rows = ctx.db.prepare('SELECT camera, taken_at, path FROM snapshots ORDER BY camera').all().map((row) => ({ ...row }))
+  assert.equal(rows.length, 2)
+  for (const row of rows) {
+    assert.ok(Number(row.taken_at) > start)
+    assert.equal(row.path, `snapshots/${row.camera}/${row.taken_at}.jpg`)
+    assert.equal(existsSync(`${ctx.dir}/${row.path}`), true)
+  }
+})
+
+test('again : rien sans caméra connue, jamais deux à la fois, et seulement les images dues', async () => {
+  const { ctx, snapshot } = setup(() => new Response('JPEG'))
+  assert.equal(await snapshot.again(), 0)
+  assert.equal(await snapshot(['cam']), 1)
+  // pas encore dû (60 s)
+  ctx.time.advance(10_000)
+  assert.equal(await snapshot.again(), 0)
+  ctx.time.advance(50_000)
+  const first = snapshot.again()
+  assert.equal(await snapshot.again(), 0)
+  assert.equal(await first, 1)
+  // le garde est relâché
+  ctx.time.advance(60_000)
+  assert.equal(await snapshot.again(), 1)
+})
+
+test('en mode pluie, une image toutes les 5 s', async () => {
+  const { ctx, snapshot } = setup(() => new Response('JPEG'))
+  ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 3, seconds: 60, orientation: 'landscape', rain: 'on' })
+  assert.equal(await snapshot(['cam']), 1)
+  ctx.settings.setWeatherRain('rain')
+  ctx.time.advance(4_000)
+  assert.equal(await snapshot.again(), 0)
+  ctx.time.advance(1_000)
+  assert.equal(await snapshot.again(), 1)
+})
