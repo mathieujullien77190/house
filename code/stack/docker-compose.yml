@@ -27,6 +27,10 @@ services:
       CAMERA3_IP: ${CAMERA3_IP:-}
       CAMERA3_USER: ${CAMERA3_USER:-admin}
       CAMERA3_PASSWORD: ${CAMERA3_PASSWORD:-}
+      # La quatrième caméra (voliere-toit) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA4_IP: ${CAMERA4_IP:-}
+      CAMERA4_USER: ${CAMERA4_USER:-admin}
+      CAMERA4_PASSWORD: ${CAMERA4_PASSWORD:-}
     volumes:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
     healthcheck:
@@ -40,7 +44,7 @@ services:
       # Le réseau de la page invité : elle ne voit que go2rtc.
       - guest_net
 
-  # L'enregistreur (voir motion/CLAUDE.md), pour les trois caméras (voliere-exterieur, voliere-interieur et salon-de-jardin) : enregistre le flux principal
+  # L'enregistreur (voir motion/CLAUDE.md), pour les quatre caméras (voliere-exterieur, voliere-interieur, salon-de-jardin et voliere-toit) : enregistre le flux principal
   # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
@@ -48,7 +52,7 @@ services:
     depends_on:
       - go2rtc
     environment:
-      CAMERAS: voliere-exterieur,voliere-interieur,salon-de-jardin
+      CAMERAS: voliere-exterieur,voliere-interieur,salon-de-jardin,voliere-toit
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -176,7 +180,7 @@ services:
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: voliere-exterieur:3,voliere-interieur:4,salon-de-jardin:7
+      SWITCH_PORTS: voliere-exterieur:3,voliere-interieur:4,salon-de-jardin:7,voliere-toit:8
       # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}

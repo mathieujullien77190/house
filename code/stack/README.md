@@ -66,8 +66,8 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
 
 1. Copier `.env.example` en `.env` et remplir les valeurs : mot de passe de la Reolink `voliere-exterieur`
    (`REOLINK_PASSWORD`), clé secrète de l'API (`API_KEY`), hôtes du certificat (`CERT_HOSTS` : l'IP du mini PC,
-   fixée par un bail DHCP statique sur la box), la deuxième caméra (`CAMERA2_*`), le compte du switch
-   (`SWITCH_*`) et le pont Hue (`HUE_*`). Sans la deuxième caméra, le switch, la prise ou le pont Hue, la fonction correspondante est désactivée.
+   fixée par un bail DHCP statique sur la box), les caméras suivantes (`CAMERA2_*`, `CAMERA3_*`, `CAMERA4_*`), le compte du switch
+   (`SWITCH_*`) et le pont Hue (`HUE_*`). Sans ces caméras, le switch, la prise ou le pont Hue, la fonction correspondante est désactivée.
 2. Mettre l'adresse IP de la Reolink `voliere-exterieur` dans `go2rtc/go2rtc.yaml` (bail DHCP statique sur la box) ;
    celle de `voliere-interieur` vient de `CAMERA2_IP`.
 3. `docker compose up -d --build`
