@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import SnapshotImage from './SnapshotImage'
 import { ALT, EMPTY_IMAGE, LOADING_TEXT } from './constants'
+import { releaseImage } from './helpers'
 
 describe('SnapshotImage sans adresse', () => {
   it('montre le message à la place de l image', () => {
@@ -99,3 +100,16 @@ describe('SnapshotImage quiet', () => {
   })
 })
 
+
+describe('releaseImage', () => {
+  it('remplace l\'adresse de l\'image par une image vide', () => {
+    const image = document.createElement('img')
+    image.src = 'http://exemple.test/flux'
+    releaseImage(image)()
+    expect(image.getAttribute('src')).toBe(EMPTY_IMAGE)
+  })
+
+  it('ne fait rien sans image', () => {
+    expect(() => releaseImage(null)()).not.toThrow()
+  })
+})

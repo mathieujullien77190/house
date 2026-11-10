@@ -13,17 +13,9 @@ import {
   LOADING_CLASS,
   LOADING_TEXT,
   SPINNER_CLASS,
-  EMPTY_IMAGE,
 } from './constants'
+import { releaseImage } from './helpers'
 import type { SnapshotImageProps } from './types'
-
-/**
- * Appelée quand l'image quitte la page : elle remplace l'adresse par une image vide, ce qui coupe la requête en cours. Définie **hors du composant** : une fonction recréée à chaque
- * affichage serait « retirée » et « remise » à chaque fois, et couperait le flux pendant qu'on le regarde.
- */
-const releaseImage = (node: HTMLImageElement | null) => () => {
-  if (node) node.src = EMPTY_IMAGE
-}
 
 /**
  * Une image au format 16/9, ou un message dans le même cadre. Tant que l'image n'est pas arrivée, un voile « Chargement… » couvre le cadre noir.
