@@ -246,6 +246,8 @@ export const EXPLANATIONS: Record<string, string> = {
   'web/src/components/MapIcon/constants.ts': 'Les classes du rond et de sa pastille d’état.',
   'web/src/components/MapIcon/types.ts': 'Les propriétés du rond : l’icône, son nom, sa couleur et la pastille.',
   'web/src/components/MapIcon/index.ts': 'Exporte le rond des icônes de la carte.',
+  'web/src/lib/useAcUnits.ts': 'La lecture et les ordres des climatisations, partagés par l’onglet Clim et l’aperçu de la carte : relue toutes les 10 s, un ordre part par setAc et la réponse remplace l’unité.',
+  'web/src/lib/useShutters.ts': 'La lecture et les ordres des volets roulants, partagés par l’onglet Volet et l’aperçu de la carte : relus toutes les 10 s (2 s pendant « Fermer à moitié »), ordres et cases de l’action automatique.',
   'web/src/components/ClipEmoji/ClipEmoji.tsx': 'Le choix de l’emoji d’un clip sauvegardé, à côté de sa note dans l’onglet Caméras : une courte liste de pictogrammes, « Aucun emoji » pour le retirer.',
   'web/src/components/ClipEmoji/constants.ts': 'La liste des emoji proposés pour un clip, les textes et les classes du sélecteur.',
   'web/src/components/ClipEmoji/types.ts': 'Les propriétés du sélecteur d’emoji : l’emoji actuel et l’enregistrement.',
