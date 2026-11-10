@@ -23,6 +23,8 @@ export interface CameraSetting {
   light_fps_mobile: number
   /** La sensibilité de la détection de mouvement, de 1 à 5 (3 : le réglage de base). */
   motion_sensitivity: number
+  /** Les secondes pendant lesquelles un mouvement doit durer pour compter (de 0 à 30) : un plus court (pluie, insecte) est ignoré. */
+  motion_min_seconds: number
   /** Une image gardée toutes les N secondes. */
   snapshot_seconds: number
   /** Le mode pluie : allumé, pas de clips (détection coupée) et une image toutes les 5 s ; les autres réglages reviennent à l'extinction. */

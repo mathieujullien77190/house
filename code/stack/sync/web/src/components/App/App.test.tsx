@@ -378,7 +378,7 @@ describe('onglet Réglages', () => {
   it('affiche les réglages et ne relit que la session', async () => {
     await ready()
     await goTo('Réglages')
-    expect(await screen.findByText('Enregistrement : clips et images')).toBeTruthy()
+    expect(await screen.findByText('Général (toutes les caméras)')).toBeTruthy()
     expect(screen.getAllByText('Page invité').length).toBeGreaterThan(0)
     await waitFor(() => expect(m.fetchOverview).toHaveBeenLastCalledWith(false))
   })

@@ -1,13 +1,16 @@
 # SettingsSection – l'onglet Réglages
 
-**Tous** les réglages de House Sync, rangés **par sujet** : un bloc repliable chacun, une ligne par caméra quand le réglage est par caméra, chaque clic ou curseur relâché est enregistré tout de suite, un échec s'affiche. Ce que fait chaque réglage côté service : `../../../../src/CLAUDE.md`.
+**Tous** les réglages de House Sync, en **blocs repliables** : un bloc **Général** (réglages communs), **un bloc par caméra** (titre = son nom) qui réunit **tous ses réglages**, puis la **Page invité**. Chaque clic ou curseur relâché est enregistré tout de suite, un échec s'affiche. Ce que fait chaque réglage côté service : `../../../../src/CLAUDE.md`.
 
-- **Enregistrement : clips et images**
-  - la durée de garde des clips non sauvegardés (liste de 7, 15, 30, 60, 90 ou 180 jours, `GET`/`PUT /api/retention`, `RETENTION_OPTIONS`) ;
-  - par caméra, **Toujours / La nuit / Jamais** (hors des clips gardés la détection de la caméra est éteinte) ;
-  - par caméra, le rythme des images de la frise : **5, 10, 15, 30 s, 1, 2 ou 5 min** ;
-  - par caméra, le **Mode pluie** (OFF / ON) : allumé, quand la météo dit pluie ou forte pluie, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent (ils ne sont jamais modifiés). Sous le choix, un texte dit « Pluie en ce moment : mode pluie actif » quand il s'applique (`rain_now`) ;
-  - par caméra, l'**Orientation** (Paysage / Portrait) à côté de « Clips vidéo » : elle s'applique aux nouveaux événements (les anciens gardent la leur).
-- **Détection du mouvement** : un curseur « Sensibilité du mouvement » de 1 à 5 par caméra ; sert quand une caméra rate un passage.
-- **Direct dans la WebApp** : quatre curseurs par caméra, « Direct 4K » et « Direct léger », chacun pour le PC (1024 px et plus) et pour le téléphone, de 1 à 25 images par seconde, envoyés au relâchement seulement si la valeur a changé.
+- **Général (toutes les caméras)** : la durée de garde des clips non sauvegardés (liste de 7, 15, 30, 60, 90 ou 180 jours, `GET`/`PUT /api/retention`, `RETENTION_OPTIONS`).
+- **Un bloc par caméra**, trois rangées :
+  - **Enregistrement : clips et images**
+    - **Toujours / La nuit / Jamais** (hors des clips gardés la détection de la caméra est éteinte) ;
+    - le rythme des images de la frise : **5, 10, 15, 30 s, 1, 2 ou 5 min** ;
+    - le **Mode pluie** (OFF / ON) : allumé, quand la météo dit pluie ou forte pluie, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent (ils ne sont jamais modifiés). Sous le choix, un texte dit « Pluie en ce moment : mode pluie actif » quand il s'applique (`rain_now`) ;
+    - l'**Orientation** (Paysage / Portrait) à côté de « Clips vidéo » : elle s'applique aux nouveaux événements (les anciens gardent la leur).
+  - **Détection du mouvement** : un curseur « Sensibilité du mouvement » de 1 à 5 (sert quand une caméra rate un passage) et un curseur « Durée minimale d'un mouvement » de 0 (« aucune ») à 30 s (`motion_min_seconds`, 1 s au départ) : un mouvement plus court n'ouvre aucun événement.
+  - **Direct dans la WebApp** : quatre curseurs, « Direct 4K » et « Direct léger », chacun pour le PC (1024 px et plus) et pour le téléphone, de 1 à 25 images par seconde, envoyés au relâchement seulement si la valeur a changé.
 - **Page invité** : un seul curseur, 1 à 25 images par seconde, pour les vignettes et la caméra agrandie en 4K, PC et téléphone confondus (`GET`/`PUT /api/guest`), et le bouton « En ligne / Coupée » (l'interrupteur de la page).
+
+- **Le petit nuage du mode pluie** à côté du nom de chaque caméra (titre de son bloc) : ☁️ le mode est allumé (pas de pluie en ce moment), 🌧️ il pleut et le mode s'applique, ☔ pluie forte ; rien si le mode est éteint.

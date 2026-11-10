@@ -23,6 +23,7 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
   live_fps_mobile: 25,
   light_fps_mobile: 5,
   motion_sensitivity: 3,
+  motion_min_seconds: 1,
   snapshot_seconds: 60,
   ...patch,
 })
@@ -171,6 +172,28 @@ describe('réglages par caméra', () => {
   })
 })
 
+describe('le petit nuage du mode pluie', () => {
+  it('rien si le mode est éteint ; ☁️ s’il est allumé sans pluie ; 🌧️ quand il pleut ; ☔ pluie forte', async () => {
+    m.fetchSettings.mockResolvedValue([camera({ rain_mode: 'off' })])
+    const { unmount } = render(<SettingsSection />)
+    await waitFor(() => expect(screen.getByText('voliere-exterieur')).toBeTruthy())
+    expect(screen.queryByRole('img')).toBeNull()
+    unmount()
+    for (const [patch, cloud, hint] of [
+      [{ rain_mode: 'on', rain_now: 'off' }, '☁️', 'Mode pluie allumé : pas de pluie en ce moment'],
+      [{ rain_mode: 'on', rain_now: 'rain' }, '🌧️', 'Mode pluie actif : il pleut'],
+      [{ rain_mode: 'on', rain_now: 'heavy' }, '☔', 'Mode pluie actif : pluie forte'],
+    ] as const) {
+      m.fetchSettings.mockResolvedValue([camera(patch)])
+      const view = render(<SettingsSection />)
+      const icon = await screen.findByRole('img', { name: hint })
+      expect(icon.textContent).toBe(cloud)
+      expect(icon.getAttribute('title')).toBe(hint)
+      view.unmount()
+    }
+  })
+})
+
 describe('curseurs', () => {
   it('la sensibilité est envoyée au relâchement, seulement si elle a changé', async () => {
     m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
@@ -186,6 +209,22 @@ describe('curseurs', () => {
     release(input, '5')
     fireEvent.change(input, { target: { value: '4' } })
     fireEvent.change(input, { target: { value: '5' } })
+    fireEvent.keyUp(input)
+    expect(m.saveSetting).toHaveBeenCalledTimes(1)
+  })
+
+  it('la durée minimale d’un mouvement est envoyée au relâchement, 0 s s’écrit « aucune »', async () => {
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
+    await loaded()
+    const input = slider('Durée minimale d’un mouvement · voliere-exterieur')
+    expect(screen.getByText('1 s')).toBeTruthy()
+    fireEvent.change(input, { target: { value: '0' } })
+    expect(screen.getByText('aucune')).toBeTruthy()
+    fireEvent.change(input, { target: { value: '8' } })
+    expect(screen.getByText('8 s')).toBeTruthy()
+    fireEvent.pointerUp(input)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { motion_min_seconds: 8 }))
+    // Relâcher sans avoir bougé n’envoie rien de plus.
     fireEvent.keyUp(input)
     expect(m.saveSetting).toHaveBeenCalledTimes(1)
   })

@@ -26,6 +26,10 @@ export const MAX_LIVE_FPS = 25
 export const MIN_SENSITIVITY = 1
 export const MAX_SENSITIVITY = 5
 const DEFAULT_SENSITIVITY = 3
+/** La durée minimale d'un mouvement (en secondes entières) pour qu'il compte : de 0 (le premier mouvement compte) à 30 ; 1 par défaut. Un mouvement plus court (pluie, insecte) n'ouvre aucun événement. */
+export const MIN_MOTION_SECONDS = 0
+export const MAX_MOTION_SECONDS = 30
+const DEFAULT_MOTION_SECONDS = 1
 // La durée de garde des clips non sauvegardés (jours).
 const DEFAULT_RETENTION_DAYS = 15
 export const MIN_RETENTION_DAYS = 1
@@ -42,6 +46,8 @@ export interface CameraSettings {
   light_fps_mobile: number
   /** La sensibilité de la détection de mouvement, de 1 à 5 (3 : les seuils de base de l'enregistreur). */
   motion_sensitivity: number
+  /** Les secondes pendant lesquelles un mouvement doit durer pour ouvrir un événement (de 0 à 30). */
+  motion_min_seconds: number
   snapshot_seconds: number
   /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : image tournée d'un quart de tour horaire). */
   orientation: Orientation
@@ -60,6 +66,8 @@ export interface CameraSettingsUpdate {
   fpsMobile: number
   lightMobile: number
   sensitivity: number
+  /** La durée minimale d'un mouvement, en secondes (sans elle, elle ne change pas). */
+  minSeconds?: number
   seconds: number
   orientation: string
   rain?: string
@@ -73,10 +81,11 @@ const rainModeOf = (value: string | null | undefined): RainMode =>
 const rainNowOf = (mode: RainMode, weather: 'none' | 'rain' | 'heavy'): RainLevel => (mode === 'off' || weather === 'none' ? 'off' : weather)
 
 export const createSettings = (db: DatabaseSync, config: Config) => {
-  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds, orientation, rain_mode FROM settings WHERE camera = ?')
+  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode FROM settings WHERE camera = ?')
   const saveSettings = db.prepare(
     'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, motion_sensitivity = excluded.motion_sensitivity, snapshot_seconds = excluded.snapshot_seconds',
   )
+  const setMinSeconds = db.prepare('UPDATE settings SET motion_min_seconds = ? WHERE camera = ?')
   const setOrientation = db.prepare('UPDATE settings SET orientation = ? WHERE camera = ?')
   const setRain = db.prepare('UPDATE settings SET rain_mode = ? WHERE camera = ?')
   const setRainNow = db.prepare('UPDATE settings SET rain_now = ? WHERE camera = ?')
@@ -91,7 +100,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
 
   const cameraSettings = (camera: string): CameraSettings => {
     const row = settingsOf.get(camera) as
-      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null }
+      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null }
       | undefined
     const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
     return {
@@ -102,6 +111,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       live_fps_mobile: row?.live_fps_mobile ?? MAX_LIVE_FPS,
       light_fps_mobile: row?.light_fps_mobile ?? MAX_LIVE_FPS,
       motion_sensitivity: row?.motion_sensitivity ?? DEFAULT_SENSITIVITY,
+      motion_min_seconds: row?.motion_min_seconds ?? DEFAULT_MOTION_SECONDS,
       snapshot_seconds: row?.snapshot_seconds ?? config.snapshotIntervalSeconds,
       orientation: row?.orientation && ORIENTATIONS.includes(row.orientation) ? (row.orientation as Orientation) : DEFAULT_ORIENTATION,
       rain_mode: rainModeOf(row?.rain_mode),
@@ -132,6 +142,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
     saveCameraSettings: (update: CameraSettingsUpdate): void => {
       saveSettings.run(update.camera, update.mode === 'off' ? 0 : 1, update.mode, update.fps, update.light, update.fpsMobile, update.lightMobile, update.sensitivity, update.seconds)
       setOrientation.run(update.orientation, update.camera)
+      if (update.minSeconds !== undefined) setMinSeconds.run(update.minSeconds, update.camera)
       if (update.rain !== undefined) setRain.run(update.rain, update.camera)
       setRainNow.run(cameraSettings(update.camera).rain_now, update.camera)
     },

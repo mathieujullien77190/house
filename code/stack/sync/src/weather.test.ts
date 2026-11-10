@@ -8,19 +8,24 @@ test('rainLevelOf : aucune pluie, pluie, pluie forte (code météo et cumul de l
   assert.equal(rainLevelOf(0, 0), 'none')
   assert.equal(rainLevelOf(3, 0), 'none')
   assert.equal(rainLevelOf(71, 0), 'none')
-  assert.equal(rainLevelOf(61, 0.4), 'rain')
-  assert.equal(rainLevelOf(55, 0), 'rain')
-  assert.equal(rainLevelOf(80, 0), 'rain')
+  // la pluie faible ne compte pas : bruine, pluie faible, averses faibles, pluie verglaçante faible
+  assert.equal(rainLevelOf(61, 0.4), 'none')
+  assert.equal(rainLevelOf(55, 0), 'none')
+  assert.equal(rainLevelOf(51, 0), 'none')
+  assert.equal(rainLevelOf(80, 0), 'none')
+  assert.equal(rainLevelOf(66, 0), 'none')
+  assert.equal(rainLevelOf(81, 0), 'rain')
   assert.equal(rainLevelOf(65, 0), 'heavy')
   assert.equal(rainLevelOf(67, 0), 'heavy')
   assert.equal(rainLevelOf(82, 0), 'heavy')
   assert.equal(rainLevelOf(95, 0), 'heavy')
   assert.equal(rainLevelOf(99, 0), 'heavy')
   assert.equal(rainLevelOf(63, 0), 'rain')
-  // le cumul fait une pluie (0,1 mm), jamais une pluie forte : seul le code le dit
-  assert.equal(rainLevelOf(3, 0.09), 'none')
-  assert.equal(rainLevelOf(3, 0.1), 'rain')
-  assert.equal(rainLevelOf(3, 3), 'rain')
+  // le cumul fait une pluie normale à partir de 2,5 mm, jamais une pluie forte : seul le code le dit
+  assert.equal(rainLevelOf(3, 0.1), 'none')
+  assert.equal(rainLevelOf(3, 2.4), 'none')
+  assert.equal(rainLevelOf(3, 2.5), 'rain')
+  assert.equal(rainLevelOf(3, 8), 'rain')
   assert.equal(rainLevelOf(61, 4), 'rain')
 })
 
@@ -29,7 +34,7 @@ test('weatherUrl : la position de la maison, le code météo et le cumul', () =>
 })
 
 test('poll : le niveau va aux réglages, et un changement est noté une fois', async () => {
-  let body: unknown = { current: { weather_code: 61, precipitation: 0.5 } }
+  let body: unknown = { current: { weather_code: 63, precipitation: 3 } }
   const ctx = testContext(() => Response.json(body))
   ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 3, seconds: 60, orientation: 'landscape', rain: 'on' })
   const weather = createWeather(ctx)

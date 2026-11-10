@@ -8,7 +8,7 @@ import { testContext } from './testing.ts'
 const BASE = 'http://rec1:8080'
 const SQUARE = [[0, 0], [1, 0], [0, 1]]
 
-test('syncDetection : envoie détection, sensibilité et zone, puis seulement quand ça change ou chaque minute', async () => {
+test('syncDetection : envoie détection, sensibilité, durée minimale et zone, puis seulement quand ça change ou chaque minute', async () => {
   const ctx = testContext(() => new Response('ok'))
   writeFileSync(`${ctx.dir}/zones.json`, JSON.stringify({ cam: SQUARE }))
   const control = createControl(ctx)
@@ -18,6 +18,7 @@ test('syncDetection : envoie détection, sensibilité et zone, puis seulement qu
     [
       ['PUT', '/api/cameras/cam/detection?enabled=1', undefined],
       ['PUT', '/api/cameras/cam/sensitivity?level=3', undefined],
+      ['PUT', '/api/cameras/cam/min-seconds?seconds=1', undefined],
       ['PUT', '/api/cameras/cam/zone', JSON.stringify({ points: SQUARE })],
     ],
   )
@@ -28,14 +29,14 @@ test('syncDetection : envoie détection, sensibilité et zone, puis seulement qu
   // Après une minute, tout est renvoyé.
   ctx.time.advance(60_000)
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, sent + 3)
+  assert.equal(ctx.calls.length, sent + 4)
   // Un réglage qui change est renvoyé tout de suite.
-  ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'off', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 5, seconds: 60, orientation: 'landscape' })
+  ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'off', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 5, minSeconds: 4, seconds: 60, orientation: 'landscape' })
   writeFileSync(`${ctx.dir}/zones.json`, '{}')
   await control.syncDetection(BASE, ['cam'])
-  const last = ctx.calls.slice(sent + 3)
-  assert.deepEqual(last.map((c) => c.url.replace(BASE, '')), ['/api/cameras/cam/detection?enabled=0', '/api/cameras/cam/sensitivity?level=5', '/api/cameras/cam/zone'])
-  assert.equal(last[2]?.body, '{"points":null}')
+  const last = ctx.calls.slice(sent + 4)
+  assert.deepEqual(last.map((c) => c.url.replace(BASE, '')), ['/api/cameras/cam/detection?enabled=0', '/api/cameras/cam/sensitivity?level=5', '/api/cameras/cam/min-seconds?seconds=4', '/api/cameras/cam/zone'])
+  assert.equal(last[3]?.body, '{"points":null}')
 })
 
 test('syncDetection : un enregistreur muet ou qui refuse sera réessayé au tour suivant ; sans zones lisibles, la zone n\'est pas envoyée', async () => {
@@ -46,15 +47,15 @@ test('syncDetection : un enregistreur muet ou qui refuse sera réessayé au tour
   ctx.config.zonesFile = `${ctx.dir}/absent/zones.json`
   const control = createControl(ctx)
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 2)
+  assert.equal(ctx.calls.length, 3)
   answer = () => new Response('', { status: 500 })
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 4)
+  assert.equal(ctx.calls.length, 6)
   answer = () => new Response('ok')
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 6)
+  assert.equal(ctx.calls.length, 9)
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 6)
+  assert.equal(ctx.calls.length, 9)
 })
 
 test('syncDetection : une zone dont l\'envoi échoue est renvoyée', async () => {

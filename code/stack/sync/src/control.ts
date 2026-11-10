@@ -1,4 +1,4 @@
-// Ce que House Sync commande : la détection de mouvement, sa sensibilité et sa zone chez l'enregistreur, et la cadence des directs chez go2rtc.
+// Ce que House Sync commande : la détection de mouvement, sa sensibilité, sa durée minimale et sa zone chez l'enregistreur, et la cadence des directs chez go2rtc.
 import { seconds, type Context } from './context.ts'
 import { REQUEST_TIMEOUT_MS } from './recorder.ts'
 import { MAX_LIVE_FPS } from './settings.ts'
@@ -16,6 +16,8 @@ export const createControl = (ctx: Context) => {
   // La sensibilité de la détection : envoyée de la même façon (quand elle change, et chaque minute au cas où l'enregistreur aurait redémarré).
   const sensitivitySent = new Map<string, { level: number; at: number }>()
   // La zone surveillée de chaque caméra (un polygone dessiné dans la WebApp, lu dans le fichier de l'API) : envoyée aussi quand elle change et chaque minute.
+  // La durée minimale d'un mouvement : envoyée de la même façon.
+  const minSecondsSent = new Map<string, { seconds: number; at: number }>()
   const zoneSent = new Map<string, { zone: string; at: number }>()
 
   const syncDetection = async (base: string, cameras: string[]): Promise<void> => {
@@ -34,6 +36,12 @@ export const createControl = (ctx: Context) => {
       if (!levelSent || levelSent.level !== level || now - levelSent.at >= DETECTION_REFRESH_SECONDS) {
         const res = await ctx.fetch(`${base}/api/cameras/${camera}/sensitivity?level=${level}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
         if (res?.ok) sensitivitySent.set(camera, { level, at: now })
+      }
+      const minSeconds = settings.cameraSettings(camera).motion_min_seconds
+      const minSent = minSecondsSent.get(camera)
+      if (!minSent || minSent.seconds !== minSeconds || now - minSent.at >= DETECTION_REFRESH_SECONDS) {
+        const res = await ctx.fetch(`${base}/api/cameras/${camera}/min-seconds?seconds=${minSeconds}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+        if (res?.ok) minSecondsSent.set(camera, { seconds: minSeconds, at: now })
       }
       if (zones) {
         const points = zones[camera] ?? null

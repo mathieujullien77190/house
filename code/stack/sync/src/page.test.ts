@@ -225,6 +225,9 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
     { live_fps_mobile: 'x' },
     { light_fps_mobile: 1.5 },
     { motion_sensitivity: 6 },
+    { motion_min_seconds: 31 },
+    { motion_min_seconds: -1 },
+    { motion_min_seconds: 1.5 },
     { orientation: 'diagonale' },
     { orientation: 1 },
     { rain_mode: 'auto' },
@@ -232,9 +235,9 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
   ]
   for (const patch of refused) assert.equal((await call({ ...putSettings({ camera: 'cam', ...patch }), cookie })).status, 400, JSON.stringify(patch))
   assert.equal(resets.length, 0)
-  const res = await call({ ...putSettings({ camera: 'cam', clips_mode: 'night', snapshot_seconds: 120, live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, orientation: 'portrait' }), cookie })
+  const res = await call({ ...putSettings({ camera: 'cam', clips_mode: 'night', snapshot_seconds: 120, live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, orientation: 'portrait' }), cookie })
   assert.equal(res.status, 200)
-  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off' })
+  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off' })
   assert.equal(resets.length, 1)
   assert.match(ctx.logs.at(-1) ?? '', /Réglages de cam : clips night, direct 4K à 10 images\/s/)
   // Un second envoi partiel garde le reste.

@@ -15,6 +15,7 @@ test('une caméra sans réglage : tout par défaut', () => {
     live_fps_mobile: 25,
     light_fps_mobile: 25,
     motion_sensitivity: 3,
+    motion_min_seconds: 1,
     snapshot_seconds: 60,
     orientation: 'landscape',
     rain_mode: 'off',
@@ -24,7 +25,7 @@ test('une caméra sans réglage : tout par défaut', () => {
 
 test('les réglages enregistrés, dont l\'orientation, sont relus', () => {
   const { settings } = testContext()
-  settings.saveCameraSettings({ camera: 'cam', mode: 'night', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 5, seconds: 120, orientation: 'portrait' })
+  settings.saveCameraSettings({ camera: 'cam', mode: 'night', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 5, minSeconds: 7, seconds: 120, orientation: 'portrait' })
   assert.deepEqual(settings.cameraSettings('cam'), {
     camera: 'cam',
     clips_mode: 'night',
@@ -33,6 +34,7 @@ test('les réglages enregistrés, dont l\'orientation, sont relus', () => {
     live_fps_mobile: 4,
     light_fps_mobile: 3,
     motion_sensitivity: 5,
+    motion_min_seconds: 7,
     snapshot_seconds: 120,
     orientation: 'portrait',
     rain_mode: 'off',

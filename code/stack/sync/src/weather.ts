@@ -7,17 +7,17 @@ export type WeatherRain = 'none' | 'rain' | 'heavy'
 /** On relit la météo à ce rythme (ms). */
 export const WEATHER_POLL_MS = 10 * 60 * 1000
 
-/** En dessous, une goutte ne compte pas. */
-const RAIN_MILLIMETRES = 0.1
+/** Le cumul de l'heure (mm) à partir duquel la pluie est « normale » : en dessous, c'est une pluie faible, qui ne compte pas. */
+const RAIN_MILLIMETRES = 2.5
 
 /**
- * Le niveau de pluie d'après le code météo (WMO, celui d'Open-Meteo, le même que dans la WebApp) et le cumul de l'heure (mm) : bruine (51 à 57), pluie (61 à 67), averses (80 à 82)
- * et orage (95 à 99) sont de la pluie, de même qu'un cumul d'au moins 0,1 mm ; forte pluie (65, 67), fortes averses (82) et orage sont de la pluie forte (le cumul n'y change rien :
- * 61 reste une pluie faible). La neige n'en est pas.
+ * Le niveau de pluie d'après le code météo (WMO, celui d'Open-Meteo, le même que dans la WebApp) et le cumul de l'heure (mm). **Le mode pluie ne s'active que pour une pluie normale ou plus forte** :
+ * la pluie modérée (63) et les averses modérées (81), ou un cumul d'au moins 2,5 mm, sont de la pluie ; la forte pluie (65, 67), les fortes averses (82) et l'orage (95 à 99) sont de la pluie forte
+ * (le cumul n'y change rien). **La pluie faible ne compte pas** : bruine (51 à 57), pluie faible (61), pluie verglaçante faible (66), averses faibles (80). La neige n'en est pas.
  */
 export const rainLevelOf = (code: number, millimetres: number): WeatherRain => {
   if (code === 65 || code === 67 || code === 82 || (code >= 95 && code <= 99)) return 'heavy'
-  const rain = (code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82) || millimetres >= RAIN_MILLIMETRES
+  const rain = code === 63 || code === 81 || millimetres >= RAIN_MILLIMETRES
   return rain ? 'rain' : 'none'
 }
 

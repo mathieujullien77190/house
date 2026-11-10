@@ -65,7 +65,7 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   addColumn(db, 'settings', 'live_fps', 'INTEGER')
   addColumn(db, 'settings', 'light_fps', 'INTEGER')
   // La cadence des directs sur un écran de moins de 1024 px (téléphone), réglée à part de celle du PC.
-  for (const column of ['live_fps_mobile', 'light_fps_mobile', 'motion_sensitivity']) addColumn(db, 'settings', column, 'INTEGER')
+  for (const column of ['live_fps_mobile', 'light_fps_mobile', 'motion_sensitivity', 'motion_min_seconds']) addColumn(db, 'settings', column, 'INTEGER')
   // L'orientation de la caméra (voir plus bas) : la colonne doit exister avant que la requête des réglages soit préparée.
   addColumn(db, 'settings', 'orientation', 'TEXT')
   // Le mode pluie de la caméra (off ou on) : allumé, quand la météo annonce de la pluie, pas de clips (la détection est coupée) et une image toutes les 5 s.

@@ -1,4 +1,5 @@
-/** Les sujets de la page Réglages, dans l’ordre : chacun regroupe le même réglage pour toutes les caméras. */
+/** Les blocs de la page Réglages : un bloc général, un bloc par caméra (titre = son nom) dont les rangées portent ces titres, puis la page invité. */
+export const SECTION_GENERAL = 'Général (toutes les caméras)'
 export const SECTION_RECORDING = 'Enregistrement : clips et images'
 export const SECTION_DETECTION = 'Détection du mouvement'
 export const SECTION_LIVE = 'Direct dans la WebApp'
@@ -33,6 +34,9 @@ export const RAIN_OPTIONS = [
 ] as const
 /** Ce qui est actif maintenant, écrit sous le choix. */
 export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif' } as const
+/** Le petit nuage à côté du nom d'une caméra dont le mode pluie est allumé : ☁️ le mode est ON (la météo ne dit pas pluie), 🌧️ il pleut et le mode s'applique, ☔ pluie forte. */
+export const RAIN_CLOUD = { armed: '☁️', rain: '🌧️', heavy: '☔' } as const
+export const RAIN_CLOUD_HINT = { armed: 'Mode pluie allumé : pas de pluie en ce moment', rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte' } as const
 /** Les curseurs de cadence : le direct 4K et le léger, sur un écran de 1024 px et plus (PC) puis en dessous (téléphone). */
 export const FPS_SLIDERS = [
   { key: 'live_fps', label: 'Direct 4K · PC' },
@@ -44,6 +48,10 @@ export const FPS_SLIDERS = [
 export const SENSITIVITY_LABEL = 'Sensibilité du mouvement'
 export const SENSITIVITY_MIN = 1
 export const SENSITIVITY_MAX = 5
+export const MIN_SECONDS_LABEL = 'Durée minimale d’un mouvement'
+export const MIN_SECONDS_MIN = 0
+export const MIN_SECONDS_MAX = 30
+export const minSecondsText = (seconds: number): string => (seconds === 0 ? 'aucune' : `${seconds} s`)
 export const SENSITIVITY_TEXTS: Record<number, string> = { 1: 'faible', 2: 'moyenne −', 3: 'normale', 4: 'élevée', 5: 'très élevée' }
 /** L'interrupteur de la page invité : coupée, elle ferme son port (injoignable de partout) ; les deux boutons la coupent et la remettent. */
 export const GUEST_POWER_LABEL = 'Page invité'
