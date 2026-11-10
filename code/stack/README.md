@@ -47,7 +47,7 @@ par segments de 10 s (sans transcodage, 6 h gardées), détecte le mouvement sur
 images grises 160×90, 5 par seconde), ouvre un événement au début d'un mouvement et le ferme à sa fin, puis
 assemble les segments en un clip MP4. Son API interne (jamais publiée) a la forme que House Sync lit :
 `/api/config`, `/api/events`, `/api/events/<id>/clip.mp4`, `/api/<caméra>/latest.jpg`. Régler : voir les
-variables du compose (`PIXEL_THRESHOLD`, `AREA_THRESHOLD`, `START_FRAMES`, `END_SECONDS`, `RETENTION_HOURS`).
+variables du compose (`PIXEL_THRESHOLD`, `AREA_THRESHOLD`, `MIN_MOTION_SECONDS`, `END_SECONDS`, `RETENTION_HOURS`).
 
 Mêmes conventions que le site pour les apps React : un dossier par composant (`Nom.tsx`, `UI.tsx`,
 `helpers.ts`, `constants.ts`, `types.ts`, `index.ts`), Tailwind, TypeScript strict.
