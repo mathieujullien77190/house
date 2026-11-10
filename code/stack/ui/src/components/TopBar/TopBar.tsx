@@ -10,6 +10,7 @@ import {
   BURGER_LINE_TOP_OPEN_CLASS,
   DESKTOP_ACTIONS_CLASS,
   DESKTOP_TABS_CLASS,
+  END_CLASS,
   ERROR_CLASS,
   INFO_CLASS,
   ITEM_ACTIVE_CLASS,
@@ -19,6 +20,7 @@ import {
   PANEL_ACTIONS_CLASS,
   PANEL_CLASS,
   PANEL_ERROR_CLASS,
+  PANEL_ITEMS_CLASS,
   PANEL_STATUS_CLASS,
   ROW_CLASS,
   SPACER_CLASS,
@@ -30,12 +32,22 @@ import type { TopBarProps } from './types'
 
 /**
  * La barre du haut d'une page, toujours visible : le titre, les onglets, l'état et les boutons dès 1024 px ; en dessous, le titre et un bouton
- * « sandwich » en haut à droite qui ouvre un menu (les pages, l'état, les boutons). Le menu se ferme au choix d'une page, d'un clic ailleurs ou d'Échap.
+ * « sandwich » en haut à droite qui ouvre un menu (les pages, l'état, les boutons, `menuItems`) ; `barActions` reste dans la barre, juste à gauche du sandwich. Le menu se ferme au choix d'une page, d'un clic ailleurs ou d'Échap.
  */
-const TopBar = <T extends string>({ title, onTitle, status = '', tone = 'muted', tabs, info, actions }: TopBarProps<T>) => {
+const TopBar = <T extends string>({
+  title,
+  onTitle,
+  status = '',
+  tone = 'muted',
+  tabs,
+  info,
+  actions,
+  barActions,
+  menuItems,
+}: TopBarProps<T>) => {
   const [open, setOpen] = useState(false)
   const wrap = useRef<HTMLElement>(null)
-  const hasMenu = tabs !== undefined || actions !== undefined
+  const hasMenu = tabs !== undefined || actions !== undefined || menuItems !== undefined
 
   useEffect(() => {
     if (!open) return
@@ -73,12 +85,23 @@ const TopBar = <T extends string>({ title, onTitle, status = '', tone = 'muted',
         {status ? <p className={tone === 'error' ? ERROR_CLASS : STATUS_CLASS}>{status}</p> : <span className={SPACER_CLASS} />}
         {info ? <div className={INFO_CLASS}>{info}</div> : null}
         {actions ? <div className={DESKTOP_ACTIONS_CLASS}>{actions}</div> : null}
-        {hasMenu ? (
-          <button type="button" className={BURGER_CLASS} aria-label={BURGER_LABEL} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-            <span className={`${BURGER_LINE_CLASS} ${open ? BURGER_LINE_TOP_OPEN_CLASS : ''}`} />
-            <span className={`${BURGER_LINE_CLASS} ${open ? BURGER_LINE_MIDDLE_OPEN_CLASS : ''}`} />
-            <span className={`${BURGER_LINE_CLASS} ${open ? BURGER_LINE_BOTTOM_OPEN_CLASS : ''}`} />
-          </button>
+        {barActions || hasMenu ? (
+          <div className={END_CLASS}>
+            {barActions}
+            {hasMenu ? (
+              <button
+                type="button"
+                className={BURGER_CLASS}
+                aria-label={BURGER_LABEL}
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+              >
+                <span className={`${BURGER_LINE_CLASS} ${open ? BURGER_LINE_TOP_OPEN_CLASS : ''}`} />
+                <span className={`${BURGER_LINE_CLASS} ${open ? BURGER_LINE_MIDDLE_OPEN_CLASS : ''}`} />
+                <span className={`${BURGER_LINE_CLASS} ${open ? BURGER_LINE_BOTTOM_OPEN_CLASS : ''}`} />
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {status && tone === 'error' ? <p className={MOBILE_ERROR_CLASS}>{status}</p> : null}
@@ -100,6 +123,7 @@ const TopBar = <T extends string>({ title, onTitle, status = '', tone = 'muted',
           ))}
           {status && tone !== 'error' ? <p className={PANEL_STATUS_CLASS}>{status}</p> : null}
           {status && tone === 'error' ? <p className={PANEL_ERROR_CLASS}>{status}</p> : null}
+          {menuItems ? <div className={PANEL_ITEMS_CLASS}>{menuItems}</div> : null}
           {actions ? (
             <div className={PANEL_ACTIONS_CLASS} onClick={() => setOpen(false)}>
               {actions}

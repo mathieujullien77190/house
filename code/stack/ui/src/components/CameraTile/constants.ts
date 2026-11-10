@@ -10,8 +10,8 @@ export const OVERLAY_CLASS = 'absolute bottom-2 left-2 z-10'
 export const NAME_CLASS = 'px-3 pb-1.5 pt-2 text-[0.95rem] font-semibold'
 export const CAPTION_CLASS = 'px-3 pb-2 text-[0.8rem] text-muted'
 export const FOOTER_CLASS = 'flex items-center gap-2 px-3 pb-2 text-[0.8rem] text-muted'
-/** Le média de la vignette : coins du haut arrondis, ceux du bas droits. */
-export const MEDIA_INNER_CLASS = '[&_div]:rounded-b-none [&_img]:rounded-b-none'
+/** Le média de la vignette : ni coin ni bordure à lui (même tourné d'un quart de tour en portrait) ; la vignette, qui rogne, arrondit seule les coins du haut. */
+export const MEDIA_INNER_CLASS = '[&_div]:rounded-none [&_img]:rounded-none [&_img]:border-0'
 /** Le pied cliquable : au-dessus du bouton qui couvre la vignette, pour ouvrir le clip plutôt que la caméra. */
 export const FOOTER_BUTTON_CLASS =
   'relative z-10 flex w-full cursor-pointer items-center gap-2 px-3 pb-2 pt-1 text-left text-[0.8rem] text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent'

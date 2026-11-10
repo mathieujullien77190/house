@@ -1,8 +1,8 @@
 export const ALT = 'Image de la caméra à cet instant'
 
-export const IMAGE_CLASS = 'block aspect-video w-full rounded-md border border-line bg-black object-contain'
+export const IMAGE_CLASS = 'block aspect-video w-full bg-black object-contain'
 export const BOX_CLASS =
-  'flex aspect-video w-full items-center justify-center whitespace-pre-line rounded-md border border-line bg-black px-3 text-center text-[0.85rem] text-muted'
+  'flex aspect-video w-full items-center justify-center whitespace-pre-line bg-black px-3 text-center text-[0.85rem] text-muted'
 /** Le cadre d'un message dans un cadre tourné : sa hauteur sert de largeur maximale au texte remis droit (voir UPRIGHT_CLASS). */
 export const UPRIGHT_BOX_CLASS = `${BOX_CLASS} [container-type:size]`
 export const FRAME_CLASS = 'relative'

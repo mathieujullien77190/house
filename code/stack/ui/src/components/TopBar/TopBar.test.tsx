@@ -156,3 +156,31 @@ describe('TopBar avec menu', () => {
     expect(screen.queryByRole('navigation')).toBeNull()
   })
 })
+
+describe('TopBar : barActions et menuItems', () => {
+  it('barActions reste dans la barre, juste à gauche du sandwich, et n’est pas répété dans le menu', () => {
+    render(<TopBar title="M" barActions={<button>Notif</button>} actions={<button>Actualiser</button>} />)
+    const bell = screen.getByRole('button', { name: 'Notif' })
+    // le même bloc que le bouton sandwich, avant lui
+    expect(bell.parentElement).toBe(burger().parentElement)
+    expect(bell.compareDocumentPosition(burger()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(burger())
+    expect(within(screen.getByRole('navigation')).queryByRole('button', { name: 'Notif' })).toBeNull()
+  })
+
+  it('barActions seul, sans menu : pas de sandwich, le bouton reste dans la barre', () => {
+    render(<TopBar title="M" barActions={<button>Notif</button>} />)
+    expect(screen.getByRole('button', { name: 'Notif' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: BURGER_LABEL })).toBeNull()
+  })
+
+  it('menuItems n’est que dans le menu, qui reste ouvert quand on y touche', () => {
+    const onItem = vi.fn()
+    render(<TopBar title="M" menuItems={<button onClick={onItem}>Page invité</button>} />)
+    expect(screen.queryByRole('button', { name: 'Page invité' })).toBeNull()
+    fireEvent.click(burger())
+    fireEvent.click(within(screen.getByRole('navigation')).getByRole('button', { name: 'Page invité' }))
+    expect(onItem).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('navigation')).toBeInTheDocument()
+  })
+})
