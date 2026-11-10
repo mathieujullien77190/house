@@ -23,7 +23,7 @@ src/
 ├── lib/hueClient.ts, automations.ts  le pont Hue (API v1 et v2) et ses règles en phrases
 ├── lib/kasaClient.ts  la prise Kasa (protocole local)
 ├── lib/switchClient.ts  client de la page web du switch ES208GP (connexion, lecture des ports, PoE on/off d'un port, une session à la fois)
-├── lib/positionsStore.ts, zonesStore.ts, planStore.ts, savedClipsStore.ts, clipNotesStore.ts  les fichiers de STATE_DIR (positions des ampoules, zones de surveillance par caméra, plan de la maison, clips sauvegardés, notes des clips)
+├── lib/positionsStore.ts, zonesStore.ts, markersStore.ts, planStore.ts, savedClipsStore.ts, clipNotesStore.ts  les fichiers de STATE_DIR (positions des ampoules, zones de surveillance par caméra, repères de caméras `markers.json`, plan de la maison, clips sauvegardés, notes des clips)
 ├── lib/heatingSettings.ts, heatingLog.ts, heatingCost.ts  les réglages de la règle du chauffage (`heating.json`), son journal (`heating-log.jsonl`, rotation à 5000 lignes) et le coût prévu d’une activation
 ├── lib/sun.ts  le lever et le coucher du soleil (la nuit du chauffage) : **copie assumée de `sync/src/sun.ts`** (l’API ne dépend pas de House Sync) ; si l’un change, changer l’autre
 ├── lib/shutterDriver.ts, shutterLog.ts, shutterAutoStore.ts  le pilote des volets (simulation ou ESP32 ESPSomfy), leur journal (`shutters-log.jsonl`, que House Sync importe) et les réglages de l’action automatique (`shutters-auto.json`)

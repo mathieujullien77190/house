@@ -59,6 +59,10 @@ Variables : `SWITCH_URL` (`http://192.168.1.33`), `SWITCH_USER`, `SWITCH_PASSWOR
 
 `GET /zones` rend `{"<caméra>": [[x, y], ...]}` (polygones de 3 à 32 sommets en parts de l'image, de 0 à 1) ; `PUT /zones/<caméra>` avec `{"points": [[x, y], ...]}` ou `{"points": null}` (toute l'image) en fixe ou retire une. Fichier `zones.json` (écriture dans un fichier temporaire puis renommé) ; House Sync le lit en lecture seule et le donne à l'enregistreur.
 
+## Repères de caméras (`lib/markersStore.ts`)
+
+`GET /markers` rend `{"<caméra>": [{"target": "<autre caméra>", "x", "y"}, ...]}` (8 repères au plus, `x` et `y` en parts de l'image, de -0,5 à 1,5 : un repère peut être posé hors de la vidéo, dans le bloc qui l'entoure) ; `PUT /markers/<caméra>` avec `{"markers": [...]}` ou `{"markers": null}` (les places de départ) en fixe ou retire. Sur l'image d'une caméra, la WebApp pose un 📷 par autre caméra, qu'on déplace où on veut ; un clic ouvre cette caméra. Fichier `markers.json` (écriture dans un fichier temporaire puis renommé).
+
 ## Plan de la maison (`lib/planStore.ts`)
 
 `GET /plan` rend `{"plan": {...}}` (ou `{"plan": null}` s'il n'y en a pas encore) ; `PUT /plan` le remplace (128 ko au plus). Le document (`plan.json`) a les arbres, les haies, la place de la cage, les décalages du chemin du garage et des portes, les positions de la lampe et de la prise, les caméras du plan et le lien de chacune avec une vraie caméra ; seul ce qui est bien formé est gardé (arrondi à 7 décimales). **Les positions sont des longitudes et latitudes (`version`: 2), les tailles des mètres, les angles des caps** (degrés depuis le nord). House Sync l'importe dans la table `plan` de SQLite (onglet Base).

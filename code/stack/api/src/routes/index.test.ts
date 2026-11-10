@@ -3,6 +3,7 @@ import { mock, test } from 'node:test'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import type { PlanStore } from '../lib/planStore.ts'
 import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
+import type { MarkersStore } from '../lib/markersStore.ts'
 import type { ZonesStore } from '../lib/zonesStore.ts'
 import type { CamerasService } from '../services/camerasService.ts'
 import type { EventsService } from '../services/eventsService.ts'
@@ -27,6 +28,7 @@ const services: Services = {
   guest: null,
   files: {} as BackupFiles,
   zones: { get: () => ({}) } as unknown as ZonesStore,
+  markers: { get: () => ({}) } as unknown as MarkersStore,
   plan: { get: () => null } as unknown as PlanStore,
   recorderUrl: null,
   savedClips: {} as SavedClipsStore,

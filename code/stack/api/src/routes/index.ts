@@ -3,6 +3,7 @@ import { Router } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
 import type { PlanStore } from '../lib/planStore.ts'
 import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
+import type { MarkersStore } from '../lib/markersStore.ts'
 import type { ZonesStore } from '../lib/zonesStore.ts'
 import { createRequireKey } from '../middleware/requireKey.ts'
 import { createSessions } from '../middleware/session.ts'
@@ -30,6 +31,7 @@ import { snapshotsRouter } from './snapshots.ts'
 import { welcomeRouter } from './welcome.ts'
 import { planRouter } from './plan.ts'
 import { recordRouter } from './record.ts'
+import { markersRouter } from './markers.ts'
 import { zonesRouter } from './zones.ts'
 
 export interface Services {
@@ -54,6 +56,8 @@ export interface Services {
   files: BackupFiles
   /** Les zones de surveillance du mouvement, une par caméra. */
   zones: ZonesStore
+  /** Les repères de caméras posés sur l'image de chaque caméra (un 📷 par autre caméra, déplaçable). */
+  markers: MarkersStore
   /** Le plan de la maison (la carte de la WebApp). */
   plan: PlanStore
   /** L'adresse de l'enregistreur (motion), ou null : /record répond 503. */
@@ -80,6 +84,7 @@ export const SECURED_PATHS = [
   '/hue',
   '/guest',
   '/zones',
+  '/markers',
   '/plan',
   '/record',
 ]
@@ -101,6 +106,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(hueRouter(services.hue))
   router.use(guestRouter(services.guest))
   router.use(zonesRouter(services.zones))
+  router.use(markersRouter(services.markers))
   router.use(planRouter(services.plan))
   router.use(recordRouter(services.recorderUrl, services.savedClips))
   return router

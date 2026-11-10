@@ -13,6 +13,7 @@ import { createEventsService } from './services/eventsService.ts'
 import { createHueClient, type HueClient } from './lib/hueClient.ts'
 import { createPositionsStore } from './lib/positionsStore.ts'
 import { createPlanStore } from './lib/planStore.ts'
+import { createMarkersStore } from './lib/markersStore.ts'
 import { createZonesStore } from './lib/zonesStore.ts'
 import { createClipNotesStore } from './lib/clipNotesStore.ts'
 import { createSavedClipsStore } from './lib/savedClipsStore.ts'
@@ -83,6 +84,7 @@ export const createApp = (config: Config): Express => {
     live,
     files: createBackupFiles(config.dataDir),
     zones: createZonesStore(`${config.stateDir}/zones.json`),
+    markers: createMarkersStore(`${config.stateDir}/markers.json`),
     plan: createPlanStore(`${config.stateDir}/plan.json`),
     recorderUrl: config.recorderUrl,
     savedClips,
