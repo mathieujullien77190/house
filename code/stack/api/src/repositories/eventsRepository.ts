@@ -1,5 +1,6 @@
 // Les événements copiés par House Sync.
 import type { Database } from '../db/database.ts'
+import { cameraOrderSql } from '../lib/cameraOrder.ts'
 import type { EventRow } from '../types.ts'
 
 export const createEventsRepository = (db: Database) => ({
@@ -26,7 +27,7 @@ export const createEventsRepository = (db: Database) => ({
   /** Le dernier événement de chaque caméra. */
   lastPerCamera: (): EventRow[] =>
     db.all<EventRow>(
-      'SELECT * FROM events WHERE started_at = (SELECT MAX(started_at) FROM events e WHERE e.camera = events.camera) ORDER BY camera',
+      `SELECT * FROM events WHERE started_at = (SELECT MAX(started_at) FROM events e WHERE e.camera = events.camera) ORDER BY ${cameraOrderSql()}`,
     ),
   /** Le chemin du son d'un clip (<id>.aac sur le disque backup), ou null. */
   clipAudioPath: (id: string): string | null => db.get<{ path: string | null }>('SELECT clip_audio_path AS path FROM events WHERE id = ?', id)?.path ?? null,

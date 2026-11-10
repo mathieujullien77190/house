@@ -43,6 +43,15 @@ test('slicesOf : coupé à chaque minute, jamais à cheval sur une heure', () =>
   assert.deepEqual(slicesOf(5, 5), [])
 })
 
+test('readCameraEnergy : les caméras dans leur ordre d’arrivée, les autres après', () => {
+  const { ctx } = setup('2026-11-09T02:00:00Z')
+  ctx.db.exec("INSERT INTO camera_energy VALUES ('zebre', 'h', 1, 0, 0.1), ('voliere-toit', 'h', 1, 0, 0.1), ('voliere-interieur', 'h', 1, 0, 0.1), ('abeille', 'h', 1, 0, 0.1)")
+  assert.deepEqual(
+    readCameraEnergy(ctx.db).cameras.map((c) => c.camera),
+    ['voliere-interieur', 'voliere-toit', 'abeille', 'zebre'],
+  )
+})
+
 test('un relevé normal en heures creuses : le premier pose la date de départ, le suivant compte la dernière puissance connue', async () => {
   const { ctx, answer, energy, rows } = setup('2026-11-09T02:00:00Z')
   assert.equal(readCameraEnergy(ctx.db).since, null)

@@ -28,6 +28,24 @@ test('les caméras : orientation réglée ou paysage, pluie en cours, dernières
   })
 })
 
+test('les caméras : rangées dans l’ordre d’arrivée, les inconnues après par ordre alphabétique', async () => {
+  await withTempDir((dir) => {
+    const rows = `INSERT INTO live_streams VALUES ('zebre', 'z'), ('voliere-toit', 't'), ('abeille', 'a'), ('voliere-exterieur', 'e'), ('voliere-interieur', 'i'), ('salon-de-jardin', 's');
+      INSERT INTO last_images VALUES ('zebre', 'z'), ('voliere-toit', 't'), ('abeille', 'a'), ('voliere-exterieur', 'e'), ('voliere-interieur', 'i'), ('salon-de-jardin', 's');
+      INSERT INTO events VALUES ('x1', 'zebre', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL), ('x2', 'voliere-toit', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL), ('x3', 'abeille', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL), ('x4', 'voliere-interieur', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL);`
+    const db = openFixture(dir, rows)
+    try {
+      const order = ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'abeille', 'zebre']
+      const cameras = createCamerasRepository(db)
+      assert.deepEqual(cameras.liveStreams().map((row) => row.camera), order)
+      assert.deepEqual(cameras.lastImages().map((row) => row.camera), order)
+      assert.deepEqual(createEventsRepository(db).lastPerCamera().map((row) => row.camera), ['voliere-interieur', 'voliere-toit', 'abeille', 'zebre'])
+    } finally {
+      db.close()
+    }
+  })
+})
+
 test('les caméras : une pluie faible, et une caméra sans réglage (paysage, pas de pluie)', async () => {
   await withTempDir((dir) => {
     const rows = `${FIXTURE_ROWS} INSERT INTO live_streams VALUES ('cam-c', 'x'), ('cam-d', 'y'); INSERT INTO settings VALUES ('cam-c', 'landscape', 'rain');`

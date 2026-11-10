@@ -17,7 +17,7 @@ src/
 ├── types.ts          lignes de la base et forme des réponses
 ├── db/database.ts    SQLite en lecture seule, ouverte au premier besoin (DatabaseNotReady → 503)
 ├── repositories/     le SQL : cameras, events, snapshots
-├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 5 min), hue, plug, heating (la règle du chauffage automatique, tour de 60 s), shutters (les volets roulants et leurs ordres), shuttersAuto (ouvrir au lever du soleil, fermer à son coucher, tour de 60 s), live (relais go2rtc : le flux <flux>_mjpeg)
+├── services/         les règles : poe (caméra → port du switch, état en cache 3 s), cameras, events (clip → /clips/id, 200 au plus), snapshots (tolérance 5 min), hue, plug, heating (la règle du chauffage automatique, tour de 60 s), shutters (les volets roulants et leurs ordres), shuttersAuto (ouvrir au lever du soleil, fermer à son coucher, tour de 60 s), live (relais go2rtc : le flux <flux>_mjpeg, l’image à l’instant et le son à la demande)
 ├── routes/           un fichier par service ; index.ts liste SECURED_PATHS (derrière la clé) ; welcome public
 ├── middleware/       requireKey (X-House-Key en temps constant, ou la session ; 10 clés fausses par adresse en 15 min, puis 429) ; session (cookie signé ouvert par /auth) ; errorHandler (JSON)
 ├── lib/hueClient.ts, automations.ts  le pont Hue (API v1 et v2) et ses règles en phrases
@@ -27,6 +27,7 @@ src/
 ├── lib/heatingSettings.ts, heatingLog.ts, heatingCost.ts  les réglages de la règle du chauffage (`heating.json`), son journal (`heating-log.jsonl`, rotation à 5000 lignes) et le coût prévu d’une activation
 ├── lib/sun.ts  le lever et le coucher du soleil (la nuit du chauffage) : **copie assumée de `sync/src/sun.ts`** (l’API ne dépend pas de House Sync) ; si l’un change, changer l’autre
 ├── lib/shutterDriver.ts, shutterLog.ts, shutterAutoStore.ts  le pilote des volets (simulation ou ESP32 ESPSomfy), leur journal (`shutters-log.jsonl`, que House Sync importe) et les réglages de l’action automatique (`shutters-auto.json`)
+├── lib/cameraOrder.ts  l'ordre des caméras (celui de leur arrivée, les autres après par ordre alphabétique) et sa clause SQL, pour les listes du direct, des dernières images et des derniers événements : **copie assumée de `sync/src/cameraOrder.ts`** ; si l'un change, changer l'autre
 ├── lib/attemptLimiter.ts  les essais de clé ratés par adresse (en mémoire)
 └── lib/backupFiles.ts  envoi d'un fichier du disque backup, jamais hors du disque, avec Range (la vidéo se déplace)
 ```

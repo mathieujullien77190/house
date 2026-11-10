@@ -1,6 +1,7 @@
 // Ce que la page de House Sync lit dans la base et sur le disque backup : fonctions pures, sans HTTP.
 import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
+import { cameraOrderSql, compareCameras } from './cameraOrder.ts'
 
 export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'shutter_log', 'plan', 'camera_energy']
 export const MAX_PAGE_SIZE = 100
@@ -94,9 +95,9 @@ const orderOf = (columns: string[]): string => {
   if (columns.includes('absorbed_started_at')) return 'ORDER BY absorbed_started_at DESC'
   if (columns.includes('taken_at')) return 'ORDER BY taken_at DESC'
   if (columns.includes('happened_ms')) return 'ORDER BY happened_ms DESC, id DESC'
-  if (columns.includes('hour')) return 'ORDER BY hour DESC, camera'
+  if (columns.includes('hour')) return `ORDER BY hour DESC, ${cameraOrderSql()}`
   if (columns.includes('kind')) return 'ORDER BY kind, id'
-  return 'ORDER BY camera'
+  return `ORDER BY ${cameraOrderSql()}`
 }
 
 export const summarizeTables = (db: DatabaseSync): TableSummary[] =>
@@ -265,9 +266,9 @@ export const filterClips = (groups: ClipGroup[], filter: ClipFilters): ClipGroup
     return true
   })
 
-/** Les caméras qui ont des clips, par ordre alphabétique. */
+/** Les caméras qui ont des clips, dans l'ordre d'arrivée des caméras (`cameraOrder.ts`). */
 export const clipCameras = (groups: ClipGroup[]): string[] =>
-  [...new Set(groups.map((group) => clipCamera(group.id)).filter((camera): camera is string => camera !== null))].sort()
+  [...new Set(groups.map((group) => clipCamera(group.id)).filter((camera): camera is string => camera !== null))].sort(compareCameras)
 
 /** Les filtres d'une demande de clips : `camera`, `from`, `to` et `saved` (`1` : les sauvegardés, `0` : les autres, absent : tous). */
 export const clipFilterParams = (

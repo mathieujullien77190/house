@@ -70,6 +70,12 @@ test('knownCameras : celles dont une image est connue, par ordre alphabétique',
   assert.deepEqual(settings.knownCameras(), ['a', 'b'])
 })
 
+test('knownCameras : les caméras connues dans leur ordre d’arrivée, les autres après', () => {
+  const { settings, db } = testContext()
+  db.exec("INSERT INTO last_images VALUES ('zebre', 'u'), ('voliere-toit', 'u'), ('abeille', 'u'), ('voliere-interieur', 'u'), ('salon-de-jardin', 'u'), ('voliere-exterieur', 'u')")
+  assert.deepEqual(settings.knownCameras(), ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'abeille', 'zebre'])
+})
+
 test('durée de garde : 15 jours, la variable, puis le réglage de la page ; une valeur absurde retombe sur 15', () => {
   const plain = testContext()
   assert.equal(plain.settings.clipRetentionDays(), 15)

@@ -3,6 +3,7 @@
 // `camera_energy` (onglet Base), avec le coût au tarif heures creuses / pleines (constantes).
 // Rien n'est inventé : si l'API ne répond pas, le tour est sauté ; un trou de plus de 5 minutes n'est pas rattrapé.
 import type { DatabaseSync } from 'node:sqlite'
+import { cameraOrderSql } from './cameraOrder.ts'
 import { messageOf, type Context } from './context.ts'
 import { fetchCameraPower, type ApiTarget, type CameraPower } from './power.ts'
 
@@ -75,7 +76,7 @@ export interface CameraEnergyTotals {
 export const readCameraEnergy = (db: DatabaseSync): CameraEnergyTotals => {
   const since = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(SINCE_KEY) as { value: string } | undefined)?.value ?? null
   const rows = db
-    .prepare(`SELECT camera, SUM(wh_offpeak + wh_peak) AS wh, SUM(cost) AS cost FROM ${CAMERA_ENERGY_TABLE} GROUP BY camera ORDER BY camera`)
+    .prepare(`SELECT camera, SUM(wh_offpeak + wh_peak) AS wh, SUM(cost) AS cost FROM ${CAMERA_ENERGY_TABLE} GROUP BY camera ORDER BY ${cameraOrderSql()}`)
     .all() as { camera: string; wh: number; cost: number }[]
   const cameras = rows.map((row) => ({ camera: row.camera, kwh: row.wh / 1000, cost: row.cost }))
   return { since, cameras, total: { kwh: cameras.reduce((sum, c) => sum + c.kwh, 0), cost: cameras.reduce((sum, c) => sum + c.cost, 0) } }

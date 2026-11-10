@@ -132,7 +132,8 @@ test('un clip dit sa caméra, son début et son événement', () => {
   assert.equal(clipStart(CLIPS[0].id), 3000)
   assert.equal(clipEventId(CLIPS[1].id), '2000.1-voliere-exterieur')
   assert.equal(clipStart('clips/x/pas-un-clip'), null)
-  assert.deepEqual(clipCameras(CLIPS), ['voliere-exterieur', 'voliere-interieur'])
+  // L'ordre d'arrivée des caméras (cameraOrder.ts), pas l'ordre alphabétique.
+  assert.deepEqual(clipCameras(CLIPS), ['voliere-interieur', 'voliere-exterieur'])
 })
 
 test('filterClips : caméra, période, sauvegardés ou non', () => {
@@ -177,6 +178,9 @@ test('une table inconnue ne se lit pas ; chaque table a son ordre naturel', () =
   assert.deepEqual(readTable(db, 'snapshots', 0, 20)?.items.map((row) => row.path), ['b', 'a'])
   db.exec("INSERT INTO last_images VALUES ('b', 'u'), ('a', 'u')")
   assert.deepEqual(readTable(db, 'last_images', 0, 20)?.items.map((row) => row.camera), ['a', 'b'])
+  // Les caméras connues passent avant, dans leur ordre d'arrivée.
+  db.exec("INSERT INTO last_images VALUES ('voliere-toit', 'u'), ('voliere-interieur', 'u')")
+  assert.deepEqual(readTable(db, 'last_images', 0, 20)?.items.map((row) => row.camera), ['voliere-interieur', 'voliere-toit', 'a', 'b'])
   // Le journal Hue cache happened_ms et trie par lui.
   assert.deepEqual(readTable(db, 'hue_events', 0, 1)?.items[0]?.happened_at, 4000)
   assert.equal('happened_ms' in (readTable(db, 'hue_events', 0, 1)?.items[0] ?? {}), false)

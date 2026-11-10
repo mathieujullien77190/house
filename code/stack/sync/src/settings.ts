@@ -2,6 +2,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { Config } from './config.ts'
 import { DEFAULT_ORIENTATION, ORIENTATIONS, type Orientation } from './database.ts'
+import { cameraOrderSql } from './cameraOrder.ts'
 import { isNight } from './sun.ts'
 
 /** Les intervalles d'image proposés (secondes) : au-delà de 5 min, « l'image à cet instant » serait trop loin. Sous 30 s, un minuteur à part (1 s) s’en occupe : le tour de polling est de 30 s. */
@@ -82,7 +83,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
   const settingsCameras = db.prepare('SELECT camera FROM settings')
   // La météo : aucune pluie, pluie ou pluie forte (lue par weather.ts).
   let weatherRain: 'none' | 'rain' | 'heavy' = 'none'
-  const knownCameras = db.prepare('SELECT camera FROM last_images ORDER BY camera')
+  const knownCameras = db.prepare(`SELECT camera FROM last_images ORDER BY ${cameraOrderSql()}`)
   const retentionRow = db.prepare("SELECT value FROM app_settings WHERE key = 'clip_retention_days'")
   const saveRetention = db.prepare("INSERT INTO app_settings (key, value) VALUES ('clip_retention_days', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
   const guestFpsRow = db.prepare("SELECT value FROM app_settings WHERE key = 'guest_fps'")
