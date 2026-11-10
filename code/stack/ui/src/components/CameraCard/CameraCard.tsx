@@ -18,6 +18,9 @@ import {
   NAME_CLASS,
   OVERLAY_DETAILS_CLASS,
   OVERLAY_TOP_CLASS,
+  SOUND_CLASS,
+  SOUND_EXPANDED_CLASS,
+  SOUND_SCREEN_CLASS,
   SCREEN_CLASS,
   SCREEN_EXPAND_CLASS,
   SCREEN_EXPAND_ICON,
@@ -48,6 +51,7 @@ const CameraCard = ({
   details,
   overlay,
   clock,
+  sound,
   timeline,
   figureRef,
   expanded = false,
@@ -85,6 +89,7 @@ const CameraCard = ({
             <div style={gesture?.style}>{media}</div>
           </div>
           {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
+          {expanded && sound ? <div className={SOUND_EXPANDED_CLASS}>{sound}</div> : null}
           {expanded ? (
             onCollapse ? (
               <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
@@ -95,6 +100,7 @@ const CameraCard = ({
             <>
               {actions ? <div className={OVERLAY_TOP_CLASS}>{actions}</div> : null}
               {details ? <div className={OVERLAY_DETAILS_CLASS}>{details}</div> : null}
+              {sound ? <div className={SOUND_SCREEN_CLASS}>{sound}</div> : null}
               {warning ? <p className={SCREEN_WARNING_CLASS}>{warning}</p> : null}
               {onExpand ? (
                 <button type="button" className={SCREEN_EXPAND_CLASS} aria-label={EXPAND_LABEL} title={EXPAND_LABEL} onClick={onExpand}>
@@ -136,11 +142,13 @@ const CameraCard = ({
                 </button>
               ) : null}
               {overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
+              {sound ? <div className={SOUND_CLASS}>{sound}</div> : null}
             </>
           )}
         </div>
         {expanded && overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
         {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
+        {expanded && sound ? <div className={SOUND_EXPANDED_CLASS}>{sound}</div> : null}
         {expanded && onCollapse ? (
           <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
             {COLLAPSE_LABEL}

@@ -53,6 +53,11 @@ export const createLiveService = (go2rtcUrls: string[], cameras: CamerasReposito
       // de 1024 px, dont la cadence se règle à part (voir go2rtc/go2rtc.yaml).
       return src ? open(camera, `/api/stream.mjpeg?src=${encodeURIComponent(`${src}${MJPEG_SUFFIX}${mobile ? MOBILE_SUFFIX : ''}`)}`, signal) : Promise.resolve(null)
     },
+    /** Le son d'une caméra (AAC en flux continu, audio/aac) : la piste audio de son flux léger, tant que le client reste connecté. Rien n'est ouvert tant qu'on ne le demande pas. */
+    audio: (camera: string, signal: AbortSignal): Promise<Upstream | null> => {
+      const src = streamOf(camera)
+      return src ? open(camera, `/api/stream.aac?src=${encodeURIComponent(src)}`, signal) : Promise.resolve(null)
+    },
     /** Une image JPEG de l'instant. */
     frame: (camera: string, signal: AbortSignal): Promise<Upstream | null> => {
       const src = streamOf(camera)

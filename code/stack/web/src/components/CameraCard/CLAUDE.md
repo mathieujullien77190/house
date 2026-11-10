@@ -2,6 +2,10 @@
 
 Le conteneur de la carte `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.md`) : le direct, la frise, les clips, la zone, l'alimentation. Depuis la mosaïque : `../CameraMosaic/CLAUDE.md`.
 
+
+## Le son du direct
+
+Le bouton du **son** (`components/LiveAudio` : juste une icône de haut-parleur posée **sur la vidéo, en bas à droite** — prop `sound` de `CameraCard` de `@house/ui` ; sur téléphone à gauche du bouton « Afficher en grand », en vue en grand au-dessus de l'heure ; caméra allumée, pas pendant un clip) ouvre **à la demande** le son de la caméra : `/audio?camera=` (House API relaie le flux AAC de go2rtc, la piste audio du flux léger), lu par un lecteur audio du navigateur ; un second clic le coupe, et quitter la caméra aussi. Rien n'est demandé avant le clic. Le micro des Reolink est très faible (−50 à −60 dB) : le son passe par un gain de ×32 et un limiteur (Web Audio) ; sans Web Audio, il est joué tel quel. Le micro de la caméra doit être activé dans l'appli Reolink (sinon le cadre de l'icône devient rouge et son info-bulle dit « Pas de son »).
 ## Le média
 
 - En haut le **direct** (`<img src="/stream?camera=…">` : un flux MJPEG que l'API relaie depuis go2rtc, une seule requête, la session par cookie ouverte par `/auth`, `../../../../docs/securite.md`). Un bouton « Qualité du direct » **Léger / 4K** (`&quality=hd`, le 4K recodé en MJPEG par le mini PC : lourd) n'apparaît que tant que le direct est affiché : **4K par défaut** quand on ouvre une caméra, « Léger » au choix ; sous 1024 px l'adresse ajoute `&screen=mobile` (`lib/live.ts`, la cadence du téléphone se règle à part dans House Sync).

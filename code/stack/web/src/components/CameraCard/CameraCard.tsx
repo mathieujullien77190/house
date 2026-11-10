@@ -13,6 +13,7 @@ import { rememberClipDuration } from '@/lib/clipDurations'
 import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
+import LiveAudio from '@/components/LiveAudio'
 import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
@@ -314,6 +315,8 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
+      // Le son du direct : une petite icône sur la vidéo, en bas à droite (au clic seulement : rien n'est demandé avant).
+      sound={isLive && !placeholder ? <LiveAudio camera={camera.name} /> : undefined}
       overlay={
         (!mobile && indicators) || (bigView.big && fastScroll) ? (
           <div className="flex flex-col items-start gap-1">

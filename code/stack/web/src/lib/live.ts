@@ -4,3 +4,6 @@
  */
 export const liveSrc = (camera: string, hd = false, mobile = false): string =>
   `/stream?camera=${encodeURIComponent(camera)}${hd ? '&quality=hd' : ''}${mobile ? '&screen=mobile' : ''}`
+
+/** Le son d'une caméra (AAC en flux continu, relayé par House API) : un lecteur audio l'ouvre quand on le demande, jamais avant. */
+export const audioSrc = (camera: string): string => `/audio?camera=${encodeURIComponent(camera)}`

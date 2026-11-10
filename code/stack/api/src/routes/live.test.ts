@@ -19,7 +19,7 @@ const streamOf = (chunks: string[], fail = false): ReadableStream<Uint8Array> =>
 type Open = (camera: string, signal: AbortSignal, hd?: boolean, mobile?: boolean) => Promise<Upstream | null>
 
 const setup = (open: Open) => {
-  const live = { stream: open, frame: open } as unknown as LiveService
+  const live = { stream: open, frame: open, audio: open } as unknown as LiveService
   return routerApp(liveRouter(live))
 }
 
@@ -42,10 +42,24 @@ test('le flux est recopié tel quel, avec ses options de qualité et d’écran'
   })
 })
 
+test('le son est recopié tel quel, en audio/aac', async () => {
+  const app = setup(async () => ({ status: 200, contentType: 'audio/aac', body: streamOf(['un', 'deux']) }))
+  await withServer(app, async (url) => {
+    const reply = await call(`${url}/audio?camera=cam-1`)
+    assert.equal(reply.status, 200)
+    assert.equal(reply.body, 'undeux')
+    assert.equal(reply.headers.get('content-type'), 'audio/aac')
+    assert.equal(reply.headers.get('cache-control'), 'no-store')
+  })
+})
+
 test('un nom de caméra invalide ou absent : 400 ; une caméra inconnue : 404', async () => {
   const app = setup(async () => null)
   await withServer(app, async (url) => {
     assert.equal((await call(`${url}/stream`)).status, 400)
+    assert.equal((await call(`${url}/audio`)).status, 400)
+    assert.deepEqual((await call(`${url}/audio?camera=inconnue`)).body, { error: 'unknown camera' })
+    assert.equal((await call(`${url}/audio?camera=inconnue`)).status, 404)
     assert.equal((await call(`${url}/stream?camera=a%20b`)).status, 400)
     assert.deepEqual((await call(`${url}/frame?camera=inconnue`)).body, { error: 'unknown camera' })
   })
@@ -76,7 +90,7 @@ test('go2rtc injoignable : 502 ; go2rtc qui répond mal : 502, le corps est lib�
     return next
   })
   await withServer(app, async (url) => {
-    assert.deepEqual((await call(`${url}/stream?camera=a`)).body, { error: 'go2rtc unreachable' })
+    assert.deepEqual((await call(`${url}/audio?camera=a`)).body, { error: 'go2rtc unreachable' })
     assert.deepEqual((await call(`${url}/stream?camera=a`)).body, { error: 'go2rtc answered 404' })
     assert.equal(cancelled, 1)
     assert.deepEqual((await call(`${url}/stream?camera=a`)).body, { error: 'go2rtc answered 204' })

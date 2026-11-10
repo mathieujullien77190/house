@@ -1,4 +1,4 @@
-import { liveSrc } from './live'
+import { audioSrc, liveSrc } from './live'
 
 describe('liveSrc', () => {
   it('construit l’adresse du direct', () => {
@@ -6,5 +6,11 @@ describe('liveSrc', () => {
     expect(liveSrc('c', true)).toBe('/stream?camera=c&quality=hd')
     expect(liveSrc('c', false, true)).toBe('/stream?camera=c&screen=mobile')
     expect(liveSrc('c', true, true)).toBe('/stream?camera=c&quality=hd&screen=mobile')
+  })
+})
+
+describe('audioSrc', () => {
+  it('construit l’adresse du son', () => {
+    expect(audioSrc('a b')).toBe('/audio?camera=a%20b')
   })
 })

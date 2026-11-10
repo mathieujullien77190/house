@@ -76,6 +76,28 @@ test('le direct et l’image sont relayés depuis go2rtc, avec le bon flux', asy
       assert.equal(await live.frame('sans-src', abort.signal), null)
       assert.equal(await live.frame('cassee', abort.signal), null)
       assert.equal(await live.frame('absente', abort.signal), null)
+      assert.equal(await live.audio('absente', abort.signal), null)
+      assert.equal(await live.audio('sans-src', abort.signal), null)
+    },
+  )
+})
+
+test('le son est relayé depuis go2rtc : la piste audio du flux léger', async () => {
+  const seen: string[] = []
+  await withServer(
+    (req: IncomingMessage, res) => {
+      seen.push(decodeURIComponent(req.url ?? ''))
+      res.writeHead(200, { 'Content-Type': 'audio/aac' })
+      res.end('son')
+    },
+    async (url) => {
+      const live = createLiveService([url], repository([{ camera: 'a', url: `${url}/stream.html?src=cam_sub` }]))
+      const abort = new AbortController()
+      const audio = await live.audio('a', abort.signal)
+      assert.equal(audio?.status, 200)
+      assert.equal(audio?.contentType, 'audio/aac')
+      assert.equal(await new Response(audio?.body).text(), 'son')
+      assert.deepEqual(seen, ['/api/stream.aac?src=cam_sub'])
     },
   )
 })

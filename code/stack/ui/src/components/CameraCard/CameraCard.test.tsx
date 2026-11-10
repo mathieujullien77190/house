@@ -2,7 +2,7 @@ import { createRef } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import CameraCard from './CameraCard'
 import type { CameraCardProps } from './types'
-import { COLLAPSE_LABEL, EXPAND_LABEL, SCREEN_EXPAND_ICON, ZOOM_AREA_CLASS } from './constants'
+import { COLLAPSE_LABEL, EXPAND_LABEL, SCREEN_EXPAND_ICON, SOUND_CLASS, SOUND_EXPANDED_CLASS, SOUND_SCREEN_CLASS, ZOOM_AREA_CLASS } from './constants'
 
 const base: CameraCardProps = {
   name: 'Volière extérieur',
@@ -192,5 +192,34 @@ describe('CameraCard écran du téléphone en grand', () => {
     expect(classOf({ portraitMedia: true })).not.toBe(classOf({}))
     renderCard({ screen: true, expanded: true, mediaGesture: g })
     expect(mediaArea().className).toContain(ZOOM_AREA_CLASS)
+  })
+})
+
+describe('CameraCard : le bouton du son', () => {
+  const sound = <button>son</button>
+  const holder = () => screen.getByText('son').parentElement as HTMLElement
+
+  it('sans bouton du son, rien n’est posé', () => {
+    renderCard()
+    renderCard({ expanded: true })
+    renderCard({ screen: true })
+    renderCard({ screen: true, expanded: true })
+    expect(screen.queryByText('son')).toBeNull()
+  })
+  it('bureau : en bas à droite de la vidéo', () => {
+    renderCard({ sound })
+    expect(holder().className).toBe(SOUND_CLASS)
+  })
+  it('bureau en grand : au-dessus de l’heure', () => {
+    renderCard({ sound, expanded: true })
+    expect(holder().className).toBe(SOUND_EXPANDED_CLASS)
+  })
+  it('téléphone : à gauche du bouton « Afficher en grand »', () => {
+    renderCard({ sound, screen: true })
+    expect(holder().className).toBe(SOUND_SCREEN_CLASS)
+  })
+  it('téléphone en grand : au-dessus de l’heure', () => {
+    renderCard({ sound, screen: true, expanded: true })
+    expect(holder().className).toBe(SOUND_EXPANDED_CLASS)
   })
 })

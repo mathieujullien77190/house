@@ -1,4 +1,4 @@
-// stream (le direct MJPEG) et frame (l'image à l'instant) d'une caméra, relayés depuis go2rtc.
+// stream (le direct MJPEG), frame (l'image à l'instant) et audio (le son, à la demande) d'une caméra, relayés depuis go2rtc.
 // La réponse de go2rtc est recopiée telle quelle ; fermer l'onglet coupe la demande vers go2rtc.
 import { Readable } from 'node:stream'
 import { Router, type Request, type Response } from 'express'
@@ -41,5 +41,6 @@ export const liveRouter = (live: LiveService): Router => {
   const router = Router()
   router.get('/stream', (req, res) => relay(req, res, live.stream))
   router.get('/frame', (req, res) => relay(req, res, live.frame))
+  router.get('/audio', (req, res) => relay(req, res, live.audio))
   return router
 }

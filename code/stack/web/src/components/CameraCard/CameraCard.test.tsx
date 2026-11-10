@@ -61,6 +61,7 @@ vi.mock('@/components/Timeline', () => ({
     return <div data-testid="timeline">{props.controls}</div>
   },
 }))
+vi.mock('@/components/LiveAudio', () => ({ default: (props: any) => <i data-testid="live-audio">{props.camera}</i> }))
 vi.mock('@/components/SnapshotImage', () => ({ default: (props: any) => <div data-testid="snapshot">{props.at}</div> }))
 vi.mock('@/components/PowerButton', () => ({ default: (props: any) => <div data-testid="power">{String(props.hideOff)}</div> }))
 vi.mock('@/components/ShareButton', () => ({ default: (props: any) => <div data-testid="share">{props.path}</div> }))
@@ -81,6 +82,7 @@ vi.mock('@house/ui', async (importOriginal) => ({
         {slot('media', props.media)}
         {slot('details', props.details)}
         {slot('clock', props.clock)}
+        {slot('sound', props.sound)}
         {slot('overlay', props.overlay)}
         {slot('timeline-slot', props.timeline)}
         <button onClick={props.onBack}>retour</button>
@@ -183,6 +185,24 @@ describe('CameraCard : le direct', () => {
     h.s.mobile = true
     mount()
     expect(screen.getByTestId('power')).toHaveTextContent('true')
+  })
+})
+
+describe('CameraCard : le son du direct', () => {
+  it('en direct : le bouton du son de la caméra est posé sur la vidéo', () => {
+    mount()
+    expect(screen.getByTestId('live-audio')).toHaveTextContent('voliere-interieur')
+  })
+  it('caméra éteinte, clip ou image passée : pas de son', () => {
+    h.s.power = power({ on: false })
+    const off = mount()
+    expect(screen.queryByTestId('sound')).toBeNull()
+    off.unmount()
+    h.s.power = null
+    mount({ events: [event('a')] })
+    expect(screen.getByTestId('sound')).toBeInTheDocument()
+    pick(event('a'))
+    expect(screen.queryByTestId('sound')).toBeNull()
   })
 })
 

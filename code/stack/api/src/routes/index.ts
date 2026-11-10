@@ -73,6 +73,7 @@ export const SECURED_PATHS = [
   '/snapshot',
   '/stream',
   '/frame',
+  '/audio',
   '/poe',
   '/plug',
   '/shutters',
