@@ -13,10 +13,23 @@ import {
   LOADING_CLASS,
   LOADING_TEXT,
   SPINNER_CLASS,
+  EMPTY_IMAGE,
 } from './constants'
 import type { SnapshotImageProps } from './types'
 
-/** Une image au format 16/9, ou un message dans le même cadre. Tant que l'image n'est pas arrivée, un voile « Chargement… » couvre le cadre noir. */
+/**
+ * Appelée quand l'image quitte la page : elle remplace l'adresse par une image vide, ce qui coupe la requête en cours. Définie **hors du composant** : une fonction recréée à chaque
+ * affichage serait « retirée » et « remise » à chaque fois, et couperait le flux pendant qu'on le regarde.
+ */
+const releaseImage = (node: HTMLImageElement | null) => () => {
+  if (node) node.src = EMPTY_IMAGE
+}
+
+/**
+ * Une image au format 16/9, ou un message dans le même cadre. Tant que l'image n'est pas arrivée, un voile « Chargement… » couvre le cadre noir.
+ * Quand l'image quitte la page, sa requête est coupée : un flux du direct (MJPEG) est une connexion qui ne se termine jamais, et un navigateur ne l'abandonne pas
+ * tout seul quand on retire l'image ; il n'en ouvre que 6 à la fois vers un même hôte, donc les flux oubliés finissaient par bloquer toutes les autres requêtes.
+ */
 const SnapshotImage = ({ src, label, message, onSize, upright = false, quiet = false }: SnapshotImageProps) => {
   // L'adresse dont l'image est arrivée (ou a échoué) : une nouvelle adresse remet le chargement.
   const [settled, setSettled] = useState('')
@@ -33,6 +46,7 @@ const SnapshotImage = ({ src, label, message, onSize, upright = false, quiet = f
             onSize?.(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
           }}
           onError={done}
+          ref={releaseImage}
         />
         {settled === src || quiet ? null : (
           <div className={LOADING_CLASS} role="status">

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import SnapshotImage from './SnapshotImage'
-import { ALT, LOADING_TEXT } from './constants'
+import { ALT, EMPTY_IMAGE, LOADING_TEXT } from './constants'
 
 describe('SnapshotImage sans adresse', () => {
   it('montre le message à la place de l image', () => {
@@ -82,4 +82,20 @@ describe('SnapshotImage quiet', () => {
     expect(screen.getByRole('img', { name: ALT })).toBeInTheDocument()
     expect(screen.queryByRole('status')).toBeNull()
   })
+
+  it('un nouvel affichage de l image ne coupe pas son flux : seul son retrait le coupe', () => {
+    const { rerender } = render(<SnapshotImage src="/stream?camera=a" message="x" />)
+    const image = screen.getByRole('img', { name: ALT }) as HTMLImageElement
+    fireEvent.load(image)
+    rerender(<SnapshotImage src="/stream?camera=a" message="y" label="Direct" />)
+    expect(image.getAttribute('src')).toBe('/stream?camera=a')
+  })
+
+  it('retirer l image coupe sa requête (un flux du direct ne se termine jamais tout seul)', () => {
+    const { unmount } = render(<SnapshotImage src="/stream?camera=a" message="x" />)
+    const image = screen.getByRole('img', { name: ALT }) as HTMLImageElement
+    unmount()
+    expect(image.getAttribute('src')).toBe(EMPTY_IMAGE)
+  })
 })
+

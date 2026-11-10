@@ -23,3 +23,5 @@ export const UPRIGHT_CLASS = 'block max-w-[calc(100cqh-1.5rem)] -rotate-90 white
  */
 export const UPRIGHT_LABEL_CLASS =
   'pointer-events-none absolute bottom-1.5 left-full origin-bottom-left -translate-x-1.5 -rotate-90 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-white'
+/** Une image vide (1 pixel) : posée à la place d'un flux avant de retirer l'image, elle coupe la requête. */
+export const EMPTY_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='

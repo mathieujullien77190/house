@@ -23,6 +23,7 @@ Règles du paquet (dumb, imports relatifs, Storybook, mobile, tests) : `../../CL
 ## Médias
 
 - `MediaPanel`, `SnapshotImage` : accepte `upright` (texte remis droit dans un cadre tourné) ; met son message à la ligne (`\n`) et le garde à la largeur d'un cadre tourné.
+- `SnapshotImage` coupe sa requête quand elle quitte la page (`src` remplacé par un GIF d'un pixel au démontage) : un flux du direct (MJPEG) ne se termine jamais, le navigateur ne l'abandonne pas tout seul et n'ouvre que 6 connexions par hôte.
 - `ClipPlayer` : **plus de commandes natives** : une barre maison (lecture ou pause, barre de temps, durée) est **posée dans l'image, en bas**, sur un dégradé, un clic sur la vidéo la lance ou l'arrête. `controlsHost` : des commandes maison posées dans un élément du parent (droites même si la vidéo est tournée). Le son du clip (`audioSrc`, un fichier à part) est joué avec la vidéo par un `<audio>` caché qui la suit (lecture, pause, sauts, vitesse ; un écart de moins de 0,4 s n'est pas corrigé), avec un bouton « Activer le son » si le navigateur refuse de le lancer tout seul.
 - `ZoneEditor` : le polygone d'une zone dessinée sur la vidéo : l'extérieur assombri, des ronds aux sommets à glisser, un rond au milieu de chaque côté pour ajouter un sommet, double clic ou clic droit sur un sommet pour le retirer ; `quarterTurn` quand le parent est tourné d'un quart de tour ; aucune donnée.
 
