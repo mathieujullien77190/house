@@ -1,31 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Button, Checkbox, Notice, SectionTitle } from '@house/ui'
+import { Notice, SectionTitle } from '@house/ui'
 import { ApiError, closeShutterHalf, fetchShutters, sendShutter, setShutterAuto } from '@/lib/api'
 import type { ShutterAuto, ShutterCommand, ShuttersState } from '@/types'
 import {
-  AUTO_CLOSE_LABEL,
-  AUTO_ERROR_TEXT,
-  AUTO_OPEN_LABEL,
   BOX_CLASS,
-  BUTTONS_CLASS,
-  CARD_CLASS,
-  COMMANDS,
-  ERROR_CLASS,
-  HALF_LABEL,
-  HALF_RUNNING_TEXT,
-  LAST_CLASS,
   LIST_CLASS,
   LOADING_TEXT,
   MOCK_TEXT,
-  NAME_CLASS,
   NOT_CONFIGURED_TEXT,
   POLL_MS,
   POLL_RUNNING_MS,
-  SEND_ERROR_TEXT,
   TITLE,
   UNAVAILABLE_TEXT,
 } from './constants'
-import { lastText } from './helpers'
+import ShutterCard from './ShutterCard'
 import type { ShuttersPanelProps } from './types'
 
 /** L'onglet Volet : un bloc par volet roulant avec Monter, Stop et Descendre. Sens unique (Somfy RTS) : on affiche le dernier ordre, jamais une position. */
@@ -120,39 +108,15 @@ const ShuttersPanel = ({ apiKey }: ShuttersPanelProps) => {
           {state.mock ? <Notice text={MOCK_TEXT} /> : null}
           <div className={LIST_CLASS}>
             {state.shutters.map((shutter) => (
-              <div key={shutter.id} className={CARD_CLASS}>
-                <span className={NAME_CLASS}>{shutter.name}</span>
-                <div className={BUTTONS_CLASS}>
-                  {COMMANDS.map((command) => (
-                    <Button key={command.id} disabled={busy === shutter.id} onClick={() => send(shutter.id, command.id)}>
-                      {command.label}
-                    </Button>
-                  ))}
-                  {shutter.closeSeconds ? (
-                    <Button disabled={busy === shutter.id || shutter.halfRunning} onClick={() => half(shutter.id)}>
-                      {HALF_LABEL}
-                    </Button>
-                  ) : null}
-                </div>
-                {shutter.halfRunning ? <span className={LAST_CLASS}>{HALF_RUNNING_TEXT}</span> : null}
-                <span className={LAST_CLASS}>{lastText(shutter)}</span>
-                {shutter.auto !== null ? (
-                  <>
-                    <Checkbox
-                      label={AUTO_OPEN_LABEL}
-                      checked={shutter.auto.open}
-                      onChange={(value) => changeAuto(shutter.id, 'open', value)}
-                    />
-                    <Checkbox
-                      label={AUTO_CLOSE_LABEL}
-                      checked={shutter.auto.close}
-                      onChange={(value) => changeAuto(shutter.id, 'close', value)}
-                    />
-                  </>
-                ) : null}
-                {failed === `auto-${shutter.id}` ? <span className={ERROR_CLASS}>{AUTO_ERROR_TEXT}</span> : null}
-                {failed === shutter.id ? <span className={ERROR_CLASS}>{SEND_ERROR_TEXT}</span> : null}
-              </div>
+              <ShutterCard
+                key={shutter.id}
+                shutter={shutter}
+                busy={busy === shutter.id}
+                failed={failed === shutter.id ? 'send' : failed === `auto-${shutter.id}` ? 'auto' : null}
+                onSend={(command) => send(shutter.id, command)}
+                onHalf={() => half(shutter.id)}
+                onAuto={(option, value) => changeAuto(shutter.id, option, value)}
+              />
             ))}
           </div>
         </>

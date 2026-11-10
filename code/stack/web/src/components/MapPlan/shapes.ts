@@ -1,9 +1,7 @@
-// Les formes du plan, en points du plan : rectangles, ronds, champ de vision, icône de caméra, et les chemins SVG (M L H V A Z) du plan découpés en points.
+// Les formes du plan, en points du plan : rectangles, ronds, champ de vision, et les chemins SVG (M L H V A Z) du plan découpés en points.
 import type { Point } from './projection'
 
 const ARC_STEPS = 32
-/** L'icône d'une caméra est dessinée à cette échelle (1 = le dessin d'origine, 26 unités de long). */
-const CAMERA_SCALE = 1.7
 
 export const rectRing = (x: number, y: number, w: number, h: number): Point[] => [
   [x, y],
@@ -24,34 +22,10 @@ export const polar = (x: number, y: number, angle: number, radius: number): Poin
   return [x + radius * Math.sin(radians), y - radius * Math.cos(radians)]
 }
 
-/** Le champ de vision d'une caméra : un croissant, la portion de couronne entre `near` et `far`, de part et d'autre de sa direction. */
-export const fovRing = (x: number, y: number, angle: number, fov: number, near: number, far: number, steps = 24): Point[] => {
+/** Le champ de vision d'une caméra : un cône, une part de disque dont la pointe est la caméra, de rayon `far`, de part et d'autre de sa direction. */
+export const coneRing = (x: number, y: number, angle: number, fov: number, far: number, steps = 24): Point[] => {
   const from = angle - fov / 2
-  const outer = Array.from({ length: steps + 1 }, (_, index) => polar(x, y, from + (fov * index) / steps, far))
-  const inner = Array.from({ length: steps + 1 }, (_, index) => polar(x, y, from + fov - (fov * index) / steps, near))
-  return [...outer, ...inner]
-}
-
-/** L'icône d'une caméra (un caméscope), tournée vers `angle` : le corps derrière, l'objectif qui s'évase devant. */
-export const cameraRing = (x: number, y: number, angle: number): Point[] => {
-  const radians = (angle * Math.PI) / 180
-  const forward: Point = [Math.sin(radians), -Math.cos(radians)]
-  const right: Point = [Math.cos(radians), Math.sin(radians)]
-  // (devant, côté) en unités du plan.
-  const local: Point[] = [
-    [-9, -6],
-    [5, -6],
-    [5, -3],
-    [12, -8],
-    [12, 8],
-    [5, 3],
-    [5, 6],
-    [-9, 6],
-  ]
-  return local.map(([f, s]): Point => [
-    x + CAMERA_SCALE * (f * forward[0] + s * right[0]),
-    y + CAMERA_SCALE * (f * forward[1] + s * right[1]),
-  ])
+  return [[x, y], ...Array.from({ length: steps + 1 }, (_, index) => polar(x, y, from + (fov * index) / steps, far))]
 }
 
 /** Un arc de cercle (rayon unique) d'un point à l'autre, comme la commande A du SVG : la suite de points, départ exclu. */

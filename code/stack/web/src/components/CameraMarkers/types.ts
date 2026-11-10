@@ -11,4 +11,6 @@ export interface CameraMarkersProps {
   onRemove: (target: string) => void
   /** Un clic sans glisser : ouvre cette caméra. */
   onOpen: (target: string) => void
+  /** Les caméras inactives (éteintes) : leur repère est grisé et ne fait rien (ni clic ni glisser). */
+  inactive?: string[]
 }

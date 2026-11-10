@@ -1,5 +1,6 @@
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useHomeTemperature } from '@/lib/useHomeTemperature'
 import { useWeather } from '@/lib/useWeather'
 import {
   ARROW_CLASS,
@@ -13,28 +14,34 @@ import {
   HOUR_RAINY_CLASS,
   HOUR_TEMPERATURE_CLASS,
   HOUR_TIME_CLASS,
+  HOME_ICON,
+  HOME_LABEL,
   HOUSE_LATITUDE,
   HOUSE_LONGITUDE,
   HOUSE_PLACE,
   ICON_CLASS,
   PANEL_CLASS,
   PANEL_LABEL,
-  PLACE_CLASS,
+  OUTSIDE_LABEL,
   RAINY_CHANCE,
   SCROLL_STEP,
   SCROLLER_CLASS,
+  SEPARATOR_CLASS,
   TEMPERATURE_CLASS,
   WRAP_CLASS,
 } from './constants'
 import { describeWeather, hourLabel, rainText } from './helpers'
+import type { WeatherProps } from './types'
 
 /**
  * Le temps qu'il fait chez soi, dans la barre du haut : un petit dessin (soleil, nuage, pluie…), la température et le lieu. Lu par le navigateur sur Open-Meteo
  * (`lib/useWeather.ts`) ; rien ne s'affiche tant qu'on ne l'a pas lu. Un clic ouvre, sous la barre, la prévision heure par heure des 24 prochaines heures
  * (l'heure, le dessin, la température, la chance de pluie) ; un clic ailleurs ou Échap la ferme.
  */
-const Weather = () => {
+const Weather = ({ apiKey }: WeatherProps) => {
   const weather = useWeather(HOUSE_LATITUDE, HOUSE_LONGITUDE)
+  // La température de la maison (le salon) : écrite après le lieu.
+  const inside = useHomeTemperature(apiKey)
   const [open, setOpen] = useState(false)
   const wrap = useRef<HTMLSpanElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -83,8 +90,8 @@ const Weather = () => {
       <button
         type="button"
         className={BUTTON_CLASS}
-        title={`${HOUSE_PLACE} : ${label}, ${degrees} °C. Prévisions heure par heure`}
-        aria-label={`${HOUSE_PLACE} : ${label}, ${degrees} degrés. ${PANEL_LABEL}`}
+        title={`${HOUSE_PLACE} : ${label}, ${degrees} °C${inside === null ? '' : ` (${OUTSIDE_LABEL}), ${HOME_LABEL} ${Math.round(inside)} °C`}. Prévisions heure par heure`}
+        aria-label={`${HOUSE_PLACE} : ${label}, ${degrees} degrés${inside === null ? '' : ` (${OUTSIDE_LABEL}), ${HOME_LABEL} ${Math.round(inside)} degrés`}. ${PANEL_LABEL}`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
@@ -94,9 +101,19 @@ const Weather = () => {
         <span className={TEMPERATURE_CLASS} aria-hidden="true">
           {degrees}°
         </span>
-        <span className={PLACE_CLASS} aria-hidden="true">
-          {HOUSE_PLACE}
-        </span>
+        {inside === null ? null : (
+          <>
+            <span className={SEPARATOR_CLASS} aria-hidden="true">
+              ·
+            </span>
+            <span className={ICON_CLASS} aria-hidden="true">
+              {HOME_ICON}
+            </span>
+            <span className={TEMPERATURE_CLASS} aria-hidden="true">
+              {Math.round(inside)}°
+            </span>
+          </>
+        )}
       </button>
       {open && weather.hours.length > 0 ? (
         <div className={PANEL_CLASS} role="region" aria-label={PANEL_LABEL}>

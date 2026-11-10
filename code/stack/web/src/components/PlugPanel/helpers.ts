@@ -1,9 +1,3 @@
-/** Le signal WiFi en mots : -50 dBm et mieux très bon, -75 dBm et moins faible. */
-export const signalText = (rssi: number): string => {
-  const quality = rssi >= -60 ? 'bon' : rssi >= -70 ? 'moyen' : 'faible'
-  return `${quality} (${rssi} dBm)`
-}
-
 /** Depuis combien de temps la prise est allumée, avec les secondes : « 3 min 25 s » ; au-delà d'une heure « 1 h 14 min 5 s », au-delà d'un jour « 2 j 3 h ». */
 export const elapsedText = (seconds: number): string => {
   const total = Math.max(0, Math.round(seconds))

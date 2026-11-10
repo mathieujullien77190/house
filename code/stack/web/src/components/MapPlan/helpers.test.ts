@@ -1,6 +1,6 @@
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { BRIGHTNESS_FLOOR, BRIGHTNESS_MAX, MAP_HOUSE_HEIGHT } from './constants'
-import { bulbLabel, bulbOpacity, fromHousePlan, metersPerPixel, METERS_PER_DEGREE, offsetBy, waitingSlot } from './helpers'
+import { bulbColor, bulbLabel, fromHousePlan, metersPerPixel, METERS_PER_DEGREE, offsetBy, temperatureText } from './helpers'
 
 describe('MapPlan/helpers', () => {
   it('metersPerPixel diminue de moitié à chaque niveau de zoom et avec la latitude', () => {
@@ -24,36 +24,34 @@ describe('fromHousePlan', () => {
   })
 })
 
-describe('waitingSlot', () => {
-  it('range les lampes en rangées sous la maison, 17 par rangée', () => {
-    const first = waitingSlot(0)
-    const next = waitingSlot(1)
-    const wrapped = waitingSlot(17)
-    expect(first.y).toBeGreaterThan(MAP_HOUSE_HEIGHT)
-    expect(next.x).toBeGreaterThan(first.x)
-    expect(next.y).toBe(first.y)
-    expect(wrapped.x).toBe(first.x)
-    expect(wrapped.y).toBeGreaterThan(first.y)
+describe('bulbColor', () => {
+  it('pleine luminosité : la couleur telle quelle (en #rrggbb)', () => {
+    expect(bulbColor('#ffa85a', true, true, BRIGHTNESS_MAX)).toBe('#ffa85a')
+    expect(bulbColor('#f80', true, true, BRIGHTNESS_MAX)).toBe('#ff8800')
   })
-})
-
-describe('bulbOpacity', () => {
-  it('suit la luminosité entre le plancher et le plein', () => {
-    expect(bulbOpacity(true, true, BRIGHTNESS_MAX)).toBeCloseTo(1)
-    expect(bulbOpacity(true, true, 0)).toBeCloseTo(BRIGHTNESS_FLOOR)
-    const half = bulbOpacity(true, true, BRIGHTNESS_MAX / 2)
-    expect(half).toBeGreaterThan(BRIGHTNESS_FLOOR)
-    expect(half).toBeLessThan(1)
+  it('seul le jaune pâlit : la luminosité baisse, la couleur se mêle de blanc, jamais au-delà du plancher', () => {
+    const half = bulbColor('#ff8000', true, true, BRIGHTNESS_MAX / 2)
+    const low = bulbColor('#ff8000', true, true, 0)
+    const green = (hex: string) => Number.parseInt(hex.slice(3, 5), 16)
+    expect(green(low)).toBeGreaterThan(green(half))
+    expect(green(half)).toBeGreaterThan(green('#ff8000'))
+    // au plancher, un quart de la couleur reste : le vert 0x80 donne 255 − 127 × 0,25
+    expect(low).toBe(
+      '#ffe0bf'
+        .replace('e0', Math.round(255 - (255 - 0x80) * BRIGHTNESS_FLOOR).toString(16))
+        .replace('bf', Math.round(255 - 255 * BRIGHTNESS_FLOOR).toString(16)),
+    )
   })
   it('borne les luminosités hors échelle', () => {
-    expect(bulbOpacity(true, true, BRIGHTNESS_MAX * 3)).toBeCloseTo(1)
-    expect(bulbOpacity(true, true, -50)).toBeCloseTo(BRIGHTNESS_FLOOR)
+    expect(bulbColor('#ff8000', true, true, BRIGHTNESS_MAX * 3)).toBe('#ff8000')
+    expect(bulbColor('#ff8000', true, true, -50)).toBe(bulbColor('#ff8000', true, true, 0))
   })
-  it('pleine si éteinte, injoignable ou sans luminosité', () => {
-    expect(bulbOpacity(false, true, 10)).toBe(1)
-    expect(bulbOpacity(true, false, 10)).toBe(1)
-    expect(bulbOpacity(true, true, null)).toBe(1)
-    expect(bulbOpacity(true, true, undefined)).toBe(1)
+  it('inchangée si éteinte, injoignable, sans luminosité ou d’une couleur inconnue', () => {
+    expect(bulbColor('#ff8000', false, true, 10)).toBe('#ff8000')
+    expect(bulbColor('#ff8000', true, false, 10)).toBe('#ff8000')
+    expect(bulbColor('#ff8000', true, true, null)).toBe('#ff8000')
+    expect(bulbColor('#ff8000', true, true, undefined)).toBe('#ff8000')
+    expect(bulbColor('rgb(255, 128, 0)', true, true, 10)).toBe('rgb(255, 128, 0)')
   })
 })
 
@@ -66,5 +64,12 @@ describe('bulbLabel', () => {
     expect(bulbLabel('P', true, false, 100)).toBe('P')
     expect(bulbLabel('P', true, true, null)).toBe('P')
     expect(bulbLabel('P', true, true, undefined)).toBe('P')
+  })
+})
+
+describe('temperatureText', () => {
+  it('écrit la valeur à la française, une décimale au plus', () => {
+    expect(temperatureText(21)).toBe('21°')
+    expect(temperatureText(21.54)).toBe('21,5°')
   })
 })

@@ -1,5 +1,5 @@
 import type { HueAutomation, HueLight, HueRoom, HueSensor } from '@/types'
-import { fromHousePlan, waitingSlot } from '@/components/MapPlan/helpers'
+import { fromHousePlan } from '@/components/MapPlan/helpers'
 import { LAMP_POSITIONS, LEGACY_STORAGE_KEY, PLAN_LAMP_POSITION, SIDE_ZONE } from './constants'
 import { allLights, buildAutomationItems, buildZones, placedLampCount, planLamps, readLegacyPositions } from './helpers'
 
@@ -105,7 +105,6 @@ describe('planLamps', () => {
   it('place gardée dans le plan : telle quelle, d’intérieur (sauf la lampe de la cage)', () => {
     const lamps = planLamps([light('1'), light('26')], { '1': { x: 1, y: 1 }, '26': { x: 5, y: 6 } }, {})
     expect(lamps[0]).toMatchObject({ id: '1', name: 'L1', on: true, reachable: true, brightness: 100, x: 1, y: 1, indoor: true })
-    expect(lamps[0]).not.toHaveProperty('waiting')
     expect(lamps[1]).toMatchObject({ x: 5, y: 6, indoor: false })
   })
 
@@ -117,7 +116,6 @@ describe('planLamps', () => {
   it('ancienne position (héritée, puis LAMP_POSITIONS) convertie à la lecture', () => {
     const lamps = planLamps([light('1'), light('3')], {}, { '1': { x: 100, y: 150 } })
     expect(lamps[0]).toMatchObject({ ...fromHousePlan(100, 150), indoor: true })
-    expect(lamps[0]).not.toHaveProperty('waiting')
     expect(lamps[1]).toMatchObject({ ...fromHousePlan(LAMP_POSITIONS['3'].x, LAMP_POSITIONS['3'].y), indoor: true })
   })
 
@@ -126,11 +124,10 @@ describe('planLamps', () => {
     expect(lamp).toMatchObject(fromHousePlan(10, 10))
   })
 
-  it('une ancienne position dans la zone « À placer » ou absente : attend, en rangées', () => {
+  it('une ancienne position dans la zone « À placer » ou absente : la lampe n’est pas sur la carte', () => {
     const lamps = planLamps([light('1'), light('2'), light('3')], {}, { '1': { x: SIDE_ZONE.x, y: 5 } })
-    expect(lamps[0]).toMatchObject({ ...waitingSlot(0), waiting: true, indoor: true })
-    expect(lamps[1]).toMatchObject({ ...waitingSlot(1), waiting: true })
-    expect(lamps[2]).toMatchObject({ ...fromHousePlan(LAMP_POSITIONS['3'].x, LAMP_POSITIONS['3'].y) })
+    expect(lamps.map((lamp) => lamp.id)).toEqual(['3'])
+    expect(lamps[0]).toMatchObject({ ...fromHousePlan(LAMP_POSITIONS['3'].x, LAMP_POSITIONS['3'].y) })
   })
 })
 

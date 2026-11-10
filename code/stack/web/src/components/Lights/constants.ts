@@ -110,6 +110,12 @@ export const LAMP_POSITIONS: Positions = {
   '28': { x: 204, y: 115 },
 }
 
+/**
+ * Les ouvertures : des morceaux de mur qui n'existent pas (la cuisine est ouverte sur le salon). Le contour d'une pièce est dessiné en traits de mur, et ce qui tombe sur une ouverture n'est
+ * pas dessiné. Un segment horizontal ou vertical, en unités du plan (540 × 300) : ici le mur entre la cuisine et le salon : il porte les ampoules « Bar 1 » (x = 289) et « Bar 2 » (x = 331) et va jusqu'à « Bar 2 ; de là au mur de droite (x = 420), la cuisine est ouverte.
+ */
+export const PLAN_OPENINGS: PlanWall[] = [{ x1: 331, y1: 140, x2: 420, y2: 140 }]
+
 /** La zone « À placer » de l ancien plan : une position gardée à droite de cette abscisse veut dire « pas encore placée ». */
 export const SIDE_ZONE = { x: 590, w: 98 }
 /** La cage à perruches : 5 m sur 3 m (tournée d'un quart de tour : 117 × 195 unités), dans l'angle nord-est du jardin, à droite de la maison. */
@@ -234,11 +240,9 @@ export const PLAN_CAMERAS = [
   },
   // Six caméras de plus (5 à 10), posées au nord de la maison en attendant d'être placées à la main (mode « Modifier » de la carte) ; liées à aucune vraie caméra au départ.
   { id: 'camera-5', name: 'Caméra 5 (à placer)', x: 170, y: -100, angle: 0, fov: 60, near: 18, far: 200 },
-  { id: 'camera-6', name: 'Caméra 6 (à placer)', x: 330, y: -100, angle: 0, fov: 60, near: 18, far: 200 },
   { id: 'camera-7', name: 'Caméra 7 (à placer)', x: 170, y: -170, angle: 0, fov: 60, near: 18, far: 200 },
   { id: 'camera-8', name: 'Caméra 8 (à placer)', x: 330, y: -170, angle: 0, fov: 60, near: 18, far: 200 },
   { id: 'camera-9', name: 'Caméra 9 (à placer)', x: 170, y: -240, angle: 0, fov: 60, near: 18, far: 200 },
-  { id: 'camera-10', name: 'Caméra 10 (à placer)', x: 330, y: -240, angle: 0, fov: 60, near: 18, far: 200 },
 ]
 /**
  * Le chemin de béton gris clair, tout droit du portail au mur ouest de la maison (x = 41), aussi large que le portail ; son bout gauche suit

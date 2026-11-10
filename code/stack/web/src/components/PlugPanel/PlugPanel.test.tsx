@@ -43,11 +43,20 @@ describe('PlugPanel', () => {
     expect(screen.getByText(LOADING_TEXT)).toBeInTheDocument()
     await settle()
     expect(screen.getByText('chauffage')).toBeInTheDocument()
-    expect(screen.getByText('HS100')).toBeInTheDocument()
+    // Ni le modèle ni le signal WiFi ne sont montrés.
+    expect(screen.queryByText('HS100')).toBeNull()
     expect(screen.getByText('12 min 34 s')).toBeInTheDocument()
     expect(screen.getByText('3 min 25 s')).toBeInTheDocument()
-    expect(screen.getByText(/bon \(-55 dBm\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/dBm/)).toBeNull()
     expect(screen.queryByText('oui, au prochain mouvement')).toBeNull()
+  })
+
+  it('intégrée : sans titre de section', async () => {
+    vi.mocked(api.fetchPlug).mockResolvedValue(plug())
+    const { container } = render(<PlugPanel apiKey="k" embedded />)
+    await settle()
+    expect(screen.getByText('chauffage')).toBeInTheDocument()
+    expect(container.querySelector('h2')).toBeNull()
   })
 
   it('le décompte défile chaque seconde', async () => {
@@ -59,11 +68,12 @@ describe('PlugPanel', () => {
     expect(screen.getByText('3 min 26 s')).toBeInTheDocument()
   })
 
-  it('éteinte : pas de bouton Éteindre, ni décompte ; sans minuteur : pas de ligne', async () => {
+  it('éteinte : l’interrupteur est sur Off, ni décompte ; sans minuteur : pas de ligne', async () => {
     vi.mocked(api.fetchPlug).mockResolvedValue(plug({ on: false, timerSeconds: null }))
     render(<PlugPanel apiKey="k" />)
     await settle()
-    expect(screen.queryByRole('button', { name: 'Éteindre' })).toBeNull()
+    expect(screen.getByRole('switch', { name: 'Marche / arrêt' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByText('Off')).toBeInTheDocument()
     expect(screen.queryByText(/S’éteint dans/)).toBeNull()
   })
 
@@ -113,21 +123,30 @@ describe('PlugPanel', () => {
     })
   })
 
-  it('« Éteindre » éteint la prise', async () => {
+  it('l’interrupteur, sur On, éteint la prise ; sur Off, l’allume pour la durée choisie', async () => {
     vi.mocked(api.fetchPlug).mockResolvedValue(plug())
     vi.mocked(api.setPlug).mockResolvedValue(plug({ on: false, timerSeconds: null }))
     render(<PlugPanel apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getByRole('button', { name: 'Éteindre' }))
-    // pendant l'appel, le bouton est désactivé : un second clic ne fait rien
-    expect(screen.getByRole('button', { name: 'Éteindre' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Éteindre' }))
+    // Un bloc comme celui d'une clim : le nom et l'interrupteur On / Off dans l'en-tête.
+    const toggle = screen.getByRole('switch', { name: 'Marche / arrêt' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('On')).toBeInTheDocument()
+    fireEvent.click(toggle)
+    // pendant l'appel, l'interrupteur est désactivé : un second clic ne fait rien
+    expect(toggle).toBeDisabled()
+    fireEvent.click(toggle)
     await settle()
     expect(api.setPlug).toHaveBeenCalledTimes(1)
     expect(api.setPlug).toHaveBeenCalledWith('k', false)
     // le chauffage automatique est sous la commande, et relu après la commande
     expect(screen.getByTestId('heating')).toHaveTextContent('1')
-    expect(screen.queryByRole('button', { name: 'Éteindre' })).toBeNull()
+    expect(screen.getByRole('switch', { name: 'Marche / arrêt' })).toHaveAttribute('aria-checked', 'false')
+    // Off → On : la prise s'allume pour la durée du curseur (5 min au départ), avec la case du mouvement
+    vi.mocked(api.setPlug).mockResolvedValue(plug())
+    fireEvent.click(screen.getByRole('switch', { name: 'Marche / arrêt' }))
+    await settle()
+    expect(api.setPlug).toHaveBeenLastCalledWith('k', true, 5, true)
   })
 
   it('un échec à l’extinction signale que la prise ne répond pas', async () => {
@@ -135,7 +154,7 @@ describe('PlugPanel', () => {
     vi.mocked(api.setPlug).mockRejectedValue(new Error('x'))
     render(<PlugPanel apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getByRole('button', { name: 'Éteindre' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Marche / arrêt' }))
     await settle()
     expect(screen.getByText(UNAVAILABLE_TEXT)).toBeInTheDocument()
   })

@@ -87,6 +87,7 @@ describe('attachEditing', () => {
     const { raw, detach, handlers } = setup()
     expect([...handlers.keys()].sort()).toEqual([
       'click',
+      'dblclick',
       'mousedown',
       'mousemove',
       'mouseup',
@@ -96,8 +97,61 @@ describe('attachEditing', () => {
       'touchstart',
     ])
     detach()
-    expect(raw.off).toHaveBeenCalledTimes(8)
+    expect(raw.off).toHaveBeenCalledTimes(9)
     expect(handlers.size).toBe(0)
+  })
+
+  it('un double clic sur une caméra ouvre sa page ; ailleurs, rien', () => {
+    const onOpenCamera = vi.fn()
+    const { fire, state } = setup({ onOpenCamera })
+    const preventDefault = vi.fn()
+    state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
+    fire('dblclick', { ...mouse(1, 1), preventDefault })
+    expect(onOpenCamera).toHaveBeenCalledWith('c1')
+    expect(preventDefault).toHaveBeenCalled()
+    onOpenCamera.mockClear()
+    state.hits = [{ layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l1' } }]
+    fire('dblclick', { ...mouse(1, 1), preventDefault })
+    expect(onOpenCamera).not.toHaveBeenCalled()
+  })
+
+  it('quand des zones de saisie se superposent, la caméra passe avant l’ampoule et l’étiquette de température', () => {
+    const { fire, state, ctx } = setup()
+    state.hits = [
+      { layer: 'plan-saisie', properties: { kind: 'label-hit', id: 'cage-interieur' } },
+      { layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: '26' } },
+      { layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } },
+    ]
+    fire('mousedown', mouse(1, 1))
+    fire('mouseup', mouse(1, 1))
+    expect(ctx.onSelectCamera).toHaveBeenCalledWith('c1')
+    expect(ctx.onToggleLamp).not.toHaveBeenCalled()
+  })
+
+  it('le clic qui suit le choix d’une caméra ne la désélectionne pas, même si la carte a bougé (plus rien sous la souris)', () => {
+    const { fire, state, ctx } = setup()
+    state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
+    fire('mousedown', mouse(10, 10))
+    fire('mouseup', mouse(10, 10))
+    expect(ctx.onSelectCamera).toHaveBeenCalledWith('c1')
+    // la vue imposée à la sélection a déplacé la carte : au moment du clic, plus rien n'est sous la souris
+    state.hits = []
+    fire('click', mouse(10, 10))
+    expect(ctx.onSelectCamera).toHaveBeenCalledTimes(1)
+    // un clic ensuite dans le vide désélectionne bien
+    fire('mousedown', mouse(10, 10))
+    fire('mouseup', mouse(10, 10))
+    fire('click', mouse(10, 10))
+    expect(ctx.onSelectCamera).toHaveBeenLastCalledWith('')
+  })
+
+  it('un double clic sur la prise ouvre sa page', () => {
+    const onOpenPlug = vi.fn()
+    const { fire, state } = setup({ onOpenPlug })
+    const preventDefault = vi.fn()
+    state.hits = [{ layer: 'plan-saisie', properties: { kind: 'plug-hit', id: 'prise' } }]
+    fire('dblclick', { ...mouse(1, 1), preventDefault })
+    expect(onOpenPlug).toHaveBeenCalledWith('prise')
   })
 
   describe('saisie', () => {
@@ -432,6 +486,109 @@ describe('attachEditing', () => {
       state.hits = [{ layer: 'plan-haies', properties: { kind: 'hedge', id: 'h1' } }]
       fire('mousedown', mouse(1, 1))
       fire('mouseup')
+    })
+  })
+
+  describe('climatisation, volet, étiquette, emoji et prise', () => {
+    const saisie = (kind: string, id: string) => ({ layer: 'plan-saisie', properties: { kind, id } })
+
+    it.each([
+      ['climatisation', 'ac-hit', 'onMoveAc'],
+      ['volet', 'shutter-hit', 'onMoveShutter'],
+      ['étiquette', 'label-hit', 'onMoveLabel'],
+      ['emoji', 'emoji-hit', 'onMoveEmoji'],
+    ] as const)('déplace %s en modification', (_name, kind, callback) => {
+      const callbackMock = vi.fn()
+      const { drag, fire } = setup({ [callback]: callbackMock })
+      drag(saisie(kind, 'x1'), { x: 30.2, y: 40.4 })
+      fire('mouseup')
+      expect(callbackMock).toHaveBeenCalledWith('x1', 30, 40)
+    })
+
+    it('un toucher sans glisser : la prise, l’emoji, la clim et le volet s’activent (et la clim et le volet s’annoncent)', () => {
+      const onTogglePlug = vi.fn()
+      const onToggleEmoji = vi.fn()
+      const onToggleAc = vi.fn()
+      const onHoverAc = vi.fn()
+      const onToggleShutter = vi.fn()
+      const onHoverShutter = vi.fn()
+      const { fire, state } = setup({
+        onMovePlug: undefined,
+        onTogglePlug,
+        onToggleEmoji,
+        onToggleAc,
+        onHoverAc,
+        onToggleShutter,
+        onHoverShutter,
+      })
+      for (const [kind, id] of [
+        ['plug-hit', 'p1'],
+        ['emoji-hit', 'e1'],
+        ['ac-hit', 'a1'],
+        ['shutter-hit', 's1'],
+      ]) {
+        state.hits = [saisie(kind, id)]
+        fire('mousedown', mouse(10, 10))
+        fire('mouseup')
+      }
+      expect(onTogglePlug).toHaveBeenCalledWith('p1')
+      expect(onToggleEmoji).toHaveBeenCalledWith('e1')
+      expect(onToggleAc).toHaveBeenCalledWith('a1')
+      expect(onHoverAc).toHaveBeenCalledWith('a1')
+      expect(onToggleShutter).toHaveBeenCalledWith('s1')
+      expect(onHoverShutter).toHaveBeenCalledWith('s1')
+    })
+
+    it('un toucher sans rappel ne casse rien', () => {
+      const { fire, state } = setup({ onMovePlug: undefined, onTogglePlug: vi.fn(), onToggleEmoji: vi.fn(), onToggleAc: vi.fn(), onToggleShutter: vi.fn() })
+      for (const kind of ['plug-hit', 'emoji-hit', 'ac-hit', 'shutter-hit']) {
+        state.hits = [saisie(kind, 'x')]
+        fire('mousedown', mouse(10, 10))
+      }
+      expect(() => fire('mouseup')).not.toThrow()
+    })
+
+    it('le survol annonce la caméra, la prise, la clim et le volet, puis les efface', () => {
+      const onHoverCamera = vi.fn()
+      const onHoverPlug = vi.fn()
+      const onHoverAc = vi.fn()
+      const onHoverShutter = vi.fn()
+      const { fire, state } = setup({ onHoverCamera, onHoverPlug, onHoverAc, onHoverShutter })
+      for (const [kind, hover] of [
+        ['camera-hit', onHoverCamera],
+        ['plug-hit', onHoverPlug],
+        ['ac-hit', onHoverAc],
+        ['shutter-hit', onHoverShutter],
+      ] as const) {
+        state.hits = [saisie(kind, 'x')]
+        fire('mousemove', mouse(1, 1))
+        expect(hover).toHaveBeenLastCalledWith('x')
+      }
+      state.hits = []
+      fire('mousemove', mouse(1, 1))
+      for (const hover of [onHoverCamera, onHoverPlug, onHoverAc, onHoverShutter]) expect(hover).toHaveBeenLastCalledWith('')
+    })
+
+    it('une zone de genre inconnu passe après les autres', () => {
+      const { fire, state, ctx } = setup()
+      state.hits = [saisie('inconnu', 'z'), saisie('camera-hit', 'c1')]
+      fire('mousedown', mouse(1, 1))
+      fire('mouseup')
+      expect(ctx.onSelectCamera).toHaveBeenCalledWith('c1')
+    })
+
+    it('un double clic ouvre la clim, l’emoji et le volet', () => {
+      const onOpenAc = vi.fn()
+      const onOpenEmoji = vi.fn()
+      const onOpenShutter = vi.fn()
+      const { fire, state } = setup({ onOpenAc, onOpenEmoji, onOpenShutter })
+      for (const kind of ['ac-hit', 'emoji-hit', 'shutter-hit']) {
+        state.hits = [saisie(kind, kind)]
+        fire('dblclick', mouse(1, 1))
+      }
+      expect(onOpenAc).toHaveBeenCalledWith('ac-hit')
+      expect(onOpenEmoji).toHaveBeenCalledWith('emoji-hit')
+      expect(onOpenShutter).toHaveBeenCalledWith('shutter-hit')
     })
   })
 })

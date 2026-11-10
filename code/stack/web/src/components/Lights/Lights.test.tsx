@@ -4,31 +4,10 @@ import { flush } from '@/test/fetch'
 import { setDesktop } from '@/test/viewport'
 import type { HueAutomation, HueRoom } from '@/types'
 import Lights from './Lights'
-import { fromHousePlan, waitingSlot } from '@/components/MapPlan/helpers'
-import { LAMP_POSITIONS, LEGACY_STORAGE_KEY, PLAN_LAMP_POSITION } from './constants'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- doubles de composants : les props sont inspectées librement */
-const ui = vi.hoisted(() => ({
-  plan: null as any,
-  panel: null as any,
-  state: null as any,
-  fresh: () => ({
-    items: {} as Record<string, { x: number; y: number }>,
-    trees: [{ id: 't' }],
-    hedges: [{ id: 'h' }],
-    cage: { x: 1, y: 2, w: 3, h: 4 },
-    offsets: { garage: { dx: 1, dy: 1 } },
-    moveItem: vi.fn(),
-  }),
-}))
+const ui = vi.hoisted(() => ({ panel: null as any }))
 
-vi.mock('@/components/MapPlan', () => ({
-  default: (props: unknown) => {
-    ui.plan = props
-    return <div data-testid="plan" />
-  },
-}))
-vi.mock('@/lib/usePlan', () => ({ usePlan: () => ui.state }))
 vi.mock('@house/ui', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@house/ui')>()),
   LightsPanel: (props: { lampExtra: (light: { id: string; on: boolean }) => ReactNode }) => {
@@ -47,7 +26,6 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   fetchLights: vi.fn(),
   fetchSensors: vi.fn(),
   fetchAutomations: vi.fn(),
-  fetchLampPositions: vi.fn(),
   setHue: vi.fn(),
 }))
 const api = await import('@/lib/api')
@@ -59,16 +37,12 @@ const automation = (enabled: boolean): HueAutomation => ({ id: String(enabled), 
 beforeEach(() => {
   vi.useFakeTimers()
   setDesktop(true)
-  ui.plan = null
   ui.panel = null
-  ui.state = ui.fresh()
-  localStorage.clear()
   vi.mocked(api.fetchLights).mockResolvedValue(
     rooms(light('15'), light('9', { on: true }), light('26'), light('10', { reachable: false }), light('999', { reachable: false })),
   )
   vi.mocked(api.fetchSensors).mockResolvedValue([])
   vi.mocked(api.fetchAutomations).mockResolvedValue([])
-  vi.mocked(api.fetchLampPositions).mockResolvedValue({})
 })
 afterEach(() => vi.useRealTimers())
 
@@ -77,19 +51,6 @@ const settle = async (ms = 0) => {
     vi.advanceTimersByTime(ms)
     await flush()
   })
-}
-
-// La carte est repliée au départ et n'existe qu'une fois la section « Plan » ouverte : on l'ouvre comme le ferait un clic.
-const openPlan = () => {
-  const details = screen.getByText('Plan').closest('details')!
-  act(() => {
-    details.open = true
-    details.dispatchEvent(new Event('toggle'))
-  })
-}
-const settleWithPlan = async () => {
-  await settle()
-  openPlan()
 }
 
 describe('Lights : états', () => {
@@ -277,124 +238,5 @@ describe('Lights : commandes', () => {
     act(() => ui.panel.onAll(false))
     await settle()
     expect(vi.mocked(api.setHue).mock.calls.map((c) => c[3])).toEqual([{ on: false }, { on: false }])
-  })
-
-  it('éteindre une ampoule allumée du plan envoie { on: false }', async () => {
-    vi.mocked(api.setHue).mockResolvedValue(rooms(light('9')))
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    act(() => ui.plan.onToggleLamp('9'))
-    await settle()
-    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '9', { on: false })
-  })
-
-  it('seule la lampe de la perruche garde le curseur', async () => {
-    render(<Lights apiKey="k" />)
-    await settle()
-    expect(ui.panel.dimmable).toEqual(['26'])
-  })
-
-  it('toucher une ampoule du plan bascule la lampe joignable seulement', async () => {
-    vi.mocked(api.setHue).mockResolvedValue(rooms(light('15', { on: true })))
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    act(() => ui.plan.onToggleLamp('15'))
-    await settle()
-    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true, bri: 254 })
-    vi.mocked(api.setHue).mockClear()
-    act(() => ui.plan.onToggleLamp('999'))
-    act(() => ui.plan.onToggleLamp('inconnue'))
-    await settle()
-    expect(api.setHue).not.toHaveBeenCalled()
-  })
-})
-
-const lampOf = (id: string) => ui.plan.lamps.find((l: { id: string }) => l.id === id)
-
-describe('Lights : la carte et les lampes', () => {
-  it('la même carte que les caméras, en mode lumière, avec le plan de l’API', async () => {
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(ui.plan).toMatchObject({
-      mode: 'lights',
-      trees: ui.state.trees,
-      hedges: ui.state.hedges,
-      cage: ui.state.cage,
-      offsets: ui.state.offsets,
-    })
-    expect(ui.plan.onMoveLamp).toBe(ui.state.moveItem)
-    expect(ui.plan.gates.length).toBeGreaterThan(0)
-    expect(ui.plan.lamps.map((l: { id: string }) => l.id)).toEqual(['9', '10', '15', '26', '999'])
-  })
-
-  it('une lampe injoignable est montrée éteinte, avec sa luminosité', async () => {
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('9')).toMatchObject({ on: true, reachable: true, brightness: 100 })
-    expect(lampOf('10')).toMatchObject({ on: false, reachable: false })
-  })
-
-  it('la place vient du plan de l’API d’abord', async () => {
-    ui.state.items = { '15': { x: 7, y: 8 } }
-    vi.mocked(api.fetchLampPositions).mockResolvedValue({ '15': { x: 100, y: 50 } })
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('15')).toMatchObject({ x: 7, y: 8, indoor: true })
-    expect(lampOf('15')).not.toHaveProperty('waiting')
-  })
-
-  it('sinon l’ancienne position de /hue/positions, convertie, sans rien écrire ni effacer', async () => {
-    vi.mocked(api.fetchLampPositions).mockResolvedValue({ '15': { x: 100, y: 50 } })
-    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ '15': { x: 1, y: 1 } }))
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('15')).toMatchObject(fromHousePlan(100, 50))
-    expect(localStorage.getItem(LEGACY_STORAGE_KEY)).not.toBeNull()
-    expect(ui.state.moveItem).not.toHaveBeenCalled()
-  })
-
-  it('sinon la copie du navigateur, puis LAMP_POSITIONS ; une lampe inconnue attend', async () => {
-    vi.mocked(api.fetchLampPositions).mockRejectedValue(new Error('x'))
-    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ '9': { x: 10, y: 10 } }))
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('9')).toMatchObject(fromHousePlan(10, 10))
-    expect(lampOf('15')).toMatchObject(fromHousePlan(LAMP_POSITIONS['15'].x, LAMP_POSITIONS['15'].y))
-    expect(lampOf('999')).toMatchObject({ ...waitingSlot(0), waiting: true })
-  })
-
-  it('une ancienne position dans la zone « À placer » compte pour non placée', async () => {
-    vi.mocked(api.fetchLampPositions).mockResolvedValue({ '15': { x: 600, y: 10 } })
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('15')).toMatchObject({ waiting: true })
-  })
-
-  it('la lampe de la cage a sa place de départ sur la carte', async () => {
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('26')).toMatchObject(PLAN_LAMP_POSITION)
-    expect(lampOf('26').indoor).toBeUndefined()
-  })
-
-  it('la copie du navigateur illisible est ignorée', async () => {
-    localStorage.setItem(LEGACY_STORAGE_KEY, '[')
-    render(<Lights apiKey="k" />)
-    await settleWithPlan()
-    expect(lampOf('15')).toMatchObject(fromHousePlan(LAMP_POSITIONS['15'].x, LAMP_POSITIONS['15'].y))
-  })
-
-  it('la carte est repliée au départ : rien n’est fabriqué avant l’ouverture, puis elle est là', async () => {
-    render(<Lights apiKey="k" />)
-    await settle()
-    expect(screen.queryByTestId('plan')).toBeNull()
-    openPlan()
-    expect(screen.getByTestId('plan')).toBeInTheDocument()
-    act(() => {
-      const details = screen.getByText('Plan').closest('details')!
-      details.open = false
-      details.dispatchEvent(new Event('toggle'))
-    })
-    expect(screen.queryByTestId('plan')).toBeNull()
   })
 })

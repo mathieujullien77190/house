@@ -1,5 +1,5 @@
 import type { PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanTree } from '@house/ui'
-import { PLAN_GATES, PLAN_ROOMS, PLAN_WALLS } from '@/components/Lights/constants'
+import { PLAN_GATES, PLAN_OPENINGS, PLAN_ROOMS, PLAN_WALLS } from '@/components/Lights/constants'
 import {
   cameraHandle,
   HANDLE_DISTANCE,
@@ -10,6 +10,8 @@ import {
   type LiveData,
   type Palette,
 } from './features'
+import { fromHousePlan } from './helpers'
+import { lngLatToPlan } from './projection'
 
 const palette: Palette = { accent: 'A', bg: 'B', fg: 'F', muted: 'M', orange: 'O', green: 'G', danger: 'D' }
 
@@ -55,12 +57,17 @@ const data = (over: Partial<LiveData> = {}): LiveData => ({
     { id: 'l2', x: 2, y: 2, on: true, reachable: false },
     { id: 'l3', x: 3, y: 3, on: false, reachable: true },
   ] as PlanLamp[],
+  acs: [],
+  shutters: [],
+  labels: [],
+  emojis: [],
   plugs: [
     { id: 'p1', x: 1, y: 1, on: true },
     { id: 'p2', x: 2, y: 2, on: false },
   ] as PlanPlug[],
   selectedHedgeId: '',
   selectedTreeId: '',
+  hoveredCameraId: '',
   selectedCameraId: '',
   canEditHedges: true,
   canResizeTrees: true,
@@ -83,22 +90,47 @@ describe('readPalette', () => {
 })
 
 describe('staticFeatures', () => {
-  it('le béton, le toit, puis les pièces et les cloisons', () => {
+  it('le béton, le toit, les pièces, puis les murs (le contour des pièces, puis les cloisons)', () => {
     const parts = props(staticFeatures()).map((p) => p.part)
-    expect(parts).toEqual(['concrete', 'roof', ...PLAN_ROOMS.map(() => 'room'), ...PLAN_WALLS.map(() => 'wall')])
+    // Toutes les pièces en un seul contour (pas de couture entre deux pièces voisines).
+    expect(parts.slice(0, 3)).toEqual(['concrete', 'roof', 'room'])
+    expect(parts.filter((part) => part === 'room')).toHaveLength(1)
+    expect(parts.slice(2 + PLAN_ROOMS.length).every((part) => part === 'wall')).toBe(true)
+    // les cloisons sont les derniers traits
+    expect(parts.slice(-PLAN_WALLS.length)).toEqual(PLAN_WALLS.map(() => 'wall'))
   })
 
-  it('une pièce en L est un seul contour (union de ses rectangles)', () => {
-    const features = staticFeatures().features
-    const salon = features.find((f) => (f.properties as { name?: string }).name === 'Salon')
-    expect(salon?.geometry.type).toBe('MultiPolygon')
-    const polygons = (salon?.geometry as { coordinates: unknown[][] }).coordinates
+  it('le contour des pièces est en traits de mur, sans ce qui tombe sur une ouverture', () => {
+    const lines = staticFeatures().features.filter((f) => f.geometry.type === 'LineString')
+    // la cuisine est ouverte sur le salon : le mur y2 = 140 de x = 289 à x = 420 n'est pas dessiné
+    const [opening] = PLAN_OPENINGS
+    const from = fromHousePlan(opening.x1, opening.y1)
+    const to = fromHousePlan(opening.x2, opening.y2)
+    const onOpening = lines.filter((f) => {
+      const [a, b] = (f.geometry as unknown as { coordinates: [number, number][] }).coordinates.map(([lng, lat]) => lngLatToPlan(lng, lat))
+      return (
+        Math.abs(a[1] - from.y) < 0.01 &&
+        Math.abs(b[1] - to.y) < 0.01 &&
+        Math.min(a[0], b[0]) >= from.x - 0.01 &&
+        Math.max(a[0], b[0]) <= to.x + 0.01
+      )
+    })
+    expect(onOpening).toHaveLength(0)
+  })
+
+  it('toutes les pièces sont un seul contour : pas de trait au milieu d’une pièce en L, ni de couture entre deux pièces', () => {
+    const rooms = staticFeatures().features.filter((f) => (f.properties as { part?: string }).part === 'room')
+    expect(rooms).toHaveLength(1)
+    expect(rooms[0].geometry.type).toBe('MultiPolygon')
+    // La maison d'un bloc : un seul polygone, sans trou entre les pièces voisines.
+    const polygons = (rooms[0].geometry as { coordinates: unknown[][][] }).coordinates
     expect(polygons).toHaveLength(1)
+    expect(polygons[0]).toHaveLength(1)
   })
 
   it('le claustra est marqué « screen », pas la cloison pleine', () => {
     const walls = props(staticFeatures()).filter((p) => p.part === 'wall')
-    expect(walls.map((w) => w.screen)).toEqual(PLAN_WALLS.map((w) => (w.screen ? 1 : 0)))
+    expect(walls.slice(-PLAN_WALLS.length).map((w) => w.screen)).toEqual(PLAN_WALLS.map((w) => (w.screen ? 1 : 0)))
     expect(walls.some((w) => w.screen === 1)).toBe(true)
     expect(walls.some((w) => w.screen === 0)).toBe(true)
   })
@@ -118,7 +150,9 @@ describe('liveFeatures', () => {
   it('fabrique les formes et les points de chaque élément, rien de choisi', () => {
     const { shapes, points } = liveFeatures(data(), palette)
     const kinds = props(shapes).map((p) => p.kind)
-    expect(kinds).toEqual(expect.arrayContaining(['tiles', 'garage', 'cage', 'gate', 'hedge', 'tree', 'camera', 'lamp', 'plug']))
+    expect(kinds).toEqual(expect.arrayContaining(['tiles', 'garage', 'cage', 'gate', 'hedge', 'tree']))
+    // les caméras, les ampoules et les climatisations sont des icônes d'un calque de symboles (sur leur point), plus des polygones
+    for (const icon of ['camera', 'lamp', 'ac', 'plug']) expect(kinds).not.toContain(icon)
     expect(kinds).not.toContain('fov')
     expect(
       props(points)
@@ -148,8 +182,10 @@ describe('liveFeatures', () => {
     expect(all.find((p) => p.id === 'h2')?.selected).toBe(0)
     expect(all.find((p) => p.id === 't1')).toMatchObject({ stroke: 'A', strokeWidth: 3 })
     expect(all.find((p) => p.id === 't2')).toMatchObject({ stroke: 'G', strokeWidth: 1.5 })
-    expect(all.find((p) => p.kind === 'camera' && p.id === 'c1')?.stroke).toBe('A')
-    expect(all.find((p) => p.kind === 'camera' && p.id === 'c2')?.stroke).toBe('D')
+    // l'état d'une caméra est sur son point : allumée (contour vert), éteinte (rond rouge) ou inexistante (caméra rouge)
+    const hits = props(points).filter((p) => p.kind === 'camera-hit')
+    expect(hits.find((p) => p.id === 'c1')?.state).toBe('on')
+    expect(hits.find((p) => p.id === 'c2')?.state).toBe('off')
   })
 
   it('sans droit de modification : pas de poignées', () => {
@@ -174,37 +210,42 @@ describe('liveFeatures', () => {
   it('couleurs des lampes et des prises, vert des arbres selon la taille', () => {
     const { shapes } = liveFeatures(data(), palette)
     const all = props(shapes)
-    expect(all.find((p) => p.id === 'l1')).toMatchObject({ color: 'O', stroke: 'F' })
-    expect(all.find((p) => p.id === 'l2')).toMatchObject({ color: 'B', stroke: 'D' })
-    expect(all.find((p) => p.id === 'l3')).toMatchObject({ color: 'B', stroke: 'M' })
-    expect(all.find((p) => p.id === 'p1')?.color).toBe('G')
-    expect(all.find((p) => p.id === 'p2')?.color).toBe('D')
-    expect(all.find((p) => p.id === 't1')?.color).toBe('hsla(140, 50%, 62%, 0.85)')
-    expect(all.find((p) => p.id === 't2')?.color).toBe('hsla(140, 50%, 20%, 0.85)')
+    // une ampoule : son point porte la couleur de son icône (orange par défaut allumée, rouge injoignable, grise éteinte)
+    const bulbs = props(liveFeatures(data(), palette).points).filter((p) => p.kind === 'lamp-hit')
+    expect(bulbs.find((p) => p.id === 'l1')?.color).toBe('O')
+    expect(bulbs.find((p) => p.id === 'l2')?.color).toBe('D')
+    expect(bulbs.find((p) => p.id === 'l3')?.color).toBe('M')
+    // la prise : son point dit si elle est allumée (icône verte) ou éteinte (rouge)
+    const sockets = props(liveFeatures(data(), palette).points).filter((p) => p.kind === 'plug-hit')
+    expect(sockets.find((p) => p.id === 'p1')?.on).toBe(1)
+    expect(sockets.find((p) => p.id === 'p2')?.on).toBe(0)
+    expect(all.find((p) => p.id === 't1')?.color).toBe('hsla(140, 50%, 62%, 0.45)')
+    expect(all.find((p) => p.id === 't2')?.color).toBe('hsla(140, 50%, 20%, 0.45)')
   })
 
-  it('l’opacité d’une lampe suit sa luminosité (pleine éteinte, injoignable ou sans luminosité)', () => {
+  it('la couleur d’une lampe pâlit avec sa luminosité (inchangée éteinte, injoignable ou sans luminosité), sans opacité', () => {
     const lamps = [
-      { id: 'a', x: 1, y: 1, on: true, reachable: true, brightness: 254 },
-      { id: 'b', x: 1, y: 1, on: true, reachable: true, brightness: 1 },
-      { id: 'c', x: 1, y: 1, on: false, reachable: true, brightness: 1 },
-      { id: 'd', x: 1, y: 1, on: true, reachable: true, brightness: null },
+      { id: 'a', x: 1, y: 1, on: true, reachable: true, brightness: 254, color: '#ff8000' },
+      { id: 'b', x: 1, y: 1, on: true, reachable: true, brightness: 1, color: '#ff8000' },
+      { id: 'c', x: 1, y: 1, on: false, reachable: true, brightness: 1, color: '#ff8000' },
+      { id: 'd', x: 1, y: 1, on: true, reachable: true, brightness: null, color: '#ff8000' },
     ] as PlanLamp[]
-    const all = props(liveFeatures(data({ lamps }), palette).shapes)
-    const opacity = (id: string) => Number(all.find((p) => p.id === id)?.opacity)
-    expect(opacity('a')).toBe(1)
-    expect(opacity('b')).toBeLessThan(0.6)
-    expect(opacity('c')).toBe(1)
-    expect(opacity('d')).toBe(1)
+    const all = props(liveFeatures(data({ lamps }), palette).points)
+    const color = (id: string) => all.find((p) => p.id === id)?.color
+    expect(color('a')).toBe('#ff8000')
+    expect(color('b')).not.toBe('#ff8000')
+    expect(color('c')).toBe(palette.muted)
+    expect(color('d')).toBe('#ff8000')
+    expect(all.find((p) => p.id === 'b')).not.toHaveProperty('opacity')
   })
 
   it('un arbre plus petit que 15 reste au vert le plus clair', () => {
     const { shapes } = liveFeatures(data({ trees: [{ id: 'x', x: 0, y: 0, r: 1 }] as PlanTree[] }), palette)
-    expect(props(shapes).find((p) => p.id === 'x')?.color).toBe('hsla(140, 50%, 62%, 0.85)')
+    expect(props(shapes).find((p) => p.id === 'x')?.color).toBe('hsla(140, 50%, 62%, 0.45)')
   })
 })
 
-describe('roomFeature sans rectangle', () => {
+describe('roomsFeature sans rectangle', () => {
   it('une pièce sans rectangle donne une forme vide, sans casser', async () => {
     vi.resetModules()
     vi.doMock('@/components/Lights/constants', async (importOriginal) => ({
@@ -229,6 +270,61 @@ describe('tilesFeature sans sols de départ', () => {
     const mocked = await import('./features')
     const { shapes } = mocked.liveFeatures(data(), palette)
     expect(props(shapes).some((p) => p.kind === 'tiles')).toBe(true)
+    vi.doUnmock('@/components/Lights/constants')
+    vi.resetModules()
+  })
+})
+
+describe('liveFeatures : clim, volet, étiquette, emoji, caméra absente, couleur de lampe', () => {
+  it('chaque objet connecté donne son point avec son état', () => {
+    const { points } = liveFeatures(
+      data({
+        cameras: [camera({ id: 'm', missing: true })],
+        lamps: [{ id: 'lc', x: 1, y: 1, on: true, reachable: true, color: '#112233' }] as PlanLamp[],
+        acs: [
+          { id: 'a1', name: 'a', x: 1, y: 1, on: true, reachable: true, label: '' },
+          { id: 'a2', name: 'a', x: 1, y: 1, on: false, reachable: true, rotation: 90, label: '' },
+          { id: 'a3', name: 'a', x: 1, y: 1, on: true, reachable: false, label: '' },
+        ],
+        shutters: [
+          { id: 's1', name: 's', x: 1, y: 1, closed: true, label: '' },
+          { id: 's2', name: 's', x: 1, y: 1, closed: false, label: '' },
+        ],
+        labels: [{ id: 'e1', name: 'e', x: 1, y: 1, text: '21°' }],
+        emojis: [{ id: 'k1', emoji: '🦊', x: 1, y: 1 }],
+      }),
+      palette,
+    )
+    const all = props(points)
+    expect(all.find((p) => p.kind === 'camera-hit')?.state).toBe('missing')
+    expect(all.find((p) => p.kind === 'lamp-hit')?.color).toBe('#112233')
+    const acs = all.filter((p) => p.kind === 'ac-hit')
+    expect(acs.map((p) => p.state)).toEqual(['on', 'off', 'lost'])
+    expect(acs.map((p) => p.rotate)).toEqual([0, 90, 0])
+    expect(all.filter((p) => p.kind === 'shutter-hit').map((p) => p.closed)).toEqual([1, 0])
+    expect(all.find((p) => p.kind === 'label-hit')?.temp).toBe('21°')
+    expect(all.find((p) => p.kind === 'emoji-hit')?.emoji).toBe('🦊')
+  })
+})
+
+describe('roomWalls : les ouvertures', () => {
+  it('coupe les murs horizontaux et verticaux, ignore celles qui tombent à côté ou ailleurs', async () => {
+    vi.resetModules()
+    vi.doMock('@/components/Lights/constants', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('@/components/Lights/constants')>()),
+      PLAN_ROOMS: [{ name: 'A', rects: [{ x: 0, y: 0, w: 100, h: 100 }] }],
+      PLAN_OPENINGS: [
+        { x1: 40, y1: 0, x2: 20, y2: 0 },
+        { x1: 0, y1: 10, x2: 0, y2: 100 },
+        { x1: -10, y1: 100, x2: 30, y2: 100 },
+        { x1: 150, y1: 100, x2: 200, y2: 100 },
+        { x1: 100, y1: -10, x2: 100, y2: 30 },
+        { x1: 0, y1: 200, x2: 50, y2: 200 },
+      ],
+    }))
+    const mocked = await import('./features')
+    const parts = mocked.staticFeatures().features.filter((f) => (f.properties as { part?: string }).part === 'wall')
+    expect(parts.length - PLAN_WALLS.length).toBe(5)
     vi.doUnmock('@/components/Lights/constants')
     vi.resetModules()
   })

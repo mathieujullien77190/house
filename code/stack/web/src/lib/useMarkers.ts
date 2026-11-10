@@ -1,4 +1,4 @@
-// Les repères de caméras posés sur l'image d'une caméra : un 📷 par autre caméra, que l'on place où on veut (House API garde les places, pour tous les appareils) et que l'on peut
+// Les repères de caméras posés sur l'image d'une caméra : une icône de caméra par autre caméra, que l'on place où on veut (House API garde les places, pour tous les appareils) et que l'on peut
 // retirer. Sans rien d'enregistré pour la caméra, tous les repères sont là, alignés en haut de l'image ; dès qu'une liste est enregistrée, seuls ceux de la liste sont montrés.
 import { useCallback, useEffect, useState } from 'react'
 import { fetchMarkers, putMarkers } from '@/lib/api'

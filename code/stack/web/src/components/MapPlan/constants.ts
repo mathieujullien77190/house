@@ -14,38 +14,33 @@ export const MAP_ANCHOR = { x: HOUSE_SHIFT + 270, y: MAP_HOUSE_HEIGHT / 2 }
  */
 export const MAP_ROTATION_DEG = 37.7
 /** Le zoom de départ et le plus grand (MapLibre, tuiles de 512 px : un cran de moins que Leaflet pour la même échelle). */
-export const MAP_ZOOM = 19.7
+export const MAP_ZOOM = 19.85
+/** Le centre de la vue de départ, [latitude, longitude] : choisi à la main, il n'est pas celui du plan (`MAP_CENTER`, l'origine du plan, qui ne doit pas bouger). */
+export const MAP_VIEW_CENTER: [number, number] = [48.522045, 2.650143]
 export const MAP_MAX_ZOOM = 22
 export const MAP_PLAN_OPACITY = 0.8
 
-/** Les fonds de carte : deux en images (IGN, Géoplateforme, sans clé, dernier niveau natif 19 en tuiles de 256 px), un en vecteur (Plan IGN, net à tout zoom). */
+/** Le seul fond de carte : la photo aérienne (IGN, Géoplateforme, sans clé, dernier niveau natif 19 en tuiles de 256 px). */
 const WMTS = 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'
 export const RASTER_MAX_ZOOM = 19
 export const RASTER_TILE_SIZE = 256
-export const BASES = [
-  { id: 'satellite', label: 'Satellite', tiles: `${WMTS}&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg` },
-  { id: 'vector', label: 'Vectoriel', tiles: '' },
-] as const
-export type BaseId = (typeof BASES)[number]['id']
-/** Le fond de départ : la photo aérienne (le plan IGN en vecteur se choisit à côté). */
-export const DEFAULT_BASE: BaseId = 'satellite'
-/** Le style officiel du Plan IGN en tuiles vectorielles (sources, polices et pictogrammes compris) : la carte part de lui, la photo aérienne s'y ajoute. */
-export const VECTOR_STYLE_URL = 'https://data.geopf.fr/annexes/ressources/vectorTiles/styles/PLAN.IGN/standard.json'
+export const SATELLITE = { id: 'satellite', tiles: `${WMTS}&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg` }
 export const ATTRIBUTION = '© IGN — Géoplateforme'
 
-export const BASES_LABEL = 'Fond de carte'
 /** Le plan ne se modifie (déplacer, régler, redimensionner) que quand ce bouton est enfoncé ; il ne l'est pas au départ. */
 export const EDIT_LABEL = 'Modifier'
 /** Le choix de la vraie caméra liée à la caméra du plan choisie (en mode modification). */
 export const LINK_LABEL = 'Caméra liée'
 export const LINK_NONE = 'Aucune'
-export const RECENTER_LABEL = 'Recentrer'
 
 export const WRAPPER_CLASS = 'relative'
 export const MAP_CLASS = 'h-[530px] w-full overflow-hidden rounded-md border border-line'
-/** Les commandes posées sur la carte (au-dessus de ses couches : z 10) : le choix du fond en haut à droite, « Recentrer » et « Modifier » en bas à droite. */
+/** Sur téléphone : la carte, en paysage, remplit l'espace qui reste sous la barre du haut (la hauteur de l'écran moins la barre et les marges), au moins 15 rem. */
+export const MAP_FILL_CLASS = 'h-[calc(100dvh-8.5rem)] min-h-[15rem] w-full overflow-hidden rounded-md border border-line'
+/** Les commandes posées sur la carte (au-dessus de ses couches : z 10) : le choix de la caméra liée (en modification) et l'erreur en haut à droite, les cases à cocher en bas à gauche, « Modifier » tout en bas à gauche, suivi des cases à cocher. */
 export const LAYERS_CLASS = 'absolute right-2.5 top-2.5 z-10 flex flex-col items-end gap-2'
-export const ACTIONS_CLASS = 'absolute bottom-2.5 right-2.5 z-10 flex gap-2'
+/** Le bouton « Modifier » tout en bas à gauche de la carte, suivi des cases à cocher sur la même ligne. */
+export const ACTIONS_CLASS = 'absolute bottom-2.5 left-2.5 z-10 flex flex-wrap items-center gap-2'
 /** L'erreur de la carte, sous les commandes (courte, qui se coupe). */
 export const PROBLEM_CLASS = 'max-w-[16rem] text-[0.75rem] text-danger [overflow-wrap:anywhere]'
 
@@ -53,10 +48,8 @@ export const PROBLEM_CLASS = 'max-w-[16rem] text-[0.75rem] text-danger [overflow
 export const BRIGHTNESS_MAX = 254
 export const BRIGHTNESS_FLOOR = 0.25
 /** Le rayon d'une ampoule sur la carte, en unités du plan (assez gros pour la toucher du doigt). */
-export const LAMP_RADIUS = 6
-/** Le contour d'une lampe, d'une caméra ou d'une prise : 1 px de loin, 2 px dès ce zoom. */
-export const ICON_STROKE_ZOOM = 20.5
-export const ICON_STROKE_WIDTH = 2
+/** Le nombre de côtés du polygone d'un arbre : une carte ne sait dessiner que des segments, donc un « rond » est un polygone ; à 180 côtés l'écart au vrai cercle est sous 0,1 px même au zoom maximal avec le plus grand arbre (400 unités).  */
+export const TREE_STEPS = 180
 /** La marge autour des lampes quand la carte des lumières les cadre toutes, en pixels. */
 export const FIT_PADDING = 48
 /** Les crans de zoom ajoutés au cadrage exact des lampes. */
@@ -66,4 +59,27 @@ export const ROOM_FILL = '#f3f4f6'
 export const ROOM_LINE = '#374151'
 /** Le nom de l'ampoule touchée ou survolée, en bas de la carte et centré. */
 export const LAMP_LABEL_CLASS =
-  'pointer-events-none absolute bottom-2.5 left-1/2 z-10 -translate-x-1/2 rounded-md border border-line bg-bg/85 px-2 py-1 text-[0.8rem] text-fg'
+  'pointer-events-none absolute bottom-14 left-1/2 z-10 -translate-x-1/2 rounded-md border border-line bg-bg/85 px-2 py-1 text-[0.8rem] text-fg'
+
+/**
+ * Les cases à cocher qui montrent ou cachent les icônes par type, en bas à gauche de la carte : **toutes cochées au départ**. Chaque type a ses calques (cachés avec la case) et son type de
+ * zone de saisie (retirée du filtre de `plan-saisie` : une icône cachée ne se prend plus à la souris).
+ */
+export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'shutter' | 'plug' | 'emoji'; label: string; layers: string[]; hit: string }[] = [
+  { id: 'ac', label: 'Clim', layers: ['plan-clims', 'plan-clims-etat'], hit: 'ac-hit' },
+  {
+    id: 'camera',
+    label: 'Caméra',
+    layers: ['plan-cameras', 'plan-cameras-etat', 'plan-cameras-dessous', 'plan-cameras-dessous-etat', 'plan-vue'],
+    hit: 'camera-hit',
+  },
+  { id: 'lamp', label: 'Lumière', layers: ['plan-lampes'], hit: 'lamp-hit' },
+  { id: 'shutter', label: 'Volet', layers: ['plan-volets', 'plan-volets-etat'], hit: 'shutter-hit' },
+  { id: 'plug', label: 'Chauffage', layers: ['plan-prises', 'plan-prises-etat'], hit: 'plug-hit' },
+  { id: 'emoji', label: 'Clip', layers: ['plan-emojis'], hit: 'emoji-hit' },
+]
+/** Les zones de saisie qui restent toujours (les étiquettes de température). */
+export const ALWAYS_HIT = ['label-hit']
+/** Les cases à cocher, **alignées en une ligne, à droite du bouton « Modifier », en bas à gauche de la carte** (elles passent à la ligne sur un écran étroit). */
+export const FILTERS_BAR_CLASS =
+  'flex flex-row flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-card/90 px-2 py-1.5'

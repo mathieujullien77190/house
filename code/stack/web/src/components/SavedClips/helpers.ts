@@ -6,4 +6,6 @@ export const playablePath = (event: EventRow): string | null => event.clip_h264 
 
 /** La légende d'une vignette : le jour et l'heure, et la durée du clip (connue quand sa vidéo est chargée). */
 export const captionOf = (event: EventRow, clipSeconds?: number): string =>
-  [formatTime(event.clip_started_at ?? event.started_at), clipSeconds === undefined ? '' : `${Math.round(clipSeconds)} s`].filter(Boolean).join(' · ')
+  [formatTime(event.clip_started_at ?? event.started_at), clipSeconds === undefined ? '' : `${Math.round(clipSeconds)} s`]
+    .filter(Boolean)
+    .join(' · ')

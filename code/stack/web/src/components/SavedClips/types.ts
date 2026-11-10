@@ -1,10 +1,12 @@
 import type { EventRow } from '@/types'
 
-export interface HomeProps {
+export interface SavedClipsProps {
   apiKey: string
+  /** Ouvre le détail de la caméra du clip, le clip lancé (comme un clic sur l'emoji du clip sur la carte de Home). Sans lui, la vignette lit le clip sur place. */
+  onOpenCamera?: (camera: string, eventId?: string) => void
 }
 
-export interface HomeUIProps {
+export interface SavedClipsUIProps {
   apiKey: string
   /** Les clips sauvegardés, ou null tant qu'ils ne sont pas lus. */
   events: EventRow[] | null
@@ -22,6 +24,8 @@ export interface HomeUIProps {
   saveFailed: boolean
   /** Pose la note d'un clip (vide : la supprime). */
   onNote: (id: string, note: string) => Promise<unknown>
+  /** Pose l'emoji d'un clip (`null` : le retire). */
+  onEmoji: (id: string, emoji: string | null) => Promise<unknown>
   onOpen: (id: string) => void
   onBack: () => void
 }

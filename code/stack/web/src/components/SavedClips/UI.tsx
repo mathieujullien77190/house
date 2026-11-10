@@ -1,4 +1,5 @@
 import { Button, CameraTile, Notice, SectionTitle, Tabs } from '@house/ui'
+import ClipEmoji from '@/components/ClipEmoji'
 import ClipNote from '@/components/ClipNote'
 import ClipPlayer from '@/components/ClipPlayer'
 import FullscreenBox from '@/components/FullscreenBox'
@@ -25,9 +26,9 @@ import {
   TITLE_TEXT,
 } from './constants'
 import { captionOf, playablePath } from './helpers'
-import type { HomeUIProps } from './types'
+import type { SavedClipsUIProps } from './types'
 
-const HomeUI = ({
+const SavedClipsUI = ({
   apiKey,
   events,
   failed,
@@ -38,9 +39,10 @@ const HomeUI = ({
   onSave,
   saveFailed,
   onNote,
+  onEmoji,
   onOpen,
   onBack,
-}: HomeUIProps) => {
+}: SavedClipsUIProps) => {
   if (failed) return <Notice text={LOAD_ERROR_TEXT} />
   if (events === null) return <Notice text={LOADING_TEXT} />
   const path = opened ? playablePath(opened) : null
@@ -57,6 +59,7 @@ const HomeUI = ({
           {opened.camera} · {captionOf(opened, durations[opened.id])}
         </p>
         <ClipNote key={opened.id} note={opened.note} onSave={(text) => onNote(opened.id, text)} />
+        <ClipEmoji key={`emoji-${opened.id}`} emoji={opened.emoji ?? ''} onSave={(value) => onEmoji(opened.id, value)} />
         <div className={PLAYER_WRAP_CLASS}>
           <FullscreenBox>
             {opened.orientation === 'portrait' ? (
@@ -109,6 +112,7 @@ const HomeUI = ({
                 onOpen={() => onOpen(event.id)}
               />
               <ClipNote note={event.note} onSave={(text) => onNote(event.id, text)} />
+              <ClipEmoji emoji={event.emoji ?? ''} onSave={(value) => onEmoji(event.id, value)} />
             </div>
           )
         })}
@@ -117,4 +121,4 @@ const HomeUI = ({
   )
 }
 
-export default HomeUI
+export default SavedClipsUI

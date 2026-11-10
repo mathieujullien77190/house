@@ -9,8 +9,8 @@ import { captionOf, clipLead, clipPathOf, liveCaption, orientationShown, tempera
 import { lampLabel, plugLabel } from './CameraIndicators/helpers'
 import { orderedCameras } from './CameraMosaic/helpers'
 import { guestLink } from './GuestLink/helpers'
-import { captionOf as homeCaption, playablePath } from './Home/helpers'
-import { countdownText, elapsedText, signalText } from './PlugPanel/helpers'
+import { captionOf as homeCaption, playablePath } from './SavedClips/helpers'
+import { countdownText, elapsedText } from './PlugPanel/helpers'
 import { statusText } from './PowerButton/helpers'
 
 const event = (over: Partial<EventRow> = {}): EventRow =>
@@ -126,7 +126,7 @@ describe('GuestLink/helpers', () => {
   })
 })
 
-describe('Home/helpers', () => {
+describe('SavedClips/helpers', () => {
   it('playablePath : H.264 d’abord', () => {
     expect(playablePath(event())).toBe('/clips/e/h264')
     expect(playablePath(event({ clip_h264: null }))).toBe('/clips/e')
@@ -139,11 +139,6 @@ describe('Home/helpers', () => {
 })
 
 describe('PlugPanel/helpers', () => {
-  it('signalText', () => {
-    expect(signalText(-50)).toBe('bon (-50 dBm)')
-    expect(signalText(-65)).toBe('moyen (-65 dBm)')
-    expect(signalText(-80)).toBe('faible (-80 dBm)')
-  })
   it('elapsedText', () => {
     expect(elapsedText(-5)).toBe('0 s')
     expect(elapsedText(45)).toBe('45 s')

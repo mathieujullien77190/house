@@ -3,7 +3,7 @@
 /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire pour être droite). Réglé dans House Sync. */
 export type Orientation = 'landscape' | 'portrait'
 
-/** Un repère posé sur l'image d'une caméra : un 📷 qui ouvre la caméra `target` ; sa place en parts de l'image (x de 0 à gauche à 1 à droite, y de 0 en haut à 1 en bas). */
+/** Un repère posé sur l'image d'une caméra : une icône de caméra qui ouvre la caméra `target` ; sa place en parts de l'image (x de 0 à gauche à 1 à droite, y de 0 en haut à 1 en bas). */
 export interface CameraMarker {
   target: string
   x: number
@@ -40,6 +40,8 @@ export interface EventRow {
   saved: boolean
   /** La note du clip (« renard »), posée depuis la Home ; vide s'il n'y en a pas. */
   note: string
+  /** L'emoji du clip (🦊), montré sur la carte de la maison ; vide ou absent s'il n'y en a pas. */
+  emoji?: string
   /** L'orientation qu'avait la caméra au début de l'événement : un clip pris avant que la caméra soit tournée reste en paysage. */
   orientation: Orientation
 }
@@ -57,7 +59,39 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'plug' | 'api'
+export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'ac' | 'plug' | 'api'
+
+export type AcMode = 'heat' | 'cool' | 'dry' | 'fan' | 'auto'
+
+/** Une climatisation Mitsubishi, telle que House API la décrit (les champs sont vides quand le module ne répond pas : `reachable` faux). */
+export interface AcUnit {
+  id: string
+  name: string
+  reachable: boolean
+  power: boolean
+  mode: AcMode | null
+  /** La consigne en °C. */
+  targetTemp: number | null
+  /** La température de la pièce en °C, lue par l'unité. */
+  roomTemp: number | null
+  /** 'auto', 'quiet' ou '1' à '4'. */
+  fan: string | null
+  /** L'ailette : 'auto', '1' (haut) à '5' (bas) ou 'swing' (balayage). */
+  vane: string | null
+  /** L'ailette gauche / droite : left, left-center, center, right-center, right ou swing ; null si l'unité ne la donne pas. */
+  wideVane: string | null
+}
+
+/** Ce qu'on change d'une climatisation : seuls les champs donnés bougent. */
+export interface AcPatch {
+  on?: boolean
+  mode?: AcMode
+  /** La consigne en °C, par pas de 0,5. */
+  temperature?: number
+  fan?: string
+  vane?: string
+  wideVane?: string
+}
 
 /** La prise connectée (TP-Link Kasa), telle que House API la décrit. */
 export interface PlugState {
@@ -130,6 +164,8 @@ export interface HueLight {
   on: boolean
   bri: number | null
   reachable: boolean
+  /** La couleur actuelle de la lampe en #rrggbb (à pleine luminosité) ; null pour une lampe qui ne change pas de couleur. */
+  color?: string | null
 }
 
 /** Une pièce du pont Hue et ses lampes. */

@@ -20,3 +20,11 @@ export const plugHint = (plug: PlugState): string => `Chauffage ${plug.on ? 'all
 
 /** Le texte de l'infobulle des températures (un clic) : « Température 9,5 °C ». */
 export const temperatureHint = (temperatures: string[]): string => `Température ${temperatures.join(' · ')}`
+
+/** La couleur de l'ampoule dans son rond, comme sur la carte : rouge injoignable, grise éteinte, orange (ou la couleur du pont) allumée, **plus pâle quand la luminosité baisse**. */
+export const lampColor = (lamp: HueLight): string => {
+  if (!lamp.reachable) return 'var(--color-danger)'
+  if (!lamp.on) return 'var(--color-muted)'
+  const share = lamp.bri === null ? 100 : 25 + 75 * (Math.min(Math.max(lamp.bri, 0), 254) / 254)
+  return `color-mix(in srgb, ${lamp.color ?? 'var(--color-orange)'} ${share}%, white)`
+}

@@ -1,4 +1,4 @@
-import { cameraRing, circleRing, fovRing, pathRings, polar, rectRing } from './shapes'
+import { circleRing, coneRing, pathRings, polar, rectRing } from './shapes'
 
 describe('shapes', () => {
   it('rectRing donne les quatre coins', () => {
@@ -23,20 +23,12 @@ describe('shapes', () => {
     expect(x1).toBeCloseTo(10)
     expect(y1).toBeCloseTo(0)
   })
-  it('fovRing : un croissant entre near et far', () => {
-    const ring = fovRing(0, 0, 0, 60, 10, 100)
-    expect(ring).toHaveLength(50)
-    expect(Math.hypot(...ring[0])).toBeCloseTo(100)
-    expect(Math.hypot(...ring[49])).toBeCloseTo(10)
-    expect(fovRing(0, 0, 0, 60, 10, 100, 4)).toHaveLength(10)
-  })
-  it('cameraRing : huit points tournés vers l’angle', () => {
-    const up = cameraRing(0, 0, 0)
-    expect(up).toHaveLength(8)
-    // l'objectif (devant) est vers le haut : y négatif
-    expect(Math.min(...up.map(([, y]) => y))).toBeLessThan(-15)
-    const right = cameraRing(0, 0, 90)
-    expect(Math.max(...right.map(([x]) => x))).toBeGreaterThan(15)
+  it('coneRing : un cône dont la pointe est la caméra, et un arc de rayon far', () => {
+    const ring = coneRing(0, 0, 0, 60, 100)
+    expect(ring).toHaveLength(26)
+    expect(ring[0]).toEqual([0, 0])
+    for (const point of ring.slice(1)) expect(Math.hypot(...point)).toBeCloseTo(100)
+    expect(coneRing(0, 0, 0, 60, 100, 4)).toHaveLength(6)
   })
 
   describe('pathRings', () => {

@@ -2,22 +2,23 @@
 // lampe, prise, poignées), reconstruite quand elles changent. Chaque élément porte son genre (`kind`) et son identifiant pour qu'on puisse le saisir à la souris.
 import type { Feature as GeoFeature, FeatureCollection, Geometry } from 'geojson'
 import polygonClipping from 'polygon-clipping'
-import type { PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanRoom, PlanTree } from '@house/ui'
+import type { PlanAc, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanLabel, PlanRoom, PlanShutter, PlanTree, PlanEmoji } from '@house/ui'
 import {
   HOUSE_SHIFT,
   PLAN_EXTENSION,
   PLAN_FLOOR_PATHS,
   PLAN_FLOORS,
+  PLAN_OPENINGS,
   PLAN_ROOMS,
   PLAN_WALLS,
   PLAN_PATHS,
   PLAN_TERRACE,
 } from '@/components/Lights/constants'
-import { LAMP_RADIUS, MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from './constants'
-import { bulbOpacity, fromHousePlan } from './helpers'
+import { TREE_STEPS, MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from './constants'
+import { bulbColor, fromHousePlan } from './helpers'
 import { eastLimitAt } from './parcel'
 import { planToLngLat, type Point } from './projection'
-import { cameraRing, circleRing, fovRing, pathRings, rectRing } from './shapes'
+import { circleRing, coneRing, pathRings, rectRing } from './shapes'
 
 export type Collection = FeatureCollection<Geometry>
 type Feature = GeoFeature<Geometry>
@@ -69,33 +70,87 @@ const collection = (features: Feature[]): Collection => ({ type: 'FeatureCollect
 /** Le vert d'un arbre : plus il est gros, plus il est foncé (du vert clair d'un petit arbre au vert sombre d'un grand), un peu transparent. */
 const treeColor = (radius: number): string => {
   const share = Math.min(1, Math.max(0, (radius - 15) / 385))
-  return `hsla(140, 50%, ${Math.round(62 - 42 * share)}%, 0.85)`
+  return `hsla(140, 50%, ${Math.round(62 - 42 * share)}%, 0.45)`
 }
 
 /** La largeur du carrelage au sud de la maison : la terrasse de 1,5 m et 50 cm de plus, en unités du plan (39 par mètre). */
 const SOUTH_TILES = PLAN_TERRACE + 0.5 * MAP_UNITS_PER_METER
 
-/** Une pièce de l'ancien plan des lumières en un seul contour (l'union de ses rectangles : une pièce en L n'a pas de trait au milieu), dans le repère de la carte. */
-const roomFeature = (room: PlanRoom): Feature => {
-  const pieces = room.rects.map(
-    (rect) =>
-      [
-        rectRing(rect.x, rect.y, rect.w, rect.h).map(([x, y]): [number, number] => {
-          const mapped = fromHousePlan(x, y)
-          return [mapped.x, mapped.y]
-        }),
-      ] as [number, number][][],
+/**
+ * Toutes les pièces en **un seul contour** (l'union de tous leurs rectangles : ni trait au milieu d'une pièce en L, ni couture entre deux pièces voisines). Des pièces dessinées
+ * une à une, à 60 % d'opacité, se chevauchent ou se touchent à peine sur leur côté commun : on y voyait un fin trait clair dans la maison. Dans le repère de la carte.
+ */
+const roomsFeature = (rooms: PlanRoom[]): Feature => {
+  const pieces = rooms.flatMap((room) =>
+    room.rects.map(
+      (rect) =>
+        [
+          rectRing(rect.x, rect.y, rect.w, rect.h).map(([x, y]): [number, number] => {
+            const mapped = fromHousePlan(x, y)
+            return [mapped.x, mapped.y]
+          }),
+        ] as [number, number][][],
+    ),
   )
   const [first, ...rest] = pieces
   const merged = first ? polygonClipping.union(first, ...rest) : []
   return {
     type: 'Feature',
-    properties: { part: 'room', name: room.name },
+    properties: { part: 'room' },
     geometry: {
       type: 'MultiPolygon',
       coordinates: merged.map((area) => area.map((ring) => ring.map(([x, y]) => planToLngLat(x, y)))),
     },
   }
+}
+
+type Segment = [number, number, number, number]
+
+/** Un segment horizontal ou vertical, moins ce qui tombe sur une ouverture (un morceau de mur qui n'existe pas) : zéro, un ou deux morceaux. */
+const cutOpenings = (segment: Segment, openings: { x1: number; y1: number; x2: number; y2: number }[]): Segment[] =>
+  openings.reduce<Segment[]>(
+    (parts, opening) =>
+      parts.flatMap(([ax, ay, bx, by]): Segment[] => {
+        const horizontal = ay === by && opening.y1 === opening.y2 && ay === opening.y1
+        const vertical = ax === bx && opening.x1 === opening.x2 && ax === opening.x1
+        if (!horizontal && !vertical) return [[ax, ay, bx, by]]
+        const [lo, hi] = horizontal ? [Math.min(ax, bx), Math.max(ax, bx)] : [Math.min(ay, by), Math.max(ay, by)]
+        const [cutLo, cutHi] = horizontal
+          ? [Math.min(opening.x1, opening.x2), Math.max(opening.x1, opening.x2)]
+          : [Math.min(opening.y1, opening.y2), Math.max(opening.y1, opening.y2)]
+        if (cutHi <= lo || cutLo >= hi) return [[ax, ay, bx, by]]
+        const kept: Segment[] = []
+        if (cutLo > lo) kept.push(horizontal ? [lo, ay, cutLo, ay] : [ax, lo, ax, cutLo])
+        if (cutHi < hi) kept.push(horizontal ? [cutHi, ay, hi, ay] : [ax, cutHi, ax, hi])
+        return kept
+      }),
+    [segment],
+  )
+
+/** Le contour d'une pièce en traits de mur : les côtés de l'union de ses rectangles (une pièce en L n'a pas de trait au milieu), moins les ouvertures, dans le repère de la carte. */
+const roomWalls = (room: PlanRoom): Feature[] => {
+  const pieces = room.rects.map((rect) => [rectRing(rect.x, rect.y, rect.w, rect.h)] as [number, number][][])
+  const [first, ...rest] = pieces
+  const merged = first ? polygonClipping.union(first, ...rest) : []
+  return merged
+    .flatMap((area) => area)
+    .flatMap((ring) =>
+      ring
+        .slice(0, -1)
+        .map(([x, y], index): Segment => [x, y, ring[(index + 1) % (ring.length - 1)][0], ring[(index + 1) % (ring.length - 1)][1]]),
+    )
+    .flatMap((segment) => cutOpenings(segment, PLAN_OPENINGS))
+    .map(([x1, y1, x2, y2]) => {
+      const from = fromHousePlan(x1, y1)
+      const to = fromHousePlan(x2, y2)
+      return line(
+        [
+          [from.x, from.y],
+          [to.x, to.y],
+        ],
+        { part: 'wall', screen: 0 },
+      )
+    })
 }
 
 /** La partie fixe : chemins de béton, pavage (terrasse et sols), cage, toit, portails. Le toit est celui du plan : 540 unités de large, poussé de `HOUSE_SHIFT`. */
@@ -116,7 +171,8 @@ export const staticFeatures = (): Collection => {
     // Le côté nord de la terrasse en béton gris clair (du bout gauche de la terrasse à l'angle haut droit de la maison).
     polygon(rectRing(HOUSE_SHIFT - PLAN_TERRACE, -PLAN_TERRACE, width + PLAN_TERRACE, PLAN_TERRACE), { part: 'concrete' }),
     polygon(roof, { part: 'roof' }),
-    ...PLAN_ROOMS.map(roomFeature),
+    roomsFeature(PLAN_ROOMS),
+    ...PLAN_ROOMS.flatMap(roomWalls),
     ...PLAN_WALLS.map((wall) => {
       const from = fromHousePlan(wall.x1, wall.y1)
       const to = fromHousePlan(wall.x2, wall.y2)
@@ -145,9 +201,15 @@ export interface LiveData {
   cameras: PlanCamera[]
   lamps: PlanLamp[]
   plugs: PlanPlug[]
+  acs: PlanAc[]
+  shutters: PlanShutter[]
+  labels: PlanLabel[]
+  emojis: PlanEmoji[]
   selectedHedgeId: string
   selectedTreeId: string
   selectedCameraId: string
+  /** La caméra survolée : son champ de vision s'affiche aussi, sans poignée. */
+  hoveredCameraId: string
   /** Les poignées (taille d'un arbre, réglage d'une caméra, sommets d'une haie) existent seulement si l'élément est éditable. */
   canEditHedges: boolean
   canResizeTrees: boolean
@@ -241,7 +303,7 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
   for (const tree of data.trees) {
     const selected = tree.id === data.selectedTreeId
     shapes.push(
-      polygon(circleRing(tree.x, tree.y, tree.r), {
+      polygon(circleRing(tree.x, tree.y, tree.r, TREE_STEPS), {
         kind: 'tree',
         id: tree.id,
         color: treeColor(tree.r),
@@ -253,42 +315,39 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
   }
   for (const camera of data.cameras) {
     const selected = camera.id === data.selectedCameraId
-    if (selected)
-      shapes.push(polygon(fovRing(camera.x, camera.y, camera.angle, camera.fov, camera.near, camera.far), { kind: 'fov', id: camera.id }))
-    shapes.push(
-      polygon(cameraRing(camera.x, camera.y, camera.angle), {
-        kind: 'camera',
+    if (selected || camera.id === data.hoveredCameraId)
+      shapes.push(polygon(coneRing(camera.x, camera.y, camera.angle, camera.fov, camera.far), { kind: 'fov', id: camera.id }))
+    points.push(
+      dot([camera.x, camera.y], {
+        kind: 'camera-hit',
         id: camera.id,
-        stroke: camera.off ? palette.danger : palette.accent,
+        state: camera.missing ? 'missing' : camera.off ? 'off' : 'on',
+        angle: camera.angle,
       }),
     )
-    points.push(dot([camera.x, camera.y], { kind: 'camera-hit', id: camera.id }))
     if (selected && data.canAdjustCameras) points.push(dot(cameraHandle(camera), { kind: 'camera-handle', id: camera.id }))
   }
   for (const lamp of data.lamps) {
-    const color = lamp.on && lamp.reachable ? palette.orange : palette.bg
-    const stroke = !lamp.reachable ? palette.danger : lamp.on ? palette.fg : palette.muted
-    shapes.push(
-      polygon(circleRing(lamp.x, lamp.y, LAMP_RADIUS, 96), {
-        kind: 'lamp',
-        id: lamp.id,
-        color,
-        stroke,
-        opacity: bulbOpacity(lamp.on, lamp.reachable, lamp.brightness),
-      }),
+    // L'ampoule est une icône (calque de symboles sur son point) dessinée **dans la couleur de l'ampoule** : sa vraie couleur quand elle est allumée (orange par défaut si on ne la connaît pas), grise éteinte, rouge injoignable ; `opacity` suit la luminosité.
+    const color = !lamp.reachable ? palette.danger : lamp.on ? (lamp.color ?? palette.orange) : palette.muted
+    points.push(
+      dot([lamp.x, lamp.y], { kind: 'lamp-hit', id: lamp.id, color: bulbColor(color, lamp.on, lamp.reachable, lamp.brightness) }),
     )
-    points.push(dot([lamp.x, lamp.y], { kind: 'lamp-hit', id: lamp.id }))
+  }
+  for (const ac of data.acs) {
+    // La climatisation est une icône (calque de symboles sur son point) : `state` choisit l'image (allumée, éteinte, injoignable).
+    const state = !ac.reachable ? 'lost' : ac.on ? 'on' : 'off'
+    points.push(dot([ac.x, ac.y], { kind: 'ac-hit', id: ac.id, state, rotate: ac.rotation ?? 0 }))
+  }
+  for (const item of data.emojis) points.push(dot([item.x, item.y], { kind: 'emoji-hit', id: item.id, emoji: item.emoji }))
+  for (const label of data.labels) points.push(dot([label.x, label.y], { kind: 'label-hit', id: label.id, temp: label.text }))
+  for (const shutter of data.shutters) {
+    // Le volet est une icône (calque de symboles sur son point) : fermée ou ouverte selon son dernier ordre.
+    points.push(dot([shutter.x, shutter.y], { kind: 'shutter-hit', id: shutter.id, closed: shutter.closed ? 1 : 0 }))
   }
   for (const plug of data.plugs) {
-    shapes.push(
-      polygon(rectRing(plug.x - 9, plug.y - 9, 18, 18), {
-        kind: 'plug',
-        id: plug.id,
-        color: plug.on ? palette.green : palette.danger,
-        stroke: palette.fg,
-      }),
-    )
-    points.push(dot([plug.x, plug.y], { kind: 'plug-hit', id: plug.id }))
+    // La prise est une icône (calque de symboles sur son point) : `on` choisit l'image (verte allumée, rouge éteinte).
+    points.push(dot([plug.x, plug.y], { kind: 'plug-hit', id: plug.id, on: plug.on ? 1 : 0 }))
   }
   return { shapes: collection(shapes), points: collection(points) }
 }

@@ -23,25 +23,34 @@ export const fromHousePlan = (x: number, y: number): { x: number; y: number } =>
   y: (y * MAP_HOUSE_HEIGHT) / OLD_HOUSE_HEIGHT,
 })
 
-/** Les lampes pas encore placées attendent en rangées au sud de la maison (sur le carrelage), à ces écarts et par rangée de ce nombre. */
-const WAITING_STEP = 30
-const WAITING_PER_ROW = 17
-const WAITING_TOP = 110
+/** Les crans de la luminosité d'une ampoule sur la carte : une image d'ampoule par couleur, donc pas une par valeur (1 à 254). */
+const BRIGHTNESS_STEPS = 16
 
-/** La place d'attente de la n-ième lampe à placer. */
-export const waitingSlot = (index: number): { x: number; y: number } => ({
-  x: HOUSE_SHIFT + 16 + (index % WAITING_PER_ROW) * WAITING_STEP,
-  y: MAP_HOUSE_HEIGHT + WAITING_TOP + Math.floor(index / WAITING_PER_ROW) * WAITING_STEP,
-})
-
-/** L'opacité d'une ampoule : sa luminosité (1 à 254) entre le plancher et le plein ; plein si elle est éteinte, injoignable ou sans luminosité. */
-export const bulbOpacity = (on: boolean, reachable: boolean, brightness: number | null | undefined): number =>
-  on && reachable && brightness !== null && brightness !== undefined
-    ? BRIGHTNESS_FLOOR + (1 - BRIGHTNESS_FLOOR) * Math.min(1, Math.max(0, brightness / BRIGHTNESS_MAX))
-    : 1
+/**
+ * La couleur d'une ampoule allumée **selon sa luminosité** : **seul le jaune (sa couleur) pâlit**, mêlé de blanc quand la luminosité baisse (au plancher, il reste un quart de la couleur) ;
+ * le rond blanc et le contour noir de l'icône restent à pleine opacité. Inchangée si l'ampoule est éteinte, injoignable, sans luminosité ou d'une couleur qui n'est pas un `#rrggbb` / `#rgb`.
+ */
+export const bulbColor = (color: string, on: boolean, reachable: boolean, brightness: number | null | undefined): string => {
+  if (!on || !reachable || brightness === null || brightness === undefined) return color
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)?.[1]
+  if (!hex) return color
+  const full = hex.length === 3 ? [...hex].map((digit) => digit + digit).join('') : hex
+  const share = Math.min(1, Math.max(0, brightness / BRIGHTNESS_MAX))
+  const level = BRIGHTNESS_FLOOR + (1 - BRIGHTNESS_FLOOR) * (Math.round(share * BRIGHTNESS_STEPS) / BRIGHTNESS_STEPS)
+  const channel = (offset: number): string => {
+    const value = Number.parseInt(full.slice(offset, offset + 2), 16)
+    return Math.round(255 - (255 - value) * level)
+      .toString(16)
+      .padStart(2, '0')
+  }
+  return `#${channel(0)}${channel(2)}${channel(4)}`
+}
 
 /** Le nom d'une ampoule avec sa luminosité en pourcentage quand elle est allumée (« Perruche · 60 % »). */
 export const bulbLabel = (name: string, on: boolean, reachable: boolean, brightness: number | null | undefined): string =>
   on && reachable && brightness !== null && brightness !== undefined
     ? `${name} · ${Math.round((brightness / BRIGHTNESS_MAX) * 100)} %`
     : name
+
+/** Une température écrite sur le plan : « 21° » ou « 21,5° » (une décimale au plus, à la française). */
+export const temperatureText = (value: number): string => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}°`

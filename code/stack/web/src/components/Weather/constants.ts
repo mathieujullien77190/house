@@ -8,8 +8,12 @@ export const HOUSE_PLACE = 'Dammarie-lès-Lys'
 export const WRAP_CLASS = 'flex shrink-0 items-center'
 export const ICON_CLASS = 'text-[1.15rem] leading-none'
 export const TEMPERATURE_CLASS = 'font-semibold tabular-nums'
-/** Le lieu : seulement dès 1024 px, la barre du téléphone est étroite. */
-export const PLACE_CLASS = 'text-muted max-lg:hidden'
+/** La température de la maison (celle du salon) après celle de dehors, séparée par un point : « 12° · 🏠 22° » (le petit emoji maison juste à gauche de la température de la maison). */
+export const HOME_ICON = '🏠'
+export const SEPARATOR_CLASS = 'text-muted'
+/** Les noms des deux températures, pour l'infobulle et les lecteurs d'écran : à l'écran, « 12° · 🏠 22° » (dehors, la maison, dedans). */
+export const OUTSIDE_LABEL = 'extérieur'
+export const HOME_LABEL = 'intérieur'
 
 /** Le bouton (la météo d'aujourd'hui) qui ouvre ou ferme les prévisions. */
 export const BUTTON_CLASS = 'flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md text-[0.9rem] text-fg'

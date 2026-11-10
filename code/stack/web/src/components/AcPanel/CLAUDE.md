@@ -1,0 +1,8 @@
+# AcPanel – l'onglet Clim
+
+Les climatisations Mitsubishi (API `/ac`, relue toutes les 10 s). Un bloc par unité : son nom, son état en une phrase (allumée ou éteinte, mode, température de la pièce), puis les commandes.
+
+- **Quatre commandes**, toutes par `POST /ac/<id>` (un seul champ à la fois, les autres réglages ne bougent pas) : **On / Off** (un interrupteur à glissière à droite du nom, `role="switch"`, avec « On » ou « Off » à côté), les **cinq modes** (Chaud, Froid, Sec, Ventilation, Auto : le mode courant est en surbrillance), la **consigne** (− / + : un pas de 0,5 °C, entre 16 et 31 °C, `stepTarget`) le **ventilateur** (Auto, Silence, 1 à 4) et **les deux ailettes** sur chaque clim (le temps de savoir ce que chaque modèle a vraiment) : **haut / bas** (Va-et-vient, Auto, 1 haut à 5 bas, `vane`) et **gauche / droite** (Va-et-vient, Gauche, Milieu gauche, Milieu, Milieu droite, Droite, `wideVane`). L'API rend l'unité avec le changement appliqué (sans relire le module) ; les boutons de l'unité sont grisés le temps de la requête. Un échec (module injoignable) affiche « L'ordre n'est pas parti ».
+- Le bloc d'une unité est `AcUnitCard.tsx`, **partagé** avec l'aperçu de la carte (`../AcPreview/CLAUDE.md`).
+- Une unité dont le module ne répond pas (`reachable: false`) montre seulement « Le module Wi-Fi de cette unité ne répond pas ». Aucune unité configurée (`AC_UNITS` absent) : l'API répond 503 et l'onglet le dit.
+- Pas de retour instantané du module après une commande à la télécommande : l'état se met à jour à la prochaine lecture (10 s).

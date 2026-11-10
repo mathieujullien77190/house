@@ -20,6 +20,7 @@ const h = vi.hoisted(() => {
     pinchArgs: null as any,
     markers: { markers: [{ target: 'b', x: 0.2, y: 0.3 }], move: () => undefined, commit: () => undefined, remove: () => undefined } as any,
     markersVisible: { visible: true, toggle: () => undefined } as any,
+    offCameras: [] as string[],
   })
   return {
     fresh,
@@ -41,6 +42,7 @@ vi.mock('@/lib/usePlug', () => ({ usePlug: () => h.s.plug }))
 vi.mock('@/lib/useRecording', () => ({ useRecording: () => h.s.recorder }))
 vi.mock('@/lib/useMarkers', () => ({ useMarkers: () => h.s.markers }))
 vi.mock('@/lib/useMarkersVisible', () => ({ useMarkersVisible: () => h.s.markersVisible }))
+vi.mock('@/lib/useOffCameras', () => ({ useOffCameras: () => h.s.offCameras }))
 vi.mock('@/lib/useZone', () => ({ useZone: () => h.s.zone }))
 vi.mock('@/lib/useBigView', () => ({ useBigView: () => h.s.big }))
 vi.mock('@/lib/useClock', async (importOriginal) => ({
@@ -172,6 +174,35 @@ describe('CameraCard : le direct', () => {
     fireEvent.load(img)
     expect(screen.getByTestId('caption')).toHaveTextContent('640×360')
   })
+  it('en 4K, le flux léger s’affiche d’abord ; le 4K se charge caché et le remplace dès sa première image', () => {
+    mount()
+    const sources = () => [...document.querySelectorAll('img')].map((img) => img.getAttribute('src'))
+    // le 4K est dans la page (caché), le léger est par-dessus
+    expect(sources()).toEqual(['/stream?camera=voliere-interieur&quality=hd', '/stream?camera=voliere-interieur'])
+    expect(document.querySelector('img')?.closest('.opacity-0')).not.toBeNull()
+    // la première image du 4K arrive : le léger disparaît, le 4K devient visible
+    const hd = document.querySelector('img') as HTMLImageElement
+    Object.defineProperty(hd, 'naturalWidth', { value: 3840 })
+    Object.defineProperty(hd, 'naturalHeight', { value: 2160 })
+    fireEvent.load(hd)
+    expect(sources()).toEqual(['/stream?camera=voliere-interieur&quality=hd'])
+    expect(document.querySelector('img')?.closest('.opacity-0')).toBeNull()
+    expect(screen.getByTestId('caption')).toHaveTextContent('3840×2160')
+    // revenir à « Léger » puis « 4K » repart du flux léger
+    fireEvent.click(screen.getByRole('tab', { name: 'Léger' }))
+    expect(sources()).toEqual(['/stream?camera=voliere-interieur'])
+    fireEvent.click(screen.getByRole('tab', { name: '4K' }))
+    expect(sources()).toEqual(['/stream?camera=voliere-interieur&quality=hd', '/stream?camera=voliere-interieur'])
+  })
+  it('en Léger, la première image donne la résolution du direct', () => {
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: 'Léger' }))
+    const img = document.querySelector('img') as HTMLImageElement
+    Object.defineProperty(img, 'naturalWidth', { value: 640 })
+    Object.defineProperty(img, 'naturalHeight', { value: 360 })
+    fireEvent.load(img)
+    expect(screen.getByTestId('caption')).toHaveTextContent('640×360')
+  })
   it('« Léger » change le flux et oublie la résolution ; le même choix ne fait rien', () => {
     mount()
     fireEvent.click(screen.getByRole('tab', { name: '4K' }))
@@ -235,8 +266,15 @@ describe('CameraCard : les repères des autres caméras', () => {
     expect(h.markersLayer.onCommit).toBe(h.s.markers.commit)
     expect(h.markersLayer.onRemove).toBe(h.s.markers.remove)
     expect(h.markersLayer.onOpen).toBe(open)
+    // aucune caméra éteinte : tous les repères agissent
+    expect(h.markersLayer.inactive).toEqual([])
     expect(screen.getByTestId('sound')).toContainElement(screen.getByTestId('markers-toggle'))
     expect(screen.getByTestId('sound')).toContainElement(screen.getByTestId('live-audio'))
+  })
+  it('les caméras éteintes sont données à la couche : leur repère ne fait rien', () => {
+    h.s.offCameras = ['b']
+    mount({ others: ['b'], onOpenCamera: open })
+    expect(h.markersLayer.inactive).toEqual(['b'])
   })
   it('le bouton montre ou cache les repères', () => {
     h.s.markersVisible = { visible: true, toggle: vi.fn() }

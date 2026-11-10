@@ -46,6 +46,8 @@ export const ONGOING_CLIP_TEXT = 'Événement en cours : le clip arrivera à la 
 
 /** Le lecteur du clip se charge sans se voir (sr-only le garde dans la page : un `display: none` empêcherait le téléphone de charger la vidéo). */
 export const HIDDEN_PLAYER_CLASS = 'sr-only'
+/** Le flux 4K qui se charge derrière le flux léger : dans la page mais invisible et sans prise sur les clics. */
+export const HD_PRELOAD_CLASS = 'pointer-events-none absolute inset-0 opacity-0'
 
 /** Le bouton qui montre le polygone de la zone où on cherche le mouvement (par défaut toute l'image), à réduire en glissant ses sommets. */
 export const ZONE_BUTTON_LABEL = 'Zone de surveillance'

@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { PlanCamera } from '@house/ui'
 import MapPlan from './MapPlan'
 import type { MapPlanProps } from './types'
-import { BASES_LABEL, EDIT_LABEL, FIT_EXTRA_ZOOM, LINK_LABEL, MAP_MAX_ZOOM, MAP_ROTATION_DEG, MAP_ZOOM, RECENTER_LABEL } from './constants'
+import { EDIT_LABEL, LINK_LABEL, MAP_ROTATION_DEG, MAP_ZOOM } from './constants'
 
 type Handler = (event?: unknown) => void
 
@@ -33,6 +33,13 @@ const mocks = vi.hoisted(() => {
       this.handlers.set(type, fn)
     }
     off() {}
+    resize = vi.fn()
+    project() {
+      return { x: 100, y: 200 }
+    }
+    unproject([x, y]: [number, number]) {
+      return { lng: 2 + x / 1000, lat: 48 + y / 1000 }
+    }
     getStyle() {
       return { layers: this.styleLayers }
     }
@@ -51,6 +58,19 @@ const mocks = vi.hoisted(() => {
     setLayoutProperty(id: string, _name: string, value: string) {
       this.visibility.set(id, value)
     }
+    getCenter() {
+      return { lat: 48.522045, lng: 2.650143 }
+    }
+    getZoom() {
+      return 19.85
+    }
+    getBearing() {
+      return 37.7
+    }
+    filters = new Map<string, unknown>()
+    setFilter(id: string, filter: unknown) {
+      this.filters.set(id, filter)
+    }
     getCanvas() {
       return { style: { cursor: '' } }
     }
@@ -66,7 +86,6 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('maplibre-gl', () => ({
   Map: mocks.FakeMap,
-  NavigationControl: class {},
   setWorkerUrl: (url: string) => mocks.workerUrls.push(url),
 }))
 vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?url', () => ({ default: '/worker.mjs' }))
@@ -109,7 +128,7 @@ describe('MapPlan', () => {
     const map = lastMap()
     expect(map.options).toMatchObject({ bearing: MAP_ROTATION_DEG, zoom: MAP_ZOOM, pitch: 0 })
     expect(map.touchZoomRotate.disableRotation).toHaveBeenCalled()
-    expect(map.addControl).toHaveBeenCalled()
+    expect(map.addControl).not.toHaveBeenCalled()
     expect(mocks.editing).toHaveBeenCalled()
     expect(mocks.workerUrls).toEqual(['/worker.mjs'])
   })
@@ -128,39 +147,13 @@ describe('MapPlan', () => {
     render(<MapPlan {...baseProps()} />)
     const map = loaded()
     expect(map.layers.has('satellite')).toBe(true)
-    expect(map.layers.has('vector')).toBe(false)
     expect(map.layers.has('plan-toit')).toBe(true)
-    // le fond par défaut (satellite) est montré, les couches vectorielles cachées
-    expect(map.visibility.get('fond-a')).toBe('none')
-    expect(map.visibility.get('satellite')).toBe('visible')
+    // le style de départ est vide : la photo aérienne est le seul fond
+    expect(map.options).toEqual(expect.objectContaining({ style: { version: 8, sources: {}, layers: [] } }))
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.queryByText(/zoom/)).toBeNull()
     expect(map.sources.get('plan-formes')?.setData).toHaveBeenCalled()
     expect(map.sources.get('plan-points')?.setData).toHaveBeenCalled()
-  })
-
-  it('le fond vectoriel rend aux couches du style leur visibilité d’origine', () => {
-    render(<MapPlan {...baseProps()} />)
-    const map = loaded()
-    fireEvent.click(screen.getByRole('tab', { name: 'Vectoriel' }))
-    expect(map.visibility.get('fond-a')).toBe('visible')
-    expect(map.visibility.get('fond-b')).toBe('none')
-    expect(map.visibility.get('fond-c')).toBe('visible')
-    expect(map.visibility.get('satellite')).toBe('none')
-    expect(screen.getByRole('tablist', { name: BASES_LABEL })).toBeInTheDocument()
-  })
-
-  it('un fond en images dont la couche manque est sauté', () => {
-    render(<MapPlan {...baseProps()} />)
-    const map = loaded()
-    map.layers.delete('satellite')
-    map.visibility.clear()
-    fireEvent.click(screen.getByRole('tab', { name: 'Vectoriel' }))
-    expect(map.visibility.has('satellite')).toBe(false)
-  })
-
-  it('tant que le style n’est pas chargé, le choix du fond ne touche pas la carte', () => {
-    render(<MapPlan {...baseProps()} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Vectoriel' }))
-    expect(lastMap().visibility.size).toBe(0)
   })
 
   it('les éléments changés mettent à jour les données (source absente tolérée)', () => {
@@ -185,22 +178,16 @@ describe('MapPlan', () => {
   it('une erreur pendant le chargement du style est affichée (Error ou autre)', () => {
     render(<MapPlan {...baseProps()} />)
     const map = lastMap()
-    map.getStyle = () => {
+    map.addSource = () => {
       throw new Error('style cassé')
     }
     act(() => map.emit('style.load'))
     expect(screen.getByText('style cassé')).toBeInTheDocument()
-    map.getStyle = () => {
+    map.addSource = () => {
       throw 'texte'
     }
     act(() => map.emit('style.load'))
     expect(screen.getByText('texte')).toBeInTheDocument()
-  })
-
-  it('« Recentrer » ramène la vue de départ', () => {
-    render(<MapPlan {...baseProps()} />)
-    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(lastMap().jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_ZOOM, bearing: MAP_ROTATION_DEG, pitch: 0 }))
   })
 
   it('« Modifier » donne ou retire les moyens de modification', () => {
@@ -263,107 +250,64 @@ const lamp = (id: string, over: Record<string, unknown> = {}) => ({
 })
 
 describe('MapPlan : le toit', () => {
-  it('carte des caméras : le toit se voit, les pièces sont cachées, et aucun bouton ne les bascule', () => {
+  it('le toit est caché et les pièces se voient, sans bouton', () => {
     render(<MapPlan {...baseProps()} />)
-    const map = loaded()
-    expect(screen.queryByRole('button', { name: /toit/i })).toBeNull()
-    expect(map.visibility.get('plan-toit')).toBe('visible')
-    for (const id of ['plan-pieces', 'plan-pieces-trait', 'plan-cloisons', 'plan-claustras']) expect(map.visibility.get(id)).toBe('none')
-  })
-
-  it('une couche absente est sautée ; rien avant le chargement du style', () => {
-    render(<MapPlan {...baseProps()} />)
-    expect(lastMap().visibility.size).toBe(0)
-    const map = loaded()
-    expect(map.visibility.get('plan-toit')).toBe('visible')
-  })
-
-  it('carte des lumières : le toit est caché et les pièces se voient, sans bouton', () => {
-    render(<MapPlan {...baseProps({ mode: 'lights' })} />)
     const map = loaded()
     expect(screen.queryByRole('button', { name: /toit/i })).toBeNull()
     expect(map.visibility.get('plan-toit')).toBe('none')
-    expect(map.visibility.get('plan-pieces')).toBe('visible')
+    for (const id of ['plan-pieces', 'plan-cloisons', 'plan-claustras']) expect(map.visibility.get(id)).toBe('visible')
+  })
+
+  it('rien avant le chargement du style', () => {
+    render(<MapPlan {...baseProps()} />)
+    expect(lastMap().visibility.size).toBe(0)
   })
 })
 
-describe('MapPlan : cadrer les lampes', () => {
-  it('carte des lumières : la vue cadre toutes les lampes, avec un cran de zoom de plus, une seule fois', () => {
-    const { rerender } = render(<MapPlan {...baseProps({ mode: 'lights', lamps: [] })} />)
+describe('MapPlan : les cases Clim, Caméra, Lumière, Volet', () => {
+  it('toutes cochées au départ ; décocher cache les calques du type et retire sa zone de saisie', () => {
+    render(<MapPlan {...baseProps()} />)
     const map = loaded()
-    expect(map.cameraForBounds).not.toHaveBeenCalled()
-    expect(map.jumpTo).not.toHaveBeenCalled()
-    rerender(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1'), lamp('2', { x: 200, y: 100 })] })} />)
-    expect(map.cameraForBounds).toHaveBeenCalledTimes(1)
-    expect(map.jumpTo).toHaveBeenCalledTimes(1)
-    expect(map.jumpTo).toHaveBeenCalledWith({ center: [2.65, 48.52], zoom: 20.2 + FIT_EXTRA_ZOOM, bearing: MAP_ROTATION_DEG, pitch: 0 })
-    rerender(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1'), lamp('2', { x: 300, y: 100 })] })} />)
-    expect(map.jumpTo).toHaveBeenCalledTimes(1)
-  })
-
-  it('le zoom du cadrage ne dépasse pas le zoom maximal', () => {
-    render(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1')] })} />)
-    const map = loaded()
-    map.cameraForBounds.mockReturnValue({ center: [2.65, 48.52], zoom: MAP_MAX_ZOOM })
-    map.jumpTo.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_MAX_ZOOM }))
-  })
-
-  it('« Recentrer » cadre les lampes sur la carte des lumières, et revient à la vue de départ sans cadrage possible', () => {
-    const { rerender } = render(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1')] })} />)
-    const map = loaded()
-    map.jumpTo.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 20.2 + FIT_EXTRA_ZOOM }))
-    map.jumpTo.mockClear()
-    map.cameraForBounds.mockReturnValue(undefined)
-    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_ZOOM }))
-    map.jumpTo.mockClear()
-    rerender(<MapPlan {...baseProps({ mode: 'lights', lamps: [] })} />)
-    fireEvent.click(screen.getByRole('button', { name: RECENTER_LABEL }))
-    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: MAP_ZOOM }))
-  })
-
-  it('carte des caméras : pas de cadrage des lampes', () => {
-    render(<MapPlan {...baseProps({ lamps: [lamp('26', { indoor: false })] })} />)
-    expect(loaded().cameraForBounds).not.toHaveBeenCalled()
+    for (const name of ['Clim', 'Caméra', 'Lumière', 'Volet', 'Chauffage']) expect(screen.getByRole('checkbox', { name })).toBeChecked()
+    // Les emoji des clips sont cachés au départ ; les cocher les montre et leur rend leur zone de saisie.
+    expect(screen.getByRole('checkbox', { name: 'Clip' })).not.toBeChecked()
+    expect(map.visibility.get('plan-emojis')).toBe('none')
+    expect(JSON.stringify(map.filters.get('plan-saisie'))).not.toContain('emoji-hit')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Clip' }))
+    expect(map.visibility.get('plan-emojis')).toBe('visible')
+    expect(JSON.stringify(map.filters.get('plan-saisie'))).toContain('emoji-hit')
+    for (const id of ['plan-clims', 'plan-clims-etat', 'plan-cameras', 'plan-vue', 'plan-lampes', 'plan-volets'])
+      expect(map.visibility.get(id)).toBe('visible')
+    expect(JSON.stringify(map.filters.get('plan-saisie'))).toContain('camera-hit')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Caméra' }))
+    for (const id of ['plan-cameras', 'plan-cameras-etat', 'plan-cameras-dessous', 'plan-cameras-dessous-etat', 'plan-vue'])
+      expect(map.visibility.get(id)).toBe('none')
+    expect(map.visibility.get('plan-lampes')).toBe('visible')
+    const kinds = JSON.stringify(map.filters.get('plan-saisie'))
+    expect(kinds).not.toContain('camera-hit')
+    expect(kinds).toContain('lamp-hit')
+    expect(kinds).toContain('label-hit')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chauffage' }))
+    expect(map.visibility.get('plan-prises')).toBe('none')
+    expect(map.visibility.get('plan-prises-etat')).toBe('none')
+    expect(JSON.stringify(map.filters.get('plan-saisie'))).not.toContain('plug-hit')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Caméra' }))
+    expect(map.visibility.get('plan-cameras')).toBe('visible')
   })
 })
 
 describe('MapPlan : les lampes', () => {
-  it('carte des caméras : seule la lampe de la cage se voit, celles d’intérieur sont sous le toit', () => {
+  it('toutes les lampes se voient, celles d’intérieur comme celle de la cage', () => {
     const lamps = [lamp('1'), lamp('26', { indoor: false })]
     render(<MapPlan {...baseProps({ lamps })} />)
-    expect(pointKinds(loaded()).filter((k) => k === 'lamp-hit')).toHaveLength(1)
+    expect(pointKinds(loaded()).filter((k) => k === 'lamp-hit')).toHaveLength(2)
   })
 
-  it('une lampe à placer ne se voit qu’en modification', () => {
-    const lamps = [lamp('1', { waiting: true }), lamp('2')]
-    render(<MapPlan {...baseProps({ mode: 'lights', lamps })} />)
-    const map = loaded()
-    expect(pointKinds(map).filter((k) => k === 'lamp-hit')).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: EDIT_LABEL }))
-    expect(pointKinds(map).filter((k) => k === 'lamp-hit')).toHaveLength(2)
-  })
-
-  it('carte des lumières : ni caméras ni prise, même données ; les lampes seules', () => {
-    const plugs = [{ id: 'p', name: 'p', x: 1, y: 1, on: true }]
-    render(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1')], plugs })} />)
-    const map = loaded()
-    const kinds = shapeKinds(map)
-    expect(kinds).toContain('lamp')
-    expect(kinds).not.toContain('camera')
-    expect(kinds).not.toContain('plug')
-    expect(pointKinds(map)).toEqual(['lamp-hit'])
-  })
-
-  it('carte des caméras : caméras, prise et lampe de la cage', () => {
+  it('caméras, prise et lampes se dessinent ensemble', () => {
     const plugs = [{ id: 'p', name: 'p', x: 1, y: 1, on: true }]
     render(<MapPlan {...baseProps({ lamps: [lamp('26', { indoor: false })], plugs })} />)
-    const kinds = shapeKinds(loaded())
-    expect(kinds).toEqual(expect.arrayContaining(['camera', 'plug', 'lamp']))
+    const map = loaded()
+    expect(pointKinds(map)).toEqual(expect.arrayContaining(['camera-hit', 'lamp-hit', 'plug-hit']))
   })
 
   it('sans lampes, caméras, prise, ni liens donnés : une carte vide mais valide', () => {
@@ -371,21 +315,7 @@ describe('MapPlan : les lampes', () => {
     expect(shapeKinds(loaded())).not.toContain('camera')
   })
 
-  it('en modification de la carte des lumières, seules les lampes se déplacent', () => {
-    const onMoveLamp = vi.fn()
-    const onMoveTree = vi.fn()
-    const onMoveCamera = vi.fn()
-    render(<MapPlan {...baseProps({ mode: 'lights', onMoveLamp, onMoveTree, onMoveCamera })} />)
-    const context = editContext()
-    // Sans modification : on peut toucher (basculer) une lampe, mais pas la déplacer.
-    expect(context().onMoveLamp).toBeUndefined()
-    fireEvent.click(screen.getByRole('button', { name: EDIT_LABEL }))
-    expect(context().onMoveLamp).toBe(onMoveLamp)
-    expect(context().onMoveTree).toBeUndefined()
-    expect(context().onMoveCamera).toBeUndefined()
-  })
-
-  it('en modification de la carte des caméras : tout se déplace, lampes comprises', () => {
+  it('en modification : tout se déplace, lampes comprises', () => {
     const onMoveLamp = vi.fn()
     const onMoveTree = vi.fn()
     render(<MapPlan {...baseProps({ onMoveLamp, onMoveTree })} />)
@@ -398,12 +328,12 @@ describe('MapPlan : les lampes', () => {
 
   it('hors modification, toucher une lampe reste possible (onToggleLamp conservé)', () => {
     const onToggleLamp = vi.fn()
-    render(<MapPlan {...baseProps({ mode: 'lights', onToggleLamp })} />)
+    render(<MapPlan {...baseProps({ onToggleLamp })} />)
     expect(editContext()().onToggleLamp).toBe(onToggleLamp)
   })
 
   it('survoler une lampe écrit son nom et sa luminosité en bas ; la quitter l’efface', () => {
-    render(<MapPlan {...baseProps({ mode: 'lights', lamps: [lamp('1', { name: 'Salon', brightness: 254 })] })} />)
+    render(<MapPlan {...baseProps({ lamps: [lamp('1', { name: 'Salon', brightness: 254 })] })} />)
     const context = editContext()
     expect(screen.queryByText(/Salon/)).toBeNull()
     act(() => context().onHoverLamp('1'))
@@ -412,19 +342,215 @@ describe('MapPlan : les lampes', () => {
     expect(screen.queryByText(/Salon/)).toBeNull()
   })
 
+  const iconCameras = [{ id: 'cam-a', name: 'Icône A', x: 0, y: 0, angle: 0, fov: 60, near: 1, far: 10 }]
+
+  it('survoler une caméra liée écrit le nom de la vraie caméra ; la quitter l’efface', () => {
+    render(<MapPlan {...baseProps({ cameras: iconCameras, links: { 'cam-a': 'voliere-interieur' } })} />)
+    act(() => editContext()().onHoverCamera('cam-a'))
+    expect(screen.getByText('voliere-interieur')).toBeInTheDocument()
+    act(() => editContext()().onHoverCamera(''))
+    expect(screen.queryByText('voliere-interieur')).toBeNull()
+  })
+
+  it('survoler une caméra non liée écrit le nom de son icône ; une caméra inconnue n’écrit rien', () => {
+    render(<MapPlan {...baseProps({ cameras: iconCameras })} />)
+    act(() => editContext()().onHoverCamera('cam-a'))
+    expect(screen.getByText('Icône A')).toBeInTheDocument()
+    act(() => editContext()().onHoverCamera('absente'))
+    expect(screen.queryByText('Icône A')).toBeNull()
+  })
+
+  it('survoler le chauffage écrit son nom ; la quitter l’efface', () => {
+    render(<MapPlan {...baseProps({ plugs: [{ id: 'prise', name: 'Chauffage volière', x: 0, y: 0, on: true }] })} />)
+    act(() => editContext()().onHoverPlug('prise'))
+    expect(screen.getByText('Chauffage volière')).toBeInTheDocument()
+    act(() => editContext()().onHoverPlug(''))
+    expect(screen.queryByText('Chauffage volière')).toBeNull()
+  })
+
   it('une lampe éteinte ou injoignable est nommée sans pourcentage', () => {
     render(
-      <MapPlan
-        {...baseProps({
-          mode: 'lights',
-          lamps: [lamp('1', { name: 'Éteinte', on: false }), lamp('2', { name: 'Morte', reachable: false })],
-        })}
-      />,
+      <MapPlan {...baseProps({ lamps: [lamp('1', { name: 'Éteinte', on: false }), lamp('2', { name: 'Morte', reachable: false })] })} />,
     )
     const context = editContext()
     act(() => context().onHoverLamp('1'))
     expect(screen.getByText('Éteinte')).toBeInTheDocument()
     act(() => context().onHoverLamp('2'))
     expect(screen.getByText('Morte')).toBeInTheDocument()
+  })
+})
+
+describe('MapPlan : la ligne de l’objet choisi à son bloc', () => {
+  const box = { left: 400, top: 10, height: 300 }
+  const lineOf = (map: ReturnType<typeof loaded>) => {
+    const calls = (map.sources.get('plan-lien')?.setData as ReturnType<typeof vi.fn>).mock.calls
+    return calls.at(-1)?.[0] as { features: { geometry: { coordinates: number[][] } }[] }
+  }
+
+  it('une ligne part de l’icône choisie vers le bord gauche du bloc, à la hauteur de l’icône quand elle tombe en face du bloc', () => {
+    render(<MapPlan {...baseProps({ selectedCameraId: 'c1', linkBox: box })} />)
+    const map = loaded()
+    const line = lineOf(map)
+    expect(line.features).toHaveLength(1)
+    const [from, to] = line.features[0].geometry.coordinates
+    expect(from).toHaveLength(2)
+    // le bout est le bord gauche du bloc (400) à la hauteur de l'icône (200, dans le bloc)
+    expect(to).toEqual([2 + 400 / 1000, 48 + 200 / 1000])
+    // la carte bouge : la ligne est recalculée
+    ;(map.sources.get('plan-lien')?.setData as ReturnType<typeof vi.fn>).mockClear()
+    act(() => map.emit('move'))
+    expect(lineOf(map).features).toHaveLength(1)
+  })
+
+  it('l’icône au-dessus ou au-dessous du bloc : la ligne rejoint son bord le plus proche', () => {
+    const { unmount } = render(<MapPlan {...baseProps({ selectedCameraId: 'c1', linkBox: { left: 400, top: 250, height: 100 } })} />)
+    expect(lineOf(loaded()).features[0].geometry.coordinates[1]).toEqual([2.4, 48.25])
+    unmount()
+    render(<MapPlan {...baseProps({ selectedCameraId: 'c1', linkBox: { left: 400, top: 10, height: 100 } })} />)
+    expect(lineOf(loaded()).features[0].geometry.coordinates[1]).toEqual([2.4, 48.11])
+  })
+
+  it('sans bloc ou sans objet choisi : aucune ligne', () => {
+    render(<MapPlan {...baseProps({ selectedCameraId: 'c1' })} />)
+    expect(lineOf(loaded()).features).toHaveLength(0)
+    cleanup()
+    render(<MapPlan {...baseProps({ linkBox: box })} />)
+    expect(lineOf(loaded()).features).toHaveLength(0)
+  })
+})
+
+describe('MapPlan : sur téléphone', () => {
+  it('le bouton « Modifier » n’existe pas quand la carte remplit l’écran (téléphone) ; il existe sinon', () => {
+    const { unmount } = render(<MapPlan {...baseProps({ fill: true })} />)
+    expect(screen.queryByRole('button', { name: EDIT_LABEL })).toBeNull()
+    // les cases à cocher restent
+    expect(screen.getByRole('checkbox', { name: 'Clim' })).toBeInTheDocument()
+    unmount()
+    render(<MapPlan {...baseProps()} />)
+    expect(screen.getByRole('button', { name: EDIT_LABEL })).toBeInTheDocument()
+  })
+})
+
+describe('MapPlan : la carte suit la taille de son cadre', () => {
+  it('quand le cadre change de taille (la Home cachée redevient visible), la carte se redimensionne', () => {
+    const callbacks: (() => void)[] = []
+    const original = globalThis.ResizeObserver
+    globalThis.ResizeObserver = class {
+      constructor(callback: () => void) {
+        callbacks.push(callback)
+      }
+      observe() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    try {
+      const { unmount } = render(<MapPlan {...baseProps()} />)
+      const map = lastMap()
+      expect(callbacks).toHaveLength(1)
+      callbacks[0]()
+      expect((map as unknown as { resize: ReturnType<typeof vi.fn> }).resize).toHaveBeenCalledTimes(1)
+      unmount()
+    } finally {
+      globalThis.ResizeObserver = original
+    }
+  })
+})
+
+describe('MapPlan : vue imposée et ancre de l’objet choisi', () => {
+  it('la vue imposée par le parent est appliquée d’un coup', () => {
+    render(<MapPlan {...baseProps({ focusView: { lat: 48.5, lng: 2.6, zoom: 21, bearing: 10 } })} />)
+    expect(lastMap().jumpTo).toHaveBeenCalledWith({ center: [2.6, 48.5], zoom: 21, bearing: 10, pitch: 0 })
+  })
+
+  const ac = { id: 'a1', name: 'Clim', x: 5, y: 5, on: true, reachable: true, label: 'Clim · chaud' }
+  const shutter = { id: 's1', name: 'Volet', x: 6, y: 6, closed: false, label: 'Volet cuisine' }
+  const emoji = { id: 'e1', emoji: '🦊', x: 7, y: 7 }
+  const plug = { id: 'p1', name: 'Chauffage', x: 8, y: 8, on: true }
+
+  it.each([
+    ['la prise', { plugs: [plug], selectedPlugId: 'p1' }],
+    ['la clim', { acs: [ac], selectedAcId: 'a1' }],
+    ['le volet', { shutters: [shutter], selectedShutterId: 's1' }],
+    ['l’emoji', { emojis: [emoji], selectedEmojiId: 'e1' }],
+  ] as [string, Partial<MapPlanProps>][])('donne au parent la place à l’écran de %s, relue quand la carte bouge', (_name, over) => {
+    const onAnchor = vi.fn()
+    const { unmount } = render(<MapPlan {...baseProps({ ...over, onAnchor })} />)
+    const map = loaded()
+    expect(onAnchor).toHaveBeenLastCalledWith({ x: 100, y: 200 })
+    onAnchor.mockClear()
+    act(() => map.emit('move'))
+    expect(onAnchor).toHaveBeenCalledWith({ x: 100, y: 200 })
+    unmount()
+  })
+
+  it('rien de choisi : le parent reçoit null', () => {
+    const onAnchor = vi.fn()
+    render(<MapPlan {...baseProps({ onAnchor })} />)
+    loaded()
+    expect(onAnchor).toHaveBeenLastCalledWith(null)
+  })
+})
+
+describe('MapPlan : textes de la clim et du volet, et clics selon le mode', () => {
+  it('survoler une clim ou un volet écrit son texte ; les quitter l’efface', () => {
+    render(
+      <MapPlan
+        {...baseProps({
+          acs: [{ id: 'a1', name: 'Clim', x: 5, y: 5, on: true, reachable: true, label: 'Clim · chaud' }],
+          shutters: [{ id: 's1', name: 'Volet', x: 6, y: 6, closed: true, label: 'Volet cuisine · Descendre' }],
+        })}
+      />,
+    )
+    const context = editContext()
+    act(() => context().onHoverAc('a1'))
+    act(() => context().onHoverShutter('s1'))
+    expect(screen.getByText('Clim · chaud')).toBeInTheDocument()
+    expect(screen.getByText('Volet cuisine · Descendre')).toBeInTheDocument()
+    act(() => context().onHoverAc(''))
+    act(() => context().onHoverShutter(''))
+    expect(screen.queryByText('Clim · chaud')).toBeNull()
+    expect(screen.queryByText('Volet cuisine · Descendre')).toBeNull()
+  })
+
+  it('clim : un clic ouvre la page sans onSelectAc ; avec, il choisit et le double clic ouvre ; en modification, rien', () => {
+    const onOpenAc = vi.fn()
+    const onSelectAc = vi.fn()
+    const { rerender } = render(<MapPlan {...baseProps({ onOpenAc })} />)
+    expect(editContext()().onToggleAc).toBe(onOpenAc)
+    expect(editContext()().onOpenAc).toBeUndefined()
+    rerender(<MapPlan {...baseProps({ onOpenAc, onSelectAc })} />)
+    expect(editContext()().onToggleAc).toBe(onSelectAc)
+    expect(editContext()().onOpenAc).toBe(onOpenAc)
+    fireEvent.click(screen.getByRole('button', { name: EDIT_LABEL }))
+    expect(editContext()().onToggleAc).toBeUndefined()
+    expect(editContext()().onOpenAc).toBeUndefined()
+  })
+
+  it('volet : sans onSelectShutter un clic donne l’ordre ; avec, il choisit et le double clic ouvre ; en modification, rien', () => {
+    const onToggleShutter = vi.fn()
+    const onSelectShutter = vi.fn()
+    const onOpenShutter = vi.fn()
+    const { rerender } = render(<MapPlan {...baseProps({ onToggleShutter, onOpenShutter })} />)
+    expect(editContext()().onToggleShutter).toBe(onToggleShutter)
+    expect(editContext()().onOpenShutter).toBeUndefined()
+    rerender(<MapPlan {...baseProps({ onToggleShutter, onSelectShutter, onOpenShutter })} />)
+    expect(editContext()().onToggleShutter).toBe(onSelectShutter)
+    expect(editContext()().onOpenShutter).toBe(onOpenShutter)
+    fireEvent.click(screen.getByRole('button', { name: EDIT_LABEL }))
+    expect(editContext()().onToggleShutter).toBeUndefined()
+    expect(editContext()().onOpenShutter).toBeUndefined()
+  })
+})
+
+describe('MapPlan : navigateur sans ResizeObserver', () => {
+  it('la carte se monte sans suivre la taille de son cadre', () => {
+    const original = globalThis.ResizeObserver
+    // @ts-expect-error -- on retire l'API pour simuler un navigateur qui ne l'a pas
+    delete globalThis.ResizeObserver
+    try {
+      render(<MapPlan {...baseProps()} />)
+      expect(lastMap()).toBeDefined()
+    } finally {
+      globalThis.ResizeObserver = original
+    }
   })
 })

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { HueLight, PlugState } from '@/types'
 import CameraIndicators from './CameraIndicators'
+import { lampColor } from './helpers'
 
 const lamp: HueLight = { id: '26', name: 'P', on: true, bri: 100, reachable: true }
 const plug = { on: true } as PlugState
@@ -33,5 +34,28 @@ describe('CameraIndicators', () => {
     expect(screen.getByText('☔')).toBeInTheDocument()
     rerender(<CameraIndicators temperatures={[]} lamp={null} plug={null} rain="off" />)
     expect(screen.queryByText('☔')).toBeNull()
+  })
+})
+
+describe('CameraIndicators : les ronds de la carte', () => {
+  it('la lampe et le chauffage ont le rond blanc à bordure noire de la carte, avec leur icône ; le chauffage a sa pastille verte ou rouge', () => {
+    const { rerender } = render(<CameraIndicators temperatures={[]} lamp={lamp} plug={plug} />)
+    const round = screen.getByLabelText('Lampe Perruche : allumée')
+    expect(round.className).toContain('bg-white')
+    expect(round.className).toContain('border-black')
+    expect(round.querySelector('svg')).not.toBeNull()
+    expect(screen.getByLabelText('Prise : allumée').querySelector('svg')).not.toBeNull()
+    expect(screen.getByTestId('map-icon-dot').getAttribute('style')).toContain('--color-green')
+    rerender(<CameraIndicators temperatures={[]} lamp={lamp} plug={{ on: false } as PlugState} />)
+    expect(screen.getByTestId('map-icon-dot').getAttribute('style')).toContain('--color-danger')
+  })
+
+  it('la couleur de l’ampoule : rouge injoignable, grise éteinte, orange allumée et plus pâle quand la luminosité baisse', () => {
+    expect(lampColor({ ...lamp, reachable: false })).toBe('var(--color-danger)')
+    expect(lampColor({ ...lamp, on: false })).toBe('var(--color-muted)')
+    expect(lampColor({ ...lamp, bri: null })).toBe('color-mix(in srgb, var(--color-orange) 100%, white)')
+    expect(lampColor({ ...lamp, bri: 254, color: '#33ccff' })).toBe('color-mix(in srgb, #33ccff 100%, white)')
+    expect(lampColor({ ...lamp, bri: 0 })).toBe('color-mix(in srgb, var(--color-orange) 25%, white)')
+    expect(lampColor({ ...lamp, bri: 9999 })).toBe('color-mix(in srgb, var(--color-orange) 100%, white)')
   })
 })

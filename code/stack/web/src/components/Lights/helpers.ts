@@ -14,7 +14,7 @@ import {
   UNKNOWN_MOTION_TEXT,
   ZONES,
 } from './constants'
-import { fromHousePlan, waitingSlot } from '@/components/MapPlan/helpers'
+import { fromHousePlan } from '@/components/MapPlan/helpers'
 import type { Positions } from './types'
 
 /**
@@ -99,18 +99,23 @@ const CAGE_LAMP = CAMERA_LAMP['voliere-interieur']
  * 3. celle de l'ancien plan des lumières (`/hue/positions` et la copie du navigateur, `legacy`), convertie à la lecture ; elle n'est jamais effacée ni réécrite ;
  *    une position dans l'ancienne zone « À placer » (x au-delà de `SIDE_ZONE.x`) compte pour « pas placée » ;
  * 4. celle de `LAMP_POSITIONS` (l'ancien plan, convertie) ;
- * 5. sinon elle attend sur le carrelage au sud de la maison (visible seulement en modification).
+ * 5. sinon elle n'est pas sur la carte (une lampe qu'on n'a jamais placée ne se voit nulle part).
  */
 export const planLamps = (lights: HueLight[], items: Positions, legacy: Positions): PlanLamp[] => {
-  let waiting = 0
-  return lights.map((light) => {
-    const common = { id: light.id, name: light.name, on: light.on, reachable: light.reachable, brightness: light.bri }
+  return lights.flatMap((light): PlanLamp[] => {
+    const common = {
+      id: light.id,
+      name: light.name,
+      on: light.on,
+      reachable: light.reachable,
+      brightness: light.bri,
+      color: light.color ?? null,
+    }
     const kept = items[light.id]
-    if (kept) return { ...common, ...kept, indoor: light.id !== CAGE_LAMP }
-    if (light.id === CAGE_LAMP) return { ...common, ...PLAN_LAMP_POSITION }
+    if (kept) return [{ ...common, ...kept, indoor: light.id !== CAGE_LAMP }]
+    if (light.id === CAGE_LAMP) return [{ ...common, ...PLAN_LAMP_POSITION }]
     const old = legacy[light.id] ?? LAMP_POSITIONS[light.id]
-    if (old && old.x < SIDE_ZONE.x) return { ...common, ...fromHousePlan(old.x, old.y), indoor: true }
-    return { ...common, ...waitingSlot(waiting++), indoor: true, waiting: true }
+    return old && old.x < SIDE_ZONE.x ? [{ ...common, ...fromHousePlan(old.x, old.y), indoor: true }] : []
   })
 }
 

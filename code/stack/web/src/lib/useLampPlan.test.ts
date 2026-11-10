@@ -40,14 +40,14 @@ describe('useLampPlan', () => {
     expect(api.fetchLampPositions).not.toHaveBeenCalled()
   })
 
-  it('place les lampes : plan de l’API, cage, ancien plan, sinon en attente', async () => {
+  it('place les lampes : plan de l’API, cage, ancien plan ; sans place, la lampe n’est pas sur la carte', async () => {
     const { result } = renderHook(() => useLampPlan('k', { '15': { x: 5, y: 6 } }, true))
     expect(result.current.lamps).toEqual([])
     await tick()
     const byId = Object.fromEntries(result.current.lamps.map((lamp) => [lamp.id, lamp]))
     expect(byId['15']).toMatchObject({ x: 5, y: 6, indoor: true })
     expect(byId['26']).toMatchObject({ ...PLAN_LAMP_POSITION, on: true })
-    expect(byId['999']).toMatchObject({ waiting: true })
+    expect(byId['999']).toBeUndefined()
   })
 
   it('prend l’ancienne position quand le plan n’en a pas', async () => {
@@ -91,12 +91,20 @@ describe('useLampPlan', () => {
     await tick()
     act(() => result.current.toggle('15'))
     await tick()
-    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true })
+    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true, bri: 254 })
     expect(result.current.lamps.find((lamp) => lamp.id === '15')?.on).toBe(true)
     // Une lampe allumée s'éteint.
     act(() => result.current.toggle('26'))
     expect(api.setHue).toHaveBeenLastCalledWith('k', 'lights', '26', { on: false })
     await tick()
+  })
+
+  it('une lampe allumée mais à 0 % (luminosité au minimum) s’allume à 100 %', async () => {
+    vi.mocked(api.fetchLights).mockResolvedValue(rooms(light('15', { on: true, bri: 1 })))
+    const { result } = renderHook(() => useLampPlan('k', {}, true))
+    await tick()
+    act(() => result.current.toggle('15'))
+    expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true, bri: 254 })
   })
 
   it('une lampe injoignable ou inconnue ne fait rien', async () => {

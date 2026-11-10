@@ -14,7 +14,7 @@ import { toBody, toForm } from './helpers'
 import type { HeatingForm, HeatingSectionProps } from './types'
 
 /** Le chauffage automatique de la prise : les réglages de la règle, et ce qu'elle ferait maintenant. Relu à l'ouverture et après chaque commande de la prise (`version`). */
-const HeatingSection = ({ apiKey, version }: HeatingSectionProps) => {
+const HeatingSection = ({ apiKey, version, compact = false }: HeatingSectionProps) => {
   const [status, setStatus] = useState<HeatingStatus | null>(null)
   // Ce que la personne tape : rempli à la première lecture seulement.
   const [draft, setDraft] = useState<{ form: HeatingForm; enabled: boolean } | null>(null)
@@ -78,6 +78,7 @@ const HeatingSection = ({ apiKey, version }: HeatingSectionProps) => {
       saving={saving}
       onSave={save}
       error={error}
+      compact={compact}
     />
   )
 }

@@ -1,10 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { flush } from '@/test/fetch'
 import type { EventRow } from '@/types'
-import Home from './Home'
+import SavedClips from './SavedClips'
 
-vi.mock('@/lib/api', () => ({ fetchSavedEvents: vi.fn(), setClipSaved: vi.fn(), setClipNote: vi.fn() }))
-vi.mock('@/components/GuestLink', () => ({ default: () => <i data-testid="guest" /> }))
+vi.mock('@/lib/api', () => ({ fetchSavedEvents: vi.fn(), setClipSaved: vi.fn(), setClipNote: vi.fn(), setClipEmoji: vi.fn() }))
 vi.mock('@/components/ShareButton', () => ({ default: () => <i data-testid="share" /> }))
 vi.mock('@/components/FullscreenBox', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 vi.mock('@/components/ClipPlayer', () => ({
@@ -32,7 +31,7 @@ const event = (id: string, over: Partial<EventRow> = {}): EventRow =>
 
 const mount = async (list: EventRow[]) => {
   vi.mocked(api.fetchSavedEvents).mockResolvedValue(list)
-  const view = render(<Home apiKey="k" />)
+  const view = render(<SavedClips apiKey="k" />)
   await act(flush)
   return view
 }
@@ -40,11 +39,11 @@ const mount = async (list: EventRow[]) => {
 describe('Home', () => {
   it('chargement, puis échec', async () => {
     vi.mocked(api.fetchSavedEvents).mockReturnValue(new Promise(() => undefined))
-    const first = render(<Home apiKey="k" />)
+    const first = render(<SavedClips apiKey="k" />)
     expect(screen.getByText(/Chargement/)).toBeInTheDocument()
     first.unmount()
     vi.mocked(api.fetchSavedEvents).mockRejectedValue(new Error('x'))
-    render(<Home apiKey="k" />)
+    render(<SavedClips apiKey="k" />)
     await act(flush)
     expect(screen.getByText(/n’ont pas pu être lus/)).toBeInTheDocument()
   })
@@ -60,8 +59,8 @@ describe('Home', () => {
     vi.mocked(api.fetchSavedEvents)
       .mockReturnValueOnce(new Promise((resolve) => (ok = resolve)))
       .mockReturnValueOnce(new Promise((_r, reject) => (ko = reject)))
-    render(<Home apiKey="k" />).unmount()
-    render(<Home apiKey="k" />).unmount()
+    render(<SavedClips apiKey="k" />).unmount()
+    render(<SavedClips apiKey="k" />).unmount()
     await act(async () => {
       ok([])
       ko(new Error('x'))
@@ -69,9 +68,8 @@ describe('Home', () => {
     })
   })
 
-  it('la liste : lien invité, vignettes avec durée une fois la vidéo lue', async () => {
+  it('la liste : vignettes avec durée une fois la vidéo lue', async () => {
     await mount([event('a'), event('b', { orientation: 'portrait' }), event('c', { clip: null, clip_h264: null })])
-    expect(screen.getByTestId('guest')).toBeInTheDocument()
     const videos = document.querySelectorAll('video')
     expect(videos).toHaveLength(2)
     Object.defineProperty(videos[0], 'duration', { value: 14.4 })
@@ -83,14 +81,12 @@ describe('Home', () => {
     expect(screen.getAllByText(/20 s/).length).toBeGreaterThan(0)
   })
 
-  it('ouvrir un clip : lecteur, légende, retour (le lien invité disparaît)', async () => {
+  it('ouvrir un clip : lecteur, légende, retour', async () => {
     await mount([event('a')])
     fireEvent.click(screen.getByLabelText(/voliere-interieur/))
     expect(screen.getByText('lecteur /clips/a/h264')).toBeInTheDocument()
-    expect(screen.queryByTestId('guest')).toBeNull()
     expect(screen.getByTestId('share')).toBeInTheDocument()
     fireEvent.click(screen.getByText('lecteur /clips/a/h264'))
-    expect(screen.getByTestId('guest')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText(/voliere-interieur/))
     fireEvent.click(screen.getByRole('button', { name: /Clips sauvegardés/ }))
     expect(screen.queryByText('lecteur /clips/a/h264')).toBeNull()
@@ -137,6 +133,18 @@ describe('Home', () => {
     expect(screen.queryByText(/n’a pas pu être libéré/)).toBeNull()
   })
 
+  it('avec onOpenCamera, un clic sur la vignette ouvre le détail de sa caméra sur ce clip au lieu de le lire sur place', async () => {
+    vi.mocked(api.fetchSavedEvents).mockResolvedValue([event('a')])
+    const onOpenCamera = vi.fn()
+    render(<SavedClips apiKey="k" onOpenCamera={onOpenCamera} />)
+    await act(flush)
+    fireEvent.click(screen.getByLabelText(/voliere-interieur/))
+    expect(onOpenCamera).toHaveBeenCalledWith('voliere-interieur', 'a')
+    // le clip n'est pas lu sur place
+    expect(screen.queryByText(/lecteur/)).toBeNull()
+    expect(screen.getByText('Clips sauvegardés')).toBeInTheDocument()
+  })
+
   it('la note d’un clip : posée depuis la liste, la liste montre celle que l’API a gardée', async () => {
     vi.mocked(api.setClipNote).mockResolvedValue('renard')
     await mount([event('a'), event('b', { note: 'chat' })])
@@ -147,6 +155,33 @@ describe('Home', () => {
     expect(api.setClipNote).toHaveBeenCalledWith('k', 'a', 'renard')
     expect(screen.getByText('renard')).toBeInTheDocument()
     expect(screen.getByText('chat')).toBeInTheDocument()
+  })
+
+  it('l’emoji d’un clip : choisi depuis la liste, la liste montre celui que l’API a gardé ; « Aucun emoji » le retire', async () => {
+    vi.mocked(api.setClipEmoji).mockResolvedValueOnce('🦊').mockResolvedValueOnce('')
+    await mount([event('a'), event('b', { emoji: '🐦' })])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Emoji du clip' })[0])
+    fireEvent.click(screen.getByRole('button', { name: '🦊' }))
+    await act(flush)
+    expect(api.setClipEmoji).toHaveBeenCalledWith('k', 'a', '🦊')
+    expect(screen.getByText('🦊')).toBeInTheDocument()
+    expect(screen.getByText('🐦')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Emoji du clip' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Aucun emoji' }))
+    await act(flush)
+    expect(api.setClipEmoji).toHaveBeenLastCalledWith('k', 'a', null)
+    expect(screen.queryByText('🦊')).toBeNull()
+  })
+
+  it('l’emoji d’un clip ouvert est aussi sous le lecteur', async () => {
+    vi.mocked(api.setClipEmoji).mockResolvedValue('🦌')
+    await mount([event('a', { emoji: '🐦' })])
+    fireEvent.click(screen.getByLabelText(/voliere-interieur/))
+    await act(flush)
+    fireEvent.click(screen.getByRole('button', { name: 'Emoji du clip' }))
+    fireEvent.click(screen.getByRole('button', { name: '🦌' }))
+    await act(flush)
+    expect(api.setClipEmoji).toHaveBeenCalledWith('k', 'a', '🦌')
   })
 
   it('la note d’un clip ouvert, puis la liste vidée entre-temps', async () => {
@@ -196,6 +231,7 @@ describe('HomeUI : cas que le conteneur ne produit pas', () => {
         onSave={vi.fn()}
         saveFailed={false}
         onNote={vi.fn()}
+        onEmoji={vi.fn()}
         onOpen={vi.fn()}
         onBack={vi.fn()}
       />,

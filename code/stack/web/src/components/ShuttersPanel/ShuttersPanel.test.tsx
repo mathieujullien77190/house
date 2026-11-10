@@ -176,7 +176,11 @@ describe('ShuttersPanel', () => {
 
   it('« Fermer à moitié » : seulement pour un volet qui a un temps de fermeture, bloqué pendant la course', async () => {
     vi.mocked(api.fetchShutters).mockResolvedValue(
-      state([shutter({ closeSeconds: 19 }), shutter({ id: '2', name: 'Volet salon', closeSeconds: 19, halfRunning: true }), shutter({ id: '3', name: 'Volet porte' })]),
+      state([
+        shutter({ closeSeconds: 19 }),
+        shutter({ id: '2', name: 'Volet salon', closeSeconds: 19, halfRunning: true }),
+        shutter({ id: '3', name: 'Volet porte' }),
+      ]),
     )
     render(<ShuttersPanel apiKey="k" />)
     await settle()
@@ -188,7 +192,9 @@ describe('ShuttersPanel', () => {
   })
 
   it('« Fermer à moitié » : le volet est mis à jour, l’erreur s’affiche, et la liste est relue plus vite en route', async () => {
-    vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter({ closeSeconds: 19 }), shutter({ id: '2', name: 'Volet salon', closeSeconds: 19 })]))
+    vi.mocked(api.fetchShutters).mockResolvedValue(
+      state([shutter({ closeSeconds: 19 }), shutter({ id: '2', name: 'Volet salon', closeSeconds: 19 })]),
+    )
     vi.mocked(api.closeShutterHalf)
       .mockRejectedValueOnce(new Error('502'))
       .mockResolvedValueOnce(shutter({ closeSeconds: 19, halfRunning: true, lastCommand: 'up', lastAt: 1_000_000_000 }))
@@ -199,7 +205,9 @@ describe('ShuttersPanel', () => {
     await settle()
     expect(screen.getByText(SEND_ERROR_TEXT)).toBeInTheDocument()
     // l'API, relue, dit que la course est en cours
-    vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter({ closeSeconds: 19, halfRunning: true }), shutter({ id: '2', name: 'Volet salon', closeSeconds: 19 })]))
+    vi.mocked(api.fetchShutters).mockResolvedValue(
+      state([shutter({ closeSeconds: 19, halfRunning: true }), shutter({ id: '2', name: 'Volet salon', closeSeconds: 19 })]),
+    )
     fireEvent.click(screen.getAllByRole('button', { name: HALF_LABEL })[0])
     await settle()
     expect(screen.queryByText(SEND_ERROR_TEXT)).toBeNull()
@@ -210,7 +218,9 @@ describe('ShuttersPanel', () => {
   })
 
   it('« Fermer à moitié » dont la réponse arrive après une liste perdue ne casse rien', async () => {
-    vi.mocked(api.fetchShutters).mockResolvedValueOnce(state([shutter({ closeSeconds: 19 })])).mockRejectedValue(new Error('réseau'))
+    vi.mocked(api.fetchShutters)
+      .mockResolvedValueOnce(state([shutter({ closeSeconds: 19 })]))
+      .mockRejectedValue(new Error('réseau'))
     let done: (value: ShutterInfo) => void = () => undefined
     vi.mocked(api.closeShutterHalf).mockReturnValue(new Promise((resolve) => (done = resolve)))
     render(<ShuttersPanel apiKey="k" />)

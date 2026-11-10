@@ -18,6 +18,7 @@ import LiveAudio from '@/components/LiveAudio'
 import MarkersToggle from '@/components/MarkersToggle'
 import { useMarkers } from '@/lib/useMarkers'
 import { useMarkersVisible } from '@/lib/useMarkersVisible'
+import { useOffCameras } from '@/lib/useOffCameras'
 import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
@@ -34,6 +35,7 @@ import {
   CAMERA_OFF_TEXT,
   CAMERA_STARTING_TEXT,
   CAMERA_TITLE_PREFIX,
+  HD_PRELOAD_CLASS,
   HIDDEN_PLAYER_CLASS,
   LIVE_QUALITY_LABEL,
   LIVE_QUALITY_OPTIONS,
@@ -88,6 +90,8 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null)
   // Le direct en 4K par défaut (le 4K est recodé en MJPEG par le mini PC : lourd) ; « Léger » reste au choix.
   const [liveQuality, setLiveQuality] = useState<LiveQuality>('hd')
+  // Le 4K est lourd à démarrer : on montre d'abord le flux léger, le 4K se charge caché derrière et le remplace dès que sa première image est là (au lieu d'un « chargement »).
+  const [hdReady, setHdReady] = useState(false)
   // Le clip dont la vidéo est téléchargée : tant que ce n'est pas celui de l'événement choisi, on garde l'image.
   const [readyClip, setReadyClip] = useState<string | null>(null)
   // Le clip que l'appareil n'arrive pas à lire : son message (et « Fermer ») doivent se voir, pas rester dans le lecteur caché.
@@ -114,7 +118,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const sensors = useSensors(apiKey, showTemperatures)
   // La température ne se montre qu'en direct : pas pendant un clip ni sur l'image d'un instant passé (elle serait celle d'aujourd'hui).
   const isLive = picked === null && cursor === null
-  // Les 📷 des autres caméras : montrés ou cachés (le bouton à côté de l'icône du son), sur grand écran et en direct seulement.
+  // Les icône de caméra des autres caméras : montrés ou cachés (le bouton à côté de l'icône du son), sur grand écran et en direct seulement.
   const markersVisible = useMarkersVisible()
   const markersAvailable = !mobile && isLive && onOpenCamera !== undefined && others.length > 0
   const temperatures = showTemperatures && isLive ? temperatureItems(sensors, [sensorId]) : []
@@ -125,12 +129,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const plug = usePlug(apiKey, CAMERA_WITH_PLUG.includes(camera.name) && isLive)
   const indicators =
     isLive && (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off') ? (
-      <CameraIndicators
-        temperatures={temperatures.map((item) => item.value)}
-        lamp={lamp}
-        plug={plug}
-        rain={camera.rain}
-      />
+      <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} rain={camera.rain} />
     ) : undefined
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
@@ -141,8 +140,10 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const [editingZone, setEditingZone] = useState(false)
   const zone = useZone(apiKey, camera.name)
   const zoneEditing = editingZone && isLive && !placeholder && !mobile
-  // Les 📷 des autres caméras sur l'image du direct (sur grand écran seulement, pas sur téléphone) : on les déplace, un clic ouvre la caméra.
+  // Les icône de caméra des autres caméras sur l'image du direct (sur grand écran seulement, pas sur téléphone) : on les déplace, un clic ouvre la caméra.
   const markers = useMarkers(apiKey, camera.name, others)
+  // Les caméras éteintes (PoE coupé) : leur repère sur la vidéo est grisé et ne fait rien.
+  const offCameras = useOffCameras(apiKey, markersAvailable)
   const showMarkers = markersAvailable && !placeholder && markersVisible.visible && !zoneEditing
   // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
   const [rate, setRate] = useState(NORMAL_RATE)
@@ -181,6 +182,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const changeLiveQuality = (next: LiveQuality) => {
     if (next === liveQuality) return
     setLiveSize(null)
+    setHdReady(false)
     setLiveQuality(next)
   }
 
@@ -226,17 +228,40 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const clipFailed = clipPath !== null && clipPath === failedClip
   // Un événement choisi dont la vidéo n'est pas encore là (en cours, ou fini mais pas encore copié) : un cadre noir et ce qu'on attend.
   const pendingText = selected && !selected.clip ? (ongoing ? ONGOING_CLIP_TEXT : NO_CLIP_TEXT) : ''
+  // Le direct. En 4K : le flux 4K, chargé caché (`HD_PRELOAD_CLASS`) tant que sa première image n'est pas arrivée, avec le flux léger par-dessus ; en léger : le flux léger seul.
+  const lightImage = (onSize?: (width: number, height: number) => void) => (
+    <ImageBox
+      src={placeholder ? '' : liveSrc(camera.name, false, mobile)}
+      message={placeholder || NO_IMAGE_TEXT}
+      upright={turned}
+      onSize={onSize}
+    />
+  )
+  const liveImage =
+    liveQuality === 'hd' && !placeholder ? (
+      <div className="relative">
+        <div className={hdReady ? undefined : HD_PRELOAD_CLASS}>
+          <ImageBox
+            src={live}
+            message={NO_IMAGE_TEXT}
+            upright={turned}
+            onSize={(width, height) => {
+              setHdReady(true)
+              setLiveSize({ width, height })
+            }}
+          />
+        </div>
+        {hdReady ? null : lightImage()}
+      </div>
+    ) : (
+      lightImage((width, height) => setLiveSize({ width, height }))
+    )
   const still = pendingText ? (
     <ImageBox src="" message={pendingText} upright={turned} />
   ) : cursor !== null ? (
     <SnapshotImage apiKey={apiKey} camera={camera.name} at={cursor} upright={turned} fade={fadeFor(speedOf(rate))} />
   ) : (
-    <ImageBox
-      src={placeholder ? '' : live}
-      message={placeholder || NO_IMAGE_TEXT}
-      upright={turned}
-      onSize={(width, height) => setLiveSize({ width, height })}
-    />
+    liveImage
   )
   // Le lecteur se monte dès le choix (il télécharge le clip) mais reste caché : l'image reste en place jusqu'à ce que la vidéo soit là.
   const media = (
@@ -330,11 +355,20 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
       details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
-      // Les repères 📷 des autres caméras, posés sur l'image du direct.
+      // Les repères (icône de caméra) des autres caméras, posés sur l'image du direct.
       layer={
-        showMarkers ? <CameraMarkers markers={markers.markers} onMove={markers.move} onCommit={markers.commit} onRemove={markers.remove} onOpen={onOpenCamera} /> : undefined
+        showMarkers ? (
+          <CameraMarkers
+            markers={markers.markers}
+            onMove={markers.move}
+            onCommit={markers.commit}
+            onRemove={markers.remove}
+            onOpen={onOpenCamera}
+            inactive={offCameras}
+          />
+        ) : undefined
       }
-      // En bas à droite de la vidéo : le bouton des repères (montrer ou cacher les 📷) puis l'icône du son (au clic seulement : rien n'est demandé avant).
+      // En bas à droite de la vidéo : le bouton des repères (montrer ou cacher les icônes de caméra) puis l'icône du son (au clic seulement : rien n'est demandé avant).
       sound={
         (isLive && !placeholder) || markersAvailable ? (
           <div className="flex items-center gap-1">

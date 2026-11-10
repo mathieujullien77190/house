@@ -32,6 +32,9 @@ import {
   putMarkers,
   putZone,
   setCameraPower,
+  setAc,
+  fetchAc,
+  setClipEmoji,
   setClipNote,
   setClipSaved,
   setHue,
@@ -136,6 +139,8 @@ describe('écritures', () => {
   const writes: [string, (k: string) => Promise<unknown>, string, string, unknown][] = [
     ['setClipSaved', (k) => setClipSaved(k, 'a/b', true), '/clips/a%2Fb/saved', 'PUT', { saved: true }],
     ['setClipNote', (k) => setClipNote(k, 'a/b', 'renard'), '/clips/a%2Fb/note', 'PUT', { note: 'renard' }],
+    ['setClipEmoji', (k) => setClipEmoji(k, 'a/b', '🦊'), '/clips/a%2Fb/emoji', 'PUT', { emoji: '🦊' }],
+    ['setAc', (k) => setAc(k, 'a 1', { on: true }), '/ac/a%201', 'POST', { on: true }],
     ['setCameraPower', (k) => setCameraPower(k, 'c 1', false), '/poe/c%201', 'POST', { on: false }],
     ['saveHeating', (k) => saveHeating(k, { thresholdC: 2 }), '/plug/heating', 'PUT', { thresholdC: 2 }],
     ['sendShutter', (k) => sendShutter(k, 'a 1', 'stop'), '/shutters/a%201', 'POST', { command: 'stop' }],
@@ -188,6 +193,15 @@ describe('écritures', () => {
   it('setClipNote rend la note gardée par l’API', async () => {
     stubFetch(() => reply({ id: 'a', note: 'renard' }))
     expect(await setClipNote('k', 'a', ' renard ')).toBe('renard')
+  })
+  it('fetchAc rend la liste des unités', async () => {
+    const spy = stubFetch(() => reply({ units: [{ id: 'a' }] }))
+    expect(await fetchAc('k')).toEqual([{ id: 'a' }])
+    expect(spy.mock.calls[0][0]).toBe('/ac')
+  })
+  it('setClipEmoji rend l’emoji gardé par l’API', async () => {
+    stubFetch(() => reply({ id: 'a', emoji: '🦊' }))
+    expect(await setClipEmoji('k', 'a', '🦊')).toBe('🦊')
   })
   it('cancelFade envoie DELETE sans corps', async () => {
     const spy = stubFetch(() => reply({ fading: false, ends_at: null }))

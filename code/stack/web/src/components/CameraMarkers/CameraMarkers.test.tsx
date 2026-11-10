@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import CameraMarkers from './CameraMarkers'
-import { EMOJI, MARKER_FIXED_CLASS, MARKER_MOVABLE_CLASS, OPEN_PREFIX } from './constants'
+import { MARKER_FIXED_CLASS, MARKER_MOVABLE_CLASS, OPEN_PREFIX } from './constants'
 
 // `MARKERS_EDITABLE` est une constante : le double la lit dans un état que chaque test fixe.
 const state = vi.hoisted(() => ({ editable: true }))
@@ -32,7 +32,17 @@ const setup = (box: { width: number; height: number } = { width: 200, height: 10
   const handlers = { onMove: vi.fn(), onCommit: vi.fn(), onRemove: vi.fn(), onOpen: vi.fn() }
   const { container } = render(<CameraMarkers markers={MARKERS} {...handlers} />)
   const layer = container.firstElementChild as HTMLElement
-  layer.getBoundingClientRect = () => ({ left: 10, top: 20, width: box.width, height: box.height, right: 0, bottom: 0, x: 10, y: 20, toJSON: () => ({}) })
+  layer.getBoundingClientRect = () => ({
+    left: 10,
+    top: 20,
+    width: box.width,
+    height: box.height,
+    right: 0,
+    bottom: 0,
+    x: 10,
+    y: 20,
+    toJSON: () => ({}),
+  })
   return { ...handlers, layer, marker: (name: string) => screen.getByRole('button', { name: `${OPEN_PREFIX}${name}` }) }
 }
 
@@ -45,7 +55,8 @@ afterEach(() => vi.unstubAllGlobals())
 describe('CameraMarkers, places modifiables', () => {
   it('un repère par caméra, placé en parts de l’image, avec le curseur de la main qui attrape', () => {
     const { marker } = setup()
-    expect(screen.getAllByText(EMOJI)).toHaveLength(2)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(document.querySelectorAll('svg')).toHaveLength(2)
     expect(marker('b').style.left).toBe('25%')
     expect(marker('b').style.top).toBe('14%')
     expect(marker('b')).toHaveAttribute('title', 'b')
@@ -161,5 +172,33 @@ describe('CameraMarkers, places figées', () => {
     const { marker, onRemove } = setup()
     expect(fireEvent.contextMenu(marker('c'))).toBe(true)
     expect(onRemove).not.toHaveBeenCalled()
+  })
+})
+
+describe('CameraMarkers : les caméras inactives ne font rien', () => {
+  const markers = [
+    { target: 'a', x: 0.2, y: 0.3 },
+    { target: 'b', x: 0.6, y: 0.5 },
+  ]
+
+  it('le repère d’une caméra éteinte est grisé, désactivé, et un appui ne l’ouvre pas ; les autres agissent', () => {
+    const onOpen = vi.fn()
+    render(<CameraMarkers markers={markers} onMove={vi.fn()} onCommit={vi.fn()} onRemove={vi.fn()} onOpen={onOpen} inactive={['b']} />)
+    const off = screen.getByRole('button', { name: 'Ouvrir la caméra b' })
+    expect(off).toBeDisabled()
+    expect(off.className).toContain('opacity-40')
+    fireEvent.pointerDown(off, { button: 0 })
+    fireEvent.pointerUp(off)
+    expect(onOpen).not.toHaveBeenCalled()
+    const on = screen.getByRole('button', { name: 'Ouvrir la caméra a' })
+    expect(on).not.toBeDisabled()
+    fireEvent.pointerDown(on, { button: 0 })
+    fireEvent.pointerUp(on)
+    expect(onOpen).toHaveBeenCalledWith('a')
+  })
+
+  it('sans caméra inactive, tous les repères agissent', () => {
+    render(<CameraMarkers markers={markers} onMove={vi.fn()} onCommit={vi.fn()} onRemove={vi.fn()} onOpen={vi.fn()} />)
+    for (const button of screen.getAllByRole('button')) expect(button).not.toBeDisabled()
   })
 })

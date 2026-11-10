@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Collapsible, LightsPanel, Notice, SpecList } from '@house/ui'
 import { CAMERA_LAMP } from '@/components/CameraCard/constants'
 import FadeButton from '@/components/FadeButton'
-import MapPlan from '@/components/MapPlan'
-import { PARCEL_GATES } from '@/components/MapPlan/parcel'
-import { useLegacyPositions } from '@/lib/useLegacyPositions'
 import { useMobile } from '@/lib/useMobile'
-import { usePlan } from '@/lib/usePlan'
 import { ApiError, fetchAutomations, fetchLights, fetchSensors, setHue } from '@/lib/api'
 import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
 import {
@@ -19,17 +15,14 @@ import {
   LOADING_TEXT,
   MAX_BRI,
   NOT_CONFIGURED_TEXT,
-  PLAN_SECTION_TITLE,
   POLL_MS,
 } from './constants'
-import { allLights, buildAutomationItems, buildZones, planLamps } from './helpers'
+import { allLights, buildAutomationItems, buildZones } from './helpers'
 import type { LightsProps, LightsStatus } from './types'
 
 /**
- * Les lumières du pont Hue : la carte de la maison (la même que celle des caméras, toit caché) avec une ampoule par lampe (qu'on touche pour
- * l'allumer, qu'on glisse en mode « Modifier » pour la placer), puis les zones de la maison et leurs lampes, relues toutes les 5 s. Allumer, éteindre ou régler la luminosité d'une
- * zone entière (lampe par lampe) ou d'une lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie).
- * Les positions des ampoules sont gardées dans le plan de l'API (longitude et latitude) : elles restent où on les a mises, sur tous les appareils.
+ * Les lumières du pont Hue : les zones de la maison et leurs lampes, relues toutes les 5 s. Allumer, éteindre ou régler la luminosité d'une zone entière (lampe par lampe) ou d'une
+ * lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie). La carte des lampes est dans l'accueil (`HouseMap`).
  */
 const Lights = ({ apiKey }: LightsProps) => {
   const [rooms, setRooms] = useState<HueRoom[]>([])
@@ -37,11 +30,6 @@ const Lights = ({ apiKey }: LightsProps) => {
   const [automations, setAutomations] = useState<HueAutomation[]>([])
   const [status, setStatus] = useState<LightsStatus>('loading')
   const mobile = useMobile()
-  // Le plan de la maison (la carte) : arbres, haies, cage… et la place des lampes, gardés par l'API.
-  const plan = usePlan(apiKey)
-  const legacy = useLegacyPositions(apiKey)
-  // La carte est repliée au départ : elle n'est fabriquée (et ses tuiles chargées) qu'une fois la section ouverte.
-  const [planOpen, setPlanOpen] = useState(false)
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
 
@@ -101,7 +89,6 @@ const Lights = ({ apiKey }: LightsProps) => {
 
   const lights = allLights(rooms)
   const zones = buildZones(lights, sensors)
-  const lamps = planLamps(lights, plan.items, legacy)
 
   const changeLight = (id: string, state: HueState) => run(`light:${id}`, () => setHue(apiKey, 'lights', id, state))
 
@@ -136,11 +123,6 @@ const Lights = ({ apiKey }: LightsProps) => {
       ),
     )
 
-  const toggle = (id: string) => {
-    const light = lights.find((item) => item.id === id)
-    if (light?.reachable) void changeLight(id, light.on ? { on: false } : { on: true, bri: MAX_BRI })
-  }
-
   const notice = (text: string) => <Notice text={text} />
   if (rooms.length === 0) {
     if (status === 'unavailable') return notice(NOT_CONFIGURED_TEXT)
@@ -148,33 +130,12 @@ const Lights = ({ apiKey }: LightsProps) => {
     if (status === 'loading') return notice(LOADING_TEXT)
     return notice(EMPTY_TEXT)
   }
-  const map = (
-    <MapPlan
-      mode="lights"
-      lamps={lamps}
-      onMoveLamp={plan.moveItem}
-      onToggleLamp={toggle}
-      trees={plan.trees}
-      hedges={plan.hedges}
-      cage={plan.cage}
-      offsets={plan.offsets}
-      gates={PARCEL_GATES}
-    />
-  )
   return (
     <>
       {status === 'error' ? <Notice text={ERROR_TEXT} /> : null}
-      {/* Sur téléphone (sous 1024 px) : la liste seule, pas de carte. */}
-      {mobile ? null : (
-        <Collapsible title={PLAN_SECTION_TITLE} defaultOpen={false} onToggle={setPlanOpen}>
-          {planOpen ? map : null}
-        </Collapsible>
-      )}
       <LightsPanel
         rooms={zones}
         busy={busy}
-        // Seule la lampe de la perruche garde un curseur de luminosité ; les autres n'ont que ON (puissance max) et OFF.
-        dimmable={[CAMERA_LAMP['voliere-interieur']]}
         drafts={drafts}
         // La lampe de la perruche a en plus son bouton d'extinction en douceur (15 min), comme dans le détail de sa caméra.
         lampExtra={(light) =>

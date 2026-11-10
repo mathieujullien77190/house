@@ -1,0 +1,3 @@
+# ClipEmoji – l'emoji d'un clip
+
+Posé à côté de la note d'un clip sauvegardé (`../SavedClips/CLAUDE.md`, bas de l'onglet Caméras, sous chaque vignette et sous le lecteur d'un clip ouvert). Un bouton montre l'emoji choisi (🦊) ou « ＋ Emoji » ; un clic ouvre une courte liste (`EMOJI_CHOICES` : renard, cerf, lapin, écureuil, hérisson, oiseau, hibou, chat, chien, rat, raton laveur, personne), un choix l'enregistre et referme la liste, « Aucun emoji » (visible quand il y en a un) le retire. `PUT /clips/<id>/emoji`, gardé par l'API dans `clip-emojis.json` ; **l'emoji s'affiche alors sur la carte de la maison** (`../HouseMap/CLAUDE.md`).

@@ -1,2 +1,2 @@
-export { default } from './Home'
+export { default } from './SavedClips'
 export type * from './types'

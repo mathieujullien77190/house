@@ -1,10 +1,13 @@
-import { LampDot, PlugSquare, ValueChips } from '@house/ui'
+import { RiLightbulbFill } from 'react-icons/ri'
+import { LuHeater } from 'react-icons/lu'
+import { ValueChips } from '@house/ui'
+import MapIcon from '@/components/MapIcon'
 import IndicatorHint from '@/components/IndicatorHint'
 import { RAIN_CHIP, RAIN_HINT, ROW_CLASS } from './constants'
-import { lampHint, lampLabel, plugHint, plugLabel, temperatureHint } from './helpers'
+import { lampColor, lampHint, lampLabel, plugHint, plugLabel, temperatureHint } from './helpers'
 import type { CameraIndicatorsProps } from './types'
 
-/** Ce qui se pose sur la vidéo d'une caméra : ses températures, le rond de sa lampe (orange allumée, gris éteinte, contour rouge pâle injoignable) et le dessin du mode pluie (🌧️ pluie, ☔ pluie forte, quand la météo le dit et que le mode est allumé dans House Sync) et le carré de sa prise (vert allumée, rouge éteinte). */
+/** Ce qui se pose sur la vidéo d'une caméra : ses températures, le rond de sa lampe (le même que sur la carte : fond blanc, bordure noire, ampoule orange allumée, grise éteinte, rouge injoignable) et le dessin du mode pluie (🌧️ pluie, ☔ pluie forte, quand la météo le dit et que le mode est allumé dans House Sync) et le rond de son chauffage (le même que sur la carte, avec sa pastille verte allumé, rouge éteint). */
 const CameraIndicators = ({ temperatures, lamp, plug, rain = 'off' }: CameraIndicatorsProps) => (
   <div className={ROW_CLASS}>
     {rain === 'off' ? null : (
@@ -19,12 +22,16 @@ const CameraIndicators = ({ temperatures, lamp, plug, rain = 'off' }: CameraIndi
     ) : null}
     {lamp ? (
       <IndicatorHint text={lampHint(lamp)}>
-        <LampDot on={lamp.on} reachable={lamp.reachable} brightness={lamp.bri} label={lampLabel(lamp)} />
+        <MapIcon label={lampLabel(lamp)} color={lampColor(lamp)}>
+          <RiLightbulbFill aria-hidden="true" />
+        </MapIcon>
       </IndicatorHint>
     ) : null}
     {plug ? (
       <IndicatorHint text={plugHint(plug)}>
-        <PlugSquare on={plug.on} label={plugLabel(plug)} />
+        <MapIcon label={plugLabel(plug)} dot={plug.on ? 'var(--color-green)' : 'var(--color-danger)'}>
+          <LuHeater aria-hidden="true" />
+        </MapIcon>
       </IndicatorHint>
     ) : null}
   </div>

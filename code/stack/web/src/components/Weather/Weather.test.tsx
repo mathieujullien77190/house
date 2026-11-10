@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { Weather as WeatherData } from '@/lib/useWeather'
 import Weather from './Weather'
 import { ARROW_NEXT_LABEL, ARROW_PREVIOUS_LABEL, HOUSE_PLACE, PANEL_LABEL, SCROLL_STEP } from './constants'
 
-const h = vi.hoisted(() => ({ weather: null as WeatherData | null }))
+const h = vi.hoisted(() => ({ weather: null as WeatherData | null, inside: null as number | null }))
 vi.mock('@/lib/useWeather', () => ({ useWeather: () => h.weather }))
+vi.mock('@/lib/useHomeTemperature', () => ({ useHomeTemperature: () => h.inside }))
 
 // jsdom ne fait aucune mise en page : la géométrie de la liste est simulée.
 const geometry = { left: 0, client: 300, total: 1000 }
@@ -27,6 +28,7 @@ const WEATHER: WeatherData = {
 
 beforeEach(() => {
   h.weather = WEATHER
+  h.inside = null
   geometry.left = 0
   geometry.client = 300
   geometry.total = 1000
@@ -39,19 +41,38 @@ const open = () => fireEvent.click(button())
 describe('Weather', () => {
   it('rien tant que la météo n’est pas lue', () => {
     h.weather = null
-    const { container } = render(<Weather />)
+    const { container } = render(<Weather apiKey="k" />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('fermée : le temps d’aujourd’hui seulement', () => {
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     expect(button()).toHaveAttribute('aria-expanded', 'false')
     expect(button()).toHaveTextContent('9°')
     expect(screen.queryByRole('region', { name: PANEL_LABEL })).toBeNull()
   })
 
+  it('la température de la maison (le salon) suit celle de dehors, « 9° · 22° 🏠 » : un point entre les deux, l’emoji maison à droite, pas de nom de lieu ; rien tant qu’elle est inconnue', () => {
+    render(<Weather apiKey="k" />)
+    expect(button().querySelectorAll('svg')).toHaveLength(0)
+    // pas d'emoji maison tant que la température de la maison est inconnue
+    expect(button()).not.toHaveTextContent('🏠')
+    cleanup()
+    h.inside = 21.5
+    render(<Weather apiKey="k" />)
+    expect(button()).toHaveTextContent('9°')
+    expect(button()).toHaveTextContent('22°')
+    expect(button()).not.toHaveTextContent(HOUSE_PLACE)
+    expect(button().querySelectorAll('svg')).toHaveLength(0)
+    expect(button()).toHaveTextContent('·')
+    expect(button()).not.toHaveTextContent('/')
+    // l'emoji maison est à gauche de la température de la maison
+    expect(button().textContent?.endsWith('🏠22°')).toBe(true)
+    expect(button()).toHaveAttribute('aria-label', expect.stringContaining('intérieur 22 degrés'))
+  })
+
   it('un clic ouvre les heures, un second les ferme', () => {
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     open()
     expect(button()).toHaveAttribute('aria-expanded', 'true')
     const panel = screen.getByRole('region', { name: PANEL_LABEL })
@@ -66,13 +87,13 @@ describe('Weather', () => {
 
   it('sans heures, rien à ouvrir', () => {
     h.weather = { ...WEATHER, hours: [] }
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     open()
     expect(screen.queryByRole('region', { name: PANEL_LABEL })).toBeNull()
   })
 
   it('Échap ferme, une autre touche non', () => {
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     open()
     fireEvent.keyDown(document, { key: 'a' })
     expect(screen.getByRole('region', { name: PANEL_LABEL })).toBeInTheDocument()
@@ -81,7 +102,7 @@ describe('Weather', () => {
   })
 
   it('un clic ailleurs ferme, un clic dedans non', () => {
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     open()
     fireEvent.pointerDown(screen.getByRole('region', { name: PANEL_LABEL }))
     expect(screen.getByRole('region', { name: PANEL_LABEL })).toBeInTheDocument()
@@ -90,7 +111,7 @@ describe('Weather', () => {
   })
 
   it('les flèches font défiler, et s’éteignent aux bouts de la liste', () => {
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     open()
     const previous = screen.getByRole('button', { name: ARROW_PREVIOUS_LABEL })
     const next = screen.getByRole('button', { name: ARROW_NEXT_LABEL })
@@ -108,7 +129,7 @@ describe('Weather', () => {
   })
 
   it('quand la fenêtre change de taille, les flèches sont relues', () => {
-    render(<Weather />)
+    render(<Weather apiKey="k" />)
     open()
     const next = screen.getByRole('button', { name: ARROW_NEXT_LABEL })
     expect(next).not.toBeDisabled()

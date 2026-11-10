@@ -24,5 +24,4 @@ export interface AppUIProps {
   tabs: { id: TabId; label: string }[]
   onTab: (tab: TabId) => void
   onConnect: (key: string) => void
-  onForget: () => void
 }

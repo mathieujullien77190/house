@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { CameraMarker, CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
+import type { AcPatch, AcUnit, CameraMarker, CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -63,6 +63,17 @@ export const setClipNote = async (key: string, id: string, note: string): Promis
   if (!res.ok) throw new ApiError(res.status, `/clips : HTTP ${res.status}`)
   return ((await res.json()) as { note: string }).note
 }
+/** Pose l'emoji d'un clip (`null` : le retire) ; rend l'emoji tel que l'API l'a gardé (vide s'il est retiré). */
+export const setClipEmoji = async (key: string, id: string, emoji: string | null): Promise<string> => {
+  const res = await fetch(`/clips/${encodeURIComponent(id)}/emoji`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ emoji }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/clips : HTTP ${res.status}`)
+  return ((await res.json()) as { emoji: string }).emoji
+}
 /** Les clips sauvegardés (à garder pour toujours), les plus récents d'abord. */
 export const fetchSavedEvents = async (key: string): Promise<EventRow[]> => (await request(key, '/events?saved=1')).json()
 /** De quoi bâtir le lien de la page invité (sa clé, son port, son adresse publique) ; échoue (503) sans page invité configurée. */
@@ -93,6 +104,21 @@ export const setPlug = async (key: string, on: boolean, minutes?: number, offOnM
   })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/plug : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Les climatisations Mitsubishi et leur état (503 si aucune n'est configurée). */
+export const fetchAc = async (key: string): Promise<AcUnit[]> => ((await (await request(key, '/ac')).json()) as { units: AcUnit[] }).units
+
+/** Change une climatisation (allumer, mode, consigne, ventilateur) ; rend l'unité avec le changement appliqué. 502 si le module ne répond pas. */
+export const setAc = async (key: string, id: string, patch: AcPatch): Promise<AcUnit> => {
+  const res = await fetch(`/ac/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/ac : HTTP ${res.status}`)
   return res.json()
 }
 
@@ -216,7 +242,7 @@ export const putZone = async (key: string, camera: string, points: ZonePoint[] |
   if (!res.ok) throw new ApiError(res.status, `/zones : HTTP ${res.status}`)
 }
 
-/** Les repères de caméras : pour chaque caméra, la place du 📷 de chacune des autres sur son image (parts de l'image, de 0 à 1) ; une caméra sans entrée a les places de départ. */
+/** Les repères de caméras : pour chaque caméra, la place de l'icône de caméra de chacune des autres sur son image (parts de l'image, de 0 à 1) ; une caméra sans entrée a les places de départ. */
 export const fetchMarkers = async (key: string): Promise<Record<string, CameraMarker[]>> => (await request(key, '/markers')).json()
 /** Fixe les repères d'une caméra, ou les remet à leur place de départ (null). */
 export const putMarkers = async (key: string, camera: string, markers: CameraMarker[] | null): Promise<void> => {

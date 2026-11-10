@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import GuestLink from '@/components/GuestLink'
-import { fetchSavedEvents, setClipNote, setClipSaved } from '@/lib/api'
+import { fetchSavedEvents, setClipEmoji, setClipNote, setClipSaved } from '@/lib/api'
 import type { EventRow } from '@/types'
-import HomeUI from './UI'
-import type { HomeProps } from './types'
+import SavedClipsUI from './UI'
+import type { SavedClipsProps } from './types'
 
-/** L'accueil : pour le moment, les clips sauvegardés (jamais effacés) ; un clic sur une vignette lit le clip. */
-const Home = ({ apiKey }: HomeProps) => {
+/** Les clips sauvegardés (jamais effacés), en bas de l'onglet Caméras ; un clic sur une vignette lit le clip. */
+const SavedClips = ({ apiKey, onOpenCamera }: SavedClipsProps) => {
   const [events, setEvents] = useState<EventRow[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [openId, setOpenId] = useState('')
@@ -53,11 +52,15 @@ const Home = ({ apiKey }: HomeProps) => {
     /* v8 ignore next */
     setEvents((current) => current?.map((event) => (event.id === id ? { ...event, note: kept } : event)) ?? current)
   }
-  // Le lien de la page invité se montre en haut de la liste, pas pendant la lecture d'un clip.
+  // L'emoji d'un clip : l'API le garde, la liste montre ce qu'elle a gardé. Un échec laisse l'ancien.
+  const emoji = async (id: string, value: string | null) => {
+    const kept = await setClipEmoji(apiKey, id, value)
+    /* v8 ignore next */
+    setEvents((current) => current?.map((event) => (event.id === id ? { ...event, emoji: kept } : event)) ?? current)
+  }
   return (
     <>
-      {opened ? null : <GuestLink apiKey={apiKey} />}
-      <HomeUI
+      <SavedClipsUI
         apiKey={apiKey}
         events={events}
         failed={failed}
@@ -68,11 +71,17 @@ const Home = ({ apiKey }: HomeProps) => {
         saveFailed={failedSave}
         onDuration={(id, seconds) => setDurations((current) => (current[id] === seconds ? current : { ...current, [id]: seconds }))}
         onNote={note}
-        onOpen={setOpenId}
+        onEmoji={emoji}
+        onOpen={(id) => {
+          // Un clic sur la vignette d'un clip : le détail de sa caméra s'ouvre sur ce clip, qui se lance (page Caméras) ; sans cela, il se lit sur place.
+          const clicked = events?.find((event) => event.id === id)
+          if (onOpenCamera && clicked) onOpenCamera(clicked.camera, clicked.id)
+          else setOpenId(id)
+        }}
         onBack={() => setOpenId('')}
       />
     </>
   )
 }
 
-export default Home
+export default SavedClips
