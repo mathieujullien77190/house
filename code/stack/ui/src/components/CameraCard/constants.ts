@@ -6,7 +6,9 @@ export const CAPTION_CLASS = 'mb-1 text-[0.85rem] text-muted'
 export const WARNING_CLASS = 'my-2 text-[0.85rem] text-danger'
 
 export const EXPAND_LABEL = '⛶ Afficher en grand'
-export const COLLAPSE_LABEL = '✕ Réduire'
+/** Le nom du bouton qui quitte la vue en grand (pour les lecteurs d'écran et l'info-bulle) ; le bouton n'affiche que son icône. */
+export const COLLAPSE_LABEL = 'Réduire'
+export const COLLAPSE_ICON = '✕'
 
 export const CAPTION_ROW_CLASS = 'flex flex-wrap items-center justify-between gap-2'
 export const EXPAND_CLASS =
@@ -26,7 +28,7 @@ export const BIG_MEDIA_CLASS = 'w-[min(var(--big-w),calc(var(--big-h)*16/9))]'
 /** La zone du média en grand reçoit les gestes : le navigateur ne doit ni défiler ni zoomer la page à sa place. */
 export const ZOOM_AREA_CLASS = 'touch-none select-none'
 export const COLLAPSE_CLASS =
-  'absolute top-3 right-3 z-10 cursor-pointer rounded-lg border border-white/30 bg-black/60 px-3 py-2 text-[0.9rem] text-white focus-visible:outline-2 focus-visible:outline-accent'
+  'absolute top-3 right-3 z-10 flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/30 bg-black/60 text-[1rem] leading-none text-white focus-visible:outline-2 focus-visible:outline-accent'
 
 /**
  * L'écran du téléphone (sous 1024 px, vue d'une caméra) : un écran fixe sans défilement, la vidéo sur le tiers du haut,
@@ -47,6 +49,8 @@ export const OVERLAY_TOP_CLASS = 'absolute right-2 top-2 z-10 flex flex-col item
 export const OVERLAY_DETAILS_CLASS = 'absolute bottom-2 left-2 z-10'
 /** L'heure de la vue en grand : en bas à droite de la vidéo, sans gêner les gestes. */
 export const CLOCK_CLASS = 'pointer-events-none absolute right-3 bottom-3 z-10'
+/** La couche posée sur toute la vidéo : elle laisse passer les clics (ses enfants se déclarent cliquables). */
+export const LAYER_CLASS = 'pointer-events-none absolute inset-0 z-10'
 /** Le bouton du son, en bas à droite de la vidéo (grand écran) ; sur téléphone il se place à gauche du bouton « Afficher en grand » ; en vue en grand, au-dessus de l'heure. */
 export const SOUND_CLASS = 'absolute bottom-2 right-2 z-10'
 export const SOUND_SCREEN_CLASS = 'absolute bottom-2 right-12 z-10'

@@ -6,6 +6,7 @@ import {
   CAPTION_ROW_CLASS,
   CLOCK_CLASS,
   COLLAPSE_CLASS,
+  COLLAPSE_ICON,
   COLLAPSE_LABEL,
   EXPAND_OVERLAY_CLASS,
   MEDIA_BLOCK_CLASS,
@@ -17,6 +18,7 @@ import {
   HEAD_CLASS,
   NAME_CLASS,
   OVERLAY_DETAILS_CLASS,
+  LAYER_CLASS,
   OVERLAY_TOP_CLASS,
   SOUND_CLASS,
   SOUND_EXPANDED_CLASS,
@@ -52,6 +54,7 @@ const CameraCard = ({
   overlay,
   clock,
   sound,
+  layer,
   timeline,
   figureRef,
   expanded = false,
@@ -92,8 +95,8 @@ const CameraCard = ({
           {expanded && sound ? <div className={SOUND_EXPANDED_CLASS}>{sound}</div> : null}
           {expanded ? (
             onCollapse ? (
-              <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
-                {COLLAPSE_LABEL}
+              <button type="button" className={COLLAPSE_CLASS} aria-label={COLLAPSE_LABEL} title={COLLAPSE_LABEL} onClick={onCollapse}>
+                {COLLAPSE_ICON}
               </button>
             ) : null
           ) : (
@@ -101,6 +104,7 @@ const CameraCard = ({
               {actions ? <div className={OVERLAY_TOP_CLASS}>{actions}</div> : null}
               {details ? <div className={OVERLAY_DETAILS_CLASS}>{details}</div> : null}
               {sound ? <div className={SOUND_SCREEN_CLASS}>{sound}</div> : null}
+              {layer ? <div className={LAYER_CLASS}>{layer}</div> : null}
               {warning ? <p className={SCREEN_WARNING_CLASS}>{warning}</p> : null}
               {onExpand ? (
                 <button type="button" className={SCREEN_EXPAND_CLASS} aria-label={EXPAND_LABEL} title={EXPAND_LABEL} onClick={onExpand}>
@@ -143,6 +147,7 @@ const CameraCard = ({
               ) : null}
               {overlay ? <div className={OVERLAY_DETAILS_CLASS}>{overlay}</div> : null}
               {sound ? <div className={SOUND_CLASS}>{sound}</div> : null}
+              {layer ? <div className={LAYER_CLASS}>{layer}</div> : null}
             </>
           )}
         </div>
@@ -150,8 +155,8 @@ const CameraCard = ({
         {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
         {expanded && sound ? <div className={SOUND_EXPANDED_CLASS}>{sound}</div> : null}
         {expanded && onCollapse ? (
-          <button type="button" className={COLLAPSE_CLASS} onClick={onCollapse}>
-            {COLLAPSE_LABEL}
+          <button type="button" className={COLLAPSE_CLASS} aria-label={COLLAPSE_LABEL} title={COLLAPSE_LABEL} onClick={onCollapse}>
+            {COLLAPSE_ICON}
           </button>
         ) : null}
       </figure>

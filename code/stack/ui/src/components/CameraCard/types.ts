@@ -29,6 +29,8 @@ export interface CameraCardProps {
   overlay?: ReactNode
   /** L'heure, en bas à droite de la vidéo, en vue en grand seulement (téléphone et bureau). */
   clock?: ReactNode
+  /** Une couche posée sur toute la vidéo, en vue normale (pas en vue en grand) : par exemple des repères que l'on déplace ; elle ne reçoit pas les clics, seuls ses enfants le font. */
+  layer?: ReactNode
   /** Un petit bouton posé sur la vidéo, en bas à droite (le son du direct) : à gauche du bouton « Afficher en grand » sur téléphone, au-dessus de l'heure en vue en grand. */
   sound?: ReactNode
   /** La frise, rendue par le parent. */

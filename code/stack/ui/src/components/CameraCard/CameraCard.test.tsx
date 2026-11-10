@@ -2,7 +2,7 @@ import { createRef } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import CameraCard from './CameraCard'
 import type { CameraCardProps } from './types'
-import { COLLAPSE_LABEL, EXPAND_LABEL, SCREEN_EXPAND_ICON, SOUND_CLASS, SOUND_EXPANDED_CLASS, SOUND_SCREEN_CLASS, ZOOM_AREA_CLASS } from './constants'
+import { COLLAPSE_ICON, COLLAPSE_LABEL, EXPAND_LABEL, LAYER_CLASS, SCREEN_EXPAND_ICON, SOUND_CLASS, SOUND_EXPANDED_CLASS, SOUND_SCREEN_CLASS, ZOOM_AREA_CLASS } from './constants'
 
 const base: CameraCardProps = {
   name: 'Volière extérieur',
@@ -221,5 +221,38 @@ describe('CameraCard : le bouton du son', () => {
   it('téléphone en grand : au-dessus de l’heure', () => {
     renderCard({ sound, screen: true, expanded: true })
     expect(holder().className).toBe(SOUND_EXPANDED_CLASS)
+  })
+})
+
+describe('CameraCard : le bouton Réduire est une icône', () => {
+  it.each([
+    ['bureau', {}],
+    ['téléphone', { screen: true }],
+  ])('%s : le nom accessible et l’info-bulle sont le libellé, le contenu est l’icône', (_name, extra) => {
+    renderCard({ ...extra, expanded: true, onCollapse: vi.fn() })
+    const button = screen.getByRole('button', { name: COLLAPSE_LABEL })
+    expect(button).toHaveAttribute('title', COLLAPSE_LABEL)
+    expect(button).toHaveTextContent(COLLAPSE_ICON)
+    expect(button.textContent).toBe(COLLAPSE_ICON)
+  })
+})
+
+describe('CameraCard : la couche sur la vidéo', () => {
+  const layer = <span>repères</span>
+  it.each([
+    ['bureau', {}],
+    ['téléphone', { screen: true }],
+  ])('%s : posée sur la vidéo en vue normale', (_name, extra) => {
+    renderCard({ ...extra, layer })
+    expect(screen.getByText('repères').parentElement).toHaveClass(...LAYER_CLASS.split(' '))
+  })
+  it.each([
+    ['bureau', {}],
+    ['téléphone', { screen: true }],
+  ])('%s : absente en vue en grand et quand il n’y en a pas', (_name, extra) => {
+    renderCard({ ...extra, layer, expanded: true })
+    expect(screen.queryByText('repères')).toBeNull()
+    renderCard({ ...extra })
+    expect(screen.queryByText('repères')).toBeNull()
   })
 })
