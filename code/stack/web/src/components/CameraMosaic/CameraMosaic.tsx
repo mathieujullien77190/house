@@ -18,7 +18,9 @@ import {
   PLUG_ID,
   TILE_CLASS,
   TILE_HIGHLIGHT_CLASS,
+  TILE_LANDSCAPE_CLASS,
   TILE_PORTRAIT_CLASS,
+  TILE_START_CLASS,
 } from './constants'
 import { orderedCameras } from './helpers'
 import type { CameraMosaicProps } from './types'
@@ -78,7 +80,7 @@ const CameraMosaic = ({ apiKey, cameras, events, isRead, onOpen }: CameraMosaicP
     return (
       <div
         key={camera.name}
-        className={`${TILE_CLASS} ${camera.orientation === 'portrait' ? TILE_PORTRAIT_CLASS : ''} ${planId !== undefined && planId === selectedCamera ? TILE_HIGHLIGHT_CLASS : ''}`}
+        className={`${TILE_CLASS} ${camera.orientation === 'portrait' ? `${TILE_START_CLASS} ${TILE_PORTRAIT_CLASS}` : TILE_LANDSCAPE_CLASS} ${planId !== undefined && planId === selectedCamera ? TILE_HIGHLIGHT_CLASS : ''}`}
         onMouseEnter={() => {
           if (planId === undefined) return
           byHover.current = selectedCamera !== planId

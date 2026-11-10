@@ -109,6 +109,20 @@ describe('CameraMosaic : vignettes', () => {
     const order = [...document.querySelectorAll('[data-testid^=tile-]')].map((e) => e.getAttribute('data-testid'))
     expect(order).toEqual(['tile-voliere-interieur', 'tile-voliere-exterieur', 'tile-autre'])
   })
+  it('les quatre caméras dans l’ordre d’arrivée, les autres après', () => {
+    mount({ cameras: [camera('autre'), camera('voliere-toit'), camera('salon-de-jardin'), camera('voliere-exterieur'), camera('voliere-interieur')] })
+    const order = [...document.querySelectorAll('[data-testid^=tile-]')].map((e) => e.getAttribute('data-testid'))
+    expect(order).toEqual(['tile-voliere-interieur', 'tile-voliere-exterieur', 'tile-salon-de-jardin', 'tile-voliere-toit', 'tile-autre'])
+  })
+  it('les vignettes en paysage ont la même hauteur (étirées), celle posée de côté garde la sienne', () => {
+    mount()
+    const landscape = screen.getByTestId('tile-voliere-interieur').parentElement as HTMLElement
+    const portrait = screen.getByTestId('tile-autre').parentElement as HTMLElement
+    expect(landscape.className).toContain('self-stretch')
+    expect(landscape.className).not.toContain('self-start')
+    expect(portrait.className).toContain('self-start')
+    expect(portrait.className).not.toContain('self-stretch')
+  })
   it('un clic ouvre la caméra ; la ligne du dernier événement ouvre son clip s’il en a un', () => {
     const events = [event('e2', 'voliere-interieur'), event('e1', 'voliere-interieur'), event('x', 'voliere-exterieur', null)]
     const { onOpen } = mount({ events, isRead: (id) => id === 'e2' })

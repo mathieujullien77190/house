@@ -2,15 +2,19 @@
 export const GRID_CLASS = 'mt-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-3'
 /** La colonne de droite : la vignette de la caméra posée de côté (sa hauteur est réglée pour égaler celle de la carte, voir useMatchHeight). */
 export const RIGHT_CLASS = 'flex flex-col gap-3 lg:col-start-3 lg:row-start-2'
-/** L'ordre des vignettes : la porte d'abord, puis le fond ; une caméra qui n'est pas dans la liste vient après, dans l'ordre de l'API. */
-export const MOSAIC_ORDER = ['voliere-interieur', 'voliere-exterieur']
+/** L'ordre des vignettes : celui de l'arrivée des caméras (la porte, le fond, le salon de jardin, le toit) ; une caméra qui n'est pas dans la liste vient après, dans l'ordre de l'API. */
+export const MOSAIC_ORDER = ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit']
 /** La section du plan : cachée sous 1024 px. Son cadre (un carré) entoure tout le dessin. */
 export const PLAN_SECTION_CLASS = 'hidden lg:col-span-2 lg:col-start-1 lg:row-start-2 lg:block'
 export const PLAN_CLASS = 'mt-2 overflow-hidden border border-line lg:w-[calc((200%_-_3rem)/3_+_0.75rem)] [&>figure]:mt-0'
 /** Ni pièces ni cloisons : la maison du plan de la mosaïque n'est qu'un toit gris. */
 export const NO_ROOMS: never[] = []
 /** La vignette dont la caméra est sélectionnée sur le plan : en surbrillance (un anneau bleu autour). */
-export const TILE_CLASS = 'self-start rounded-md transition-shadow'
+export const TILE_CLASS = 'rounded-md transition-shadow'
+/** Une vignette en paysage : toutes celles d'une même rangée ont la même hauteur (celle de la plus haute : la ligne du dernier événement n'a pas toujours la même longueur) ; le cadre de la vignette remplit sa cellule. */
+export const TILE_LANDSCAPE_CLASS = 'self-stretch [&>div]:h-full'
+/** Une vignette en portrait garde sa hauteur : sa colonne a celle de la carte. */
+export const TILE_START_CLASS = 'self-start'
 export const TILE_HIGHLIGHT_CLASS = 'ring-2 ring-accent'
 /** L'identifiant de la prise sur le plan (la clé de sa position gardée). */
 export const PLUG_ID = 'prise'
