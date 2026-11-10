@@ -63,7 +63,7 @@ for (const camera of config.cameras) {
   )
   void watchMotion(
     `${config.go2rtcRtsp}/${camera}_sub`,
-    { ...config, detector: detectors.get(camera) ?? config.detector, rainFilter: config.rainCameras?.includes(camera) ?? false },
+    { ...config, detector: detectors.get(camera) ?? config.detector },
     (event) => {
       if (event.type === 'start') {
         const record = store.open(camera, event.at)
@@ -124,7 +124,15 @@ startServer(
           `${camera} : sensibilité ${level}${level === DEFAULT_SENSITIVITY ? ' (réglage de base)' : ''} : écart ${next.pixelThreshold}, surface ${(next.areaThreshold * 100).toFixed(2)} %`,
         )
       }
-      Object.assign(seuils, next)
+      // Seuls l'écart de gris et la surface changent : la durée minimale du mouvement est réglée à part.
+      seuils.pixelThreshold = next.pixelThreshold
+      seuils.areaThreshold = next.areaThreshold
+    },
+    setMinSeconds: (camera, seconds) => {
+      const seuils = detectors.get(camera)
+      if (!seuils || seuils.minSeconds === seconds) return
+      log(`${camera} : un mouvement doit durer ${seconds} s pour compter`)
+      seuils.minSeconds = seconds
     },
   },
   {

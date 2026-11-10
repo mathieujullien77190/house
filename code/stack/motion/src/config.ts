@@ -24,10 +24,6 @@ export interface Config {
   mergeDelaySeconds: number
   /** Les caméras dont le son est gardé avec leurs clips de mouvement (vide : aucune), et la durée des petits fichiers son (comme les segments vidéo). */
   audioCameras: string[]
-  /** Les caméras sans la pluie dans leur détection (RAIN_CAMERAS, vide : aucune) : seuls les pixels au cœur d'une tache comptent, pas les gouttes ni les traits de pluie. */
-  rainCameras?: string[]
-  /** Vrai pour la caméra surveillée par ce réglage (posé par l'assemblage, d'après `rainCameras`). */
-  rainFilter?: boolean
   audioSegmentSeconds: number
   /** Le gain en dB du son des clips (AUDIO_GAIN_DB, 24 par défaut) : le micro des Reolink donne un son très faible. */
   audioGainDb: number
@@ -59,7 +55,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   postSeconds: number(env.POST_SECONDS, 5),
   mergeDelaySeconds: number(env.MERGE_DELAY_MINUTES, 30) * 60,
   audioCameras: (env.AUDIO_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
-  rainCameras: (env.RAIN_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
   audioSegmentSeconds: number(env.AUDIO_SEGMENT_SECONDS, 10),
   audioGainDb: number(env.AUDIO_GAIN_DB, 24),
   videoTag: env.VIDEO_TAG ?? 'hvc1',
@@ -68,7 +63,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
     pixelThreshold: number(env.PIXEL_THRESHOLD, DEFAULT_CONFIG.pixelThreshold),
     areaThreshold: number(env.AREA_THRESHOLD, DEFAULT_CONFIG.areaThreshold),
     lightChangeThreshold: number(env.LIGHT_CHANGE_THRESHOLD, DEFAULT_CONFIG.lightChangeThreshold),
-    startFrames: number(env.START_FRAMES, DEFAULT_CONFIG.startFrames),
+    minSeconds: number(env.MIN_MOTION_SECONDS, DEFAULT_CONFIG.minSeconds),
     endSeconds: number(env.END_SECONDS, DEFAULT_CONFIG.endSeconds),
   },
 })

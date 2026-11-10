@@ -7,6 +7,7 @@ import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
 import { parsePolygon, type Point } from './zone.ts'
+import { isMotionSeconds, MAX_MOTION_SECONDS, MIN_MOTION_SECONDS } from './detector.ts'
 import { isSensitivity, MAX_SENSITIVITY, MIN_SENSITIVITY } from './sensitivity.ts'
 
 const json = (res: ServerResponse, status: number, body: unknown) => {
@@ -25,6 +26,8 @@ export interface Detection {
   set: (camera: string, enabled: boolean) => void
   /** La sensibilité de la détection de la caméra, de 1 à 5 (3 : les seuils de base). */
   setSensitivity: (camera: string, level: number) => void
+  /** La durée minimale d'un mouvement de la caméra, en secondes : un mouvement plus court n'ouvre aucun événement. */
+  setMinSeconds: (camera: string, seconds: number) => void
   /** La zone surveillée de la caméra : un polygone (parts de l'image), ou null pour toute l'image. */
   setZone: (camera: string, points: Point[] | null) => void
 }
@@ -91,6 +94,15 @@ export const startServer = (
       if (!isSensitivity(level)) return json(res, 400, { error: `level must be an integer from ${MIN_SENSITIVITY} to ${MAX_SENSITIVITY}` })
       detection.setSensitivity(sensitivity[1], level)
       return json(res, 200, { camera: sensitivity[1], level })
+    }
+    // PUT /api/cameras/<caméra>/min-seconds?seconds=0..30 : la durée minimale d'un mouvement (en secondes) pour ouvrir un événement.
+    const minSeconds = /^\/api\/cameras\/([\w-]+)\/min-seconds$/.exec(pathname)
+    if (req.method === 'PUT' && minSeconds) {
+      if (!config.cameras.includes(minSeconds[1])) return json(res, 404, { error: 'unknown camera' })
+      const seconds = Number(searchParams.get('seconds'))
+      if (!isMotionSeconds(seconds)) return json(res, 400, { error: `seconds must be an integer from ${MIN_MOTION_SECONDS} to ${MAX_MOTION_SECONDS}` })
+      detection.setMinSeconds(minSeconds[1], seconds)
+      return json(res, 200, { camera: minSeconds[1], seconds })
     }
     // PUT /api/cameras/<caméra>/zone avec {"points": [[x, y], ...]} (parts de l'image, de 3 à 32 sommets) : la zone où on cherche le mouvement ; {"points": null} : toute l'image.
     const zone = /^\/api\/cameras\/([\w-]+)\/zone$/.exec(pathname)

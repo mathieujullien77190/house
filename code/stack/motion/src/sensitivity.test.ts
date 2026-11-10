@@ -19,7 +19,7 @@ test('plus le niveau monte, plus les seuils baissent', () => {
 test('seuls les seuils changent, et l’écart de gris reste au moins 1', () => {
   const sensitive = detectorForLevel({ ...DEFAULT_CONFIG, pixelThreshold: 1 }, 5)
   assert.equal(sensitive.pixelThreshold, 1)
-  assert.equal(sensitive.startFrames, DEFAULT_CONFIG.startFrames)
+  assert.equal(sensitive.minSeconds, DEFAULT_CONFIG.minSeconds)
   assert.equal(sensitive.endSeconds, DEFAULT_CONFIG.endSeconds)
 })
 
