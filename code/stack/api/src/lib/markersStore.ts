@@ -1,4 +1,4 @@
-// Les repères de caméras : sur l'image d'une caméra, un petit 📷 par autre caméra, que l'on place où on veut ; un clic dessus ouvre cette autre caméra. Les positions sont gardées par
+// Les repères de caméras : sur l'image d'une caméra, une petite icône de caméra par autre caméra, que l'on place où on veut ; un clic dessus ouvre cette autre caméra. Les positions sont gardées par
 // l'API (STATE_DIR/markers.json), par caméra. Une caméra sans entrée a les positions de départ de la WebApp.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'

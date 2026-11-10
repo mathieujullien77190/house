@@ -10,7 +10,7 @@ export interface HueConfig {
 
 export interface HueLight {
   name: string
-  state: { on: boolean; bri?: number; reachable: boolean }
+  state: { on: boolean; bri?: number; reachable: boolean; colormode?: string; xy?: [number, number]; ct?: number; hue?: number; sat?: number }
 }
 
 export interface HueGroup {

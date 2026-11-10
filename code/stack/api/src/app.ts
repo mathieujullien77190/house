@@ -15,6 +15,7 @@ import { createPositionsStore } from './lib/positionsStore.ts'
 import { createPlanStore } from './lib/planStore.ts'
 import { createMarkersStore } from './lib/markersStore.ts'
 import { createZonesStore } from './lib/zonesStore.ts'
+import { createClipEmojisStore } from './lib/clipEmojisStore.ts'
 import { createClipNotesStore } from './lib/clipNotesStore.ts'
 import { createSavedClipsStore } from './lib/savedClipsStore.ts'
 import { createKasaClient } from './lib/kasaClient.ts'
@@ -26,6 +27,8 @@ import { createHeatingSettings } from './lib/heatingSettings.ts'
 import { createPlugService, type MotionSource } from './services/plugService.ts'
 import { createEspSomfyDriver, createMockDriver } from './lib/shutterDriver.ts'
 import { createShutterLog } from './lib/shutterLog.ts'
+import { createMitsubishiClient } from './lib/mitsubishiClient.ts'
+import { createAcService } from './services/acService.ts'
 import { createShuttersService } from './services/shuttersService.ts'
 import { createShutterAutoStore } from './lib/shutterAutoStore.ts'
 import { createShuttersAuto } from './services/shuttersAutoService.ts'
@@ -54,11 +57,14 @@ export const createApp = (config: Config): Express => {
   const live = createLiveService(config.go2rtcUrls, cameras)
   const savedClips = createSavedClipsStore(`${config.stateDir}/saved-clips.json`)
   const clipNotes = createClipNotesStore(`${config.stateDir}/clip-notes.json`)
+  const clipEmojis = createClipEmojisStore(`${config.stateDir}/clip-emojis.json`)
   const heatingLog = createHeatingLog(`${config.stateDir}/heating-log.jsonl`)
   const heatingSettings = createHeatingSettings(`${config.stateDir}/heating.json`)
   const plug = config.plug
     ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json`, record: createRecorder(heatingLog), onAutoCut: heatingSettings.disable })
     : null
+  // Les climatisations Mitsubishi : le module Wi-Fi de chaque unité (AC_UNITS) ; sans unité, /ac répond 503.
+  const ac = config.acUnits.length > 0 ? createAcService({ units: config.acUnits, client: createMitsubishiClient() }) : null
   // Les volets : le pilote réel (ESP32) si SHUTTERS_ESP_URL est donné, sinon la simulation (rien n'est envoyé).
   const shutters =
     config.shutters.length > 0
@@ -79,7 +85,7 @@ export const createApp = (config: Config): Express => {
     : null
   const services = {
     cameras: createCamerasService(cameras),
-    events: createEventsService(createEventsRepository(db), savedClips, clipNotes),
+    events: createEventsService(createEventsRepository(db), savedClips, clipNotes, clipEmojis),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
     files: createBackupFiles(config.dataDir),
@@ -91,6 +97,7 @@ export const createApp = (config: Config): Express => {
     hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
     guest: config.guest,
     plug,
+    ac,
     shutters,
     shuttersAuto,
     heating: plug

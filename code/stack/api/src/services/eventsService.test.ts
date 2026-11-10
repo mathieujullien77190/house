@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { createClipEmojisStore } from '../lib/clipEmojisStore.ts'
 import { createClipNotesStore } from '../lib/clipNotesStore.ts'
 import { createSavedClipsStore } from '../lib/savedClipsStore.ts'
 import { createEventsRepository } from '../repositories/eventsRepository.ts'
@@ -12,6 +13,7 @@ const setup = async (
     service: ReturnType<typeof createEventsService>,
     saved: ReturnType<typeof createSavedClipsStore>,
     notes: ReturnType<typeof createClipNotesStore>,
+    emojis: ReturnType<typeof createClipEmojisStore>,
   ) => void,
 ): Promise<void> => {
   await withTempDir((dir) => {
@@ -19,7 +21,8 @@ const setup = async (
     try {
       const saved = createSavedClipsStore(join(dir, 'saved.json'))
       const notes = createClipNotesStore(join(dir, 'notes.json'))
-      work(createEventsService(createEventsRepository(db), saved, notes), saved, notes)
+      const emojis = createClipEmojisStore(join(dir, 'emojis.json'))
+      work(createEventsService(createEventsRepository(db), saved, notes, emojis), saved, notes, emojis)
     } finally {
       db.close()
     }
@@ -29,9 +32,10 @@ const setup = async (
 const ids = (events: { id: string }[]) => events.map((event) => event.id)
 
 test('un événement devient une réponse avec les adresses de ses clips', async () => {
-  await setup((service, saved, notes) => {
+  await setup((service, saved, notes, emojis) => {
     saved.set('e1', true)
     notes.set('e1', 'renard')
+    emojis.set('e1', '🦊')
     const [e2, e3, e1] = service.list({ lastOnly: false })
     assert.deepEqual(e1, {
       id: 'e1',
@@ -45,6 +49,7 @@ test('un événement devient une réponse avec les adresses de ses clips', async
       clip_started_at: 90,
       saved: true,
       note: 'renard',
+      emoji: '🦊',
       orientation: 'portrait',
     })
     // pas de clip, orientation inconnue : paysage
@@ -99,5 +104,18 @@ test('la note d’un clip : posée, vidée, refusée sans clip', async () => {
     assert.equal(service.setNote('e2', 'x'), false)
     assert.equal(service.setNote('absent', 'x'), false)
     assert.deepEqual(notes.all(), {})
+  })
+})
+
+test('l’emoji d’un clip : posé, retiré, refusé sans clip', async () => {
+  await setup((service, _saved, _notes, emojis) => {
+    assert.equal(service.setEmoji('e1', '🦊'), true)
+    assert.equal(emojis.all().e1, '🦊')
+    assert.equal(service.list({ lastOnly: false }).find((event) => event.id === 'e1')?.emoji, '🦊')
+    assert.equal(service.setEmoji('e1', null), true)
+    assert.deepEqual(emojis.all(), {})
+    assert.equal(service.setEmoji('e2', '🦊'), false)
+    assert.equal(service.setEmoji('absent', '🦊'), false)
+    assert.deepEqual(emojis.all(), {})
   })
 })

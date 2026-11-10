@@ -43,6 +43,7 @@ const baseConfig = (dir: string): Config => ({
   switchPoe: null,
   hue: null,
   plug: null,
+  acUnits: [],
   shutters: [],
   shuttersAuto: [],
   shuttersEspUrl: null,
@@ -189,6 +190,17 @@ test('les volets : simulation sans ESP32, action automatique seulement pour les 
       assert.equal((await call(`${url}/shutters/1`, 'POST', { command: 'up' }, key)).status, 200)
       assert.equal((await call(`${url}/shutters/2/auto`, 'PUT', { open: true }, key)).status, 404)
       assert.equal((await call(`${url}/shutters/1/auto`, 'PUT', { open: true }, key)).status, 200)
+    })
+  })
+})
+
+test('les climatisations : une unité configurée, module injoignable = reachable faux', async () => {
+  await withTempDir(async (dir) => {
+    const config: Config = { ...prepare(dir), acUnits: [{ id: 'salon', name: 'Salon', host: '127.0.0.1:1' }] }
+    await serveApp(config, async (url) => {
+      const reply = await call(`${url}/ac`, 'GET', undefined, { 'X-House-Key': KEY })
+      assert.equal(reply.status, 200)
+      assert.deepEqual((reply.body as { units: { reachable: boolean }[] }).units.map((unit) => unit.reachable), [false])
     })
   })
 })

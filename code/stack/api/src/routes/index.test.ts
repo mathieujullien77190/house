@@ -21,6 +21,7 @@ const services: Services = {
   live: {} as LiveService,
   hue: null,
   plug: null,
+  ac: null,
   shutters: null,
   shuttersAuto: null,
   heating: null,

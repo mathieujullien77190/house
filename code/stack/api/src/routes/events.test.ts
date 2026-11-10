@@ -9,6 +9,7 @@ const setup = () => {
   const queries: EventsQuery[] = []
   const saves: [string, boolean][] = []
   const notes: [string, string][] = []
+  const emojis: [string, string | null][] = []
   const state = { clip: 'clips/a.mp4' as string | null, audio: 'clips/a.aac' as string | null, saved: true, fail: false }
   const events = {
     list: (query: EventsQuery) => {
@@ -22,6 +23,11 @@ const setup = () => {
       saves.push([id, saved])
       return state.saved
     },
+    setEmoji: (id: string, emoji: string | null) => {
+      if (state.fail) throw new Error('disque plein')
+      emojis.push([id, emoji])
+      return state.saved
+    },
     setNote: (id: string, note: string) => {
       if (state.fail) throw new Error('disque plein')
       notes.push([id, note])
@@ -29,7 +35,7 @@ const setup = () => {
     },
   } as unknown as EventsService
   const files = { send: (res, path, type) => void res.send(`${path}|${type}`) } as BackupFiles
-  return { app: routerApp(eventsRouter(events, files)), queries, saves, notes, state }
+  return { app: routerApp(eventsRouter(events, files)), queries, saves, notes, emojis, state }
 }
 
 test('GET /events : les paramètres sont lus et la limite arrondie vers le bas', async () => {
@@ -112,6 +118,27 @@ test('PUT /clips/:id/note : poser ou vider la note', async () => {
     const log = mock.method(console, 'error', () => undefined)
     try {
       assert.equal((await call(`${url}/clips/e1/note`, 'PUT', { note: 'x' })).status, 500)
+    } finally {
+      log.mock.restore()
+    }
+  })
+})
+
+test('PUT /clips/:id/emoji : poser ou retirer l’emoji', async () => {
+  const { app, emojis, state } = setup()
+  await withServer(app, async (url) => {
+    assert.deepEqual((await call(`${url}/clips/e1/emoji`, 'PUT', { emoji: '🦊' })).body, { id: 'e1', emoji: '🦊' })
+    assert.deepEqual((await call(`${url}/clips/e1/emoji`, 'PUT', { emoji: null })).body, { id: 'e1', emoji: '' })
+    assert.deepEqual(emojis, [['e1', '🦊'], ['e1', null]])
+    for (const body of [{ emoji: 'renard' }, { emoji: '' }, { emoji: 3 }, {}, { emoji: 'a🦊' }]) assert.equal((await call(`${url}/clips/e1/emoji`, 'PUT', body)).status, 400)
+    assert.equal((await call(`${url}/clips/e1/emoji`, 'PUT')).status, 400)
+    assert.equal((await call(`${url}/clips/a%20b/emoji`, 'PUT', { emoji: '🦊' })).status, 400)
+    state.saved = false
+    assert.deepEqual((await call(`${url}/clips/e1/emoji`, 'PUT', { emoji: '🦊' })).body, { error: 'clip not found' })
+    state.fail = true
+    const log = mock.method(console, 'error', () => undefined)
+    try {
+      assert.equal((await call(`${url}/clips/e1/emoji`, 'PUT', { emoji: '🦊' })).status, 500)
     } finally {
       log.mock.restore()
     }

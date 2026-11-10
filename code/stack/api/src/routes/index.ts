@@ -12,6 +12,7 @@ import type { EventsService } from '../services/eventsService.ts'
 import type { HeatingService } from '../services/heatingService.ts'
 import type { HueService } from '../services/hueService.ts'
 import type { PlugService } from '../services/plugService.ts'
+import type { AcService } from '../services/acService.ts'
 import type { ShuttersService } from '../services/shuttersService.ts'
 import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
 import type { PoeService } from '../services/poeService.ts'
@@ -25,6 +26,7 @@ import { guestRouter, type GuestLink } from './guest.ts'
 import { hueRouter } from './hue.ts'
 import { liveRouter } from './live.ts'
 import { plugRouter } from './plug.ts'
+import { acRouter } from './ac.ts'
 import { shuttersRouter } from './shutters.ts'
 import { poeRouter } from './poe.ts'
 import { snapshotsRouter } from './snapshots.ts'
@@ -43,6 +45,8 @@ export interface Services {
   hue: HueService | null
   /** Null quand aucune prise connectée n'est configurée. */
   plug: PlugService | null
+  /** Les climatisations Mitsubishi ; null sans AC_UNITS. */
+  ac: AcService | null
   /** Les volets roulants ; null sans volets configurés. */
   shutters: ShuttersService | null
   /** L'action automatique des volets (lever et coucher du soleil) ; null sans volets. */
@@ -56,7 +60,7 @@ export interface Services {
   files: BackupFiles
   /** Les zones de surveillance du mouvement, une par caméra. */
   zones: ZonesStore
-  /** Les repères de caméras posés sur l'image de chaque caméra (un 📷 par autre caméra, déplaçable). */
+  /** Les repères de caméras posés sur l'image de chaque caméra (une icône de caméra par autre caméra, déplaçable). */
   markers: MarkersStore
   /** Le plan de la maison (la carte de la WebApp). */
   plan: PlanStore
@@ -81,6 +85,7 @@ export const SECURED_PATHS = [
   '/poe',
   '/plug',
   '/shutters',
+  '/ac',
   '/hue',
   '/guest',
   '/zones',
@@ -102,6 +107,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(liveRouter(services.live))
   router.use(poeRouter(services.poe))
   router.use(plugRouter(services.plug, services.heating))
+  router.use(acRouter(services.ac))
   router.use(shuttersRouter(services.shutters, services.shuttersAuto))
   router.use(hueRouter(services.hue))
   router.use(guestRouter(services.guest))

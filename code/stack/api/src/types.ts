@@ -49,6 +49,8 @@ export interface EventDto {
   saved: boolean
   /** La note du clip (« renard »), posée depuis la Home ; vide s'il n'y en a pas. */
   note: string
+  /** L'emoji du clip (🦊), montré sur la carte de la maison ; vide s'il n'y en a pas. */
+  emoji: string
   /** Paysage ou portrait (caméra posée de côté) au début de l'événement : en portrait, la vidéo se lit tournée d'un quart de tour horaire. */
   orientation: Orientation
 }

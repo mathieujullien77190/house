@@ -2,6 +2,7 @@
 // cette fenêtre, au plus 1000 (?limit= pour moins) ; sinon les 200 derniers) et clips/:id (la vidéo d'un événement).
 import express, { Router, type RequestHandler } from 'express'
 import type { BackupFiles } from '../lib/backupFiles.ts'
+import { isEmoji } from '../lib/clipEmojisStore.ts'
 import { MAX_NOTE_LENGTH } from '../lib/clipNotesStore.ts'
 import type { EventsService } from '../services/eventsService.ts'
 
@@ -59,6 +60,18 @@ export const eventsRouter = (events: EventsService, files: BackupFiles): Router 
     try {
       if (!events.setNote(id, note)) return void res.status(404).json({ error: 'clip not found' })
       res.json({ id, note: note.trim().slice(0, MAX_NOTE_LENGTH) })
+    } catch (error) {
+      next(error)
+    }
+  })
+  // L'emoji d'un clip : { emoji: "🦊" } (un seul pictogramme) ou { emoji: null } pour le retirer. Il s'affiche sur la carte de la maison.
+  router.put('/clips/:id/emoji', express.json({ limit: '2kb' }), (req, res, next) => {
+    const id = String(req.params.id)
+    const emoji = (req.body as { emoji?: unknown } | undefined)?.emoji
+    if (!EVENT_ID.test(id) || !(emoji === null || (typeof emoji === 'string' && isEmoji(emoji)))) return void res.status(400).json({ error: 'body must be {"emoji": "🦊"} or {"emoji": null}' })
+    try {
+      if (!events.setEmoji(id, emoji)) return void res.status(404).json({ error: 'clip not found' })
+      res.json({ id, emoji: emoji ?? '' })
     } catch (error) {
       next(error)
     }

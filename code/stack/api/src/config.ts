@@ -20,6 +20,8 @@ export interface Config {
   hue: { url: string; key: string } | null
   /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
   plug: { host: string; port: number; mac: string } | null
+  /** Les climatisations Mitsubishi (AC_UNITS="salon:Salon:192.168.1.130" : identifiant, nom, adresse du module Wi-Fi de l'unité, séparés par des virgules) ; vide : ac répond 503. */
+  acUnits: { id: string; name: string; host: string }[]
   /** Les volets roulants (SHUTTERS="1:Salon,2:Chambre:19" : le numéro du volet dans le firmware de l'ESP32, son nom, puis, facultatif, le temps qu'il met à se fermer en entier, en secondes : il donne le bouton « Fermer à moitié ») ; vide : shutters répond 503. Par défaut les quatre volets de la maison : PC, salon, porte, cuisine. */
   shutters: { id: string; name: string; shadeId: number; closeSeconds?: number }[]
   /** Les volets qui ont l'action automatique « ouvrir au lever du soleil, fermer à son coucher » (SHUTTERS_AUTO, leurs identifiants séparés par des virgules ; par défaut tous les volets). */
@@ -54,6 +56,14 @@ export const parseShutters = (text: string): { id: string; name: string; shadeId
     .filter((match): match is RegExpExecArray => match !== null)
     .map((match) => ({ id: match[1], name: match[2], shadeId: Number(match[1]), ...(match[3] && Number(match[3]) > 0 ? { closeSeconds: Number(match[3]) } : {}) }))
 
+/** « salon:Salon:192.168.1.130,chambre:Chambre:192.168.1.6 » en unités de climatisation. Une entrée mal écrite est ignorée. */
+export const parseAcUnits = (text: string): { id: string; name: string; host: string }[] =>
+  text
+    .split(',')
+    .map((part) => /^\s*([\w-]+)\s*:\s*(.+?)\s*:\s*(\d{1,3}(?:\.\d{1,3}){3})\s*$/.exec(part))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => ({ id: match[1], name: match[2], host: match[3] }))
+
 /** SWITCH_PORTS : « voliere-exterieur:7,jardin:3 » (caméra:port du switch). */
 const parseSwitch = (env: NodeJS.ProcessEnv): Config['switchPoe'] => {
   const password = env.SWITCH_PASSWORD ?? ''
@@ -85,6 +95,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .filter(Boolean),
     switchPoe: parseSwitch(env),
     hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
+    acUnits: parseAcUnits(env.AC_UNITS ?? ''),
     shutters: parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS),
     shuttersAuto: env.SHUTTERS_AUTO
       ? env.SHUTTERS_AUTO.split(',').map((id) => id.trim()).filter(Boolean)

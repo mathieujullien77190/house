@@ -159,8 +159,8 @@ test('les pièces et les lampes isolées', async () => {
       on: true,
       bri: 120,
       lights: [
-        { id: '1', name: 'Plafonnier', on: true, bri: 100, reachable: true },
-        { id: '2', name: 'Lampe', on: false, bri: null, reachable: true },
+        { id: '1', name: 'Plafonnier', on: true, bri: 100, reachable: true, color: null },
+        { id: '2', name: 'Lampe', on: false, bri: null, reachable: true, color: null },
       ],
     },
     { id: '11', name: 'Chambre', on: false, bri: null, lights: [] },
@@ -170,8 +170,8 @@ test('les pièces et les lampes isolées', async () => {
       on: false,
       bri: null,
       lights: [
-        { id: '3', name: 'Seule', on: false, bri: null, reachable: false },
-        { id: '4', name: 'Éteinte', on: false, bri: null, reachable: true },
+        { id: '3', name: 'Seule', on: false, bri: null, reachable: false, color: null },
+        { id: '4', name: 'Éteinte', on: false, bri: null, reachable: true, color: null },
       ],
     },
   ])

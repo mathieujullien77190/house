@@ -1,4 +1,5 @@
 // Les événements : les lignes de la base deviennent des réponses (le chemin du clip devient un service).
+import type { ClipEmojisStore } from '../lib/clipEmojisStore.ts'
 import type { ClipNotesStore } from '../lib/clipNotesStore.ts'
 import type { SavedClipsStore } from '../lib/savedClipsStore.ts'
 import type { EventsRepository } from '../repositories/eventsRepository.ts'
@@ -18,7 +19,7 @@ export interface EventsQuery {
   limit?: number
 }
 
-const toDto = (row: EventRow, saved: ReadonlySet<string>, notes: Readonly<Record<string, string>>): EventDto => ({
+const toDto = (row: EventRow, saved: ReadonlySet<string>, notes: Readonly<Record<string, string>>, emojis: Readonly<Record<string, string>>): EventDto => ({
   id: row.id,
   camera: row.camera,
   label: row.label,
@@ -30,10 +31,11 @@ const toDto = (row: EventRow, saved: ReadonlySet<string>, notes: Readonly<Record
   clip_started_at: row.clip_started_at,
   saved: saved.has(row.id),
   note: notes[row.id] ?? '',
+  emoji: emojis[row.id] ?? '',
   orientation: row.orientation === 'portrait' ? 'portrait' : 'landscape',
 })
 
-export const createEventsService = (events: EventsRepository, savedClips: SavedClipsStore, clipNotes: ClipNotesStore) => ({
+export const createEventsService = (events: EventsRepository, savedClips: SavedClipsStore, clipNotes: ClipNotesStore, clipEmojis: ClipEmojisStore) => ({
   /**
    * Le dernier de chaque caméra (lastOnly) ; sinon, avec from, to ou camera, les événements qui touchent la fenêtre
    * (au plus 1000, `limit` pour moins) ; sinon les 200 derniers.
@@ -41,12 +43,13 @@ export const createEventsService = (events: EventsRepository, savedClips: SavedC
   list: (query: EventsQuery): EventDto[] => {
     const saved = savedClips.ids()
     const notes = clipNotes.all()
-    if (query.savedOnly) return events.byIds([...saved]).slice(0, MAX_WINDOW_EVENTS).map((row) => toDto(row, saved, notes))
-    if (query.lastOnly) return events.lastPerCamera().map((row) => toDto(row, saved, notes))
+    const emojis = clipEmojis.all()
+    if (query.savedOnly) return events.byIds([...saved]).slice(0, MAX_WINDOW_EVENTS).map((row) => toDto(row, saved, notes, emojis))
+    if (query.lastOnly) return events.lastPerCamera().map((row) => toDto(row, saved, notes, emojis))
     const filtered = query.camera !== undefined || query.from !== undefined || query.to !== undefined
-    if (!filtered) return events.latest(MAX_EVENTS).map((row) => toDto(row, saved, notes))
+    if (!filtered) return events.latest(MAX_EVENTS).map((row) => toDto(row, saved, notes, emojis))
     const limit = Math.min(MAX_WINDOW_EVENTS, Math.max(1, query.limit ?? MAX_WINDOW_EVENTS))
-    return events.between({ camera: query.camera, from: query.from, to: query.to }, limit).map((row) => toDto(row, saved, notes))
+    return events.between({ camera: query.camera, from: query.from, to: query.to }, limit).map((row) => toDto(row, saved, notes, emojis))
   },
   /** Le chemin du clip d'un événement sur le disque backup (l'original, ou la copie H.264 avec `h264`), ou null. */
   clipPath: (id: string, h264 = false): string | null => events.clipPath(id, h264),
@@ -61,6 +64,12 @@ export const createEventsService = (events: EventsRepository, savedClips: SavedC
   setNote: (id: string, note: string): boolean => {
     if (!events.clipPath(id)) return false
     clipNotes.set(id, note)
+    return true
+  },
+  /** Pose (ou, `null`, retire) l'emoji du clip d'un événement ; false s'il n'a pas de clip. */
+  setEmoji: (id: string, emoji: string | null): boolean => {
+    if (!events.clipPath(id)) return false
+    clipEmojis.set(id, emoji)
     return true
   },
 })

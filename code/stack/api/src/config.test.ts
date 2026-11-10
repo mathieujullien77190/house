@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
-import { loadConfig, parseShutters } from './config.ts'
+import { loadConfig, parseAcUnits, parseShutters } from './config.ts'
 import { withTempDir } from './testing/helpers.ts'
 
 test('sans clé ou avec une clé trop courte, la configuration est refusée', () => {
@@ -140,4 +140,13 @@ test('parseShutters : numéro:nom, une entrée mal écrite est ignorée', () => 
     { id: '2', name: 'Chambre', shadeId: 2 },
   ])
   assert.deepEqual(parseShutters(''), [])
+})
+
+test('parseAcUnits : id:nom:adresse, une entrée mal écrite est ignorée', () => {
+  assert.deepEqual(parseAcUnits('salon:Salon:192.168.1.130, chambre : Chambre invité : 192.168.1.6 ,x:Non:nom,y:Pas'), [
+    { id: 'salon', name: 'Salon', host: '192.168.1.130' },
+    { id: 'chambre', name: 'Chambre invité', host: '192.168.1.6' },
+  ])
+  assert.deepEqual(parseAcUnits(''), [])
+  assert.deepEqual(loadConfig({ API_KEY: '12345678', AC_UNITS: 'a:A:1.2.3.4' }).acUnits, [{ id: 'a', name: 'A', host: '1.2.3.4' }])
 })
