@@ -285,6 +285,11 @@ export const putPlan = async (key: string, plan: PlanDocument): Promise<void> =>
 export interface FadeState {
   fading: boolean
   ends_at: number | null
+  /** Quand la luminosité a commencé à descendre (secondes depuis 1970) et la durée de la descente (secondes) : la luminosité affichée en découle. */
+  started_at?: number | null
+  duration_seconds?: number | null
+  /** La luminosité (1 à 254) d'avant l'extinction, point de départ de la descente. */
+  from_bri?: number | null
 }
 export const fetchFade = async (key: string, lampId: string): Promise<FadeState> => (await request(key, `/hue/lights/${encodeURIComponent(lampId)}/fade`)).json()
 const fadeCall = async (key: string, lampId: string, method: 'POST' | 'DELETE'): Promise<FadeState> => {

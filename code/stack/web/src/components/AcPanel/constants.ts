@@ -62,6 +62,9 @@ export const WIDE_VANES: { id: string; label: string }[] = [
   { id: 'right', label: 'Droite' },
 ]
 
+/** L'ailette que chaque climatisation règle : **les chambres** l'ailette gauche / droite, **le salon** (et toute autre) l'ailette haut / bas. */
+export const HORIZONTAL_VANE_UNITS = ['chambre-invite', 'chambre-matou']
+
 /** Relu à ce rythme : un changement fait à la télécommande apparaît ainsi. */
 export const POLL_MS = 10_000
 

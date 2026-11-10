@@ -116,7 +116,9 @@ describe('AcPanel', () => {
 
   it('un ordre qui échoue le dit, le suivant efface le message', async () => {
     vi.mocked(api.fetchAc).mockResolvedValue([unit()])
-    vi.mocked(api.setAc).mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce(unit({ mode: 'cool' }))
+    vi.mocked(api.setAc)
+      .mockRejectedValueOnce(new Error('x'))
+      .mockResolvedValueOnce(unit({ mode: 'cool' }))
     render(<AcPanel apiKey="k" />)
     await settle()
     fireEvent.click(screen.getByRole('button', { name: '❄ Froid' }))

@@ -31,12 +31,22 @@ describe('AcUnitCard', () => {
     expect(onChange).toHaveBeenLastCalledWith({ temperature: 20.5 })
     fireEvent.click(screen.getByRole('button', { name: 'Silence' }))
     expect(onChange).toHaveBeenLastCalledWith({ fan: 'quiet' })
+    // Le salon règle l'ailette haut / bas, pas gauche / droite.
     fireEvent.click(screen.getByRole('button', { name: '5 bas' }))
     expect(onChange).toHaveBeenLastCalledWith({ vane: '5' })
-    fireEvent.click(screen.getByRole('button', { name: 'Droite' }))
-    expect(onChange).toHaveBeenLastCalledWith({ wideVane: 'right' })
+    expect(screen.queryByRole('button', { name: 'Droite' })).toBeNull()
     expect(screen.getByText('On')).toBeInTheDocument()
     expect(screen.queryByText(SEND_ERROR_TEXT)).toBeNull()
+  })
+
+  it('une chambre règle l’ailette gauche / droite, pas haut / bas', () => {
+    const onChange = vi.fn()
+    render(<AcUnitCard unit={unit({ id: 'chambre-matou', name: 'Chambre matou' })} busy={false} failed={false} onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Droite' }))
+    expect(onChange).toHaveBeenLastCalledWith({ wideVane: 'right' })
+    // la position actuelle (« Milieu ») est en surbrillance
+    expect(screen.getByRole('button', { name: 'Milieu' }).className).toContain('bg-accent')
+    expect(screen.queryByRole('button', { name: '5 bas' })).toBeNull()
   })
 
   it('une unité éteinte s’allume au clic', () => {

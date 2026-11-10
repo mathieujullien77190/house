@@ -27,6 +27,7 @@ import {
   TOGGLE_WRAP_CLASS,
   UNIT_UNREACHABLE_TEXT,
   VANES,
+  HORIZONTAL_VANE_UNITS,
   VANE_LABEL,
   WIDE_VANES,
   WIDE_VANE_LABEL,
@@ -108,33 +109,40 @@ const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
               </Button>
             ))}
           </div>
-          {/* Les deux ailettes sur chaque clim, le temps de savoir laquelle chaque modèle a vraiment : haut / bas, puis gauche / droite. */}
-          <span className={GROUP_LABEL_CLASS}>{VANE_LABEL}</span>
-          <div className={BUTTONS_CLASS}>
-            {VANES.map((vane) => (
-              <Button
-                key={vane.id}
-                variant={unit.vane === vane.id ? 'active' : 'default'}
-                disabled={busy}
-                onClick={() => onChange({ vane: vane.id })}
-              >
-                {vane.label}
-              </Button>
-            ))}
-          </div>
-          <span className={GROUP_LABEL_CLASS}>{WIDE_VANE_LABEL}</span>
-          <div className={BUTTONS_CLASS}>
-            {WIDE_VANES.map((vane) => (
-              <Button
-                key={vane.id}
-                variant={unit.wideVane === vane.id ? 'active' : 'default'}
-                disabled={busy}
-                onClick={() => onChange({ wideVane: vane.id })}
-              >
-                {vane.label}
-              </Button>
-            ))}
-          </div>
+          {/* L'ailette dépend de la pièce : haut / bas pour le salon, gauche / droite pour les chambres. */}
+          {HORIZONTAL_VANE_UNITS.includes(unit.id) ? (
+            <>
+              <span className={GROUP_LABEL_CLASS}>{WIDE_VANE_LABEL}</span>
+              <div className={BUTTONS_CLASS}>
+                {WIDE_VANES.map((vane) => (
+                  <Button
+                    key={vane.id}
+                    variant={unit.wideVane === vane.id ? 'active' : 'default'}
+                    disabled={busy}
+                    onClick={() => onChange({ wideVane: vane.id })}
+                  >
+                    {vane.label}
+                  </Button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <span className={GROUP_LABEL_CLASS}>{VANE_LABEL}</span>
+              <div className={BUTTONS_CLASS}>
+                {VANES.map((vane) => (
+                  <Button
+                    key={vane.id}
+                    variant={unit.vane === vane.id ? 'active' : 'default'}
+                    disabled={busy}
+                    onClick={() => onChange({ vane: vane.id })}
+                  >
+                    {vane.label}
+                  </Button>
+                ))}
+              </div>
+            </>
+          )}
         </>
       ) : (
         <span className={ERROR_CLASS}>{UNIT_UNREACHABLE_TEXT}</span>

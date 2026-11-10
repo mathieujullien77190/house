@@ -15,4 +15,5 @@ export const stateText = (unit: AcUnit): string =>
     .join(' · ')
 
 /** La consigne après un clic sur − ou + (un pas de 0,5 °C), gardée entre 16 et 31 °C . */
-export const stepTarget = (target: number, direction: -1 | 1): number => Math.min(TARGET_MAX, Math.max(TARGET_MIN, target + direction * TARGET_STEP))
+export const stepTarget = (target: number, direction: -1 | 1): number =>
+  Math.min(TARGET_MAX, Math.max(TARGET_MIN, target + direction * TARGET_STEP))

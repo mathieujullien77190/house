@@ -83,7 +83,9 @@ describe('AcPreview', () => {
 
   it('un ordre remplace l’unité par la réponse, les autres restent ; un échec le dit', async () => {
     vi.mocked(api.fetchAc).mockResolvedValue([unit(), unit({ id: 'b', name: 'Chambre' })])
-    vi.mocked(api.setAc).mockResolvedValueOnce(unit({ power: false })).mockRejectedValueOnce(new Error('x'))
+    vi.mocked(api.setAc)
+      .mockResolvedValueOnce(unit({ power: false }))
+      .mockRejectedValueOnce(new Error('x'))
     render(<AcPreview apiKey="k" unitId="salon" />)
     await settle()
     fireEvent.click(screen.getByRole('switch'))

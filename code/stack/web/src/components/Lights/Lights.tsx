@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Collapsible, LightsPanel, Notice, SpecList } from '@house/ui'
 import { CAMERA_LAMP } from '@/components/CameraCard/constants'
 import FadeButton from '@/components/FadeButton'
+import { useFade } from '@/lib/useFade'
 import { useMobile } from '@/lib/useMobile'
 import { ApiError, fetchAutomations, fetchLights, fetchSensors, setHue } from '@/lib/api'
 import type { HueAutomation, HueRoom, HueSensor, HueState } from '@/types'
@@ -32,6 +33,9 @@ const Lights = ({ apiKey }: LightsProps) => {
   const mobile = useMobile()
   const [busy, setBusy] = useState('')
   const [drafts, setDrafts] = useState<Record<string, number>>({})
+  // L'extinction en douceur de la lampe de la perruche : tenue ici pour que son curseur suive la descente.
+  const perruche = CAMERA_LAMP['voliere-interieur']
+  const fade = useFade(apiKey, perruche, true)
 
   const fail = useCallback((error: unknown) => setStatus(error instanceof ApiError && error.status === 503 ? 'unavailable' : 'error'), [])
 
@@ -123,6 +127,9 @@ const Lights = ({ apiKey }: LightsProps) => {
       ),
     )
 
+  // Pendant l'extinction en douceur, le curseur de la lampe de la perruche descend de sa luminosité d'avant au minimum en 15 minutes (le pont annonce tout de suite la cible, pas le trajet).
+  const shownDrafts = fade.level === null ? drafts : { ...drafts, [`light:${perruche}`]: fade.level }
+
   const notice = (text: string) => <Notice text={text} />
   if (rooms.length === 0) {
     if (status === 'unavailable') return notice(NOT_CONFIGURED_TEXT)
@@ -136,11 +143,9 @@ const Lights = ({ apiKey }: LightsProps) => {
       <LightsPanel
         rooms={zones}
         busy={busy}
-        drafts={drafts}
+        drafts={shownDrafts}
         // La lampe de la perruche a en plus son bouton d'extinction en douceur (15 min), comme dans le détail de sa caméra.
-        lampExtra={(light) =>
-          light.id === CAMERA_LAMP['voliere-interieur'] ? <FadeButton apiKey={apiKey} lampId={light.id} on={light.on} /> : null
-        }
+        lampExtra={(light) => (light.id === CAMERA_LAMP['voliere-interieur'] ? <FadeButton fade={fade} on={light.on} /> : null)}
         onAll={(on) => void changeAll(on)}
         onRoom={(id, state) => void changeZone(id, state)}
         onLight={(id, state) => void changeLight(id, state)}

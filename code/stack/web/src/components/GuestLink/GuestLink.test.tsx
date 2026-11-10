@@ -18,6 +18,13 @@ describe('GuestLink', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('en mode menu, pose le bloc sans marge du haut', async () => {
+    vi.mocked(api.fetchGuest).mockResolvedValue(info)
+    const { container } = render(<GuestLink apiKey="k" menu />)
+    await act(flush)
+    expect(container.firstChild).toHaveClass('px-3')
+  })
+
   it('montre le lien (nouvel onglet) et copie l’adresse', async () => {
     vi.mocked(api.fetchGuest).mockResolvedValue(info)
     const writeText = vi.fn().mockResolvedValue(undefined)

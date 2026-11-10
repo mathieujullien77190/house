@@ -6,7 +6,7 @@ import type { HueAutomation, HueRoom } from '@/types'
 import Lights from './Lights'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- doubles de composants : les props sont inspectées librement */
-const ui = vi.hoisted(() => ({ panel: null as any }))
+const ui = vi.hoisted(() => ({ panel: null as any, fadeLevel: null as number | null }))
 
 vi.mock('@house/ui', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@house/ui')>()),
@@ -20,6 +20,7 @@ vi.mock('@house/ui', async (importOriginal) => ({
     )
   },
 }))
+vi.mock('@/lib/useFade', () => ({ useFade: () => ({ fading: ui.fadeLevel !== null, remaining: null, level: ui.fadeLevel, busy: false, failed: false, toggle: vi.fn() }) }))
 vi.mock('@/components/FadeButton', () => ({ default: () => <i data-testid="fade" /> }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -38,6 +39,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   setDesktop(true)
   ui.panel = null
+  ui.fadeLevel = null
   vi.mocked(api.fetchLights).mockResolvedValue(
     rooms(light('15'), light('9', { on: true }), light('26'), light('10', { reachable: false }), light('999', { reachable: false })),
   )
@@ -168,6 +170,17 @@ describe('Lights : commandes', () => {
     expect(api.setHue).toHaveBeenCalledWith('k', 'lights', '15', { on: true })
     expect(ui.panel.busy).toBe('')
     expect(ui.panel.drafts).toEqual({})
+  })
+
+  it('pendant l’extinction en douceur, le curseur de la perruche suit la descente (le pont annonce tout de suite la cible)', async () => {
+    render(<Lights apiKey="k" />)
+    await settle()
+    expect(ui.panel.drafts['light:26']).toBeUndefined()
+    ui.fadeLevel = 62
+    act(() => ui.panel.onDraft('light:15', 40))
+    expect(ui.panel.drafts['light:26']).toBe(62)
+    // les autres curseurs gardent leur brouillon
+    expect(ui.panel.drafts['light:15']).toBe(40)
   })
 
   it('un échec de commande passe en erreur ou en indisponible', async () => {

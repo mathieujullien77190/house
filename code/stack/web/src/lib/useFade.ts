@@ -6,6 +6,15 @@ import { cancelFade, fetchFade, startFade, type FadeState } from '@/lib/api'
 const POLL_MS = 10_000
 const TICK_MS = 1000
 
+/** La luminosité (en %) d'une extinction en douceur à l'instant `now` (secondes depuis 1970) : de la luminosité d'avant au minimum, en ligne droite ; null si on ne peut pas la calculer. */
+export const fadeLevel = (state: FadeState, now: number): number | null => {
+  const { started_at: startedAt, duration_seconds: duration, from_bri: from } = state
+  if (!state.fading || startedAt == null || duration == null || duration <= 0 || from == null) return null
+  const progress = Math.min(1, Math.max(0, (now - startedAt) / duration))
+  const start = Math.max(1, Math.round((from / 254) * 100))
+  return Math.max(1, Math.round(start * (1 - progress)))
+}
+
 export const useFade = (apiKey: string, lampId: string | undefined, enabled: boolean) => {
   const [state, setState] = useState<FadeState>({ fading: false, ends_at: null })
   const [now, setNow] = useState(() => Date.now() / 1000)
@@ -48,5 +57,8 @@ export const useFade = (apiKey: string, lampId: string | undefined, enabled: boo
   }, [apiKey, lampId, state.fading])
 
   const remaining = state.fading && state.ends_at !== null ? Math.max(0, Math.round(state.ends_at - now)) : null
-  return { fading: state.fading, remaining, busy, failed, toggle }
+  // La luminosité qu'a la lampe à cet instant, en %, de sa luminosité d'avant (100 % = 254) jusqu'à presque rien : **linéaire sur toute la durée**. Le pont, lui, annonce tout de suite la cible (le minimum) :
+  // c'est ce calcul qui fait descendre le curseur au lieu de le laisser tomber d'un coup. Null hors extinction, ou si le début, la durée ou la luminosité d'avant sont inconnus.
+  const level = fadeLevel(state, now)
+  return { fading: state.fading, remaining, level, busy, failed, toggle }
 }

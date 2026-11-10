@@ -57,7 +57,7 @@ export const ZONE_FAILED_CLASS = 'text-[0.8rem] text-danger'
 /** Dans la vidéo d'une caméra tournée, en bas, droite : l'endroit où le lecteur pose ses commandes. */
 export const CONTROLS_OVERLAY_CLASS = 'absolute inset-x-0 bottom-0'
 /** Le cadre de la vidéo, sur lequel se pose le polygone. */
-export const MEDIA_HOST_CLASS = 'relative'
+export const MEDIA_HOST_CLASS = 'relative overflow-hidden rounded-md'
 
 /** Le bouton qui enregistre un clip à la main : « Enregistrer » commence, « Arrêter » (avec le temps écoulé) termine ; le clip est sauvegardé d'office. */
 export const RECORD_LABEL = 'Enregistrer un clip'

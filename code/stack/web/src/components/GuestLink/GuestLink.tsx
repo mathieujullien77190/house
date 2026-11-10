@@ -6,7 +6,7 @@ import GuestLinkUI from './UI'
 import type { CopyState, GuestInfo, GuestLinkProps } from './types'
 
 /** Le lien vers la page invité (il s'ouvre dans un nouvel onglet) et un bouton « Copier le lien ». Rien ne s'affiche sans page invité configurée. */
-const GuestLink = ({ apiKey }: GuestLinkProps) => {
+const GuestLink = ({ apiKey, menu = false }: GuestLinkProps) => {
   const [info, setInfo] = useState<GuestInfo | null>(null)
   const [copy, setCopy] = useState<CopyState>('idle')
 
@@ -39,7 +39,7 @@ const GuestLink = ({ apiKey }: GuestLinkProps) => {
       .then(() => setCopy('copied'))
       .catch(() => setCopy('failed'))
   }
-  return <GuestLinkUI link={link} copy={copy} onCopy={onCopy} />
+  return <GuestLinkUI link={link} copy={copy} onCopy={onCopy} menu={menu} />
 }
 
 export default GuestLink

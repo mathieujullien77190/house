@@ -4,6 +4,7 @@ import AcPanel from '@/components/AcPanel'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
+import GuestLink from '@/components/GuestLink'
 import Home from '@/components/Home'
 import SavedClips from '@/components/SavedClips'
 import KeyForm from '@/components/KeyForm'
@@ -77,23 +78,21 @@ const AppUI = ({
         tone={message ? 'error' : 'muted'}
         info={ready ? <Weather apiKey={apiKey} /> : undefined}
         tabs={ready ? { label: TABS_LABEL, options: shownTabs, value: tab, onChange: onTab } : undefined}
-        actions={
-          ready ? (
-            <>
-              {notify === 'unsupported' ? null : (
-                <Button
-                  variant={notify === 'on' ? 'active' : 'default'}
-                  disabled={notify === 'denied'}
-                  aria-label={NOTIFY_TITLE[notify]}
-                  title={NOTIFY_TITLE[notify]}
-                  onClick={onNotify}
-                >
-                  {NOTIFY_LABEL[notify]}
-                </Button>
-              )}
-            </>
+        // Le bouton des notifications reste dans la barre (sur téléphone : juste à gauche du sandwich) ; le lien de la page invité est dans le menu (téléphone).
+        barActions={
+          ready && notify !== 'unsupported' ? (
+            <Button
+              variant={notify === 'on' ? 'active' : 'default'}
+              disabled={notify === 'denied'}
+              aria-label={NOTIFY_TITLE[notify]}
+              title={NOTIFY_TITLE[notify]}
+              onClick={onNotify}
+            >
+              {NOTIFY_LABEL[notify]}
+            </Button>
           ) : undefined
         }
+        menuItems={ready && mobile ? <GuestLink apiKey={apiKey} menu /> : undefined}
       />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}

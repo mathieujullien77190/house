@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { flush } from '@/test/fetch'
-import { useFade } from './useFade'
+import { fadeLevel, useFade } from './useFade'
 
 vi.mock('./api', () => ({ fetchFade: vi.fn(), startFade: vi.fn(), cancelFade: vi.fn() }))
 const api = await import('./api')
@@ -82,5 +82,43 @@ describe('useFade', () => {
     vi.mocked(api.startFade).mockRejectedValue(new Error('x'))
     await act(() => result.current.toggle())
     expect(result.current.failed).toBe(true)
+  })
+})
+
+describe('fadeLevel : la luminosité pendant l’extinction en douceur', () => {
+  const fading = { fading: true, ends_at: 1_000 + 905, started_at: 1_000, duration_seconds: 900, from_bri: 254 }
+
+  it('descend en ligne droite de la luminosité d’avant (100 %) au minimum (1 %) sur toute la durée', () => {
+    expect(fadeLevel(fading, 1_000)).toBe(100)
+    expect(fadeLevel(fading, 1_000 + 450)).toBe(50)
+    expect(fadeLevel(fading, 1_000 + 675)).toBe(25)
+    expect(fadeLevel(fading, 1_000 + 900)).toBe(1)
+    // avant le début et après la fin : bornée
+    expect(fadeLevel(fading, 500)).toBe(100)
+    expect(fadeLevel(fading, 5_000)).toBe(1)
+  })
+
+  it('part de la luminosité d’avant : une lampe à 50 % descend de 50 % à 1 %', () => {
+    expect(fadeLevel({ ...fading, from_bri: 127 }, 1_000)).toBe(50)
+    expect(fadeLevel({ ...fading, from_bri: 127 }, 1_000 + 450)).toBe(25)
+    expect(fadeLevel({ ...fading, from_bri: 1 }, 1_000)).toBe(1)
+  })
+
+  it('null hors extinction ou si le début, la durée ou la luminosité d’avant manquent', () => {
+    expect(fadeLevel({ fading: false, ends_at: null }, 1_000)).toBeNull()
+    expect(fadeLevel({ ...fading, started_at: null }, 1_000)).toBeNull()
+    expect(fadeLevel({ ...fading, duration_seconds: null }, 1_000)).toBeNull()
+    expect(fadeLevel({ ...fading, duration_seconds: 0 }, 1_000)).toBeNull()
+    expect(fadeLevel({ ...fading, from_bri: null }, 1_000)).toBeNull()
+    expect(fadeLevel({ fading: true, ends_at: 1_000 }, 1_000)).toBeNull()
+  })
+
+  it('le hook donne le niveau qui défile avec l’heure', async () => {
+    vi.mocked(api.fetchFade).mockResolvedValue({ fading: true, ends_at: 1_000_000 + 905, started_at: 1_000_000, duration_seconds: 900, from_bri: 254 })
+    const { result } = renderHook(() => useFade('k', 'l', true))
+    await settle()
+    expect(result.current.level).toBe(100)
+    await settle(450_000)
+    expect(result.current.level).toBe(50)
   })
 })
