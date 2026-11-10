@@ -3,6 +3,13 @@
 /** Paysage (le direct tel quel) ou portrait (caméra posée de côté : l'image est tournée d'un quart de tour horaire pour être droite). Réglé dans House Sync. */
 export type Orientation = 'landscape' | 'portrait'
 
+/** Un repère posé sur l'image d'une caméra : un 📷 qui ouvre la caméra `target` ; sa place en parts de l'image (x de 0 à gauche à 1 à droite, y de 0 en haut à 1 en bas). */
+export interface CameraMarker {
+  target: string
+  x: number
+  y: number
+}
+
 /** Le mode pluie d'une caméra (réglé dans House Sync) : éteint, pluie ou pluie forte. */
 export type RainMode = 'off' | 'rain' | 'heavy'
 

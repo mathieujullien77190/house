@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
+import type { CameraMarker, CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -214,6 +214,19 @@ export const putZone = async (key: string, camera: string, points: ZonePoint[] |
   })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/zones : HTTP ${res.status}`)
+}
+
+/** Les repères de caméras : pour chaque caméra, la place du 📷 de chacune des autres sur son image (parts de l'image, de 0 à 1) ; une caméra sans entrée a les places de départ. */
+export const fetchMarkers = async (key: string): Promise<Record<string, CameraMarker[]>> => (await request(key, '/markers')).json()
+/** Fixe les repères d'une caméra, ou les remet à leur place de départ (null). */
+export const putMarkers = async (key: string, camera: string, markers: CameraMarker[] | null): Promise<void> => {
+  const res = await fetch(`/markers/${encodeURIComponent(camera)}`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ markers }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/markers : HTTP ${res.status}`)
 }
 
 /** Le plan de la maison tel que House API le garde (même document sur tous les appareils). */

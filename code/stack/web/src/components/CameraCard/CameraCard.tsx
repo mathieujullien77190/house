@@ -13,7 +13,11 @@ import { rememberClipDuration } from '@/lib/clipDurations'
 import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
+import CameraMarkers from '@/components/CameraMarkers'
 import LiveAudio from '@/components/LiveAudio'
+import MarkersToggle from '@/components/MarkersToggle'
+import { useMarkers } from '@/lib/useMarkers'
+import { useMarkersVisible } from '@/lib/useMarkersVisible'
 import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
@@ -65,7 +69,7 @@ import type { CameraCardProps, LiveQuality, Quality } from './types'
  * à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis la frise.
  * La carte elle-même (@house/ui) ne sait rien de tout ça : elle reçoit le média et la frise déjà rendus.
  */
-const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: CameraCardProps) => {
+const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, others = [], onOpenCamera }: CameraCardProps) => {
   // Sur téléphone (sous 1024 px) : un écran fixe, la vidéo sur le tiers du haut, la frise sur le reste.
   const mobile = useMobile()
   const [cursor, setCursor] = useState<number | null>(null)
@@ -110,6 +114,9 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const sensors = useSensors(apiKey, showTemperatures)
   // La température ne se montre qu'en direct : pas pendant un clip ni sur l'image d'un instant passé (elle serait celle d'aujourd'hui).
   const isLive = picked === null && cursor === null
+  // Les 📷 des autres caméras : montrés ou cachés (le bouton à côté de l'icône du son), sur grand écran et en direct seulement.
+  const markersVisible = useMarkersVisible()
+  const markersAvailable = !mobile && isLive && onOpenCamera !== undefined && others.length > 0
   const temperatures = showTemperatures && isLive ? temperatureItems(sensors, [sensorId]) : []
   // Le rond de la lampe de la caméra (« Perruche » pour voliere-interieur), à côté de la température et seulement en direct comme elle.
   const lampId = CAMERA_LAMP[camera.name]
@@ -118,7 +125,12 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const plug = usePlug(apiKey, CAMERA_WITH_PLUG.includes(camera.name) && isLive)
   const indicators =
     isLive && (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off') ? (
-      <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} rain={camera.rain} />
+      <CameraIndicators
+        temperatures={temperatures.map((item) => item.value)}
+        lamp={lamp}
+        plug={plug}
+        rain={camera.rain}
+      />
     ) : undefined
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
@@ -129,6 +141,9 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
   const [editingZone, setEditingZone] = useState(false)
   const zone = useZone(apiKey, camera.name)
   const zoneEditing = editingZone && isLive && !placeholder && !mobile
+  // Les 📷 des autres caméras sur l'image du direct (sur grand écran seulement, pas sur téléphone) : on les déplace, un clic ouvre la caméra.
+  const markers = useMarkers(apiKey, camera.name, others)
+  const showMarkers = markersAvailable && !placeholder && markersVisible.visible && !zoneEditing
   // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
   const [rate, setRate] = useState(NORMAL_RATE)
   // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
@@ -315,8 +330,19 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead }: 
       details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
-      // Le son du direct : une petite icône sur la vidéo, en bas à droite (au clic seulement : rien n'est demandé avant).
-      sound={isLive && !placeholder ? <LiveAudio camera={camera.name} /> : undefined}
+      // Les repères 📷 des autres caméras, posés sur l'image du direct.
+      layer={
+        showMarkers ? <CameraMarkers markers={markers.markers} onMove={markers.move} onCommit={markers.commit} onRemove={markers.remove} onOpen={onOpenCamera} /> : undefined
+      }
+      // En bas à droite de la vidéo : le bouton des repères (montrer ou cacher les 📷) puis l'icône du son (au clic seulement : rien n'est demandé avant).
+      sound={
+        (isLive && !placeholder) || markersAvailable ? (
+          <div className="flex items-center gap-1">
+            {markersAvailable ? <MarkersToggle visible={markersVisible.visible} onToggle={markersVisible.toggle} /> : null}
+            {isLive && !placeholder ? <LiveAudio camera={camera.name} /> : null}
+          </div>
+        ) : undefined
+      }
       overlay={
         (!mobile && indicators) || (bigView.big && fastScroll) ? (
           <div className="flex flex-col items-start gap-1">

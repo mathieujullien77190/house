@@ -18,11 +18,14 @@ const h = vi.hoisted(() => {
     big: { ref: { current: null }, big: false, open: () => undefined, close: () => undefined } as any,
     now: 1_800_000_000,
     pinchArgs: null as any,
+    markers: { markers: [{ target: 'b', x: 0.2, y: 0.3 }], move: () => undefined, commit: () => undefined, remove: () => undefined } as any,
+    markersVisible: { visible: true, toggle: () => undefined } as any,
   })
   return {
     fresh,
     s: fresh(),
     card: null as any,
+    markersLayer: null as any,
     clip: null as any,
     timeline: null as any,
     zoneEditor: null as any,
@@ -36,6 +39,8 @@ vi.mock('@/lib/useSensors', () => ({ useSensors: () => h.s.sensors }))
 vi.mock('@/lib/useLamp', () => ({ useLamp: () => h.s.lamp }))
 vi.mock('@/lib/usePlug', () => ({ usePlug: () => h.s.plug }))
 vi.mock('@/lib/useRecording', () => ({ useRecording: () => h.s.recorder }))
+vi.mock('@/lib/useMarkers', () => ({ useMarkers: () => h.s.markers }))
+vi.mock('@/lib/useMarkersVisible', () => ({ useMarkersVisible: () => h.s.markersVisible }))
 vi.mock('@/lib/useZone', () => ({ useZone: () => h.s.zone }))
 vi.mock('@/lib/useBigView', () => ({ useBigView: () => h.s.big }))
 vi.mock('@/lib/useClock', async (importOriginal) => ({
@@ -62,6 +67,19 @@ vi.mock('@/components/Timeline', () => ({
   },
 }))
 vi.mock('@/components/LiveAudio', () => ({ default: (props: any) => <i data-testid="live-audio">{props.camera}</i> }))
+vi.mock('@/components/CameraMarkers', () => ({
+  default: (props: any) => {
+    h.markersLayer = props
+    return <div data-testid="markers-layer" />
+  },
+}))
+vi.mock('@/components/MarkersToggle', () => ({
+  default: (props: any) => (
+    <button data-testid="markers-toggle" onClick={props.onToggle}>
+      {String(props.visible)}
+    </button>
+  ),
+}))
 vi.mock('@/components/SnapshotImage', () => ({ default: (props: any) => <div data-testid="snapshot">{props.at}</div> }))
 vi.mock('@/components/PowerButton', () => ({ default: (props: any) => <div data-testid="power">{String(props.hideOff)}</div> }))
 vi.mock('@/components/ShareButton', () => ({ default: (props: any) => <div data-testid="share">{props.path}</div> }))
@@ -82,6 +100,7 @@ vi.mock('@house/ui', async (importOriginal) => ({
         {slot('media', props.media)}
         {slot('details', props.details)}
         {slot('clock', props.clock)}
+        {slot('layer', props.layer)}
         {slot('sound', props.sound)}
         {slot('overlay', props.overlay)}
         {slot('timeline-slot', props.timeline)}
@@ -131,7 +150,7 @@ const power = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   h.s = h.fresh()
-  h.card = h.clip = h.timeline = h.zoneEditor = null
+  h.card = h.clip = h.timeline = h.zoneEditor = h.markersLayer = null
   h.setPower = vi.fn()
 })
 
@@ -203,6 +222,67 @@ describe('CameraCard : le son du direct', () => {
     expect(screen.getByTestId('sound')).toBeInTheDocument()
     pick(event('a'))
     expect(screen.queryByTestId('sound')).toBeNull()
+  })
+})
+
+describe('CameraCard : les repères des autres caméras', () => {
+  const open = vi.fn()
+  it('grand écran, en direct : la couche des repères et le bouton à côté du son', () => {
+    mount({ others: ['b'], onOpenCamera: open })
+    expect(screen.getByTestId('layer')).toContainElement(screen.getByTestId('markers-layer'))
+    expect(h.markersLayer.markers).toBe(h.s.markers.markers)
+    expect(h.markersLayer.onMove).toBe(h.s.markers.move)
+    expect(h.markersLayer.onCommit).toBe(h.s.markers.commit)
+    expect(h.markersLayer.onRemove).toBe(h.s.markers.remove)
+    expect(h.markersLayer.onOpen).toBe(open)
+    expect(screen.getByTestId('sound')).toContainElement(screen.getByTestId('markers-toggle'))
+    expect(screen.getByTestId('sound')).toContainElement(screen.getByTestId('live-audio'))
+  })
+  it('le bouton montre ou cache les repères', () => {
+    h.s.markersVisible = { visible: true, toggle: vi.fn() }
+    mount({ others: ['b'], onOpenCamera: open })
+    fireEvent.click(screen.getByTestId('markers-toggle'))
+    expect(h.s.markersVisible.toggle).toHaveBeenCalledTimes(1)
+  })
+  it('repères cachés : le bouton reste, la couche disparaît', () => {
+    h.s.markersVisible = { visible: false, toggle: () => undefined }
+    mount({ others: ['b'], onOpenCamera: open })
+    expect(screen.getByTestId('markers-toggle')).toHaveTextContent('false')
+    expect(screen.queryByTestId('layer')).toBeNull()
+  })
+  it('sans autre caméra ou sans moyen de l’ouvrir : ni couche ni bouton', () => {
+    const none = mount({ onOpenCamera: open })
+    expect(screen.queryByTestId('markers-toggle')).toBeNull()
+    none.unmount()
+    mount({ others: ['b'] })
+    expect(screen.queryByTestId('markers-toggle')).toBeNull()
+    expect(screen.queryByTestId('layer')).toBeNull()
+  })
+  it('sur téléphone : rien', () => {
+    h.s.mobile = true
+    mount({ others: ['b'], onOpenCamera: open })
+    expect(screen.queryByTestId('markers-toggle')).toBeNull()
+    expect(screen.queryByTestId('layer')).toBeNull()
+  })
+  it('caméra éteinte : le bouton reste mais pas la couche ni le son', () => {
+    h.s.power = power({ on: false })
+    mount({ others: ['b'], onOpenCamera: open })
+    expect(screen.getByTestId('markers-toggle')).toBeInTheDocument()
+    expect(screen.queryByTestId('layer')).toBeNull()
+    expect(screen.queryByTestId('live-audio')).toBeNull()
+  })
+  it('clip ou image passée : ni couche ni bouton', () => {
+    mount({ others: ['b'], onOpenCamera: open, events: [event('a')] })
+    expect(screen.getByTestId('layer')).toBeInTheDocument()
+    pick(event('a'))
+    expect(screen.queryByTestId('markers-toggle')).toBeNull()
+    expect(screen.queryByTestId('layer')).toBeNull()
+  })
+  it('pendant la modification de la zone : les repères sont cachés', () => {
+    mount({ others: ['b'], onOpenCamera: open })
+    fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
+    expect(screen.queryByTestId('layer')).toBeNull()
+    expect(screen.getByTestId('markers-toggle')).toBeInTheDocument()
   })
 })
 

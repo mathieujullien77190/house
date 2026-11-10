@@ -50,11 +50,15 @@ const AppUI = ({
   if (ready && mobile && tab === 'cameras' && current) {
     return (
       <CameraCard
+        // Une autre caméra (un clic sur un 📷) : l'écran est recréé, rien de la précédente ne reste (lampe, prise, zone, clip, son).
+        key={current.name}
         apiKey={apiKey}
         camera={current}
         events={eventsOf(events, current.name)}
         initialEventId={openEvent}
         onRead={onRead}
+        others={cameras.filter((other) => other.name !== current.name).map((other) => other.name)}
+        onOpenCamera={onOpenCamera}
         onBack={() => onOpenCamera(null)}
       />
     )
@@ -97,11 +101,14 @@ const AppUI = ({
                   <Button onClick={() => onOpenCamera(null)}>{BACK_LABEL}</Button>
                 </div>
                 <CameraCard
+                  key={current.name}
                   apiKey={apiKey}
                   camera={current}
                   events={eventsOf(events, current.name)}
                   initialEventId={openEvent}
                   onRead={onRead}
+                  others={cameras.filter((other) => other.name !== current.name).map((other) => other.name)}
+                  onOpenCamera={onOpenCamera}
                 />
               </>
             ) : (

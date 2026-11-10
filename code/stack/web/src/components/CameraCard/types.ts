@@ -13,6 +13,10 @@ export interface CameraCardProps {
   events: EventRow[]
   /** Le retour à la liste des caméras : le bouton fixe en haut à gauche de l'écran du téléphone. */
   onBack?: () => void
+  /** Les noms des autres caméras : un 📷 par caméra est posé sur l'image du direct, que l'on déplace ; rien sans elles. */
+  others?: string[]
+  /** Ouvre une autre caméra (un clic sur son 📷). */
+  onOpenCamera?: (name: string) => void
   /** L'événement à ouvrir dès l'arrivée (le dernier clip, depuis la mosaïque), ou rien. */
   initialEventId?: string
   /** Appelé avec l'identifiant d'un clip ouvert : il est désormais lu. */

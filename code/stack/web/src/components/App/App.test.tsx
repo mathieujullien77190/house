@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import type { Camera, EventRow } from '@/types'
 import App from './App'
 
@@ -10,6 +11,7 @@ const h = vi.hoisted(() => ({
   read: { isRead: () => false, markRead: () => undefined } as any,
   card: null as any,
   mosaic: null as any,
+  mounts: 0,
 }))
 
 vi.mock('@/lib/useHouse', () => ({ useHouse: () => h.house }))
@@ -24,17 +26,20 @@ vi.mock('@/components/Home', () => ({ default: () => <div data-testid="home" /> 
 vi.mock('@/components/ShuttersPanel', () => ({ default: () => <div data-testid="shutters" /> }))
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
 vi.mock('@/components/ApiExplorer', () => ({ default: () => <div data-testid="api" /> }))
-vi.mock('@/components/CameraCard', () => ({
-  default: (p: any) => {
+vi.mock('@/components/CameraCard', () => {
+  const CardMock = (p: any) => {
     h.card = p
+    // Un compteur de montages : une caméra différente doit recréer l'écran (la `key` de App).
+    useState(() => ++h.mounts)
     return (
       <div data-testid="card">
         {p.camera.name}
         {p.onBack ? <button onClick={p.onBack}>retour carte</button> : null}
       </div>
     )
-  },
-}))
+  }
+  return { default: CardMock }
+})
 vi.mock('@/components/CameraMosaic', () => ({
   default: (p: any) => {
     h.mosaic = p
@@ -66,6 +71,7 @@ const ready = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   h.house = ready()
   h.mobile = false
+  h.mounts = 0
   h.notify = { state: 'off', toggle: vi.fn() }
   h.read = { isRead: () => false, markRead: vi.fn() }
 })
@@ -180,6 +186,19 @@ describe('App : onglets', () => {
   })
 })
 
+describe('App : repères de caméras', () => {
+  it('le détail reçoit les autres caméras et de quoi en ouvrir une ; une autre caméra recrée l’écran', () => {
+    render(<App />)
+    fireEvent.click(screen.getByText('ouvrir'))
+    expect(h.card.others).toEqual(['voliere-exterieur'])
+    expect(h.mounts).toBe(1)
+    act(() => h.card.onOpenCamera('voliere-exterieur'))
+    expect(screen.getByTestId('card')).toHaveTextContent('voliere-exterieur')
+    expect(h.card.others).toEqual(['voliere-interieur'])
+    expect(h.mounts).toBe(2)
+  })
+})
+
 describe('App : téléphone', () => {
   beforeEach(() => {
     h.mobile = true
@@ -190,6 +209,13 @@ describe('App : téléphone', () => {
     expect(screen.queryByRole('tablist')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'retour carte' }))
     expect(screen.getByTestId('mosaic')).toBeInTheDocument()
+  })
+  it('l’écran de la caméra est recréé quand on en ouvre une autre', () => {
+    render(<App />)
+    fireEvent.click(screen.getByText('ouvrir'))
+    expect(h.card.others).toEqual(['voliere-exterieur'])
+    act(() => h.card.onOpenCamera('voliere-exterieur'))
+    expect(h.mounts).toBe(2)
   })
   it('l’onglet Lumière garde la barre et les onglets (la liste, sans carte)', () => {
     render(<App />)
