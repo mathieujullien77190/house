@@ -38,7 +38,6 @@ const Rooms = () => {
     <LightsPanel
       rooms={rooms}
       busy=""
-      dimmable={['2']}
       drafts={drafts}
       onAll={(on) => apply(() => true, { on })}
       onRoom={(id, change) => apply((lampId) => rooms.find((room) => room.id === id)?.lights.some((light) => light.id === lampId) ?? false, change)}

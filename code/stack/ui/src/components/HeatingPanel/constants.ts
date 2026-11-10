@@ -12,3 +12,9 @@ export const INPUT_TYPES = {
   decimal: { type: 'text', inputMode: 'decimal' },
   time: { type: 'time', inputMode: undefined },
 } as const
+/** Version étroite (bloc de 320 px sur la carte de Home) : deux colonnes, libellés et aides plus petits, champs moins hauts. */
+export const BOX_COMPACT_CLASS = 'mt-3 flex flex-col gap-2'
+export const FIELDS_COMPACT_CLASS = 'grid grid-cols-2 gap-2'
+export const FIELD_COMPACT_CLASS = 'flex min-w-0 flex-col gap-1 text-[0.72rem] leading-tight'
+export const INPUT_COMPACT_CLASS = 'w-full min-w-0 rounded-lg border border-line bg-card px-2 py-0.5 text-[0.8rem] text-fg [color-scheme:light] dark:[color-scheme:dark] focus-visible:outline-2 focus-visible:outline-accent'
+export const HINT_COMPACT_CLASS = 'text-[0.68rem] leading-tight text-muted'

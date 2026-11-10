@@ -8,8 +8,6 @@ import {
   ALL_ROW_CLASS,
   BRIGHTNESS_LABEL,
   BUSY_LABEL,
-  DIMMABLE_LIST_CLASS,
-  DIMMABLE_ROW_CLASS,
   GRID_CLASS,
   GROUP_CLASS,
   LIST_CLASS,
@@ -19,70 +17,81 @@ import {
   NAME_CLASS,
   OFF_LABEL,
   ON_LABEL,
-  PERCENT_CLASS,
   ROW_CLASS,
   SENSORS_CLASS,
-  SLIDER_CLASS,
+  TILE_BOX_CLASS,
   TILE_BUTTON_CLASS,
   TILE_CLASS,
   TILE_NAME_CLASS,
+  TILE_SLIDER_CLASS,
   TILE_OFF_CLASS,
-  TILE_ON_CLASS,
+  TILE_BULB_CLASS,
   TILE_STATE_CLASS,
   UNREACHABLE_TEXT,
   ZONE_BUTTON_CLASS,
 } from './constants'
-import { briOf, countText, MAX_BRI, percentOf } from './helpers'
+import { BULB_PATH, briOf, countText, MAX_BRI, orangeShare, percentOf, roomsOnFirst } from './helpers'
 import type { LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
-/** Les lumières : un rectangle par zone, une petite case ON / OFF par lampe (allumer = puissance max), un curseur seulement pour les lampes `dimmable`. */
-const LightsPanel = ({ rooms, busy, drafts, dimmable = [], onAll, onRoom, onLight, onDraft, lampExtra }: LightsPanelProps) => {
+/** Les lumières : un rectangle par zone, une petite case ON / OFF par lampe (allumer = puissance max) avec **un curseur de luminosité dans le bloc de la lampe** (la petite ampoule en haut à droite dit l'état : sa couleur pâlit quand la luminosité baisse). */
+const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lampExtra }: LightsPanelProps) => {
   // Une case : un bouton qui bascule la lampe. Allumer envoie toujours la puissance max.
   const tile = (light: LightsLamp) => {
     const key = `light:${light.id}`
+    // La petite ampoule en haut à droite du bloc : orange (ou la couleur de la lampe) allumée, et son jaune s'éclaircit quand la luminosité baisse (le curseur en cours compte tout de suite) ; grise éteinte, rouge injoignable.
+    const percent = light.bri === null ? null : (drafts[key] ?? percentOf(light.bri))
+    const bulbColor = !light.reachable
+      ? 'var(--color-danger)'
+      : !light.on
+        ? 'var(--color-muted)'
+        : `color-mix(in srgb, ${light.color ?? 'var(--color-orange)'} ${percent === null ? 100 : orangeShare(percent)}%, white)`
     return (
       <li key={light.id} className={TILE_CLASS}>
-        <button
-          type="button"
-          className={`${TILE_BUTTON_CLASS} ${light.on ? TILE_ON_CLASS : TILE_OFF_CLASS}`}
-          aria-pressed={light.on}
-          aria-label={`${light.name} ${light.on ? ON_LABEL : OFF_LABEL}`}
-          disabled={!light.reachable || busy === key}
-          onClick={() => onLight(light.id, light.on ? { on: false } : { on: true, bri: MAX_BRI })}
+        {/* Le bloc de la lampe : son bouton ON / OFF et, dedans, son curseur de luminosité. */}
+        <div
+          className={`${TILE_BOX_CLASS} ${TILE_OFF_CLASS}`}
+          // Allumée : la bordure du bloc est jaune, de la couleur de l'ampoule, et pâlit avec la luminosité.
+          style={light.on && light.reachable ? { borderColor: bulbColor } : undefined}
         >
-          <span className={TILE_NAME_CLASS} title={light.name}>
-            {light.name}
-          </span>
-          <span className={TILE_STATE_CLASS}>{busy === key ? BUSY_LABEL : light.reachable ? (light.on ? ON_LABEL : OFF_LABEL) : UNREACHABLE_TEXT}</span>
-        </button>
-        {dimmable.includes(light.id) ? null : lampExtra?.(light)}
-      </li>
-    )
-  }
-
-  // Une lampe à curseur : nom, curseur (envoi au relâchement), pourcentage, et ce que le parent ajoute.
-  const dimmableRow = (light: LightsLamp) => {
-    const percent = drafts[`light:${light.id}`] ?? (light.bri === null ? null : percentOf(light.bri))
-    return (
-      <li key={light.id} className={DIMMABLE_ROW_CLASS}>
-        <span className={NAME_CLASS}>{light.name}</span>
-        {percent === null ? null : (
-          <>
+          {/* Le même rond que sur la carte : fond blanc, bordure noire, l'ampoule dedans (sa couleur pâlit avec la luminosité). */}
+          <svg className={TILE_BULB_CLASS} viewBox="0 0 24 24" aria-hidden="true" data-testid={`bulb-${light.id}`}>
+            <circle cx="12" cy="12" r="10.6" fill="#ffffff" stroke="#000000" strokeWidth="1.8" />
+            <g transform="translate(6.2 5.2) scale(0.52)" style={{ color: bulbColor }}>
+              <path d={BULB_PATH} fill="currentColor" stroke="#000" strokeWidth={1.6} />
+              <rect x="9" y="19" width="6" height="2.2" rx="1" fill="currentColor" stroke="#000" strokeWidth={1.6} />
+            </g>
+          </svg>
+          <button
+            type="button"
+            className={TILE_BUTTON_CLASS}
+            aria-pressed={light.on}
+            aria-label={`${light.name} ${light.on ? ON_LABEL : OFF_LABEL}`}
+            disabled={!light.reachable || busy === key}
+            onClick={() => onLight(light.id, light.on ? { on: false } : { on: true, bri: MAX_BRI })}
+          >
+            <span className={TILE_NAME_CLASS} title={light.name}>
+              {light.name}
+            </span>
+            <span className={TILE_STATE_CLASS}>
+              {busy === key ? BUSY_LABEL : light.reachable ? (light.on ? ON_LABEL : OFF_LABEL) : UNREACHABLE_TEXT}
+            </span>
+          </button>
+          {light.bri === null ? null : (
             <input
               type="range"
               min={1}
               max={100}
-              value={percent}
+              value={drafts[key] ?? percentOf(light.bri)}
               disabled={!light.reachable}
+              title={`${drafts[key] ?? percentOf(light.bri)} %`}
               aria-label={`${BRIGHTNESS_LABEL} ${light.name}`}
-              className={SLIDER_CLASS}
+              className={TILE_SLIDER_CLASS}
               onChange={(event) => onDraft(`light:${light.id}`, Number(event.target.value))}
               onPointerUp={(event) => onLight(light.id, { bri: briOf(Number(event.currentTarget.value)) })}
               onKeyUp={(event) => onLight(light.id, { bri: briOf(Number(event.currentTarget.value)) })}
             />
-            <span className={PERCENT_CLASS}>{percent} %</span>
-          </>
-        )}
+          )}
+        </div>
         {lampExtra?.(light)}
       </li>
     )
@@ -108,7 +117,12 @@ const LightsPanel = ({ rooms, busy, drafts, dimmable = [], onAll, onRoom, onLigh
     const key = `room:${item.id}`
     return (
       <>
-        <Button className={ZONE_BUTTON_CLASS} variant="active" disabled={busy === key} onClick={() => onRoom(item.id, { on: true, bri: MAX_BRI })}>
+        <Button
+          className={ZONE_BUTTON_CLASS}
+          variant="active"
+          disabled={busy === key}
+          onClick={() => onRoom(item.id, { on: true, bri: MAX_BRI })}
+        >
           {ON_LABEL}
         </Button>
         <Button className={ZONE_BUTTON_CLASS} variant="danger" disabled={busy === key} onClick={() => onRoom(item.id, { on: false })}>
@@ -119,7 +133,6 @@ const LightsPanel = ({ rooms, busy, drafts, dimmable = [], onAll, onRoom, onLigh
   }
 
   const room = (item: LightsRoom) => {
-    const sliders = item.lights.filter((light) => dimmable.includes(light.id))
     const sensors = item.sensors ?? []
     return (
       <div key={item.id} className={GROUP_CLASS}>
@@ -132,7 +145,6 @@ const LightsPanel = ({ rooms, busy, drafts, dimmable = [], onAll, onRoom, onLigh
           actions={item.ungrouped ? null : zoneButtons(item)}
         >
           <ul className={GRID_CLASS}>{item.lights.map(tile)}</ul>
-          {sliders.length === 0 ? null : <ul className={DIMMABLE_LIST_CLASS}>{sliders.map(dimmableRow)}</ul>}
           {sensors.length === 0 ? null : <ul className={SENSORS_CLASS}>{sensors.map(sensor)}</ul>}
         </Collapsible>
       </div>
@@ -149,7 +161,7 @@ const LightsPanel = ({ rooms, busy, drafts, dimmable = [], onAll, onRoom, onLigh
           {ALL_OFF_LABEL}
         </Button>
       </div>
-      {rooms.map(room)}
+      {roomsOnFirst(rooms).map(room)}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import LightsPanel from './LightsPanel'
-import { briOf, countText, MAX_BRI, percentOf } from './helpers'
+import { briOf, countText, MAX_BRI, orangeShare, percentOf, roomsOnFirst } from './helpers'
 import type { LightsPanelProps, LightsRoom } from './types'
 import { ALL_OFF_LABEL, ALL_ON_LABEL, BRIGHTNESS_LABEL, BUSY_LABEL, UNREACHABLE_TEXT } from './constants'
 
@@ -96,9 +96,30 @@ describe('LightsPanel', () => {
     expect(tile('Plafonnier', 'ON')).not.toHaveTextContent(UNREACHABLE_TEXT)
   })
 
-  it('aucune case n a de curseur sans « dimmable »', () => {
-    renderPanel()
-    expect(screen.queryByRole('slider')).toBeNull()
+  it('chaque case dont la lampe varie a un curseur de luminosité sous elle ; la case garde son bouton', () => {
+    const h = renderPanel()
+    // Plafonnier (127) et Veilleuse (10) varient ; Lampadaire (bri null) n'a pas de curseur.
+    expect(screen.getAllByRole('slider')).toHaveLength(2)
+    const slider = screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Plafonnier` })
+    expect(slider).toHaveValue('50')
+    expect(slider).toHaveAttribute('title', '50 %')
+    // Le curseur reste bleu (couleur d'accent), allumée ou non : c'est la petite ampoule qui dit l'état.
+    expect(slider.className).toContain('accent-accent')
+    expect(screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Veilleuse` }).className).toContain('accent-accent')
+    expect(within(slider.closest('li') as HTMLElement).getByRole('button', { name: 'Plafonnier ON' })).toBeInTheDocument()
+    expect(screen.queryByRole('slider', { name: `${BRIGHTNESS_LABEL} Lampadaire` })).toBeNull()
+    fireEvent.change(slider, { target: { value: '30' } })
+    expect(h.onDraft).toHaveBeenCalledWith('light:l1', 30)
+    fireEvent.pointerUp(slider)
+    expect(h.onLight).toHaveBeenLastCalledWith('l1', { bri: briOf(50) })
+    fireEvent.keyUp(slider, { key: 'ArrowRight' })
+    expect(h.onLight).toHaveBeenCalledTimes(2)
+  })
+
+  it('le curseur d’une case montre le brouillon du parent et est désactivé pour une lampe injoignable', () => {
+    renderPanel({ drafts: { 'light:l1': 80 } })
+    expect(screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Plafonnier` })).toHaveValue('80')
+    expect(screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Veilleuse` })).toBeDisabled()
   })
 
   it('pendant l action d une lampe, sa case montre « … » et est désactivée', () => {
@@ -122,7 +143,7 @@ describe('LightsPanel', () => {
     expect(within(summary()).queryByRole('button')).toBeNull()
   })
 
-  it('lampExtra s affiche sous la case d une lampe sans curseur', () => {
+  it('lampExtra s affiche sous le bloc de la lampe, avec son curseur dedans', () => {
     renderPanel({ lampExtra: (light) => <button>Régler {light.name}</button> })
     const item = screen.getByRole('button', { name: 'Régler Plafonnier' }).closest('li') as HTMLElement
     expect(within(item).getByRole('button', { name: 'Plafonnier ON' })).toBeInTheDocument()
@@ -134,49 +155,76 @@ describe('LightsPanel', () => {
   })
 })
 
-describe('LightsPanel : lampes à curseur', () => {
-  const sliderOf = () => screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Plafonnier` })
-
-  it('seule la lampe « dimmable » a un curseur, avec son pourcentage', () => {
-    renderPanel({ dimmable: ['l1'] })
-    expect(screen.getAllByRole('slider')).toHaveLength(1)
-    expect(sliderOf()).toHaveValue('50')
-    expect(screen.getByText('50 %')).toBeInTheDocument()
-    // Sa case reste un simple ON / OFF.
-    expect(tile('Plafonnier', 'ON')).toBeInTheDocument()
+describe('LightsPanel : l’ordre des zones', () => {
+  const zone = (id: string, on: boolean): LightsRoom => ({
+    id,
+    name: `Zone ${id}`,
+    on,
+    bri: null,
+    lights: [
+      { id: `${id}a`, name: `Lampe ${id}a`, on: false, bri: null, reachable: true },
+      { id: `${id}b`, name: `Lampe ${id}b`, on, bri: null, reachable: true },
+    ],
   })
 
-  it('le curseur montre le brouillon du parent', () => {
-    renderPanel({ dimmable: ['l1'], drafts: { 'light:l1': 80 } })
-    expect(sliderOf()).toHaveValue('80')
+  it('les zones qui ont une lampe allumée montent, les autres descendent ; les lampes ne changent jamais de place dans leur zone', () => {
+    renderPanel({ rooms: [zone('1', false), zone('2', true), zone('3', false), zone('4', true)] })
+    const zones = screen.getAllByText(/^Zone \d$/).map((element) => element.textContent)
+    expect(zones).toEqual(['Zone 2', 'Zone 4', 'Zone 1', 'Zone 3'])
+    // dans la zone 2, la lampe éteinte « a » reste avant l'allumée « b »
+    const lamps = within(screen.getByText('Zone 2').closest('details') as HTMLElement).getAllByRole('button', { name: /Lampe 2/ })
+    expect(lamps.map((button) => button.getAttribute('aria-label'))).toEqual(['Lampe 2a OFF', 'Lampe 2b ON'])
   })
 
-  it('bouger le curseur envoie un brouillon ; le relâcher envoie la luminosité', () => {
-    const h = renderPanel({ dimmable: ['l1'] })
-    fireEvent.change(sliderOf(), { target: { value: '30' } })
-    expect(h.onDraft).toHaveBeenCalledWith('light:l1', 30)
-    fireEvent.pointerUp(sliderOf())
-    expect(h.onLight).toHaveBeenLastCalledWith('l1', { bri: briOf(50) })
-    fireEvent.keyUp(sliderOf(), { key: 'ArrowRight' })
-    expect(h.onLight).toHaveBeenCalledTimes(2)
+  it('roomsOnFirst : ordre d’origine gardé dans chaque groupe', () => {
+    expect(roomsOnFirst([zone('1', false), zone('2', true), zone('3', true), zone('4', false)]).map((room) => room.id)).toEqual(['2', '3', '1', '4'])
+  })
+})
+
+describe('LightsPanel : la petite ampoule', () => {
+  // La couleur est portée par le groupe de l'ampoule dans le rond.
+  const bulbStyle = (id: string): string => screen.getByTestId(id).querySelector('g')?.getAttribute('style') ?? ''
+
+  it('orangeShare : de 25 % (presque blanc) à 100 %', () => {
+    expect(orangeShare(100)).toBe(100)
+    expect(orangeShare(0)).toBe(25)
+    expect(orangeShare(50)).toBeCloseTo(62.5)
+    expect(orangeShare(500)).toBe(100)
+    expect(orangeShare(-5)).toBe(25)
   })
 
-  it('lampExtra est dans la ligne du curseur, pas sous la case', () => {
-    renderPanel({ dimmable: ['l1'], lampExtra: (light) => <button>Régler {light.name}</button> })
-    const extra = screen.getAllByRole('button', { name: 'Régler Plafonnier' })
-    expect(extra).toHaveLength(1)
-    expect(within(extra[0].closest('li') as HTMLElement).getByRole('slider')).toBeInTheDocument()
+  it('le bloc reste neutre ; l’ampoule en haut à droite est orange allumée, son jaune pâlit avec la luminosité (le curseur en cours compte tout de suite)', () => {
+    const { rerender } = render(<LightsPanel rooms={[salon]} busy="" drafts={{}} {...handlers()} />)
+    const bulb = () => bulbStyle('bulb-l1')
+    const box = () => screen.getByRole('button', { name: 'Plafonnier ON' }).parentElement as HTMLElement
+    // 127/254 = 50 % : 62,5 % d'orange, le reste blanc
+    expect(bulb()).toContain('color-mix')
+    expect(bulb()).toContain('62.5%')
+    expect(bulb()).toContain('var(--color-orange)')
+    // le bloc n'est pas colorié, mais sa bordure est jaune (couleur de l'ampoule) quand la lampe est allumée, et pâlit avec elle
+    expect(box().style.backgroundColor).toBe('')
+    expect(box().className).not.toContain('bg-orange')
+    expect(box().style.borderColor).toContain('color-mix')
+    expect(box().style.borderColor).toContain('62.5%')
+    rerender(<LightsPanel rooms={[salon]} busy="" drafts={{ 'light:l1': 100 }} {...handlers()} />)
+    expect(bulb()).toContain('100%')
+    expect(box().style.borderColor).toContain('100%')
+    rerender(<LightsPanel rooms={[salon]} busy="" drafts={{ 'light:l1': 5 }} {...handlers()} />)
+    expect(bulb()).toContain('28.75%')
   })
 
-  it('un curseur est désactivé pour une lampe injoignable', () => {
-    renderPanel({ dimmable: ['l3'] })
-    expect(screen.getByRole('slider')).toBeDisabled()
+  it('la couleur de la lampe, quand le pont la donne, colore l’ampoule ; sans luminosité, pleine couleur', () => {
+    const room = { ...salon, lights: [{ id: 'c', name: 'Couleur', on: true, bri: null, reachable: true, color: '#33ccff' }] }
+    render(<LightsPanel rooms={[room]} busy="" drafts={{}} {...handlers()} />)
+    expect(bulbStyle('bulb-c')).toContain('rgb(51, 204, 255) 100%')
   })
 
-  it('une lampe « dimmable » qui ne varie pas n a pas de curseur, mais garde sa ligne', () => {
-    renderPanel({ dimmable: ['l2'], lampExtra: (light) => <i>extra {light.name}</i> })
-    expect(screen.queryByRole('slider')).toBeNull()
-    expect(screen.getAllByText('extra Lampadaire')).toHaveLength(1)
+  it('éteinte : ampoule grise ; injoignable : rouge', () => {
+    renderPanel()
+    // la bordure du bloc ne change que pour une lampe allumée
+    expect((screen.getByRole('button', { name: 'Lampadaire OFF' }).parentElement as HTMLElement).style.borderColor).toBe('')
+    expect(bulbStyle('bulb-l2')).toContain('--color-muted')
+    expect(bulbStyle('bulb-l3')).toContain('--color-danger')
   })
 })
 

@@ -9,6 +9,8 @@ export interface LightsLamp {
   bri: number | null
   /** La lampe répond au pont (une lampe coupée à l'interrupteur ne répond pas). */
   reachable: boolean
+  /** La couleur de l'ampoule allumée (`#rrggbb`), si le pont la donne ; sinon l'orange. */
+  color?: string | null
 }
 
 /** Un détecteur de mouvement d'un groupe, avec ses mesures déjà écrites (le parent formate). */
@@ -47,10 +49,8 @@ export interface LightsChange {
 
 export interface LightsPanelProps {
   rooms: LightsRoom[]
-  /** Quelque chose en plus pour une lampe (un bouton d'action), sous sa case ou dans sa ligne à curseur, ou rien. Le parent y met ce qu'il veut : le panneau ne sait rien de plus. */
+  /** Quelque chose en plus pour une lampe (un bouton d'action), sous son bloc, ou rien. Le parent y met ce qu'il veut : le panneau ne sait rien de plus. */
   lampExtra?: (light: LightsLamp) => ReactNode
-  /** Les identifiants des lampes qui gardent un curseur de luminosité (une ligne sous la grille de leur zone) ; les autres n'ont que ON / OFF, à puissance max. */
-  dimmable?: string[]
   /** Ce qui est en cours de changement : « all », « room:<id> » ou « light:<id> » ; son bouton est désactivé. */
   busy: string
   /** La luminosité en pourcentage pendant que le curseur bouge, par « room:<id> » ou « light:<id> ». */

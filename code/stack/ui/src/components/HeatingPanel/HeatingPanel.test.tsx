@@ -44,3 +44,25 @@ describe('HeatingPanel', () => {
     expect(screen.getByText('refusé')).toBeInTheDocument()
   })
 })
+
+describe('HeatingPanel compact', () => {
+  const fields = [
+    { id: 'a', label: 'Température (°C)', value: '3', kind: 'decimal' as const, onChange: vi.fn() },
+    { id: 'b', label: 'Durée (min)', value: '5', kind: 'number' as const, hint: 'une aide', onChange: vi.fn() },
+  ]
+  const props = { enabledLabel: 'Activer', enabled: true, onEnabledChange: vi.fn(), fields, saveLabel: 'Enregistrer', saving: false, onSave: vi.fn() }
+
+  it('dans un bloc étroit : deux colonnes quelle que soit la largeur de l’écran et textes plus petits', () => {
+    const { container } = render(<HeatingPanel {...props} compact />)
+    expect(container.querySelector('.grid')?.className).toContain('grid-cols-2')
+    expect(container.querySelector('.grid')?.className).not.toContain('lg:grid-cols-4')
+    expect(container.querySelectorAll('label')[1]?.className).toContain('text-[0.72rem]')
+    expect(screen.getByText('une aide').className).toContain('text-[0.68rem]')
+    expect(container.querySelector('input[type=text]')?.className).toContain('py-0.5')
+  })
+
+  it('par défaut : la mise en page large (quatre colonnes dès 1024 px)', () => {
+    const { container } = render(<HeatingPanel {...props} />)
+    expect(container.querySelector('.grid')?.className).toContain('lg:grid-cols-4')
+  })
+})

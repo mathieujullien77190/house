@@ -6,7 +6,6 @@ const [drafts, setDrafts] = useState<Record<string, number>>({})
 <LightsPanel
   rooms={rooms}
   busy=""
-  dimmable={['26']} // seule cette lampe garde un curseur de luminosité
   drafts={drafts}
   onAll={(on) => setAll(on)}
   onRoom={(id, change) => setRoom(id, change)}

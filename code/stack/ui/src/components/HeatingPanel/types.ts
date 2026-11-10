@@ -20,4 +20,6 @@ export interface HeatingPanelProps {
   onSave: () => void
   /** Pourquoi l'enregistrement a échoué. */
   error?: string | null
+  /** Pour un bloc étroit (l'aperçu du chauffage sur la carte) : deux colonnes quelle que soit la largeur de l'écran, textes plus petits. */
+  compact?: boolean
 }
