@@ -222,21 +222,30 @@ test('l’état de l’extinction en douceur et sa fin', async () => {
   const fake = fakeHue()
   const service = createHueService(fake.hue, fakePositions())
   await assert.rejects(() => service.fade.status('x'), UnknownHueId)
-  assert.deepEqual(await service.fade.status('1'), { fading: false, ends_at: null })
+  assert.deepEqual(await service.fade.status('1'), { fading: false, ends_at: null, started_at: null, duration_seconds: null, from_bri: null })
   fake.schedules = {
     a: { name: 'autre' },
     b: { name: 'house-fade-1', localtime: 'PT00:15:05', starttime: '2026-11-08T15:00:00' },
   }
-  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: Date.parse('2026-11-08T15:00:00Z') / 1000 + 15 * 60 + 5 })
+  assert.deepEqual(await service.fade.status('1'), {
+    fading: true,
+    ends_at: Date.parse('2026-11-08T15:00:00Z') / 1000 + 15 * 60 + 5,
+    started_at: Date.parse('2026-11-08T15:00:00Z') / 1000,
+    duration_seconds: 15 * 60,
+    from_bri: null,
+  })
   // durée ou début illisibles : en cours, fin inconnue
+  // la luminosité d'avant est dans la description du minuteur
+  fake.schedules = { b: { name: 'house-fade-1', localtime: 'PT00:15:05', starttime: '2026-11-08T15:00:00', description: 'bri=77' } }
+  assert.equal((await service.fade.status('1')).from_bri, 77)
   fake.schedules = { b: { name: 'house-fade-1', localtime: 'PT00:15:05' } }
-  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null })
+  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null, started_at: null, duration_seconds: null, from_bri: null })
   fake.schedules = { b: { name: 'house-fade-1', localtime: 'bientôt', starttime: '2026-11-08T15:00:00' } }
-  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null })
+  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null, started_at: null, duration_seconds: null, from_bri: null })
   fake.schedules = { b: { name: 'house-fade-1', starttime: '2026-11-08T15:00:00' } }
-  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null })
+  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null, started_at: null, duration_seconds: null, from_bri: null })
   fake.schedules = { b: { name: 'house-fade-1', localtime: 'PT00:15:05', starttime: 'pas une date' } }
-  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null })
+  assert.deepEqual(await service.fade.status('1'), { fading: true, ends_at: null, started_at: null, duration_seconds: null, from_bri: null })
 })
 
 test('démarrer l’extinction : transition du pont puis minuteur qui rend la luminosité', async (t) => {
@@ -251,7 +260,7 @@ test('démarrer l’extinction : transition du pont puis minuteur qui rend la lu
   // un minuteur déjà là est remplacé
   fake.schedules = { old: { name: 'house-fade-1', description: 'bri=77' } }
   const result = await service.fade.start('1', 15)
-  assert.deepEqual(result, { fading: true, ends_at: 5000 + 15 * 60 + 5 })
+  assert.deepEqual(result, { fading: true, ends_at: 5000 + 15 * 60 + 5, started_at: 5000, duration_seconds: 15 * 60, from_bri: 100 })
   assert.deepEqual(fake.calls, ['delete old', 'light 1 {"bri":1,"transition":9000}'])
   assert.deepEqual(fake.timers, [
     {
@@ -286,6 +295,6 @@ test('annuler l’extinction rend la luminosité d’avant', async () => {
     c: { name: 'house-fade-1', description: 'bri=0' },
     d: { name: 'house-fade-2', description: 'bri=50' },
   }
-  assert.deepEqual(await service.fade.cancel('1'), { fading: false, ends_at: null })
+  assert.deepEqual(await service.fade.cancel('1'), { fading: false, ends_at: null, started_at: null, duration_seconds: null, from_bri: null })
   assert.deepEqual(fake.calls, ['delete a', 'light 1 {"bri":100,"transition":20}', 'delete b', 'delete c'])
 })

@@ -32,12 +32,31 @@ const ID = /^\d+$/
 const FADE_END_MARGIN_SECONDS = 5
 /** Le nom du minuteur de l'extinction en douceur d'une lampe, dans le pont. */
 const fadeName = (id: string): string => `house-fade-${id}`
-/** Quand le minuteur d'extinction sonnera (secondes depuis 1970) : son début (UTC) plus sa durée « PThh:mm:ss ». */
-const fadeEnd = (schedule: { localtime?: string; starttime?: string }): number | null => {
-  const duration = /^PT(\d+):(\d+):(\d+)$/.exec(schedule.localtime ?? '')
-  if (!duration || !schedule.starttime) return null
-  const start = Date.parse(`${schedule.starttime}Z`)
-  return Number.isNaN(start) ? null : Math.round(start / 1000) + Number(duration[1]) * 3600 + Number(duration[2]) * 60 + Number(duration[3])
+/** L'état de l'extinction en douceur d'une lampe, tel que l'API le rend. */
+export interface FadeStatus {
+  fading: boolean
+  /** Quand le minuteur d'extinction sonnera (secondes depuis 1970) ; null si inconnu. */
+  ends_at: number | null
+  /** Quand la luminosité a commencé à descendre (secondes depuis 1970) ; null si inconnu. */
+  started_at: number | null
+  /** La durée de la descente, en secondes (la marge avant l'extinction n'y est pas) ; null si inconnue. */
+  duration_seconds: number | null
+  /** La luminosité (1 à 254) d'avant l'extinction : le point de départ de la descente ; null si inconnue. */
+  from_bri: number | null
+}
+
+const NOT_FADING: FadeStatus = { fading: false, ends_at: null, started_at: null, duration_seconds: null, from_bri: null }
+
+/** Ce qu'on sait d'un minuteur d'extinction : son début (UTC) plus sa durée « PThh:mm:ss » donnent sa fin ; la luminosité d'avant est dans sa description (« bri=77 »). */
+const fadeInfo = (schedule: { localtime?: string; starttime?: string; description?: string }): FadeStatus => {
+  const length = /^PT(\d+):(\d+):(\d+)$/.exec(schedule.localtime ?? '')
+  const from = /^bri=(\d+)$/.exec(schedule.description ?? '')
+  const fromBri = from ? Number(from[1]) : null
+  const start = schedule.starttime ? Date.parse(`${schedule.starttime}Z`) : Number.NaN
+  if (!length || Number.isNaN(start)) return { ...NOT_FADING, fading: true, from_bri: fromBri }
+  const total = Number(length[1]) * 3600 + Number(length[2]) * 60 + Number(length[3])
+  const startedAt = Math.round(start / 1000)
+  return { fading: true, ends_at: startedAt + total, started_at: startedAt, duration_seconds: Math.max(0, total - FADE_END_MARGIN_SECONDS), from_bri: fromBri }
 }
 const MIN_BRI = 1
 const MAX_BRI = 254
@@ -177,12 +196,12 @@ export const createHueService = (hue: HueClient, positions: PositionsStore) => {
      * le prochain allumage). Le pont fait tout seul : l'API peut s'arrêter entre-temps. Une seule à la fois par lampe.
      */
     fade: {
-      status: async (id: string): Promise<{ fading: boolean; ends_at: number | null }> => {
+      status: async (id: string): Promise<FadeStatus> => {
         if (!ID.test(id)) throw new UnknownHueId()
         const found = Object.values(await hue.schedules()).find((schedule) => schedule.name === fadeName(id))
-        return found ? { fading: true, ends_at: fadeEnd(found) } : { fading: false, ends_at: null }
+        return found ? fadeInfo(found) : NOT_FADING
       },
-      start: async (id: string, minutes: number): Promise<{ fading: boolean; ends_at: number | null }> => {
+      start: async (id: string, minutes: number): Promise<FadeStatus> => {
         if (!ID.test(id)) throw new UnknownHueId()
         const light = (await hue.lights())[id]
         if (!light) throw new UnknownHueId()
@@ -197,13 +216,14 @@ export const createHueService = (hue: HueClient, positions: PositionsStore) => {
           localtime: `PT${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`,
           command: { address: `${hue.commandBase}/lights/${id}/state`, method: 'PUT', body: { on: false, bri: before, transitiontime: 0 } },
         })
-        return { fading: true, ends_at: Math.floor(Date.now() / 1000) + seconds }
+        const startedAt = Math.floor(Date.now() / 1000)
+        return { fading: true, ends_at: startedAt + seconds, started_at: startedAt, duration_seconds: Math.round(minutes * 60), from_bri: before }
       },
       /** Annule : la luminosité revient (en 2 s) à ce qu'elle était. */
-      cancel: async (id: string): Promise<{ fading: boolean; ends_at: number | null }> => {
+      cancel: async (id: string): Promise<FadeStatus> => {
         if (!ID.test(id)) throw new UnknownHueId()
         await cancelFade(id, true)
-        return { fading: false, ends_at: null }
+        return NOT_FADING
       },
     },
     /** Allume, éteint ou règle une lampe ; rend l'état à jour. */
