@@ -5,7 +5,7 @@ import https from 'node:https'
 import { syncBuiltinESMExports } from 'node:module'
 import { writeFileSync } from 'node:fs'
 import { afterEach, mock, test } from 'node:test'
-import { fetchCameraPower, fetchLampPower, parseCameras, parseLamps, parseCpuPower, readCpuPower, readPower, type ApiTarget } from './power.ts'
+import { fetchCameraPower, fetchLampPower, parseCameras, parseLamps, parseCpuPower, readCpuPower, type ApiTarget } from './power.ts'
 import { tempDir } from './testing.ts'
 
 afterEach(() => {
@@ -107,26 +107,4 @@ test('fetchCameraPower : erreur réseau et délai dépassé', async () => {
   mock.restoreAll()
   fakeApi((req) => req.emit('timeout'))
   await assert.rejects(fetchCameraPower(target), /pas de réponse/)
-})
-
-test('readPower : sans API configurée, avec API, et API en panne', async () => {
-  const dir = tempDir()
-  writeFileSync(`${dir}/cpu.json`, JSON.stringify({ watts: 9, at: Math.floor(Date.now() / 1000) }))
-  const none = await readPower(`${dir}/cpu.json`, null)
-  assert.equal(none.cameras, null)
-  assert.equal(none.camerasError, 'API non configurée')
-  fakeApi((_req, answer) => answer(200, '[]'))
-  assert.deepEqual((await readPower(`${dir}/cpu.json`, target)).cameras, [])
-  mock.restoreAll()
-  fakeApi((req) => req.emit('error', new Error('x')))
-  assert.equal((await readPower(`${dir}/cpu.json`, target)).camerasError, 'API : x')
-})
-
-test('readPower : une erreur qui n\'est pas une Error est mise en texte', async () => {
-  mock.method(https, 'request', () => {
-    throw 'chaîne'
-  })
-  syncBuiltinESMExports()
-  const report = await readPower('/absent', target)
-  assert.equal(report.camerasError, 'chaîne')
 })

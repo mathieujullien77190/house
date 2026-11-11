@@ -14,7 +14,7 @@ Le journal des lampes Hue (flux d'événements du pont, table `hue_events`) tour
 Sert `web/dist` en public. Derrière la session (clé et cookie : `../docs/securite.md`) : `POST /login` avec la clé `HOUSE_KEY` = `API_KEY` (une clé de moins de 8 caractères n'ouvre aucune session ; 10 essais ratés par adresse en 15 min puis 429, `src/attempts.ts` ; cookie signé, `src/session.ts`), puis :
 
 - `GET` et `PUT /api/settings`, `GET` et `PUT /api/retention`, `GET` et `PUT /api/guest` (réglages et lien de la page invité : `src/CLAUDE.md`) ;
-- `/api/overview` (`?part=database` : seulement la base, sans parcourir le disque backup, pour les onglets qui n'ont pas besoin de ses chiffres), `/api/power`, `/api/system` (dont `cpu.perThread`), `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (la fiche publique du pont, sans clé : `src/hue.ts`), `/api/hue-log` (le journal des lampes : `../docs/hue.md`) ;
+- `/api/overview` (`?part=database` : seulement la base, sans parcourir le disque backup, pour les onglets qui n'ont pas besoin de ses chiffres), `/api/system` (dont `cpu.perThread`), `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (la fiche publique du pont, sans clé : `src/hue.ts`), `/api/hue-log` (le journal des lampes : `../docs/hue.md`) ;
 - `/api/camera-energy` (l'énergie estimée des caméras depuis le début, par caméra et au total, avec la puissance actuelle `watts` : `src/cameraEnergy.ts`) ;
 - `/api/lamp-energy` (celle des lampes Hue, par lampe et au total, avec `watts` : `src/lampEnergy.ts`) ;
 - `/api/machine-energy` (celle du mini PC, processeur seul, au total, avec `watts` : `src/machineEnergy.ts`) ; les trois alimentent l'arbre de consommation de la page Machine ;

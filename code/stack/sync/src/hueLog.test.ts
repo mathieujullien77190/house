@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, mock, test } from 'node:test'
-import { changeOf, createHueLog, lightIdOf, localClock, parseLogQuery, purgeHueLog, schedulesOf } from './hueLog.ts'
+import { changeOf, createHueLog, localClock, parseLogQuery, purgeHueLog, schedulesOf } from './hueLog.ts'
 import type { HueStreamItem } from './hueStream.ts'
 import { clock, fakeHttpsGet, flush, type BridgeAnswer } from './testing.ts'
 
@@ -46,12 +46,6 @@ test('parseLogQuery : valeurs par défaut et bornes', () => {
   assert.equal(parseLogQuery(new URLSearchParams('limit=0&origin=autre&name=%20'), now).limit, 100)
   assert.equal(parseLogQuery(new URLSearchParams('limit=abc'), now).limit, 100)
   assert.equal(parseLogQuery(new URLSearchParams('origin=autre'), now).origin, null)
-})
-
-test('lightIdOf : le numéro v1 d\'une lampe', () => {
-  assert.equal(lightIdOf('/lights/5'), '5')
-  assert.equal(lightIdOf('/sensors/5'), '')
-  assert.equal(lightIdOf(undefined), '')
 })
 
 test('schedulesOf : les règles actives à heure fixe, dites en clair', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateMs, formatSeconds, formatSize, splitMs, splitSeconds } from './format'
+import { formatDateMs, formatSize, splitMs, splitSeconds } from './format'
 
 describe('formatSize', () => {
   it('choisit la plus grande unité lisible', () => {
@@ -15,10 +15,9 @@ describe('formatSize', () => {
 describe('dates', () => {
   const ms = new Date(2026, 10, 7, 14, 5, 9).getTime()
 
-  it('formatDateMs et formatSeconds donnent la date et l’heure', () => {
+  it('formatDateMs donne la date et l’heure', () => {
     expect(formatDateMs(ms)).toContain('07/11/2026')
     expect(formatDateMs(ms)).toContain('14:05:09')
-    expect(formatSeconds(ms / 1000)).toBe(formatDateMs(ms))
   })
 
   it('splitMs et splitSeconds séparent le jour et l’heure', () => {

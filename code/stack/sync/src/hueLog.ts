@@ -113,9 +113,6 @@ export const parseLogQuery = (params: URLSearchParams, nowMs: number): HueLogQue
   }
 }
 
-/** « /lights/5 » devient « 5 » ; vide si ce n'est pas une lampe. */
-export const lightIdOf = (idV1: string | undefined): string => /^\/lights\/(\d+)$/.exec(idV1 ?? '')?.[1] ?? ''
-
 const bridgeGet = <T>(host: string, key: string, path: string): Promise<T[]> =>
   new Promise((resolve, reject) => {
     const request = https.get({ host, path: `/clip/v2/resource/${path}`, headers: { 'hue-application-key': key }, rejectUnauthorized: false, timeout: TIMEOUT_MS }, (res) => {

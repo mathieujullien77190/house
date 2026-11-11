@@ -66,14 +66,6 @@ export interface Media {
   kind: 'video' | 'image'
 }
 
-export interface Power {
-  /** La puissance du processeur ; null si la mesure manque (service de l'hôte arrêté, machine sans RAPL). */
-  cpu: { watts: number; ageSeconds: number } | null
-  /** Le PoE de chaque caméra, lu chez le switch ; null quand il n'a pas pu l'être. */
-  cameras: { camera: string; watts: number; powered: boolean }[] | null
-  camerasError: string | null
-}
-
 /** L'énergie des caméras depuis le début du suivi (estimation) ; `since` : ISO, null tant qu'aucun relevé n'a réussi. */
 export interface CameraEnergy {
   since: string | null

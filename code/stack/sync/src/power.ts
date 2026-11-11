@@ -15,13 +15,6 @@ export interface CameraPower {
   powered: boolean
 }
 
-export interface PowerReport {
-  cpu: CpuPower | null
-  cameras: CameraPower[] | null
-  /** Pourquoi les caméras manquent, quand elles manquent. */
-  camerasError: string | null
-}
-
 /** Au-delà de cet âge, la mesure du processeur est jugée perdue (le service de l'hôte est arrêté). */
 const MAX_AGE_SECONDS = 60
 
@@ -124,13 +117,3 @@ export const fetchCameraPower = (target: ApiTarget): Promise<CameraPower[]> => f
 
 /** La puissance estimée des lampes Hue, lue chez House API (`GET /hue`). */
 export const fetchLampPower = (target: ApiTarget): Promise<LampPower[]> => fetchApi(target, '/hue', parseLamps)
-
-export const readPower = async (cpuFile: string, target: ApiTarget | null): Promise<PowerReport> => {
-  const cpu = await readCpuPower(cpuFile)
-  if (!target) return { cpu, cameras: null, camerasError: 'API non configurée' }
-  try {
-    return { cpu, cameras: await fetchCameraPower(target), camerasError: null }
-  } catch (error) {
-    return { cpu, cameras: null, camerasError: error instanceof Error ? error.message : String(error) }
-  }
-}

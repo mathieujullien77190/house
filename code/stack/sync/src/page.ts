@@ -21,7 +21,7 @@ import { readNetwork } from './network.ts'
 import { readCameraEnergy } from './cameraEnergy.ts'
 import { readLampEnergy } from './lampEnergy.ts'
 import { readMachineEnergy } from './machineEnergy.ts'
-import { readPower, type ApiTarget } from './power.ts'
+import type { ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
@@ -163,7 +163,6 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       return sendJson(res, 200, { ...energy, lamps: energy.lamps.map((l) => ({ ...l, watts: current.get(l.lamp) ?? null })) })
     }
     if (pathname === '/api/machine-energy') return sendJson(res, 200, { ...readMachineEnergy(db), watts: watts.machine() })
-    if (pathname === '/api/power') return sendJson(res, 200, await readPower(config.powerFile, apiTargetOf(config)))
     if (pathname === '/api/table') {
       const { page, size } = pageParams(params)
       const result = readTable(db, params.get('name') ?? '', page, size, filterParams(params))

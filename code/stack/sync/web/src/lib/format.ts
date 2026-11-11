@@ -12,9 +12,6 @@ export const formatSize = (bytes: number): string => {
 
 export const formatDateMs = (ms: number): string => new Date(ms).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'medium' })
 
-/** Un horodatage de l'enregistreur (secondes) en date lisible. */
-export const formatSeconds = (seconds: number): string => formatDateMs(seconds * 1000)
-
 /** Un horodatage de l'enregistreur (secondes) en deux textes : le jour, puis l'heure. */
 export const splitSeconds = (seconds: number): { date: string; time: string } => splitMs(seconds * 1000)
 

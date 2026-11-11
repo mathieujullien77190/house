@@ -137,8 +137,6 @@ test('les services de données', async () => {
   assert.deepEqual(hueCalls, ['origin=switch'])
   assert.ok(Array.isArray(json(await get('/api/network'))))
   assert.ok('memory' in (json(await get('/api/system')) as object))
-  const power = json(await get('/api/power')) as { camerasError: string }
-  assert.equal(power.camerasError, 'API non configurée')
   const energy = json(await get('/api/camera-energy')) as { since: string | null; cameras: unknown[]; total: { kwh: number } }
   assert.deepEqual(energy, { since: null, cameras: [], total: { kwh: 0, cost: 0 } })
   assert.deepEqual(json(await get('/api/lamp-energy')), { since: null, lamps: [], total: { kwh: 0, cost: 0 } })

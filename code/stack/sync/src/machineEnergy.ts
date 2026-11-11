@@ -1,5 +1,5 @@
 // L'énergie consommée par le mini PC (estimation) : chaque minute, House Sync lit la puissance du processeur (le fichier que `power/house-power.sh` écrit sur l'hôte,
-// le même que celui de `/api/power`) et compte « dernière puissance connue × temps écoulé », rangée par heure dans la table `machine_energy` (onglet Base),
+// la même mesure que la page Machine) et compte « dernière puissance connue × temps écoulé », rangée par heure dans la table `machine_energy` (onglet Base),
 // avec le coût au tarif heures creuses / pleines (constantes de `cameraEnergy.ts`).
 // Attention : c'est la puissance du PROCESSEUR seul (RAPL), sans la carte mère, le SSD ni les ventilateurs : un minimum, pas la prise.
 // Rien n'est inventé : si la mesure manque ou est trop vieille, le tour est sauté ; un trou de plus de 5 minutes n'est pas rattrapé.
