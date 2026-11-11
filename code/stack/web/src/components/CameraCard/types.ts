@@ -15,8 +15,14 @@ export interface CameraCardProps {
   onBack?: () => void
   /** Les noms des autres caméras : une icône de caméra par caméra est posé sur l'image du direct, que l'on déplace ; rien sans elles. */
   others?: string[]
-  /** Ouvre une autre caméra (un clic sur son icône de caméra). */
-  onOpenCamera?: (name: string) => void
+  /** Ouvre une autre caméra (un clic sur son icône de caméra) ; `at` : l'instant de l'image regardée (secondes), que l'autre caméra montre aussi. */
+  onOpenCamera?: (name: string, at?: number, rate?: number, sound?: boolean) => void
+  /** L'instant (secondes) de l'image à montrer dès l'arrivée, depuis l'image d'une autre caméra ; sans lui, le direct. */
+  initialCursor?: number
+  /** Le rang (dans `RATES`) de la vitesse de défilement des images à garder en arrivant, depuis une autre caméra ; sans lui, le temps réel. */
+  initialRate?: number
+  /** Le son du direct est ouvert dès l'arrivée (il l'était sur la caméra d'où l'on vient). */
+  initialSound?: boolean
   /** L'événement à ouvrir dès l'arrivée (le dernier clip, depuis la mosaïque), ou rien. */
   initialEventId?: string
   /** Appelé avec l'identifiant d'un clip ouvert : il est désormais lu. */

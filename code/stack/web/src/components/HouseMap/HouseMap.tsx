@@ -7,6 +7,10 @@ import LiveTile from '@/components/LiveTile'
 import MapPlan from '@/components/MapPlan'
 import PlugPanel from '@/components/PlugPanel'
 import ShutterPreview from '@/components/ShutterPreview'
+import { decorItemId, DEFAULT_DECORS } from '@/components/MapPlan/helpers'
+import { roomItems, roomRectsFrom } from '@/components/MapPlan/helpers'
+import { PLAN_ROOMS } from '@/components/Lights/constants'
+import { garageCornerId, garageRingFrom, tilesCornerId, tilesRingFrom } from '@/components/MapPlan/helpers'
 import { PARCEL_GATES } from '@/components/MapPlan/parcel'
 import { acItemId, useAcPlan } from '@/lib/useAcPlan'
 import { emojiItemId, useClipEmojis } from '@/lib/useClipEmojis'
@@ -39,7 +43,7 @@ import type { HouseMapProps } from './types'
 const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onOpenShutter, onOpenPlug }: HouseMapProps) => {
   const plan = usePlan(apiKey)
   const { trees, hedges, offsets, links, cage, cameras: planCameras } = plan
-  const { moveTree, resizeTree, moveHedge, moveOffset, link, moveCamera, adjustCamera, moveItem } = plan
+  const { moveTree, resizeTree, moveHedge, moveOffset, link, moveCamera, adjustCamera, moveItem, moveItems } = plan
   const [selectedHedge, setSelectedHedge] = useState('')
   // L'arbre choisi : une poignée sur son bord règle sa taille.
   const [selectedTree, setSelectedTree] = useState('')
@@ -49,6 +53,8 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   const { emojis: planEmojis, clips } = useClipEmojis(apiKey, plan.items, true)
   // Les climatisations (un rectangle chacune : un clic ouvre leur page, on les déplace en modification).
   const acs = useAcPlan(apiKey, plan.items, true)
+  // Les icônes seules (la pompe à chaleur) : leur place est gardée dans les éléments du plan, la place de départ sans elle.
+  const decors = DEFAULT_DECORS.map((decor) => ({ ...decor, ...plan.items[decorItemId(decor.id)] }))
   // Les volets roulants (une icône : un clic le descend ou le monte, on la déplace en modification).
   const { shutters } = useShutterPlan(apiKey, plan.items, true)
   // Les étiquettes de température : dehors (la météo) et deux dans la cage à perruches (les détecteurs).
@@ -189,6 +195,15 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
         onMoveCage={moveCage}
         offsets={offsets}
         onMoveOffset={moveOffset}
+        rooms={roomRectsFrom(
+          plan.items,
+          PLAN_ROOMS.map((room) => room.rects.length),
+        )}
+        onMoveRooms={(rooms) => moveItems(roomItems(rooms))}
+        garage={garageRingFrom(plan.items)}
+        onMoveGarage={(ring) => moveItems(Object.fromEntries(ring.map(([x, y], index) => [garageCornerId(index), { x, y }])))}
+        tiles={tilesRingFrom(plan.items)}
+        onMoveTiles={(ring) => moveItems(Object.fromEntries(ring.map(([x, y], index) => [tilesCornerId(index), { x, y }])))}
         cameras={shownCameras}
         selectedCameraId={selectedCamera}
         onOpenCamera={(planId) => (links[planId] ? onOpenCamera(links[planId]) : undefined)}
@@ -212,6 +227,8 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
         acs={acs}
         onOpenAc={() => onOpenAc()}
         emojis={planEmojis}
+        decors={decors}
+        onMoveDecor={(id, x, y) => moveItem(decorItemId(id), x, y)}
         selectedEmojiId={selectedEmoji}
         onMoveEmoji={(id, x, y) => moveItem(emojiItemId(id), x, y)}
         onToggleEmoji={selectEmoji}

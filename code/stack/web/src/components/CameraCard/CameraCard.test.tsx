@@ -265,11 +265,22 @@ describe('CameraCard : les repères des autres caméras', () => {
     expect(h.markersLayer.onMove).toBe(h.s.markers.move)
     expect(h.markersLayer.onCommit).toBe(h.s.markers.commit)
     expect(h.markersLayer.onRemove).toBe(h.s.markers.remove)
-    expect(h.markersLayer.onOpen).toBe(open)
+    // Le clic ouvre l'autre caméra ; en direct, sans instant (il n'y a pas d'image regardée).
+    h.markersLayer.onOpen('b')
+    // et la vitesse de défilement des images (×1 au départ : le rang 10 de `RATES`) passe avec.
+    expect(open).toHaveBeenCalledWith('b', undefined, 10, false)
     // aucune caméra éteinte : tous les repères agissent
     expect(h.markersLayer.inactive).toEqual([])
     expect(screen.getByTestId('sound')).toContainElement(screen.getByTestId('markers-toggle'))
     expect(screen.getByTestId('sound')).toContainElement(screen.getByTestId('live-audio'))
+  })
+
+  it('sur l’image d’un instant passé : les repères se voient et ouvrent l’autre caméra à la même seconde', () => {
+    mount({ others: ['b'], onOpenCamera: open })
+    act(() => h.timeline.onCursor(900))
+    expect(screen.getByTestId('markers-layer')).toBeInTheDocument()
+    h.markersLayer.onOpen('b')
+    expect(open).toHaveBeenLastCalledWith('b', 900, 10, false)
   })
   it('les caméras éteintes sont données à la couche : leur repère ne fait rien', () => {
     h.s.offCameras = ['b']
@@ -309,12 +320,24 @@ describe('CameraCard : les repères des autres caméras', () => {
     expect(screen.queryByTestId('layer')).toBeNull()
     expect(screen.queryByTestId('live-audio')).toBeNull()
   })
-  it('clip ou image passée : ni couche ni bouton', () => {
+  it('pendant un clip : les repères se voient et ouvrent l’autre caméra à l’instant où en est le clip', () => {
     mount({ others: ['b'], onOpenCamera: open, events: [event('a')] })
     expect(screen.getByTestId('layer')).toBeInTheDocument()
     pick(event('a'))
-    expect(screen.queryByTestId('markers-toggle')).toBeNull()
-    expect(screen.queryByTestId('layer')).toBeNull()
+    expect(screen.getByTestId('markers-toggle')).toBeInTheDocument()
+    expect(screen.getByTestId('layer')).toBeInTheDocument()
+    h.markersLayer.onOpen('b')
+    // Sans position de lecture connue, le début du clip.
+    expect(open).toHaveBeenLastCalledWith('b', expect.any(Number), 10, false)
+  })
+  it('pendant un clip sans position de lecture : le début de la vidéo, sinon celui de l’événement', () => {
+    mount({ others: ['b'], onOpenCamera: open, events: [event('a'), event('c', { clip_started_at: null })] })
+    pick(event('a'), null)
+    h.markersLayer.onOpen('b')
+    expect(open).toHaveBeenLastCalledWith('b', 995, 10, false)
+    pick(event('c', { clip_started_at: null }), null)
+    h.markersLayer.onOpen('b')
+    expect(open).toHaveBeenLastCalledWith('b', 1000, 10, false)
   })
   it('pendant la modification de la zone : les repères sont cachés', () => {
     mount({ others: ['b'], onOpenCamera: open })
@@ -708,9 +731,11 @@ describe('CameraCard : défilement des images', () => {
     expect(screen.getByText('×2')).toBeInTheDocument()
   })
 
-  it('◀ au-delà de ×1 fait reculer', () => {
+  it('◀ depuis ×1 arrête le temps (×0), puis fait reculer', () => {
     mount()
     act(() => h.timeline.onCursor(900))
+    fireEvent.click(screen.getByLabelText('Plus lent, ou en arrière'))
+    expect(h.timeline.rate).toBe(0)
     fireEvent.click(screen.getByLabelText('Plus lent, ou en arrière'))
     expect(h.timeline.rate).toBe(-1)
   })
@@ -749,4 +774,3 @@ describe('CameraCard : défilement des images sur téléphone en vue en grand', 
     expect(screen.getByTestId('overlay')).toContainElement(screen.getByLabelText('Plus vite, ou en avant'))
   })
 })
-

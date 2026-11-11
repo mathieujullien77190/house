@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import LightsPanel from './LightsPanel'
-import { briOf, countText, MAX_BRI, orangeShare, percentOf, roomsOnFirst } from './helpers'
+import { briOf, countText, MAX_BRI, orangeShare, percentOf } from './helpers'
 import type { LightsPanelProps, LightsRoom } from './types'
 import { ALL_OFF_LABEL, ALL_ON_LABEL, BRIGHTNESS_LABEL, BUSY_LABEL, UNREACHABLE_TEXT } from './constants'
 
@@ -137,12 +137,6 @@ describe('LightsPanel', () => {
     expect(tile('Plafonnier', 'ON')).toBeEnabled()
   })
 
-  it('les lampes à placer sont repliées et sans commande groupée', () => {
-    const { container } = render(<LightsPanel rooms={[{ ...salon, ungrouped: true }]} busy="" drafts={{}} {...handlers()} />)
-    expect(container.querySelector('details')).not.toHaveAttribute('open')
-    expect(within(summary()).queryByRole('button')).toBeNull()
-  })
-
   it('lampExtra s affiche sous le bloc de la lampe, avec son curseur dedans', () => {
     renderPanel({ lampExtra: (light) => <button>Régler {light.name}</button> })
     const item = screen.getByRole('button', { name: 'Régler Plafonnier' }).closest('li') as HTMLElement
@@ -167,17 +161,13 @@ describe('LightsPanel : l’ordre des zones', () => {
     ],
   })
 
-  it('les zones qui ont une lampe allumée montent, les autres descendent ; les lampes ne changent jamais de place dans leur zone', () => {
+  it('les zones gardent l’ordre donné par le parent, allumées ou non ; les lampes ne changent jamais de place dans leur zone', () => {
     renderPanel({ rooms: [zone('1', false), zone('2', true), zone('3', false), zone('4', true)] })
     const zones = screen.getAllByText(/^Zone \d$/).map((element) => element.textContent)
-    expect(zones).toEqual(['Zone 2', 'Zone 4', 'Zone 1', 'Zone 3'])
+    expect(zones).toEqual(['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4'])
     // dans la zone 2, la lampe éteinte « a » reste avant l'allumée « b »
     const lamps = within(screen.getByText('Zone 2').closest('details') as HTMLElement).getAllByRole('button', { name: /Lampe 2/ })
     expect(lamps.map((button) => button.getAttribute('aria-label'))).toEqual(['Lampe 2a OFF', 'Lampe 2b ON'])
-  })
-
-  it('roomsOnFirst : ordre d’origine gardé dans chaque groupe', () => {
-    expect(roomsOnFirst([zone('1', false), zone('2', true), zone('3', true), zone('4', false)]).map((room) => room.id)).toEqual(['2', '3', '1', '4'])
   })
 })
 

@@ -4,7 +4,6 @@ import AcPanel from '@/components/AcPanel'
 import ApiExplorer from '@/components/ApiExplorer'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
-import GuestLink from '@/components/GuestLink'
 import Home from '@/components/Home'
 import SavedClips from '@/components/SavedClips'
 import KeyForm from '@/components/KeyForm'
@@ -37,6 +36,9 @@ const AppUI = ({
   tab,
   openCamera,
   openEvent,
+  openAt,
+  openRate,
+  openSound,
   isRead,
   onRead,
   onOpenCamera,
@@ -61,9 +63,12 @@ const AppUI = ({
         camera={current}
         events={eventsOf(events, current.name)}
         initialEventId={openEvent}
+        initialCursor={openAt}
+        initialRate={openRate}
+        initialSound={openSound}
         onRead={onRead}
         others={cameras.filter((other) => other.name !== current.name).map((other) => other.name)}
-        onOpenCamera={onOpenCamera}
+        onOpenCamera={(name, at, rate, sound) => onOpenCamera(name, undefined, at, rate, sound)}
         onBack={() => onOpenCamera(null)}
       />
     )
@@ -78,7 +83,7 @@ const AppUI = ({
         tone={message ? 'error' : 'muted'}
         info={ready ? <Weather apiKey={apiKey} /> : undefined}
         tabs={ready ? { label: TABS_LABEL, options: shownTabs, value: tab, onChange: onTab } : undefined}
-        // Le bouton des notifications reste dans la barre (sur téléphone : juste à gauche du sandwich) ; le lien de la page invité est dans le menu (téléphone).
+        // Le bouton des notifications reste dans la barre (sur téléphone : juste à gauche du sandwich).
         barActions={
           ready && notify !== 'unsupported' ? (
             <Button
@@ -92,7 +97,6 @@ const AppUI = ({
             </Button>
           ) : undefined
         }
-        menuItems={ready && mobile ? <GuestLink apiKey={apiKey} menu /> : undefined}
       />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
@@ -129,9 +133,12 @@ const AppUI = ({
                   camera={current}
                   events={eventsOf(events, current.name)}
                   initialEventId={openEvent}
+                  initialCursor={openAt}
+                  initialRate={openRate}
+                  initialSound={openSound}
                   onRead={onRead}
                   others={cameras.filter((other) => other.name !== current.name).map((other) => other.name)}
-                  onOpenCamera={onOpenCamera}
+                  onOpenCamera={(name, at, rate, sound) => onOpenCamera(name, undefined, at, rate, sound)}
                 />
               </>
             ) : (

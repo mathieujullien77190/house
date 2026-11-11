@@ -37,8 +37,6 @@ export interface LightsRoom {
   lights: LightsLamp[]
   /** Les détecteurs de mouvement du groupe, sous ses lampes. */
   sensors?: LightsSensor[]
-  /** Des lampes sans pièce : pas de commande groupée. */
-  ungrouped?: boolean
 }
 
 /** Un changement demandé : allumer ou éteindre (on), régler la luminosité (bri, 1 à 254). */

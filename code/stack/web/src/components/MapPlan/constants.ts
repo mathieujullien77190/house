@@ -29,6 +29,8 @@ export const ATTRIBUTION = '© IGN — Géoplateforme'
 
 /** Le plan ne se modifie (déplacer, régler, redimensionner) que quand ce bouton est enfoncé ; il ne l'est pas au départ. */
 export const EDIT_LABEL = 'Modifier'
+/** Case posée à côté du bouton en modification : les coins des carreaux et du chemin se calent sur les lignes droites. */
+export const SNAP_LABEL = 'Aligner'
 /** Le choix de la vraie caméra liée à la caméra du plan choisie (en mode modification). */
 export const LINK_LABEL = 'Caméra liée'
 export const LINK_NONE = 'Aucune'
@@ -70,7 +72,7 @@ export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'shutter' | 'plug' | 'emo
   {
     id: 'camera',
     label: 'Caméra',
-    layers: ['plan-cameras', 'plan-cameras-etat', 'plan-cameras-dessous', 'plan-cameras-dessous-etat', 'plan-vue'],
+    layers: ['plan-cameras', 'plan-cameras-etat', 'plan-vue'],
     hit: 'camera-hit',
   },
   { id: 'lamp', label: 'Lumière', layers: ['plan-lampes'], hit: 'lamp-hit' },
@@ -78,8 +80,7 @@ export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'shutter' | 'plug' | 'emo
   { id: 'plug', label: 'Chauffage', layers: ['plan-prises', 'plan-prises-etat'], hit: 'plug-hit' },
   { id: 'emoji', label: 'Clip', layers: ['plan-emojis'], hit: 'emoji-hit' },
 ]
-/** Les zones de saisie qui restent toujours (les étiquettes de température). */
-export const ALWAYS_HIT = ['label-hit']
+/** Les zones de saisie qui restent toujours (les étiquettes de température, la pompe à chaleur). */
+export const ALWAYS_HIT = ['label-hit', 'decor-hit']
 /** Les cases à cocher, **alignées en une ligne, à droite du bouton « Modifier », en bas à gauche de la carte** (elles passent à la ligne sur un écran étroit). */
-export const FILTERS_BAR_CLASS =
-  'flex flex-row flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-card/90 px-2 py-1.5'
+export const FILTERS_BAR_CLASS = 'flex flex-row flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-card/90 px-2 py-1.5'

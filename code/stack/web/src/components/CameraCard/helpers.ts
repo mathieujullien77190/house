@@ -58,7 +58,9 @@ export const captionOf = (cursor: number | null, selected: EventRow | null, live
 export const orientationShown = (camera: Camera, selected: EventRow | null, cursor: number | null, events: EventRow[]): Orientation => {
   if (selected) return selected.orientation
   if (cursor !== null) {
-    const before = events.filter((event) => event.camera === camera.name && event.started_at <= cursor).sort((a, b) => b.started_at - a.started_at)[0]
+    const before = events
+      .filter((event) => event.camera === camera.name && event.started_at <= cursor)
+      .sort((a, b) => b.started_at - a.started_at)[0]
     if (before) return before.orientation
   }
   return camera.orientation

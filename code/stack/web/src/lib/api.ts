@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { AcPatch, AcUnit, CameraMarker, CameraPower, CameraRow, EventRow, GuestInfo, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
+import type { AcPatch, AcUnit, CameraMarker, CameraPower, CameraRow, EventRow, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -52,17 +52,6 @@ export const setClipSaved = async (key: string, id: string, saved: boolean): Pro
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/clips : HTTP ${res.status}`)
 }
-/** Pose la note d'un clip (vide : la supprime) ; rend la note telle que l'API l'a gardée (sans espaces autour, tronquée). */
-export const setClipNote = async (key: string, id: string, note: string): Promise<string> => {
-  const res = await fetch(`/clips/${encodeURIComponent(id)}/note`, {
-    method: 'PUT',
-    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ note }),
-  })
-  if (res.status === 401) throw new ApiError(401, 'clé refusée')
-  if (!res.ok) throw new ApiError(res.status, `/clips : HTTP ${res.status}`)
-  return ((await res.json()) as { note: string }).note
-}
 /** Pose l'emoji d'un clip (`null` : le retire) ; rend l'emoji tel que l'API l'a gardé (vide s'il est retiré). */
 export const setClipEmoji = async (key: string, id: string, emoji: string | null): Promise<string> => {
   const res = await fetch(`/clips/${encodeURIComponent(id)}/emoji`, {
@@ -76,8 +65,6 @@ export const setClipEmoji = async (key: string, id: string, emoji: string | null
 }
 /** Les clips sauvegardés (à garder pour toujours), les plus récents d'abord. */
 export const fetchSavedEvents = async (key: string): Promise<EventRow[]> => (await request(key, '/events?saved=1')).json()
-/** De quoi bâtir le lien de la page invité (sa clé, son port, son adresse publique) ; échoue (503) sans page invité configurée. */
-export const fetchGuest = async (key: string): Promise<GuestInfo> => (await request(key, '/guest')).json()
 export const fetchPower = async (key: string): Promise<CameraPower[]> => (await request(key, '/poe')).json()
 
 /** Allume (on) ou éteint une caméra : House API coupe ou rend le PoE de son port sur le switch. */

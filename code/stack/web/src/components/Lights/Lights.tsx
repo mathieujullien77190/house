@@ -122,7 +122,7 @@ const Lights = ({ apiKey }: LightsProps) => {
   const changeAll = (on: boolean) =>
     run(ALL_KEY, () =>
       eachLight(
-        zones.filter((item) => !item.ungrouped && !EXCLUDED_FROM_ALL.includes(item.id)).flatMap((zone) => zone.lights),
+        zones.filter((item) => !EXCLUDED_FROM_ALL.includes(item.id)).flatMap((zone) => zone.lights),
         on ? { on, bri: MAX_BRI } : { on },
       ),
     )

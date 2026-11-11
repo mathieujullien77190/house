@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchSavedEvents, setClipEmoji, setClipNote, setClipSaved } from '@/lib/api'
+import { fetchSavedEvents, setClipEmoji, setClipSaved } from '@/lib/api'
 import type { EventRow } from '@/types'
 import SavedClipsUI from './UI'
 import type { SavedClipsProps } from './types'
@@ -45,13 +45,6 @@ const SavedClips = ({ apiKey, onOpenCamera }: SavedClipsProps) => {
       () => setFailedSave(true),
     )
   }
-  // La note d'un clip : l'API la garde (sans espaces autour), la liste montre ce qu'elle a gardé. Un échec laisse l'ancienne note.
-  const note = async (id: string, text: string) => {
-    const kept = await setClipNote(apiKey, id, text)
-    // Même garde que ci-dessus : la liste est lue quand une note se pose.
-    /* v8 ignore next */
-    setEvents((current) => current?.map((event) => (event.id === id ? { ...event, note: kept } : event)) ?? current)
-  }
   // L'emoji d'un clip : l'API le garde, la liste montre ce qu'elle a gardé. Un échec laisse l'ancien.
   const emoji = async (id: string, value: string | null) => {
     const kept = await setClipEmoji(apiKey, id, value)
@@ -70,7 +63,6 @@ const SavedClips = ({ apiKey, onOpenCamera }: SavedClipsProps) => {
         onSave={save}
         saveFailed={failedSave}
         onDuration={(id, seconds) => setDurations((current) => (current[id] === seconds ? current : { ...current, [id]: seconds }))}
-        onNote={note}
         onEmoji={emoji}
         onOpen={(id) => {
           // Un clic sur la vignette d'un clip : le détail de sa caméra s'ouvre sur ce clip, qui se lance (page Caméras) ; sans cela, il se lit sur place.

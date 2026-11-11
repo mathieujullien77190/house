@@ -22,6 +22,7 @@ const fakeMap = () => {
     off: vi.fn((type: string) => handlers.delete(type)),
     getCanvas: () => canvas,
     getLayer: () => state.layers,
+    setFilter: vi.fn(),
     queryRenderedFeatures: vi.fn(() => state.hits.map((hit) => ({ layer: { id: hit.layer }, properties: hit.properties }))),
   }
   return { map: map as unknown as MapLibreMap, raw: map, handlers, canvas, state }
@@ -58,6 +59,19 @@ const context = (over: Partial<EditContext> = {}): EditContext => ({
   onResizeTree: vi.fn(),
   onSelectTree: vi.fn(),
   onMoveHedge: vi.fn(),
+  onMoveTiles: vi.fn(),
+  onMoveGarage: vi.fn(),
+  garageRing: [
+    [0, 0],
+    [10, 0],
+    [10, 10],
+  ],
+  snap: false,
+  tilesRing: [
+    [0, 0],
+    [10, 0],
+    [10, 10],
+  ],
   onSelectHedge: vi.fn(),
   onMoveOffset: vi.fn(),
   onMoveCage: vi.fn(),
@@ -215,6 +229,75 @@ describe('attachEditing', () => {
       fire('touchmove', { ...mouse(1, 1), points: [1] })
       expect(canvas.style.cursor).toBe('x')
     })
+    it('hors modification : le doigt qui pointe sur une caméra (un clic fait quelque chose), rien sur la pompe à chaleur', () => {
+      const { fire, state, canvas } = setup({ onMoveCamera: undefined, onMoveDecor: undefined })
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('pointer')
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'pac' } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('')
+    })
+    it('un élément saisissable d’un genre sans rappel de déplacement propre donne la main', () => {
+      const { fire, state, canvas } = setup()
+      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 0 } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('grab')
+    })
+    it('au survol, le rond blanc de l’icône passe au bleu pâle (calque jumeau), puis revient en la quittant', () => {
+      const { fire, state, raw } = setup()
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
+      fire('mousemove', mouse(1, 1))
+      expect(raw.setFilter).toHaveBeenLastCalledWith('plan-survol-cameras', [
+        'all',
+        ['==', ['get', 'kind'], 'camera-hit'],
+        ['==', ['get', 'id'], 'c1'],
+      ])
+      const calls = raw.setFilter.mock.calls.length
+      fire('mousemove', mouse(2, 2))
+      expect(raw.setFilter.mock.calls).toHaveLength(calls)
+      state.hits = []
+      fire('mousemove', mouse(1, 1))
+      expect(raw.setFilter).toHaveBeenLastCalledWith('plan-survol-cameras', ['==', ['get', 'id'], '__aucun__'])
+    })
+    it('passer d’une icône à une autre genre retire le fond bleu de la première', () => {
+      const { fire, state, raw } = setup()
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
+      fire('mousemove', mouse(1, 1))
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'ac-hit', id: 'salon' } }]
+      fire('mousemove', mouse(2, 2))
+      expect(raw.setFilter).toHaveBeenCalledWith('plan-survol-cameras', ['==', ['get', 'id'], '__aucun__'])
+      expect(raw.setFilter).toHaveBeenLastCalledWith('plan-survol-clims', [
+        'all',
+        ['==', ['get', 'kind'], 'ac-hit'],
+        ['==', ['get', 'id'], 'salon'],
+      ])
+    })
+    it('une carte sans calque jumeau : rien n’est réglé', () => {
+      const { fire, state, raw } = setup()
+      state.layers = false
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
+      fire('mousemove', mouse(1, 1))
+      expect(raw.setFilter).not.toHaveBeenCalled()
+    })
+    it('hors modification : une caméra sans flux ou une lampe injoignable ne se choisit pas, ne se survole pas', () => {
+      const { fire, state, canvas, ctx } = setup({ onMoveCamera: undefined, onMoveLamp: undefined })
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1', inactive: 1 } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('')
+      fire('mousedown', mouse(1, 1))
+      fire('mouseup', mouse(1, 1))
+      expect(ctx.onSelectCamera).not.toHaveBeenCalled()
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l1', inactive: 1 } }]
+      fire('mousedown', mouse(1, 1))
+      fire('mouseup', mouse(1, 1))
+      expect(ctx.onToggleLamp).not.toHaveBeenCalled()
+    })
+    it('en modification : on peut quand même déplacer une caméra sans flux (il faut pouvoir la placer)', () => {
+      const { drag, ctx } = setup()
+      drag({ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1', inactive: 1 } }, { x: 30, y: 40 })
+      expect(ctx.onMoveCamera).toHaveBeenCalledWith('c1', 30, 40)
+    })
     it('une lampe qu’on peut déplacer : main ouverte ; son nom est annoncé, puis effacé en la quittant', () => {
       const { fire, state, canvas, ctx } = setup()
       state.hits = [{ layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l' } }]
@@ -325,6 +408,129 @@ describe('attachEditing', () => {
       const { drag, ctx } = setup()
       drag({ layer, properties: { kind, id } }, { x: 20, y: 30 }, { x: 10, y: 10 })
       expect(ctx.onMoveOffset).toHaveBeenCalledWith(id, base.dx + 10, base.dy + 20)
+    })
+    it('déplace un coin des carreaux : le contour entier est rendu', () => {
+      const { drag, ctx } = setup()
+      drag({ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 1 } }, { x: 30.2, y: 40.4 })
+      expect(ctx.onMoveTiles).toHaveBeenCalledWith([
+        [0, 0],
+        [30, 40],
+        [10, 10],
+      ])
+    })
+    it('déplace un coin du chemin du garage, sans son décalage', () => {
+      const { drag, ctx } = setup()
+      drag({ layer: 'plan-poignees', properties: { kind: 'garage-vertex', id: 'garage', index: 1 } }, { x: 30, y: 40 })
+      expect(ctx.onMoveGarage).toHaveBeenCalledWith([
+        [0, 0],
+        [25, 34],
+        [10, 10],
+      ])
+    })
+    it('déplace un coin partagé de pièces : tous les coins tenus bougent, les autres ne bougent pas', () => {
+      const rooms = [
+        [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
+        [{ x1: 10, y1: 0, x2: 20, y2: 10 }],
+      ]
+      const { drag, ctx } = setup({ roomRects: rooms, onMoveRooms: vi.fn() })
+      drag({ layer: 'plan-poignees', properties: { kind: 'room-vertex', id: 'rooms', refs: '0.0.1;1.0.0' } }, { x: 12.4, y: 3.6 })
+      expect(ctx.onMoveRooms).toHaveBeenCalledWith([
+        [{ x1: 0, y1: 4, x2: 12, y2: 10 }],
+        [{ x1: 12, y1: 4, x2: 20, y2: 10 }],
+      ])
+    })
+    it('un coin de pièce se cale sur les lignes des autres coins quand l’alignement est actif', () => {
+      const rooms = [
+        [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
+        [{ x1: 10, y1: 0, x2: 20, y2: 10 }],
+      ]
+      const { drag, ctx } = setup({ roomRects: rooms, onMoveRooms: vi.fn(), snap: true })
+      drag({ layer: 'plan-poignees', properties: { kind: 'room-vertex', id: 'rooms', refs: '0.0.2;1.0.3' } }, { x: 19, y: 1 })
+      expect(ctx.onMoveRooms).toHaveBeenCalledWith([
+        [{ x1: 0, y1: 0, x2: 20, y2: 0 }],
+        [{ x1: 20, y1: 0, x2: 20, y2: 0 }],
+      ])
+    })
+    it('casse une ligne du chemin du garage : le rond du milieu crée un coin, puis on le tient', () => {
+      const { drag, ctx } = setup()
+      drag({ layer: 'plan-poignees-milieu', properties: { kind: 'garage-mid', id: 'garage', index: 0 } }, { x: 45, y: 56 })
+      expect(ctx.onMoveGarage).toHaveBeenNthCalledWith(1, [
+        [0, 0],
+        [5, 0],
+        [10, 0],
+        [10, 10],
+      ])
+      expect(ctx.onMoveGarage).toHaveBeenLastCalledWith([
+        [0, 0],
+        [40, 50],
+        [10, 0],
+        [10, 10],
+      ])
+    })
+    it('déplace une icône seule (pompe à chaleur) en modification', () => {
+      const { drag, ctx } = setup({ onMoveDecor: vi.fn() })
+      drag({ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'pac' } }, { x: 30.4, y: 40.6 })
+      expect(ctx.onMoveDecor).toHaveBeenCalledWith('pac', 30, 41)
+    })
+    it('un coin de pièce sans liste de coins dans la saisie ne déplace rien', () => {
+      const { drag, ctx } = setup({ roomRects: [[{ x1: 0, y1: 0, x2: 10, y2: 10 }]], onMoveRooms: vi.fn() })
+      drag({ layer: 'plan-poignees', properties: { kind: 'room-vertex', id: 'rooms' } }, { x: 5, y: 5 })
+      expect(ctx.onMoveRooms).toHaveBeenCalledWith([[{ x1: 0, y1: 0, x2: 10, y2: 10 }]])
+    })
+    it('cale un coin du chemin du garage quand l’alignement est actif', () => {
+      const { drag, ctx } = setup({ snap: true })
+      drag({ layer: 'plan-poignees', properties: { kind: 'garage-vertex', id: 'garage', index: 1 } }, { x: 7, y: 8 })
+      expect(ctx.onMoveGarage).toHaveBeenCalled()
+    })
+    it('casse une ligne : le rond du milieu crée un coin tout de suite, puis on le tient', () => {
+      const { drag, ctx } = setup()
+      drag({ layer: 'plan-poignees-milieu', properties: { kind: 'tiles-mid', id: 'tiles', index: 0 } }, { x: 40, y: 50 })
+      // Un coin de plus au milieu de (0,0)-(10,0), créé à la saisie, puis déplacé.
+      expect(ctx.onMoveTiles).toHaveBeenNthCalledWith(1, [
+        [0, 0],
+        [5, 0],
+        [10, 0],
+        [10, 10],
+      ])
+      expect(ctx.onMoveTiles).toHaveBeenLastCalledWith([
+        [0, 0],
+        [40, 50],
+        [10, 0],
+        [10, 10],
+      ])
+    })
+    it('un double clic sur un coin le retire, sauf s’il n’en reste que trois', () => {
+      const { fire, state, ctx } = setup({
+        tilesRing: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+      })
+      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 1 } }]
+      fire('dblclick', { ...mouse(1, 1), preventDefault: vi.fn() })
+      expect(ctx.onMoveTiles).toHaveBeenCalledWith([
+        [0, 0],
+        [10, 10],
+        [0, 10],
+      ])
+    })
+    it('à trois coins, un double clic n’en retire plus', () => {
+      const { fire, state, ctx } = setup()
+      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'garage-vertex', id: 'garage', index: 1 } }]
+      fire('dblclick', { ...mouse(1, 1), preventDefault: vi.fn() })
+      expect(ctx.onMoveGarage).not.toHaveBeenCalled()
+    })
+    it('cale un coin sur l’alignement de ses voisins quand l’alignement est actif', () => {
+      const { drag, ctx } = setup({ snap: true })
+      // Le coin 1 est entre (0, 0) et (10, 10) : x à 2 de 0 → 0, y à 3 de 10 → 10.
+      drag({ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 1 } }, { x: 2, y: 7 })
+      expect(ctx.onMoveTiles).toHaveBeenCalledWith([
+        [0, 0],
+        [0, 10],
+        [10, 10],
+      ])
     })
     it('règle le rayon d’un arbre, borné', () => {
       const { drag, ctx } = setup()
@@ -540,7 +746,13 @@ describe('attachEditing', () => {
     })
 
     it('un toucher sans rappel ne casse rien', () => {
-      const { fire, state } = setup({ onMovePlug: undefined, onTogglePlug: vi.fn(), onToggleEmoji: vi.fn(), onToggleAc: vi.fn(), onToggleShutter: vi.fn() })
+      const { fire, state } = setup({
+        onMovePlug: undefined,
+        onTogglePlug: vi.fn(),
+        onToggleEmoji: vi.fn(),
+        onToggleAc: vi.fn(),
+        onToggleShutter: vi.fn(),
+      })
       for (const kind of ['plug-hit', 'emoji-hit', 'ac-hit', 'shutter-hit']) {
         state.hits = [saisie(kind, 'x')]
         fire('mousedown', mouse(10, 10))

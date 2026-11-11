@@ -8,7 +8,6 @@ import {
   fetchAutomations,
   fetchEvents,
   fetchFade,
-  fetchGuest,
   fetchLampPositions,
   fetchLights,
   fetchLive,
@@ -35,7 +34,6 @@ import {
   setAc,
   fetchAc,
   setClipEmoji,
-  setClipNote,
   setClipSaved,
   setHue,
   setPlug,
@@ -64,7 +62,6 @@ describe('lectures (GET)', () => {
     ['fetchLive', (k) => fetchLive(k), '/direct'],
     ['fetchEvents', (k) => fetchEvents(k), '/events'],
     ['fetchSavedEvents', (k) => fetchSavedEvents(k), '/events?saved=1'],
-    ['fetchGuest', (k) => fetchGuest(k), '/guest'],
     ['fetchPower', (k) => fetchPower(k), '/poe'],
     ['fetchPlug', (k) => fetchPlug(k), '/plug'],
     ['fetchHeating', (k) => fetchHeating(k), '/plug/heating'],
@@ -138,7 +135,6 @@ describe('écritures', () => {
   const plan = { trees: [], hedges: [], cage: null, offsets: {}, items: {}, cameras: [], links: {} } as PlanDocument
   const writes: [string, (k: string) => Promise<unknown>, string, string, unknown][] = [
     ['setClipSaved', (k) => setClipSaved(k, 'a/b', true), '/clips/a%2Fb/saved', 'PUT', { saved: true }],
-    ['setClipNote', (k) => setClipNote(k, 'a/b', 'renard'), '/clips/a%2Fb/note', 'PUT', { note: 'renard' }],
     ['setClipEmoji', (k) => setClipEmoji(k, 'a/b', '🦊'), '/clips/a%2Fb/emoji', 'PUT', { emoji: '🦊' }],
     ['setAc', (k) => setAc(k, 'a 1', { on: true }), '/ac/a%201', 'POST', { on: true }],
     ['setCameraPower', (k) => setCameraPower(k, 'c 1', false), '/poe/c%201', 'POST', { on: false }],
@@ -189,10 +185,6 @@ describe('écritures', () => {
     await expect(saveHeating('k', {})).rejects.toMatchObject({ status: 400, message: '/plug/heating : HTTP 400' })
     stubFetch(() => reply({ error: 3 }, 400))
     await expect(saveHeating('k', {})).rejects.toMatchObject({ message: '/plug/heating : HTTP 400' })
-  })
-  it('setClipNote rend la note gardée par l’API', async () => {
-    stubFetch(() => reply({ id: 'a', note: 'renard' }))
-    expect(await setClipNote('k', 'a', ' renard ')).toBe('renard')
   })
   it('fetchAc rend la liste des unités', async () => {
     const spy = stubFetch(() => reply({ units: [{ id: 'a' }] }))

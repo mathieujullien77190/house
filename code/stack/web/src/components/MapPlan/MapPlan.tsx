@@ -20,6 +20,7 @@ import {
   SATELLITE,
   ALWAYS_HIT,
   EDIT_LABEL,
+  SNAP_LABEL,
   FILTERS,
   LAMP_LABEL_CLASS,
   LINK_LABEL,
@@ -38,12 +39,22 @@ import {
   ACTIONS_CLASS,
   WRAPPER_CLASS,
 } from './constants'
+import { PLAN_GARAGE_CORNERS } from '@/components/Lights/constants'
 import { attachEditing } from './edit'
 import { planToLngLat } from './projection'
 import { addMapIcons, addStatusDots, watchDynamicImages } from './icons'
-import { liveFeatures, readPalette, staticFeatures, type LiveData, type Palette } from './features'
+import {
+  defaultRoomRects,
+  liveFeatures,
+  readPalette,
+  staticFeatures,
+  tilesOutline,
+  type LiveData,
+  type Palette,
+  type PlanDecor,
+} from './features'
 import { bulbLabel } from './helpers'
-import { addPlanLayers, LINK_SOURCE, POINTS_SOURCE, SHAPES_SOURCE } from './layers'
+import { addPlanLayers, LINK_SOURCE, POINTS_SOURCE, SHAPES_SOURCE, STATIC_SOURCE } from './layers'
 import type { MapPlanProps, ResolvedProps } from './types'
 
 setWorkerUrl(workerUrl)
@@ -58,6 +69,7 @@ const EMPTY_ACS: PlanAc[] = []
 const EMPTY_SHUTTERS: PlanShutter[] = []
 const EMPTY_LABELS: PlanLabel[] = []
 const EMPTY_EMOJIS: PlanEmoji[] = []
+const EMPTY_DECORS: PlanDecor[] = []
 const EMPTY_NAMES: string[] = []
 const EMPTY_LINKS: Record<string, string> = {}
 
@@ -79,6 +91,7 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
     shutters: given.shutters ?? EMPTY_SHUTTERS,
     labels: given.labels ?? EMPTY_LABELS,
     emojis: given.emojis ?? EMPTY_EMOJIS,
+    decors: given.decors ?? EMPTY_DECORS,
     lamps,
     hoveredCameraId,
     // Un clic sur une caméra la choisit (`onSelectCamera`) ; son double clic ouvre sa page (`onOpenCamera`, hors modification).
@@ -113,11 +126,15 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
     onSelectHedge: undefined,
     onMoveCage: undefined,
     onMoveOffset: undefined,
+    onMoveTiles: undefined,
+    onMoveGarage: undefined,
     onMoveLamp: undefined,
     onMoveAc: undefined,
     onMoveShutter: undefined,
     onMoveLabel: undefined,
     onMoveEmoji: undefined,
+    onMoveDecor: undefined,
+    onMoveRooms: undefined,
     onMovePlug: undefined,
     onLink: undefined,
     selectedTreeId: '',
@@ -129,6 +146,12 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
 const liveData = (props: ResolvedProps): LiveData => ({
   cage: props.cage,
   offsets: props.offsets,
+  rooms: props.rooms ?? null,
+  canEditRooms: Boolean(props.onMoveRooms),
+  tiles: props.tiles ?? null,
+  canEditTiles: Boolean(props.onMoveTiles),
+  garage: props.garage ?? null,
+  canEditGarage: Boolean(props.onMoveGarage),
   gates: props.gates,
   cameras: props.cameras,
   trees: props.trees,
@@ -139,6 +162,7 @@ const liveData = (props: ResolvedProps): LiveData => ({
   shutters: props.shutters,
   labels: props.labels,
   emojis: props.emojis,
+  decors: props.decors,
   selectedCameraId: props.selectedCameraId,
   hoveredCameraId: props.hoveredCameraId,
   selectedTreeId: props.selectedTreeId,
@@ -199,6 +223,12 @@ const MapPlan = (given: MapPlanProps) => {
   useEffect(() => {
     latest.current = props
   })
+  // Les coins des carreaux et du chemin se calent sur les lignes droites (case « Aligner », cochée au départ).
+  const [snap, setSnap] = useState(true)
+  const snapRef = useRef(snap)
+  useEffect(() => {
+    snapRef.current = snap
+  }, [snap])
 
   useEffect(() => {
     const element = container.current
@@ -248,7 +278,13 @@ const MapPlan = (given: MapPlanProps) => {
         setProblem(error instanceof Error ? error.message : String(error))
       }
     })
-    const detach = attachEditing(map, () => latest.current)
+    const detach = attachEditing(map, () => ({
+      ...latest.current,
+      tilesRing: latest.current.tiles ?? tilesOutline(latest.current.cage),
+      roomRects: latest.current.rooms ?? defaultRoomRects(),
+      garageRing: latest.current.garage ?? PLAN_GARAGE_CORNERS,
+      snap: snapRef.current,
+    }))
 
     return () => {
       detach()
@@ -365,6 +401,13 @@ const MapPlan = (given: MapPlanProps) => {
     ;(map.getSource(POINTS_SOURCE) as GeoJSONSource | undefined)?.setData(live.points)
   }, [props, styleReady])
 
+  // Les murs de la maison ont été modifiés (les pièces, leurs murs) : la partie fixe suit.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    ;(map.getSource(STATIC_SOURCE) as GeoJSONSource | undefined)?.setData(staticFeatures(props.rooms ?? defaultRoomRects()))
+  }, [props.rooms, styleReady])
+
   const lamp = props.lamps.find((item) => item.id === activeLamp)
   const ac = props.acs.find((item) => item.id === activeAc)
   const shutter = props.shutters.find((item) => item.id === activeShutter)
@@ -399,6 +442,7 @@ const MapPlan = (given: MapPlanProps) => {
             {EDIT_LABEL}
           </Button>
         )}
+        {given.fill || !editing ? null : <Checkbox label={SNAP_LABEL} checked={snap} onChange={setSnap} />}
         <div className={FILTERS_BAR_CLASS}>
           {FILTERS.map((filter) => (
             <Checkbox

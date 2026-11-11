@@ -13,10 +13,6 @@ export const briOf = (percent: number): number => Math.min(MAX_BRI, Math.max(1, 
 /** « 2/7 allumée(s) » à côté du titre d'une pièce. */
 export const countText = (room: LightsRoom): string => `${room.lights.filter((light) => light.on).length}/${room.lights.length}${COUNT_SUFFIX}`
 
-/** Les zones qui ont au moins une lampe allumée d'abord, les autres ensuite ; l'ordre d'origine est gardé dans chaque groupe. Les lampes, elles, ne changent jamais de place dans leur zone. */
-export const roomsOnFirst = (rooms: LightsRoom[]): LightsRoom[] =>
-  [...rooms].sort((a, b) => Number(b.lights.some((light) => light.on)) - Number(a.lights.some((light) => light.on)))
-
 /** La part de la couleur orange d'un bloc de lampe allumée selon sa luminosité (en %, de 1 à 100) : de 25 % (presque blanc) à 100 % ; le reste est le fond. Plus la lampe est basse, plus le jaune s'éclaircit. */
 export const orangeShare = (percent: number): number => 25 + (75 * Math.min(100, Math.max(0, percent))) / 100
 

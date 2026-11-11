@@ -58,6 +58,8 @@ export interface PlanState {
   moveCage: (x: number, y: number) => void
   moveOffset: (id: string, dx: number, dy: number) => void
   moveItem: (id: string, x: number, y: number) => void
+  /** Pose d'un coup plusieurs éléments (les coins des carreaux). */
+  moveItems: (items: Record<string, { x: number; y: number }>) => void
   moveCamera: (id: string, x: number, y: number) => void
   adjustCamera: (id: string, setting: { angle: number; far: number; fov: number }) => void
   link: (planId: string, camera: string) => void
@@ -152,6 +154,10 @@ export const usePlan = (apiKey: string): PlanState => {
     (id: string, x: number, y: number) => change((p) => ({ ...p, items: { ...p.items, [id]: { x, y } } })),
     [change],
   )
+  const moveItems = useCallback(
+    (items: Record<string, { x: number; y: number }>) => change((p) => ({ ...p, items: { ...p.items, ...items } })),
+    [change],
+  )
   const moveCamera = useCallback(
     (id: string, x: number, y: number) =>
       change((p) => ({ ...p, cameras: p.cameras.map((camera) => (camera.id === id ? { ...camera, x, y } : camera)) })),
@@ -187,6 +193,7 @@ export const usePlan = (apiKey: string): PlanState => {
     moveCage,
     moveOffset,
     moveItem,
+    moveItems,
     moveCamera,
     adjustCamera,
     link,

@@ -1,7 +1,24 @@
 import type { TimelineSegment, TimelineTick } from '@house/ui'
 import { describeEvent } from '@/lib/format'
 import type { EventRow } from '@/types'
-import { COVERAGE_GAP, FUTURE_SHARE, MARKER_LEAD_SECONDS, MAX_REFRESH_MS, MAX_TICKS, MAX_WINDOW, MIN_REFETCH_SECONDS, MIN_REFRESH_MS, MIN_TICKS, REFETCH_DIVISOR, MIN_WIDTH, MIN_WINDOW, RANGES, TICK_MIN_PX, TICK_MIN_PX_VERTICAL, TICK_STEPS } from './constants'
+import {
+  COVERAGE_GAP,
+  FUTURE_SHARE,
+  MARKER_LEAD_SECONDS,
+  MAX_REFRESH_MS,
+  MAX_TICKS,
+  MAX_WINDOW,
+  MIN_REFETCH_SECONDS,
+  MIN_REFRESH_MS,
+  MIN_TICKS,
+  REFETCH_DIVISOR,
+  MIN_WIDTH,
+  MIN_WINDOW,
+  RANGES,
+  TICK_MIN_PX,
+  TICK_MIN_PX_VERTICAL,
+  TICK_STEPS,
+} from './constants'
 import type { Marker, RangeId } from './types'
 
 export const secondsOf = (id: RangeId): number => (RANGES.find((r) => r.id === id) ?? RANGES[0]).seconds
@@ -27,7 +44,8 @@ export const timeAt = (fraction: number, end: number, seconds: number): number =
  * Un numéro qui change quand la fenêtre a assez avancé pour justifier de redemander images gardées et événements :
  * le bord droit d'une fenêtre en direct bouge à chaque seconde, les requêtes n'ont pas à suivre.
  */
-export const fetchBucket = (end: number, seconds: number): number => Math.floor(end / Math.max(MIN_REFETCH_SECONDS, seconds / REFETCH_DIVISOR))
+export const fetchBucket = (end: number, seconds: number): number =>
+  Math.floor(end / Math.max(MIN_REFETCH_SECONDS, seconds / REFETCH_DIVISOR))
 
 /** L'image gardée la plus proche d'un instant (secondes), ou null s'il n'y en a aucune. */
 export const nearestTime = (times: number[], at: number): number | null =>
@@ -35,10 +53,13 @@ export const nearestTime = (times: number[], at: number): number | null =>
 
 /** Le nombre de graduations que porte un axe de cette largeur (en pixels) ; MAX_TICKS tant que la largeur est inconnue (0). */
 export const maxTicksFor = (axisLength: number, vertical = false): number =>
-  axisLength > 0 ? Math.min(MAX_TICKS, Math.max(MIN_TICKS, Math.floor(axisLength / (vertical ? TICK_MIN_PX_VERTICAL : TICK_MIN_PX)))) : MAX_TICKS
+  axisLength > 0
+    ? Math.min(MAX_TICKS, Math.max(MIN_TICKS, Math.floor(axisLength / (vertical ? TICK_MIN_PX_VERTICAL : TICK_MIN_PX))))
+    : MAX_TICKS
 
 /** Le pas de graduation adapté à la fenêtre : le plus petit qui donne au plus `maxTicks` graduations. */
-export const tickStep = (seconds: number, maxTicks = MAX_TICKS): number => TICK_STEPS.find((step) => seconds / step <= maxTicks) ?? TICK_STEPS[TICK_STEPS.length - 1]
+export const tickStep = (seconds: number, maxTicks = MAX_TICKS): number =>
+  TICK_STEPS.find((step) => seconds / step <= maxTicks) ?? TICK_STEPS[TICK_STEPS.length - 1]
 
 const tickLabel = (time: number, step: number): string => {
   const date = new Date(time * 1000)
@@ -124,7 +145,8 @@ export const focusOn = (event: EventRow, share: number, now: number): { seconds:
 }
 
 /** La coordonnée du pointeur le long de l'axe : x sur l'axe horizontal, y sur l'axe vertical. */
-export const alongOf = (point: { clientX: number; clientY: number }, vertical: boolean): number => (vertical ? point.clientY : point.clientX)
+export const alongOf = (point: { clientX: number; clientY: number }, vertical: boolean): number =>
+  vertical ? point.clientY : point.clientX
 
 /**
  * La place d'une coordonnée sur l'axe, de 0 (instant le plus ancien) à 1 (le plus récent). L'axe horizontal a le plus
@@ -136,11 +158,13 @@ export const fractionAlong = (coordinate: number, rect: DOMRect, vertical: boole
 }
 
 /** La longueur de l'axe en pixels : sa largeur, ou sa hauteur quand il est vertical. */
-export const axisLength = (axis: { clientWidth: number; clientHeight: number }, vertical: boolean): number => (vertical ? axis.clientHeight : axis.clientWidth)
+export const axisLength = (axis: { clientWidth: number; clientHeight: number }, vertical: boolean): number =>
+  vertical ? axis.clientHeight : axis.clientWidth
 
 /**
  * De combien de secondes la fenêtre se décale quand le doigt glisse de `delta` pixels sur un axe de `length` pixels. Le
  * contenu suit le doigt : vers la droite on découvre le passé (horizontal) ; vers le bas on découvre le plus récent
  * (vertical, le plus récent en haut).
  */
-export const shiftSeconds = (delta: number, length: number, seconds: number, vertical: boolean): number => (vertical ? 1 : -1) * (delta / (length || 1)) * seconds
+export const shiftSeconds = (delta: number, length: number, seconds: number, vertical: boolean): number =>
+  (vertical ? 1 : -1) * (delta / (length || 1)) * seconds

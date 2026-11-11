@@ -27,8 +27,8 @@ export const PARCEL: [number, number][] = [
   [2.65033234, 48.52209073],
 ]
 
-/** La demi-épaisseur de la haie (28 unités de trait) : les ouvertures des portails la comptent, pour que les bouts arrondis ne mordent pas dessus. */
-const HEDGE_HALF = 14
+/** La demi-épaisseur de la haie (56 unités de trait) : les ouvertures des portails la comptent, pour que les bouts arrondis ne mordent pas dessus. */
+const HEDGE_HALF = 28
 
 const parcel = parcelPoints(PARCEL, MAP_CENTER, MAP_ANCHOR, MAP_ROTATION_DEG, MAP_UNITS_PER_METER)
 // La haie suit la limite de la parcelle (son axe pile dessus).

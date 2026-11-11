@@ -6,8 +6,41 @@ import { queryClient } from '@/lib/queryClient'
 import { useDebounced } from '@/lib/useDebounced'
 import { useMobile } from '@/lib/useMobile'
 import type { EventRow } from '@/types'
-import { DRAG_THRESHOLD, EVENT_FOCUS_SHARE, EVENTS_DEBOUNCE_MS, FALLBACK_IMAGE_SECONDS, FAST_TICK_MS, FOLLOW_EDGE, MAX_FUTURE_SHARE, NOW_ZOOM_SECONDS, PLAY_INTERVAL_MS, RANGES, SNAP_SHARE, WHEEL_FACTOR } from './constants'
-import { alongOf, axisLength, buildCoverage, buildMarkers, buildTicks, clampWindow, fractionAlong, fetchBucket, focusOn, liveEnd, maxTicksFor, mergeEvents, nearestTime, positionOf, refreshEvery, presetOf, secondsOf, shiftSeconds, timeAt } from './helpers'
+import {
+  DRAG_THRESHOLD,
+  EVENT_FOCUS_SHARE,
+  EVENTS_DEBOUNCE_MS,
+  FALLBACK_IMAGE_SECONDS,
+  FAST_TICK_MS,
+  FOLLOW_EDGE,
+  MAX_FUTURE_SHARE,
+  NOW_ZOOM_SECONDS,
+  PLAY_INTERVAL_MS,
+  RANGES,
+  SNAP_SHARE,
+  WHEEL_FACTOR,
+} from './constants'
+import {
+  alongOf,
+  axisLength,
+  buildCoverage,
+  buildMarkers,
+  buildTicks,
+  clampWindow,
+  fractionAlong,
+  fetchBucket,
+  focusOn,
+  liveEnd,
+  maxTicksFor,
+  mergeEvents,
+  nearestTime,
+  positionOf,
+  refreshEvery,
+  presetOf,
+  secondsOf,
+  shiftSeconds,
+  timeAt,
+} from './helpers'
 import type { RangeId, TimelineProps } from './types'
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
@@ -22,21 +55,37 @@ const NO_EVENTS: EventRow[] = []
  * l'image d'un instant. Ce qu'on choisit (instant ou événement) remonte à la carte de la caméra.
  * Le dessin est celui de @house/ui ; ici, les calculs et les gestes.
  */
-const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead, clipRange, selectedEventId, fill = false, rate = 1, controls }: TimelineProps) => {
+const Timeline = ({
+  apiKey,
+  camera,
+  events: recent,
+  onCursor,
+  onEvent,
+  playhead,
+  clipRange,
+  selectedEventId,
+  fill = false,
+  rate = 1,
+  controls,
+  initialCursor,
+}: TimelineProps) => {
   // Sur téléphone (sous 1024 px) la frise est verticale, le plus récent en haut ; sur grand écran, horizontale.
   const vertical = useMobile()
   const [seconds, setSeconds] = useState(NOW_ZOOM_SECONDS)
-  const [end, setEnd] = useState(() => liveEnd(nowSeconds(), NOW_ZOOM_SECONDS))
-  const [live, setLive] = useState(true)
+  // Un instant de départ (ouvert depuis l'image d'une autre caméra) : la fenêtre le contient, centré si c'est loin du direct.
+  const pastStart = initialCursor !== undefined && initialCursor <= liveEnd(nowSeconds(), NOW_ZOOM_SECONDS) - NOW_ZOOM_SECONDS ? initialCursor : null
+  const startsLive = pastStart === null
+  const [end, setEnd] = useState(() => (pastStart === null ? liveEnd(nowSeconds(), NOW_ZOOM_SECONDS) : Math.round(pastStart + NOW_ZOOM_SECONDS / 2)))
+  const [live, setLive] = useState(startsLive)
   const [selectedId, setSelectedId] = useState('')
   // La carte a fermé l'événement (bouton « Fermer » du lecteur) : la sélection de la frise suit, sinon le curseur resterait figé.
   if (selectedEventId === '' && selectedId !== '') setSelectedId('')
   // Le clip ouvert reste choisi dans la frise (un reclic sur son bloc ne le désélectionne pas).
   if (selectedEventId && selectedId !== selectedEventId) setSelectedId(selectedEventId)
-  const [cursor, setCursor] = useState<number | null>(null)
+  const [cursor, setCursor] = useState<number | null>(initialCursor ?? null)
   const bucket = fetchBucket(end, seconds)
   // L'instant de la dernière image demandée au parent et l'heure du dernier pas : le curseur avance en temps réel.
-  const reported = useRef<number | null>(null)
+  const reported = useRef<number | null>(initialCursor ?? null)
   const lastStep = useRef(0)
   const [dragging, setDragging] = useState(false)
   // Les événements de la fenêtre (demandés avec from et to : l'historique, pas seulement les 200 derniers) et le nombre de plus anciens.
@@ -121,34 +170,44 @@ const Timeline = ({ apiKey, camera, events: recent, onCursor, onEvent, playhead,
   // `rate` : la vitesse du curseur, en secondes de frise par seconde réelle (1 : temps réel ; négatif : il recule). Au-delà du temps réel il se met à jour plus souvent.
   useEffect(() => {
     if (cursor === null || selectedId || dragging) return
-    const timer = setTimeout(() => {
-      // Le pas se mesure à l'horloge : les temporisations dérivent, le curseur ne doit pas prendre de retard.
-      const now = Date.now()
-      const move = Math.round((rate * (now - lastStep.current)) / 1000)
-      const next = cursor + move
-      lastStep.current = now
-      if (next >= nowSeconds()) {
-        setCursor(null)
-        onCursor(null)
-        return
-      }
-      // En reculant, on s'arrête à la plus ancienne image gardée.
-      const oldest = times[0]
-      if (rate < 0 && oldest !== undefined && next < oldest - FALLBACK_IMAGE_SECONDS) {
-        setCursor(oldest)
-        return
-      }
-      setCursor(next)
-      const shot = nearestTime(times, next)
-      const wanted = shot ?? (reported.current === null || next - reported.current >= FALLBACK_IMAGE_SECONDS ? next : reported.current)
-      if (wanted !== reported.current) {
-        reported.current = wanted
-        onCursor(wanted)
-      }
-      const { seconds: current, end: currentEnd } = view.current
-      const position = positionOf(next, currentEnd, current)
-      if (position > FOLLOW_EDGE * 100 || (rate < 0 && position < 100 - FOLLOW_EDGE * 100)) place(next + current * 0.5, current)
-    }, Math.abs(rate) > 1 ? FAST_TICK_MS : PLAY_INTERVAL_MS)
+    // Vitesse 0 : le temps est arrêté, le curseur reste ; à la reprise, le pas repart de maintenant (pas de saut).
+    if (rate === 0) {
+      lastStep.current = Date.now()
+      return
+    }
+    // Ouverte sur un instant (depuis l'image d'une autre caméra), la frise n'a jamais fait de pas : l'horloge du pas part de maintenant, sinon le premier pas serait énorme et renverrait au direct.
+    if (lastStep.current === 0) lastStep.current = Date.now()
+    const timer = setTimeout(
+      () => {
+        // Le pas se mesure à l'horloge : les temporisations dérivent, le curseur ne doit pas prendre de retard.
+        const now = Date.now()
+        const move = Math.round((rate * (now - lastStep.current)) / 1000)
+        const next = cursor + move
+        lastStep.current = now
+        if (next >= nowSeconds()) {
+          setCursor(null)
+          onCursor(null)
+          return
+        }
+        // En reculant, on s'arrête à la plus ancienne image gardée.
+        const oldest = times[0]
+        if (rate < 0 && oldest !== undefined && next < oldest - FALLBACK_IMAGE_SECONDS) {
+          setCursor(oldest)
+          return
+        }
+        setCursor(next)
+        const shot = nearestTime(times, next)
+        const wanted = shot ?? (reported.current === null || next - reported.current >= FALLBACK_IMAGE_SECONDS ? next : reported.current)
+        if (wanted !== reported.current) {
+          reported.current = wanted
+          onCursor(wanted)
+        }
+        const { seconds: current, end: currentEnd } = view.current
+        const position = positionOf(next, currentEnd, current)
+        if (position > FOLLOW_EDGE * 100 || (rate < 0 && position < 100 - FOLLOW_EDGE * 100)) place(next + current * 0.5, current)
+      },
+      Math.abs(rate) > 1 ? FAST_TICK_MS : PLAY_INTERVAL_MS,
+    )
     return () => clearTimeout(timer)
   }, [cursor, selectedId, dragging, onCursor, times, rate])
 

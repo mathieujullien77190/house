@@ -21,10 +21,16 @@ const App = () => {
   const read = useReadClips()
   // Le clip demandé quand il est trop ancien pour les événements récents que la page relit (un clip sauvegardé, ouvert depuis son emoji sur la carte) : on le lit avec les clips sauvegardés.
   const [openRow, setOpenRow] = useState<EventRow | null>(null)
-  const openCameraWith = (camera: string | null, eventId?: string) => {
+  const [openAt, setOpenAt] = useState<number | undefined>(undefined)
+  const [openRate, setOpenRate] = useState<number | undefined>(undefined)
+  const [openSound, setOpenSound] = useState(false)
+  const openCameraWith = (camera: string | null, eventId?: string, at?: number, rate?: number, sound?: boolean) => {
     const show = (row: EventRow | null) => {
       setOpenRow(row)
       setOpenEvent(eventId)
+      setOpenAt(at)
+      setOpenRate(rate)
+      setOpenSound(sound ?? false)
       setOpenCamera(camera)
     }
     if (!camera || !eventId || house.events.some((event) => event.id === eventId)) {
@@ -51,6 +57,9 @@ const App = () => {
       tab={tab}
       openCamera={openCamera}
       openEvent={openEvent}
+      openAt={openAt}
+      openRate={openRate}
+      openSound={openSound}
       isRead={read.isRead}
       onRead={read.markRead}
       onOpenCamera={openCameraWith}

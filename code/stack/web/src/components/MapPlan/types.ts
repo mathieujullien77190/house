@@ -1,5 +1,7 @@
 import type { PlanAc, PlanEmoji, PlanLabel, PlanShutter, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanTree } from '@house/ui'
 import type { EditContext } from './edit'
+import type { PlanDecor, RoomRects } from './features'
+import type { Point } from './projection'
 
 /**
  * Le plan de la maison sur la carte : tous les éléments sont des données de la carte (longitude, latitude), donc ils restent exactement à leur place
@@ -12,6 +14,12 @@ export interface MapPlanProps extends Omit<EditContext, 'cameras' | 'trees' | 'h
   trees: PlanTree[]
   hedges: PlanHedge[]
   gates: PlanGate[]
+  /** Le contour des carreaux modifié à la main (ses coins) ; sans lui, le contour calculé. */
+  tiles?: Point[] | null
+  /** Les rectangles des pièces modifiés à la main (les murs de la maison) ; sans eux, ceux de départ. */
+  rooms?: RoomRects | null
+  /** Le contour du chemin du garage modifié à la main (avant son décalage) ; sans lui, celui de départ. */
+  garage?: Point[] | null
   lamps?: PlanLamp[]
   plugs?: PlanPlug[]
   /** Les climatisations (des rectangles) : un clic ouvre leur page, on les déplace en modification. */
@@ -32,6 +40,8 @@ export interface MapPlanProps extends Omit<EditContext, 'cameras' | 'trees' | 'h
   labels?: PlanLabel[]
   /** Les emoji des clips sauvegardés (un rond avec le pictogramme) : un clic le choisit (`onToggleEmoji`, le parent montre le clip), un double clic l'ouvre (`onOpenEmoji`) ; on les déplace en modification (`onMoveEmoji`). */
   emojis?: PlanEmoji[]
+  /** Les icônes seules posées sur le plan (la pompe à chaleur) : sans rond, on les déplace en modification (`onMoveDecor`). */
+  decors?: PlanDecor[]
   /** Le clip choisi : sert à l'ancre et à la vue imposée par le parent ; la carte ne le dessine pas autrement. */
   selectedEmojiId?: string
   /** Un clic sur la prise (le chauffage), hors modification : la choisit (`onSelectPlug`) ; son double clic ouvre sa page (`onOpenPlug`). En modification, elle se déplace et le clic ne fait rien. */
@@ -69,6 +79,7 @@ export type ResolvedProps = Required<
     | 'shutters'
     | 'labels'
     | 'emojis'
+    | 'decors'
     | 'selectedCameraId'
     | 'hoveredCameraId'
     | 'cameraNames'
@@ -86,6 +97,7 @@ export type ResolvedProps = Required<
     | 'shutters'
     | 'labels'
     | 'emojis'
+    | 'decors'
     | 'selectedCameraId'
     | 'hoveredCameraId'
     | 'cameraNames'

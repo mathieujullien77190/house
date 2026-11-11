@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import LiveAudio from './LiveAudio'
 import { FAILED_TEXT, GAIN, LABEL_OFF, LABEL_ON } from './constants'
+import { END_DELAY_MS, endLive } from './session'
 
 /** Un lecteur audio simulé : jsdom n'a pas de vrai `Audio`. */
 class FakeAudio {
@@ -48,6 +49,7 @@ class FakeContext {
 }
 
 beforeEach(() => {
+  endLive()
   FakeAudio.all = []
   FakeAudio.playResult = () => Promise.resolve()
   FakeContext.all = []
@@ -123,15 +125,51 @@ describe('LiveAudio', () => {
     expect(FakeAudio.all[0].pause).toHaveBeenCalledTimes(1)
     expect(button()).toHaveAttribute('aria-pressed', 'false')
   })
-  it('quitter la vidéo (démontage) coupe le son ; sans son ouvert, rien à couper', () => {
+  it('quitter la vidéo (démontage) coupe le son après un instant ; sans son ouvert, rien à couper', () => {
+    vi.useFakeTimers()
     const idle = render(<LiveAudio camera="a" />)
     idle.unmount()
+    vi.advanceTimersByTime(END_DELAY_MS)
     expect(FakeAudio.all).toHaveLength(0)
     const view = render(<LiveAudio camera="a" />)
     fireEvent.click(button())
     view.unmount()
+    expect(FakeAudio.all[0].pause).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(END_DELAY_MS)
     expect(FakeAudio.all[0].pause).toHaveBeenCalledTimes(1)
     expect(FakeContext.all[0].close).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+  it('vue en grand : le bouton remonté ailleurs reprend le même son, sans coupure', () => {
+    vi.useFakeTimers()
+    const first = render(<LiveAudio camera="a" />)
+    fireEvent.click(button())
+    first.unmount()
+    // Le nouveau bouton arrive tout de suite : même lecteur, rien n'est coupé, il est déjà « ouvert ».
+    render(<LiveAudio camera="a" />)
+    vi.advanceTimersByTime(END_DELAY_MS * 2)
+    expect(FakeAudio.all).toHaveLength(1)
+    expect(FakeAudio.all[0].pause).not.toHaveBeenCalled()
+    expect(button()).toHaveAttribute('aria-pressed', 'true')
+    vi.useRealTimers()
+  })
+  it('un bouton qui disparaît ne coupe pas le son démarré entre-temps par un autre bouton', () => {
+    vi.useFakeTimers()
+    const gone = render(<LiveAudio camera="a" />)
+    render(<LiveAudio camera="b" />)
+    gone.unmount()
+    fireEvent.click(button())
+    vi.advanceTimersByTime(END_DELAY_MS * 2)
+    expect(FakeAudio.all[0].pause).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+  it('arriver sur une autre caméra coupe le son de la précédente', () => {
+    const first = render(<LiveAudio camera="a" />)
+    fireEvent.click(button())
+    first.unmount()
+    render(<LiveAudio camera="b" />)
+    expect(FakeAudio.all[0].pause).toHaveBeenCalledTimes(1)
+    expect(button()).toHaveAttribute('aria-pressed', 'false')
   })
   it('sans Web Audio : le son est joué tel quel et se coupe sans circuit', () => {
     FakeContext.broken = true
@@ -144,5 +182,35 @@ describe('LiveAudio', () => {
     fireEvent.click(button())
     expect(player.pause).toHaveBeenCalledTimes(1)
     expect(button()).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('LiveAudio : le son se garde d’une caméra à l’autre et en vue en grand', () => {
+  it('ouvert dès l’arrivée quand il l’était avant, sans le signaler de nouveau', () => {
+    const onChange = vi.fn()
+    render(<LiveAudio camera="b" initialOn onChange={onChange} />)
+    expect(FakeAudio.all).toHaveLength(1)
+    expect(FakeAudio.all[0].src).toContain('camera=b')
+    expect(button()).toHaveAttribute('aria-pressed', 'true')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('signale l’ouverture et la coupure faites par l’utilisateur', () => {
+    const onChange = vi.fn()
+    render(<LiveAudio camera="a" onChange={onChange} />)
+    fireEvent.click(button())
+    expect(onChange).toHaveBeenLastCalledWith(true)
+    fireEvent.click(button())
+    expect(onChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('un flux qui ne démarre pas est signalé comme coupé', async () => {
+    FakeAudio.playResult = () => Promise.reject(new Error('refusé'))
+    const onChange = vi.fn()
+    render(<LiveAudio camera="a" onChange={onChange} />)
+    await act(async () => {
+      fireEvent.click(button())
+    })
+    expect(onChange).toHaveBeenLastCalledWith(false)
   })
 })

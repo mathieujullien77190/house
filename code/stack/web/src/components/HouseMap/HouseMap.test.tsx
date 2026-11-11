@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   off: [] as string[],
   events: [] as EventRow[],
   moveItem: vi.fn(),
+  moveItems: vi.fn(),
   moveCage: vi.fn(),
   height: 530,
   lamps: [] as { id: string; x: number; y: number }[],
@@ -90,6 +91,7 @@ vi.mock('@/lib/usePlan', () => ({
     moveCamera: vi.fn(),
     adjustCamera: vi.fn(),
     moveItem: h.moveItem,
+    moveItems: h.moveItems,
     moveCage: h.moveCage,
   }),
 }))
@@ -556,6 +558,18 @@ describe('HouseMap : les déplacements et le choix des haies', () => {
     expect(h.moveItem).toHaveBeenCalledWith('shutter-1', 3, 4)
     call('onMoveAc', 'salon', 5, 6)
     expect(h.moveItem).toHaveBeenCalledWith('ac-salon', 5, 6)
+  })
+
+  it('les icônes seules et les contours se déplacent sous leur clé du plan', () => {
+    mount()
+    call('onMoveDecor', 'pac', 7, 8)
+    expect(h.moveItem).toHaveBeenCalledWith('decor-pac', 7, 8)
+    call('onMoveGarage', [[1, 2], [3, 4]])
+    expect(h.moveItems).toHaveBeenLastCalledWith({ 'garage-corner-0': { x: 1, y: 2 }, 'garage-corner-1': { x: 3, y: 4 } })
+    call('onMoveTiles', [[5, 6]])
+    expect(h.moveItems).toHaveBeenLastCalledWith({ 'tiles-corner-0': { x: 5, y: 6 } })
+    call('onMoveRooms', [[{ x1: 1, y1: 2, x2: 3, y2: 4 }]])
+    expect(h.moveItems).toHaveBeenLastCalledWith({ 'room-0-0-a': { x: 1, y: 2 }, 'room-0-0-b': { x: 3, y: 4 } })
   })
 
   it('la prise connectée est posée sur sa place de départ puis relayée à la carte', () => {

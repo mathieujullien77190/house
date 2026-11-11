@@ -5,13 +5,20 @@ import {
   SHUTTER_CLOSED_IMAGE,
   SHUTTER_OPEN_IMAGE,
   PLUG_IMAGE,
-  EMOJI_PREFIX, TEMPERATURE_PREFIX,
+  EMOJI_PREFIX,
+  TEMPERATURE_PREFIX,
   AC_IMAGE,
   CAMERA_IMAGE,
   CAMERA_DOT_MISSING_IMAGE,
   CAMERA_DOT_OFF_IMAGE,
   CAMERA_DOT_ON_IMAGE,
   LAMP_PREFIX,
+  AC_HOVER_IMAGE,
+  CAMERA_HOVER_IMAGE,
+  LAMP_HOVER_PREFIX,
+  PLUG_HOVER_IMAGE,
+  SHUTTER_CLOSED_HOVER_IMAGE,
+  SHUTTER_OPEN_HOVER_IMAGE,
 } from './icons'
 import type { ExpressionSpecification, FilterSpecification, LayerSpecification, Map as MapLibreMap } from 'maplibre-gl'
 import { MAP_CENTER, MAP_PLAN_OPACITY, MAP_UNITS_PER_METER, ROOM_FILL, ROOM_LINE } from './constants'
@@ -24,11 +31,14 @@ export const POINTS_SOURCE = 'plan-points'
 /** La ligne entre l'objet choisi et son bloc (une ligne, ou rien). */
 export const LINK_SOURCE = 'plan-lien'
 
+/** Le filtre du survol quand rien n'est survolé : aucun point n'a cet identifiant. */
+export const HOVER_NONE: FilterSpecification = ['==', ['get', 'id'], '__aucun__']
+
 /** Les couches du plan, de bas en haut. */
 export const PLAN_LAYERS = [
-  'plan-beton',
   'plan-garage',
   'plan-pavage',
+  'plan-beton',
   'plan-cage',
   'plan-cage-trait',
   'plan-toit',
@@ -39,29 +49,35 @@ export const PLAN_LAYERS = [
   'plan-portails',
   'plan-portes',
   'plan-lien',
-  'plan-cameras-dessous',
-  'plan-cameras-dessous-etat',
+  'plan-cameras',
+  'plan-survol-cameras',
+  'plan-cameras-etat',
   'plan-arbres',
   'plan-arbres-trait',
   'plan-vue',
-  'plan-cameras',
-  'plan-cameras-etat',
   'plan-lampes',
+  'plan-survol-lampes',
   'plan-clims',
+  'plan-survol-clims',
   'plan-clims-etat',
   'plan-volets',
+  'plan-survol-volets',
   'plan-volets-etat',
   'plan-prises',
+  'plan-survol-prises',
   'plan-prises-etat',
   'plan-etiquettes',
+  'plan-decors',
   'plan-emojis',
   'plan-saisie',
+  'plan-poignees-milieu',
   'plan-poignees',
 ] as const
 
 /** Ce qu'on peut saisir à la souris, du plus au moins prioritaire. */
 export const INTERACTIVE_LAYERS = [
   'plan-poignees',
+  'plan-poignees-milieu',
   'plan-saisie',
   'plan-portes',
   'plan-arbres',
@@ -70,15 +86,19 @@ export const INTERACTIVE_LAYERS = [
   'plan-garage',
 ] as const
 
-/** La caméra du plan qui passe sous les arbres : celle du salon de jardin (son identifiant dans le plan). */
-export const UNDER_TREES_CAMERA = 'cage-jardin'
+/**
+ * Le jumeau d'un calque d'icônes pour le survol : mêmes position, taille et rotation, mais l'image de l'icône sur fond **bleu pâle** (le fond blanc du rond devient bleu). Il ne montre
+ * que l'objet survolé (son filtre est réglé par `edit.ts`) et se pose juste au-dessus de l'icône normale, sous sa pastille d'état.
+ */
+const hoverTwin = (base: LayerSpecification, id: string, image: ExpressionSpecification | string): LayerSpecification =>
+  ({ ...base, id, filter: HOVER_NONE, layout: { ...(base as { layout?: object }).layout, 'icon-image': image } }) as LayerSpecification
 
 /** Un calque d'icônes de caméra : l'image (fond blanc, caméra noire), de taille presque fixe, tournée vers où regarde la caméra. */
-const cameraLayer = (id: string, idFilter: ExpressionSpecification): LayerSpecification => ({
+const cameraLayer = (id: string): LayerSpecification => ({
   id,
   type: 'symbol',
   source: POINTS_SOURCE,
-  filter: ['all', ['==', ['get', 'kind'], 'camera-hit'], idFilter],
+  filter: ['==', ['get', 'kind'], 'camera-hit'],
   layout: {
     'icon-image': CAMERA_IMAGE,
     'icon-size': CAMERA_SIZE,
@@ -91,11 +111,11 @@ const cameraLayer = (id: string, idFilter: ExpressionSpecification): LayerSpecif
 })
 
 /** La pastille d'état d'une caméra : un petit disque **centré sur le contour** de son rond, en haut à droite (à 45° : le rayon du rond, 14,5 px, fois cos 45°) (vert allumée, rouge éteinte, gris quand elle n'existe pas), sans rotation : il reste au coin quand l'icône tourne. */
-const cameraDotLayer = (id: string, idFilter: ExpressionSpecification): LayerSpecification => ({
+const cameraDotLayer = (id: string): LayerSpecification => ({
   id,
   type: 'symbol',
   source: POINTS_SOURCE,
-  filter: ['all', ['==', ['get', 'kind'], 'camera-hit'], idFilter],
+  filter: ['==', ['get', 'kind'], 'camera-hit'],
   layout: {
     'icon-image': ['match', ['get', 'state'], 'off', CAMERA_DOT_OFF_IMAGE, 'missing', CAMERA_DOT_MISSING_IMAGE, CAMERA_DOT_ON_IMAGE],
     'icon-size': CAMERA_SIZE,
@@ -131,12 +151,6 @@ export const addPlanLayers = (
   const kind = (name: string) => ['==', ['get', 'kind'], name]
   const opacity = MAP_PLAN_OPACITY
 
-  map.addLayer({
-    id: 'plan-beton',
-    type: 'fill',
-    ...only(STATIC_SOURCE, part('concrete')),
-    paint: { 'fill-color': '#d1d5db', 'fill-opacity': opacity },
-  })
   // Le chemin du garage : du béton, comme le reste, mais déplaçable.
   map.addLayer({
     id: 'plan-garage',
@@ -149,6 +163,13 @@ export const addPlanLayers = (
     type: 'fill',
     ...only(SHAPES_SOURCE, kind('tiles')),
     paint: { 'fill-color': '#fdba74', 'fill-opacity': opacity },
+  })
+  // Le béton derrière la maison passe au-dessus des carreaux.
+  map.addLayer({
+    id: 'plan-beton',
+    type: 'fill',
+    ...only(STATIC_SOURCE, part('concrete')),
+    paint: { 'fill-color': '#d1d5db', 'fill-opacity': opacity },
   })
   map.addLayer({
     id: 'plan-cage',
@@ -197,7 +218,7 @@ export const addPlanLayers = (
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: {
       'line-color': '#15803d',
-      'line-width': widthByZoom(28),
+      'line-width': widthByZoom(56),
       'line-opacity': ['case', ['==', ['get', 'selected'], 1], 0.6, opacity],
     },
   })
@@ -223,9 +244,10 @@ export const addPlanLayers = (
     layout: { 'line-cap': 'round' },
     paint: { 'line-color': palette.accent, 'line-width': 2 },
   })
-  // La caméra du salon de jardin passe sous les arbres : son icône est dessinée avant eux (et ils sont translucides, on la voit à travers).
-  map.addLayer(cameraLayer('plan-cameras-dessous', ['==', ['get', 'id'], UNDER_TREES_CAMERA]))
-  map.addLayer(cameraDotLayer('plan-cameras-dessous-etat', ['==', ['get', 'id'], UNDER_TREES_CAMERA]))
+  // Les caméras (l'icône à la place de chaque point, tournée vers où regarde la caméra) : toutes **sous les arbres** (ils sont translucides, on les voit à travers).
+  map.addLayer(cameraLayer('plan-cameras'))
+  map.addLayer(hoverTwin(cameraLayer('plan-cameras'), 'plan-survol-cameras', CAMERA_HOVER_IMAGE))
+  map.addLayer(cameraDotLayer('plan-cameras-etat'))
   map.addLayer({ id: 'plan-arbres', type: 'fill', ...only(SHAPES_SOURCE, kind('tree')), paint: { 'fill-color': ['get', 'color'] } })
   map.addLayer({
     id: 'plan-arbres-trait',
@@ -239,11 +261,8 @@ export const addPlanLayers = (
     ...only(SHAPES_SOURCE, kind('fov')),
     paint: { 'fill-color': palette.accent, 'fill-opacity': 0.3, 'fill-outline-color': palette.accent },
   })
-  // Les caméras (l'icône à la place de chaque point, tournée vers où regarde la caméra) : toutes au-dessus des arbres, sauf celle du salon de jardin (voir `plan-cameras-dessous`).
-  map.addLayer(cameraLayer('plan-cameras', ['!=', ['get', 'id'], UNDER_TREES_CAMERA]))
-  map.addLayer(cameraDotLayer('plan-cameras-etat', ['!=', ['get', 'id'], UNDER_TREES_CAMERA]))
   // Les ampoules : l'icône d'ampoule à la place de chaque point (orange allumée, grise éteinte, rouge injoignable), d'opacité suivant la luminosité.
-  map.addLayer({
+  const lampsLayer: LayerSpecification = {
     id: 'plan-lampes',
     type: 'symbol',
     source: POINTS_SOURCE,
@@ -255,9 +274,11 @@ export const addPlanLayers = (
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
-  })
+  }
+  map.addLayer(lampsLayer)
+  map.addLayer(hoverTwin(lampsLayer, 'plan-survol-lampes', ['concat', LAMP_HOVER_PREFIX, ['get', 'color']]))
   // Les climatisations : l'icône de climatisation (fond blanc, noire, orientée selon son mur) à la place de chaque point, et sa pastille d'état sur le contour (verte allumée, rouge éteinte, grise injoignable).
-  map.addLayer({
+  const acsLayer: LayerSpecification = {
     id: 'plan-clims',
     type: 'symbol',
     source: POINTS_SOURCE,
@@ -271,7 +292,9 @@ export const addPlanLayers = (
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
-  })
+  }
+  map.addLayer(acsLayer)
+  map.addLayer(hoverTwin(acsLayer, 'plan-survol-clims', AC_HOVER_IMAGE))
   map.addLayer({
     id: 'plan-clims-etat',
     type: 'symbol',
@@ -286,7 +309,7 @@ export const addPlanLayers = (
     },
   })
   // Les volets roulants : l'icône d'une fenêtre fermée ou ouverte à la place de chaque point (fermée seulement si le dernier ordre était « descendre »).
-  map.addLayer({
+  const shuttersLayer: LayerSpecification = {
     id: 'plan-volets',
     type: 'symbol',
     source: POINTS_SOURCE,
@@ -298,7 +321,16 @@ export const addPlanLayers = (
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
-  })
+  }
+  map.addLayer(shuttersLayer)
+  map.addLayer(
+    hoverTwin(shuttersLayer, 'plan-survol-volets', [
+      'case',
+      ['==', ['get', 'closed'], 1],
+      SHUTTER_CLOSED_HOVER_IMAGE,
+      SHUTTER_OPEN_HOVER_IMAGE,
+    ]),
+  )
   // La pastille d'état du volet, sur le contour de son rond comme celle d'une caméra : verte ouvert, rouge fermé.
   map.addLayer({
     id: 'plan-volets-etat',
@@ -314,7 +346,7 @@ export const addPlanLayers = (
     },
   })
   // La prise (le chauffage) : un radiateur noir sur un rond blanc à la place de son point, et sa pastille d'état sur le contour (verte allumée, rouge éteinte).
-  map.addLayer({
+  const plugsLayer: LayerSpecification = {
     id: 'plan-prises',
     type: 'symbol',
     source: POINTS_SOURCE,
@@ -325,7 +357,9 @@ export const addPlanLayers = (
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
-  })
+  }
+  map.addLayer(plugsLayer)
+  map.addLayer(hoverTwin(plugsLayer, 'plan-survol-prises', PLUG_HOVER_IMAGE))
   map.addLayer({
     id: 'plan-prises-etat',
     type: 'symbol',
@@ -352,6 +386,19 @@ export const addPlanLayers = (
       'icon-ignore-placement': true,
     },
   })
+  // Les icônes seules (la pompe à chaleur) : sans rond, posées sur leur point.
+  map.addLayer({
+    id: 'plan-decors',
+    type: 'symbol',
+    source: POINTS_SOURCE,
+    filter: ['==', ['get', 'kind'], 'decor-hit'],
+    layout: {
+      'icon-image': ['get', 'image'],
+      'icon-size': CAMERA_SIZE,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  })
   // Les emoji des clips sauvegardés : un rond blanc à contour noir avec le pictogramme, posé sur son point.
   map.addLayer({
     id: 'plan-emojis',
@@ -370,14 +417,30 @@ export const addPlanLayers = (
     id: 'plan-saisie',
     type: 'circle',
     source: POINTS_SOURCE,
-    filter: ['in', ['get', 'kind'], ['literal', ['camera-hit', 'lamp-hit', 'plug-hit', 'ac-hit', 'shutter-hit', 'label-hit', 'emoji-hit']]],
+    filter: [
+      'in',
+      ['get', 'kind'],
+      ['literal', ['camera-hit', 'lamp-hit', 'plug-hit', 'ac-hit', 'shutter-hit', 'label-hit', 'emoji-hit', 'decor-hit']],
+    ],
     paint: { 'circle-radius': 14, 'circle-color': '#000000', 'circle-opacity': 0 },
+  })
+  // Le rond au milieu d'un côté (blanc, cerclé de la couleur du thème) : le glisser casse la ligne.
+  map.addLayer({
+    id: 'plan-poignees-milieu',
+    type: 'circle',
+    source: POINTS_SOURCE,
+    filter: ['in', ['get', 'kind'], ['literal', ['tiles-mid', 'garage-mid']]],
+    paint: { 'circle-radius': 5, 'circle-color': '#ffffff', 'circle-stroke-color': palette.accent, 'circle-stroke-width': 2 },
   })
   map.addLayer({
     id: 'plan-poignees',
     type: 'circle',
     source: POINTS_SOURCE,
-    filter: ['in', ['get', 'kind'], ['literal', ['camera-handle', 'tree-handle', 'hedge-vertex']]],
+    filter: [
+      'in',
+      ['get', 'kind'],
+      ['literal', ['camera-handle', 'tree-handle', 'hedge-vertex', 'tiles-vertex', 'garage-vertex', 'room-vertex']],
+    ],
     paint: { 'circle-radius': 7, 'circle-color': palette.accent, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 },
   })
 }

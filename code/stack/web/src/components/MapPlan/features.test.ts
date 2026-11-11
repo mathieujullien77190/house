@@ -1,17 +1,18 @@
 import type { PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanTree } from '@house/ui'
-import { PLAN_GATES, PLAN_OPENINGS, PLAN_ROOMS, PLAN_WALLS } from '@/components/Lights/constants'
+import { PLAN_ENTRANCE_WALL, PLAN_GATES, PLAN_OPENINGS, PLAN_ROOMS, PLAN_WALLS } from '@/components/Lights/constants'
 import {
   cameraHandle,
   HANDLE_DISTANCE,
   HANDLE_RATIO,
   liveFeatures,
   readPalette,
+  defaultRoomRects,
   staticFeatures,
   type LiveData,
   type Palette,
 } from './features'
 import { fromHousePlan } from './helpers'
-import { lngLatToPlan } from './projection'
+import { lngLatToPlan, planToLngLat } from './projection'
 
 const palette: Palette = { accent: 'A', bg: 'B', fg: 'F', muted: 'M', orange: 'O', green: 'G', danger: 'D' }
 
@@ -29,6 +30,13 @@ const camera = (over: Partial<PlanCamera> = {}): PlanCamera => ({
 
 const data = (over: Partial<LiveData> = {}): LiveData => ({
   offsets: {},
+  rooms: null,
+  canEditRooms: false,
+  tiles: null,
+  canEditTiles: false,
+  decors: [],
+  garage: null,
+  canEditGarage: false,
   gates: PLAN_GATES as PlanGate[],
   cage: { x: 583, y: 0, w: 100, h: 200 },
   hedges: [
@@ -128,11 +136,45 @@ describe('staticFeatures', () => {
     expect(polygons[0]).toHaveLength(1)
   })
 
-  it('le claustra est marqué « screen », pas la cloison pleine', () => {
+  it('le mur de l’entrée suit le mur sud de la pièce Entrée, où qu’elle soit', () => {
+    const rooms = defaultRoomRects()
+    const index = PLAN_ROOMS.findIndex((room) => room.name === 'Entrée')
+    const moved = rooms.map((room, position) => (position === index ? [{ ...room[0], y1: 20, y2: 77 }, ...room.slice(1)] : room))
+    const [lng, lat] = planToLngLat(fromHousePlan(PLAN_ENTRANCE_WALL.fromX, 0).x, 77)
+    const hasWall = (shown: typeof rooms) =>
+      staticFeatures(shown).features.some(
+        (f) =>
+          f.geometry.type === 'LineString' && f.geometry.coordinates.some(([x, y]) => Math.abs(x - lng) < 1e-9 && Math.abs(y - lat) < 1e-9),
+      )
+    // Le mur part de la lampe « Entrée » à la hauteur du mur sud de la pièce déplacée (y = 77), pas à celle de départ.
+    expect(hasWall(moved)).toBe(true)
+    expect(hasWall(rooms)).toBe(false)
+  })
+
+  it('un vide entre des pièces déplacées à la main est rempli : la maison n’a que son contour extérieur', () => {
+    // Quatre rectangles autour d'un vide au milieu.
+    const ring = (x1: number, y1: number, x2: number, y2: number) => ({ x1, y1, x2, y2 })
+    const rooms = [[ring(0, 0, 30, 10)], [ring(0, 20, 30, 30)], [ring(0, 10, 10, 20)], [ring(20, 10, 30, 20)]]
+    const room = staticFeatures(rooms).features.find((f) => (f.properties as { part?: string }).part === 'room')
+    const polygons = (room?.geometry as { coordinates: unknown[][] }).coordinates
+    expect(polygons).toHaveLength(1)
+    expect(polygons[0]).toHaveLength(1)
+  })
+  it('un mur « screen » (claustra) est marqué à part', () => {
+    PLAN_WALLS.push({ x1: 0, y1: 0, x2: 10, y2: 0, screen: true })
+    try {
+      const walls = props(staticFeatures()).filter((p) => p.part === 'wall')
+      expect(walls.at(-1)?.screen).toBe(1)
+    } finally {
+      PLAN_WALLS.pop()
+    }
+  })
+  it('un mur marqué « screen » (claustra, pointillé) se distingue d’un mur plein ; il n’y en a plus dans le plan', () => {
     const walls = props(staticFeatures()).filter((p) => p.part === 'wall')
     expect(walls.slice(-PLAN_WALLS.length).map((w) => w.screen)).toEqual(PLAN_WALLS.map((w) => (w.screen ? 1 : 0)))
-    expect(walls.some((w) => w.screen === 1)).toBe(true)
-    expect(walls.some((w) => w.screen === 0)).toBe(true)
+    // Le mur de l'entrée est maintenant un mur plein : plus rien en pointillé.
+    expect(walls.some((w) => w.screen === 1)).toBe(false)
+    expect(walls.every((w) => w.screen === 0)).toBe(true)
   })
 })
 
@@ -159,6 +201,54 @@ describe('liveFeatures', () => {
         .map((p) => p.kind)
         .sort(),
     ).toEqual(['camera-hit', 'camera-hit', 'lamp-hit', 'lamp-hit', 'lamp-hit', 'plug-hit', 'plug-hit'])
+  })
+
+  it('chaque icône seule (pompe à chaleur, routeur) a sa zone de saisie, avec son image', () => {
+    const decors = [{ id: 'pac', x: 1, y: 2, image: 'img-pac' }]
+    const hits = liveFeatures(data({ decors }), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'decor-hit')
+    expect(hits.map((f) => f.properties)).toEqual([expect.objectContaining({ id: 'pac', image: 'img-pac' })])
+  })
+
+  it('les coins des carreaux ont une poignée en modification ; un contour modifié remplace le calculé', () => {
+    const handles = (over: Partial<LiveData>) =>
+      liveFeatures(data(over), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'tiles-vertex')
+    expect(handles({ canEditTiles: false })).toHaveLength(0)
+    expect(handles({ canEditTiles: true }).length).toBeGreaterThanOrEqual(4)
+    const ring: [number, number][] = [
+      [0, 0],
+      [100, 0],
+      [100, 50],
+    ]
+    expect(handles({ canEditTiles: true, tiles: ring }).map((f) => (f.properties as { index: number }).index)).toEqual([0, 1, 2])
+    const shapes = liveFeatures(data({ tiles: ring }), palette).shapes.features
+    expect(shapes.find((f) => (f.properties as { kind: string }).kind === 'tiles')?.geometry.type).toBe('Polygon')
+  })
+
+  it('les coins des pièces ont un rond en modification : un seul par coin partagé, avec tous ses coins', () => {
+    const handles = (over: Partial<LiveData>) =>
+      liveFeatures(data(over), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'room-vertex')
+    expect(handles({ canEditRooms: false })).toHaveLength(0)
+    const rooms = [
+      [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
+      [{ x1: 10, y1: 0, x2: 20, y2: 10 }],
+    ]
+    const found = handles({ canEditRooms: true, rooms })
+    expect(found).toHaveLength(6)
+    expect(found.map((f) => (f.properties as { refs: string }).refs)).toContain('0.0.1;1.0.0')
+    expect(handles({ canEditRooms: true }).length).toBeGreaterThan(0)
+  })
+
+  it('les coins du chemin du garage ont une poignée en modification, au coin décalé ; un contour modifié remplace celui de départ', () => {
+    const handles = (over: Partial<LiveData>) =>
+      liveFeatures(data(over), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'garage-vertex')
+    expect(handles({ canEditGarage: false })).toHaveLength(0)
+    expect(handles({ canEditGarage: true })).toHaveLength(4)
+    const ring: [number, number][] = [
+      [0, 0],
+      [10, 0],
+      [10, 5],
+    ]
+    expect(handles({ canEditGarage: true, garage: ring })).toHaveLength(3)
   })
 
   it('applique les décalages au chemin du garage et aux portes', () => {

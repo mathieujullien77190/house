@@ -515,6 +515,24 @@ describe('Timeline : le curseur avance en temps réel', () => {
 })
 
 describe('Timeline : vitesse du curseur (rate)', () => {
+  it('ouverte sur un instant (image d’une autre caméra), elle y reste au lieu de repasser au direct', async () => {
+    vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 3600, NOW - 3540])
+    const { onCursor } = setup({ initialCursor: NOW - 3600 })
+    await settle(2000)
+    // Le curseur avance d'une seconde par seconde réelle : jamais « null » (le direct).
+    expect(onCursor).not.toHaveBeenCalledWith(null)
+  })
+
+  it('vitesse 0 : le temps est arrêté, le curseur ne bouge plus', async () => {
+    vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 100, NOW - 14])
+    const { axis, onCursor } = setup({ rate: 0 })
+    await settle()
+    click(axis, 250)
+    onCursor.mockClear()
+    await settle(5000)
+    expect(onCursor).not.toHaveBeenCalled()
+  })
+
   it('au-delà de ×1, le curseur avance plus vite, par pas de 250 ms', async () => {
     vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 100, NOW - 14])
     const { axis, onCursor } = setup({ rate: 10 })

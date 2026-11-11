@@ -10,11 +10,22 @@ export const rectRing = (x: number, y: number, w: number, h: number): Point[] =>
   [x, y + h],
 ]
 
-export const circleRing = (cx: number, cy: number, radius: number, steps = 32): Point[] =>
-  Array.from({ length: steps }, (_, index): Point => {
+/**
+ * Un arbre en buisson ou en nuage : un contour bosselé de 7 à 9 lobes arrondis, séparés par de petits creux (le rayon varie de 86 % à 100 % de `radius`). `seed` (tiré de l'identifiant de
+ * l'arbre) décale les lobes : deux arbres ne se ressemblent pas, et un même arbre garde sa forme.
+ */
+export const bushRing = (cx: number, cy: number, radius: number, seed: number, steps = 180): Point[] => {
+  const lobes = 7 + (seed % 3)
+  const phase = (seed % 360) * (Math.PI / 180)
+  return Array.from({ length: steps }, (_, index): Point => {
     const angle = (index / steps) * 2 * Math.PI
-    return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]
+    const reach = radius * (0.86 + 0.14 * Math.abs(Math.sin((lobes * angle) / 2 + phase)))
+    return [cx + reach * Math.cos(angle), cy + reach * Math.sin(angle)]
   })
+}
+
+/** Un nombre tiré d'un texte (la somme pondérée de ses caractères) : toujours le même pour le même texte. */
+export const seedOf = (text: string): number => [...text].reduce((total, char) => (total * 31 + char.charCodeAt(0)) % 100003, 7)
 
 /** Un point à la distance `radius` de (x, y), dans la direction `angle` (degrés depuis le haut du plan, sens des aiguilles d'une montre). */
 export const polar = (x: number, y: number, angle: number, radius: number): Point => {

@@ -18,7 +18,23 @@ export const WHEEL_FACTOR = 1.25
 /** Au clic sur un événement, sa durée occupe cette part de l'axe. */
 export const EVENT_FOCUS_SHARE = 0.5
 /** Pas de graduation possibles ; on prend le plus petit qui donne au plus MAX_TICKS graduations. */
-export const TICK_STEPS = [5, 10, 30, MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE, 15 * MINUTE, 30 * MINUTE, HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY]
+export const TICK_STEPS = [
+  5,
+  10,
+  30,
+  MINUTE,
+  2 * MINUTE,
+  5 * MINUTE,
+  10 * MINUTE,
+  15 * MINUTE,
+  30 * MINUTE,
+  HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+]
 export const MAX_TICKS = 12
 /** La place qu'un repère de l'axe demande (son étiquette, en pixels) : une frise étroite en porte moins. */
 export const TICK_MIN_PX = 70

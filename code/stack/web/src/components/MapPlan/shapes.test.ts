@@ -1,4 +1,4 @@
-import { circleRing, coneRing, pathRings, polar, rectRing } from './shapes'
+import { bushRing, coneRing, pathRings, polar, rectRing, seedOf } from './shapes'
 
 describe('shapes', () => {
   it('rectRing donne les quatre coins', () => {
@@ -9,11 +9,21 @@ describe('shapes', () => {
       [1, 6],
     ])
   })
-  it('circleRing : tous les points sont sur le cercle', () => {
-    const ring = circleRing(10, 20, 5)
-    expect(ring).toHaveLength(32)
-    expect(circleRing(0, 0, 1, 4)).toHaveLength(4)
-    for (const [x, y] of ring) expect(Math.hypot(x - 10, y - 20)).toBeCloseTo(5)
+  it('bushRing : un contour bosselé entre 86 % et 100 % du rayon, le même pour la même graine', () => {
+    const ring = bushRing(10, 20, 5, seedOf('arbre-1'))
+    expect(ring).toHaveLength(180)
+    expect(bushRing(0, 0, 1, 4, 8)).toHaveLength(8)
+    for (const [x, y] of ring) {
+      const reach = Math.hypot(x - 10, y - 20)
+      expect(reach).toBeGreaterThanOrEqual(5 * 0.86 - 1e-9)
+      expect(reach).toBeLessThanOrEqual(5 + 1e-9)
+    }
+    expect(bushRing(10, 20, 5, seedOf('arbre-1'))).toEqual(ring)
+    expect(bushRing(10, 20, 5, seedOf('arbre-2'))).not.toEqual(ring)
+  })
+  it('seedOf : le même texte donne le même nombre', () => {
+    expect(seedOf('a')).toBe(seedOf('a'))
+    expect(seedOf('a')).not.toBe(seedOf('b'))
   })
   it('polar : 0° vers le haut, 90° vers la droite', () => {
     const [x0, y0] = polar(0, 0, 0, 10)

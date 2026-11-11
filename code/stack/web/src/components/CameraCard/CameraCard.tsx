@@ -71,10 +71,22 @@ import type { CameraCardProps, LiveQuality, Quality } from './types'
  * à l'instant choisi sur la frise ou par le clip de l'événement choisi ; puis la frise.
  * La carte elle-même (@house/ui) ne sait rien de tout ça : elle reçoit le média et la frise déjà rendus.
  */
-const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, others = [], onOpenCamera }: CameraCardProps) => {
+const CameraCard = ({
+  apiKey,
+  camera,
+  events,
+  onBack,
+  initialEventId,
+  initialCursor,
+  initialRate,
+  initialSound,
+  onRead,
+  others = [],
+  onOpenCamera,
+}: CameraCardProps) => {
   // Sur téléphone (sous 1024 px) : un écran fixe, la vidéo sur le tiers du haut, la frise sur le reste.
   const mobile = useMobile()
-  const [cursor, setCursor] = useState<number | null>(null)
+  const [cursor, setCursor] = useState<number | null>(initialCursor ?? null)
   // L'événement cliqué ; sa version à jour (clip copié, fin du mouvement) vient de la liste relue chaque seconde.
   const [picked, setSelected] = useState<EventRow | null>(() => events.find((event) => event.id === initialEventId && event.clip) ?? null)
   const selected = picked ? (events.find((event) => event.id === picked.id) ?? picked) : null
@@ -120,7 +132,8 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const isLive = picked === null && cursor === null
   // Les icône de caméra des autres caméras : montrés ou cachés (le bouton à côté de l'icône du son), sur grand écran et en direct seulement.
   const markersVisible = useMarkersVisible()
-  const markersAvailable = !mobile && isLive && onOpenCamera !== undefined && others.length > 0
+  // Les repères se voient en direct, sur une image d'un instant passé et pendant un clip : un clic ouvre l'autre caméra, **sur son image** à la même seconde (celle de l'image, ou l'endroit où en est le clip).
+  const markersAvailable = !mobile && onOpenCamera !== undefined && others.length > 0
   const temperatures = showTemperatures && isLive ? temperatureItems(sensors, [sensorId]) : []
   // Le rond de la lampe de la caméra (« Perruche » pour voliere-interieur), à côté de la température et seulement en direct comme elle.
   const lampId = CAMERA_LAMP[camera.name]
@@ -146,7 +159,10 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
   const offCameras = useOffCameras(apiKey, markersAvailable)
   const showMarkers = markersAvailable && !placeholder && markersVisible.visible && !zoneEditing
   // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
-  const [rate, setRate] = useState(NORMAL_RATE)
+  // La vitesse de défilement des images se garde d'une caméra à l'autre (ouverte depuis un repère).
+  const [rate, setRate] = useState(initialRate ?? NORMAL_RATE)
+  // Le son du direct est-il ouvert ? (gardé d'une caméra à l'autre, comme la vitesse.)
+  const [soundOn, setSoundOn] = useState(initialSound ?? false)
   // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
   const recorder = useRecording(apiKey, camera.name, isLive && !placeholder && !mobile)
   // Caméra tournée : les commandes natives de la vidéo tourneraient avec elle ; le lecteur les pose ici, sous la vidéo, droites (hors vue en grand, où il n'y a pas de place).
@@ -363,7 +379,14 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
             onMove={markers.move}
             onCommit={markers.commit}
             onRemove={markers.remove}
-            onOpen={onOpenCamera}
+            onOpen={(name) =>
+              onOpenCamera?.(
+                name,
+                selected ? Math.round(playhead ?? selected.clip_started_at ?? selected.started_at) : (cursor ?? undefined),
+                rate,
+                soundOn,
+              )
+            }
             inactive={offCameras}
           />
         ) : undefined
@@ -373,7 +396,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
         (isLive && !placeholder) || markersAvailable ? (
           <div className="flex items-center gap-1">
             {markersAvailable ? <MarkersToggle visible={markersVisible.visible} onToggle={markersVisible.toggle} /> : null}
-            {isLive && !placeholder ? <LiveAudio camera={camera.name} /> : null}
+            {isLive && !placeholder ? <LiveAudio camera={camera.name} initialOn={soundOn} onChange={setSoundOn} /> : null}
           </div>
         ) : undefined
       }
@@ -387,6 +410,7 @@ const CameraCard = ({ apiKey, camera, events, onBack, initialEventId, onRead, ot
       }
       timeline={
         <Timeline
+          initialCursor={initialCursor}
           fill={mobile}
           apiKey={apiKey}
           camera={camera.name}

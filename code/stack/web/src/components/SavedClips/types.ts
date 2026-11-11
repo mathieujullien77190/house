@@ -22,8 +22,6 @@ export interface SavedClipsUIProps {
   onSave: (saved: boolean) => void
   /** La libération du clip a échoué. */
   saveFailed: boolean
-  /** Pose la note d'un clip (vide : la supprime). */
-  onNote: (id: string, note: string) => Promise<unknown>
   /** Pose l'emoji d'un clip (`null` : le retire). */
   onEmoji: (id: string, emoji: string | null) => Promise<unknown>
   onOpen: (id: string) => void

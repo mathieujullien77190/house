@@ -34,7 +34,6 @@ vi.mock('@/components/Home', () => ({
     </div>
   ),
 }))
-vi.mock('@/components/GuestLink', () => ({ default: (p: { menu?: boolean }) => <i data-testid="guest">{String(Boolean(p.menu))}</i> }))
 vi.mock('@/components/SavedClips', () => ({ default: () => <div data-testid="saved-clips" /> }))
 vi.mock('@/components/ShuttersPanel', () => ({ default: () => <div data-testid="shutters" /> }))
 vi.mock('@/components/AcPanel', () => ({ default: () => <div data-testid="ac" /> }))
@@ -152,23 +151,15 @@ describe('App : barre', () => {
 })
 
 describe('App : barre sur téléphone', () => {
-  it('le bouton des notifications est dans la barre, à gauche du sandwich, et la page invité est dans le menu', () => {
+  it('le bouton des notifications est dans la barre, à gauche du sandwich', () => {
     h.mobile = true
     render(<App />)
     const bell = screen.getByRole('button', { name: /otifications/ })
     const burger = screen.getByRole('button', { name: 'Menu' })
     expect(bell.parentElement).toBe(burger.parentElement)
-    // la page invité n'est dans le menu qu'une fois ouvert
-    expect(screen.queryByTestId('guest')).toBeNull()
     fireEvent.click(burger)
-    expect(screen.getByTestId('guest')).toHaveTextContent('true')
     // le bouton des notifications n'est pas répété dans le menu
     expect(within(screen.getByRole('navigation')).queryByRole('button', { name: /otifications/ })).toBeNull()
-  })
-
-  it('sur grand écran, pas de lien de la page invité dans le menu (il est sous la carte)', () => {
-    render(<App />)
-    expect(screen.queryByTestId('guest')).toBeNull()
   })
 })
 

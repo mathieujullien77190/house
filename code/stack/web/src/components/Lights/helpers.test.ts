@@ -29,16 +29,13 @@ describe('buildZones', () => {
     ...over,
   })
 
-  it('range les lampes par zone, le reste dans « À placer »', () => {
+  it('range les lampes par zone ; une lampe d’aucune zone n’est pas dans l’application', () => {
     const zones = buildZones([light('15', { bri: null, on: false }), light('9'), light('999', { bri: null, on: false })])
-    expect(zones.map((z) => z.id)).toEqual(['chambre-1', 'sdb', 'other'])
+    // Dans l'ordre des zones (Chambre 1 avant SdB), sans groupe « À placer ».
+    expect(zones.map((z) => z.id)).toEqual(['chambre-1', 'sdb'])
+    expect(zones.flatMap((z) => z.lights.map((l) => l.id))).not.toContain('999')
     expect(zones[0]).toMatchObject({ on: false, bri: null })
-    expect(zones[2]).toMatchObject({ name: 'À placer', ungrouped: true })
     expect(zones[0]).not.toHaveProperty('sensors')
-  })
-
-  it('pas de « À placer » quand toutes les lampes ont une zone', () => {
-    expect(buildZones([light('15')]).map((z) => z.id)).toEqual(['chambre-1'])
   })
 
   it('luminosité d’une zone : la première lampe allumée qui en a une, sinon la première qui en a une', () => {

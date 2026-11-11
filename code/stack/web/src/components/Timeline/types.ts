@@ -22,6 +22,8 @@ export interface TimelineProps {
   fill?: boolean
   /** La vitesse du curseur, en secondes de frise par seconde réelle : 1 (par défaut) temps réel, 60 une minute par seconde ; négatif : il recule. */
   rate?: number
+  /** L'instant où la frise s'ouvre (l'image de la même seconde, depuis une autre caméra) ; sans lui, le direct. */
+  initialCursor?: number
   /** Des commandes posées à côté des raccourcis de fenêtre (le défilement des images). */
   controls?: ReactNode
 }

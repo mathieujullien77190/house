@@ -1,6 +1,5 @@
 import { Button, CameraTile, Notice, SectionTitle, Tabs } from '@house/ui'
 import ClipEmoji from '@/components/ClipEmoji'
-import ClipNote from '@/components/ClipNote'
 import ClipPlayer from '@/components/ClipPlayer'
 import FullscreenBox from '@/components/FullscreenBox'
 import PortraitClip from '@/components/PortraitClip'
@@ -9,8 +8,10 @@ import { describeEvent } from '@/lib/format'
 import {
   ACTIONS_CLASS,
   BACK_LABEL,
+  EMOJI_SLOT_CLASS,
   EMPTY_TEXT,
   GRID_CLASS,
+  ITEM_CLASS,
   LOADING_TEXT,
   LOAD_ERROR_TEXT,
   OPENED_CAPTION_CLASS,
@@ -38,7 +39,6 @@ const SavedClipsUI = ({
   saved,
   onSave,
   saveFailed,
-  onNote,
   onEmoji,
   onOpen,
   onBack,
@@ -58,9 +58,10 @@ const SavedClipsUI = ({
         <p className={OPENED_CAPTION_CLASS}>
           {opened.camera} · {captionOf(opened, durations[opened.id])}
         </p>
-        <ClipNote key={opened.id} note={opened.note} onSave={(text) => onNote(opened.id, text)} />
-        <ClipEmoji key={`emoji-${opened.id}`} emoji={opened.emoji ?? ''} onSave={(value) => onEmoji(opened.id, value)} />
         <div className={PLAYER_WRAP_CLASS}>
+          <div className={EMOJI_SLOT_CLASS}>
+            <ClipEmoji key={`emoji-${opened.id}`} emoji={opened.emoji ?? ''} onSave={(value) => onEmoji(opened.id, value)} />
+          </div>
           <FullscreenBox>
             {opened.orientation === 'portrait' ? (
               <PortraitClip key={path} apiKey={apiKey} path={path} onClose={onBack} audioSrc={opened.clip_audio ?? undefined} />
@@ -80,7 +81,10 @@ const SavedClipsUI = ({
         {events.map((event) => {
           const clip = playablePath(event)
           return (
-            <div key={event.id}>
+            <div key={event.id} className={ITEM_CLASS}>
+              <div className={EMOJI_SLOT_CLASS}>
+                <ClipEmoji emoji={event.emoji ?? ''} onSave={(value) => onEmoji(event.id, value)} />
+              </div>
               <CameraTile
                 name={event.camera}
                 caption={captionOf(event, durations[event.id])}
@@ -111,8 +115,6 @@ const SavedClipsUI = ({
                 }
                 onOpen={() => onOpen(event.id)}
               />
-              <ClipNote note={event.note} onSave={(text) => onNote(event.id, text)} />
-              <ClipEmoji emoji={event.emoji ?? ''} onSave={(value) => onEmoji(event.id, value)} />
             </div>
           )
         })}

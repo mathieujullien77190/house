@@ -33,5 +33,3 @@ export const PANEL_ACTIONS_CLASS = 'mt-1 flex flex-wrap gap-2 px-3'
 /** Une erreur reste visible sur téléphone, sous le titre. */
 export const MOBILE_ERROR_CLASS = 'm-0 mt-1 text-[0.8rem] text-danger lg:hidden'
 export const BURGER_LABEL = 'Menu'
-/** Les éléments du menu qui n'y sont que sur téléphone (`menuItems`). */
-export const PANEL_ITEMS_CLASS = 'mt-1 flex flex-col gap-1 border-t border-line px-3 pt-2'

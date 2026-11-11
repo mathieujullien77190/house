@@ -1,14 +1,13 @@
-// Les fonctions pures des petits composants : App, ApiExplorer, CameraCard, CameraIndicators, CameraMosaic, GuestLink, Home, PlugPanel, PowerButton.
+// Les fonctions pures des petits composants : App, ApiExplorer, CameraCard, CameraIndicators, CameraMosaic, Home, PlugPanel, PowerButton.
 import { describe, expect, it } from 'vitest'
 import { rememberClipDuration } from '@/lib/clipDurations'
 import { describeEvent, formatTime } from '@/lib/format'
-import type { Camera, CameraPower, EventRow, GuestInfo, HueLight, HueSensor, PlugState } from '@/types'
+import type { Camera, CameraPower, EventRow, HueLight, HueSensor, PlugState } from '@/types'
 import { prettify } from './ApiExplorer/helpers'
 import { eventsOf } from './App/helpers'
 import { captionOf, clipLead, clipPathOf, liveCaption, orientationShown, temperatureItems } from './CameraCard/helpers'
 import { lampLabel, plugLabel } from './CameraIndicators/helpers'
 import { orderedCameras } from './CameraMosaic/helpers'
-import { guestLink } from './GuestLink/helpers'
 import { captionOf as homeCaption, playablePath } from './SavedClips/helpers'
 import { countdownText, elapsedText } from './PlugPanel/helpers'
 import { statusText } from './PowerButton/helpers'
@@ -115,14 +114,6 @@ describe('CameraMosaic/helpers', () => {
     const cameras = names.map((name): Camera => ({ name, orientation: 'landscape' }))
     expect(orderedCameras(cameras).map((c) => c.name)).toEqual(['voliere-interieur', 'voliere-exterieur', 'zeta', 'alpha'])
     expect(cameras.map((c) => c.name)).toEqual(names)
-  })
-})
-
-describe('GuestLink/helpers', () => {
-  const info = (over: Partial<GuestInfo>): GuestInfo => ({ key: 'sec ret', port: 8090, url: '', ...over })
-  it('guestLink : adresse publique ou hôte de la WebApp, avec la clé', () => {
-    expect(guestLink(info({}), 'mini')).toBe('https://mini:8090/?k=sec+ret')
-    expect(guestLink(info({ url: 'https://pub.example/' }), 'mini')).toBe('https://pub.example/?k=sec+ret')
   })
 })
 

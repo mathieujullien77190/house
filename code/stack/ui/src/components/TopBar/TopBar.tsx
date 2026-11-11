@@ -20,7 +20,6 @@ import {
   PANEL_ACTIONS_CLASS,
   PANEL_CLASS,
   PANEL_ERROR_CLASS,
-  PANEL_ITEMS_CLASS,
   PANEL_STATUS_CLASS,
   ROW_CLASS,
   SPACER_CLASS,
@@ -32,7 +31,7 @@ import type { TopBarProps } from './types'
 
 /**
  * La barre du haut d'une page, toujours visible : le titre, les onglets, l'état et les boutons dès 1024 px ; en dessous, le titre et un bouton
- * « sandwich » en haut à droite qui ouvre un menu (les pages, l'état, les boutons, `menuItems`) ; `barActions` reste dans la barre, juste à gauche du sandwich. Le menu se ferme au choix d'une page, d'un clic ailleurs ou d'Échap.
+ * « sandwich » en haut à droite qui ouvre un menu (les pages, l'état, les boutons) ; `barActions` reste dans la barre, juste à gauche du sandwich. Le menu se ferme au choix d'une page, d'un clic ailleurs ou d'Échap.
  */
 const TopBar = <T extends string>({
   title,
@@ -43,11 +42,10 @@ const TopBar = <T extends string>({
   info,
   actions,
   barActions,
-  menuItems,
 }: TopBarProps<T>) => {
   const [open, setOpen] = useState(false)
   const wrap = useRef<HTMLElement>(null)
-  const hasMenu = tabs !== undefined || actions !== undefined || menuItems !== undefined
+  const hasMenu = tabs !== undefined || actions !== undefined
 
   useEffect(() => {
     if (!open) return
@@ -123,7 +121,6 @@ const TopBar = <T extends string>({
           ))}
           {status && tone !== 'error' ? <p className={PANEL_STATUS_CLASS}>{status}</p> : null}
           {status && tone === 'error' ? <p className={PANEL_ERROR_CLASS}>{status}</p> : null}
-          {menuItems ? <div className={PANEL_ITEMS_CLASS}>{menuItems}</div> : null}
           {actions ? (
             <div className={PANEL_ACTIONS_CLASS} onClick={() => setOpen(false)}>
               {actions}

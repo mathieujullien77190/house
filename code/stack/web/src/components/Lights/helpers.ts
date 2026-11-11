@@ -7,9 +7,7 @@ import {
   LAMP_POSITIONS,
   LEGACY_STORAGE_KEY,
   PLAN_LAMP_POSITION,
-  OTHER_ZONE,
   MOTION_TEXT,
-  OTHER_ZONE_NAME,
   SIDE_ZONE,
   UNKNOWN_MOTION_TEXT,
   ZONES,
@@ -62,19 +60,16 @@ const toZone = (id: string, name: string, lights: HueLight[], sensors: LightsSen
   ...(sensors.length > 0 ? { sensors } : {}),
 })
 
-/** Les zones de la maison avec leurs lampes (celles que le pont connaît), puis « Autres » pour les lampes sans zone. */
+/** Les zones de la maison avec leurs lampes (celles que le pont connaît). Une lampe d'aucune zone n'est pas dans l'application : ni dans la liste, ni sur la carte, ni dans la consommation. */
 export const buildZones = (lights: HueLight[], sensors: HueSensor[] = []): LightsRoom[] => {
   const byId = new Map(lights.map((light) => [light.id, light]))
   const sensorById = new Map(sensors.map((sensor) => [sensor.id, sensor]))
-  const used = new Set<string>()
   const zones = ZONES.map((zone) => {
     const members = zone.lights.map((id) => byId.get(id)).filter((light): light is HueLight => light !== undefined)
-    members.forEach((light) => used.add(light.id))
     const found = (zone.sensors ?? []).map((id) => sensorById.get(id)).filter((sensor): sensor is HueSensor => sensor !== undefined)
     return toZone(zone.id, zone.name, members, found.map(toLightsSensor))
   }).filter((zone) => zone.lights.length > 0)
-  const rest = lights.filter((light) => !used.has(light.id))
-  return rest.length > 0 ? [...zones, { ...toZone(OTHER_ZONE, OTHER_ZONE_NAME, rest), ungrouped: true }] : zones
+  return zones
 }
 
 /** Le nombre de lampes qui sont dans une zone de la maison : celles du groupe « À placer » ne comptent pas. */

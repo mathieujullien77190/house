@@ -166,6 +166,8 @@ export interface HueLight {
   reachable: boolean
   /** La couleur actuelle de la lampe en #rrggbb (à pleine luminosité) ; null pour une lampe qui ne change pas de couleur. */
   color?: string | null
+  /** La puissance estimée de la lampe en watts (House API) ; null pour un modèle inconnu. */
+  watts?: number | null
 }
 
 /** Une pièce du pont Hue et ses lampes. */
@@ -213,13 +215,5 @@ export interface Camera {
   orientation: Orientation
   /** Le mode pluie (éteint, pluie, pluie forte) : allumé, la détection est coupée et une image est gardée toutes les 5 s. */
   rain?: RainMode
-}
-
-/** De quoi bâtir le lien de la page invité (GET /guest). */
-export interface GuestInfo {
-  key: string
-  port: number
-  /** L'adresse publique, vide tant que la page n'est pas ouverte à internet. */
-  url: string
 }
 

@@ -30,7 +30,7 @@ import {
   UNREACHABLE_TEXT,
   ZONE_BUTTON_CLASS,
 } from './constants'
-import { BULB_PATH, briOf, countText, MAX_BRI, orangeShare, percentOf, roomsOnFirst } from './helpers'
+import { BULB_PATH, briOf, countText, MAX_BRI, orangeShare, percentOf } from './helpers'
 import type { LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
 /** Les lumières : un rectangle par zone, une petite case ON / OFF par lampe (allumer = puissance max) avec **un curseur de luminosité dans le bloc de la lampe** (la petite ampoule en haut à droite dit l'état : sa couleur pâlit quand la luminosité baisse). */
@@ -140,9 +140,9 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
           title={item.name}
           detail={countText(item)}
           compact
-          // Toutes les zones sont ouvertes au départ ; seules les lampes à placer (sans commande groupée) restent repliées.
-          defaultOpen={!item.ungrouped}
-          actions={item.ungrouped ? null : zoneButtons(item)}
+          // Toutes les zones sont ouvertes au départ.
+          defaultOpen
+          actions={zoneButtons(item)}
         >
           <ul className={GRID_CLASS}>{item.lights.map(tile)}</ul>
           {sensors.length === 0 ? null : <ul className={SENSORS_CLASS}>{sensors.map(sensor)}</ul>}
@@ -161,7 +161,7 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
           {ALL_OFF_LABEL}
         </Button>
       </div>
-      {roomsOnFirst(rooms).map(room)}
+      {rooms.map(room)}
     </div>
   )
 }

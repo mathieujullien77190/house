@@ -28,22 +28,20 @@ export const LOADING_TEXT = 'Chargement des lumières…'
  * une zone se commande d'un coup (allumer, éteindre, luminosité), à la place des pièces du pont, qui ne suivent pas la maison.
  */
 export const ZONES: { id: string; name: string; lights: string[]; sensors?: string[] }[] = [
-  { id: 'chambre-1', name: 'Chambre 1', lights: ['15'] },
-  // « SdB 2 » (lampe 1) n'est dans aucune zone : elle est dans le groupe « À placer » tant qu'on ne sait pas où la mettre.
-  { id: 'sdb', name: 'SdB', lights: ['9', '10', '19', '8', '6', '4'] },
-  { id: 'wc', name: 'WC', lights: ['28'] },
-  { id: 'cuisine', name: 'Cuisine', lights: ['13', '14', '3', '5'] },
-  { id: 'couloir', name: 'Couloir', lights: ['7'] },
-  { id: 'entree', name: 'Entrée', lights: ['27'] },
-  { id: 'salon', name: 'Salon', lights: ['11', '16', '18', '22'] },
+  // L'ordre de la liste : la volière (la lampe des perruches et les détecteurs de la cage), le salon, la cuisine, l'entrée, puis le reste. Les zones allumées ne remontent plus.
   // Les deux détecteurs de mouvement de la cage à perruches (identifiants du pont) : mouvement, température et luminosité.
   { id: 'voliere', name: 'Volière', lights: ['26'], sensors: ['54', '57'] },
+  { id: 'salon', name: 'Salon', lights: ['11', '16', '18', '22'] },
+  { id: 'cuisine', name: 'Cuisine', lights: ['13', '14', '3', '5'] },
+  { id: 'entree', name: 'Entrée', lights: ['27'] },
+  { id: 'chambre-1', name: 'Chambre 1', lights: ['15'] },
+  // Les lampes du pont qui ne sont dans aucune zone (« SdB 2 », la lampe 1, par exemple) ne sont pas dans l'application.
+  { id: 'sdb', name: 'SdB', lights: ['9', '10', '19', '8', '6', '4'] },
+  { id: 'wc', name: 'WC', lights: ['28'] },
+  { id: 'couloir', name: 'Couloir', lights: ['7'] },
 ]
 /** Les zones que « Tout allumer » et « Tout éteindre » ne touchent pas : la volière (la lampe des perruches) reste à part. */
 export const EXCLUDED_FROM_ALL = ['voliere']
-/** Les lampes d'aucune zone, qu'il reste à placer : réunies dans un groupe « À placer », sans commande groupée. */
-export const OTHER_ZONE = 'other'
-export const OTHER_ZONE_NAME = 'À placer'
 
 /**
  * Les positions que le navigateur gardait avant que l'API ne les garde : lues comme les plus anciennes, jamais effacées ni réécrites.
@@ -64,7 +62,14 @@ export const PLAN_ROOMS: PlanRoom[] = [
   // Le couloir est la petite zone entre le mur de la chambre 1 (x = 135) et celui du salon (x = 210), là où est la lampe « Couloir ».
   { name: 'Couloir', rects: [{ x: 135, y: 140, w: 75, h: 50 }] },
   // L'entrée est deux fois plus étroite que sur le schéma du site (60 au lieu de 120), collée au mur est ; la place libérée est au salon.
-  { name: 'Entrée', rects: [{ x: 480, y: 140, w: 60, h: 50 }] },
+  // Devant la porte, dehors, le carré de l'entrée (1,5 m de large, de la même hauteur que la pièce : ses murs nord et sud sont dans l'alignement de ceux de l'entrée) : la maison n'est pas un rectangle parfait. Fondue à la pièce (un seul contour).
+  {
+    name: 'Entrée',
+    rects: [
+      { x: 480, y: 140, w: 60, h: 50 },
+      { x: 540, y: 140, w: 59, h: 50 },
+    ],
+  },
   { name: 'Chambre 2', rects: [{ x: 0, y: 190, w: 210, h: 110 }] },
   {
     name: 'Salon',
@@ -81,9 +86,13 @@ export const PLAN_ROOMS: PlanRoom[] = [
  */
 export const PLAN_WALLS: PlanWall[] = [
   { x1: 170, y1: 90, x2: 210, y2: 90 },
-  // Le claustra de l'entrée : le prolongement du mur sud de l'entrée (y = 190, de x = 480) jusqu'à la lampe « Entrée » (x = 404).
-  { x1: 404, y1: 190, x2: 480, y2: 190, screen: true },
 ]
+
+/**
+ * Le mur de l'entrée (c'était un claustra en pointillé) : le prolongement du mur sud de la pièce « Entrée » vers la gauche, jusqu'à la lampe « Entrée » (x = 404). Il suit le mur sud de la pièce, où qu'on
+ * l'ait déplacé (les murs de la maison se modifient) : son ordonnée est celle du bas de la pièce, son bout droit son bord gauche.
+ */
+export const PLAN_ENTRANCE_WALL = { room: 'Entrée', fromX: 404 }
 
 /**
  * Où sont posées les ampoules, par identifiant de lampe du pont : celles que tu as placées sur le plan (540 × 300, origine en haut
@@ -245,10 +254,16 @@ export const PLAN_CAMERAS = [
   { id: 'camera-9', name: 'Caméra 9 (à placer)', x: 170, y: -240, angle: 0, fov: 60, near: 18, far: 200 },
 ]
 /**
- * Le chemin de béton gris clair, tout droit du portail au mur ouest de la maison (x = 41), aussi large que le portail ; son bout gauche suit
- * l'arc de la haie (rayon 1000) pour ne jamais dépasser dehors ; il passe sous le pavage.
+ * Les quatre coins du chemin de béton gris clair, du portail au pavage de la maison (x = -21,75) : un peu plus large que le portail (3 unités de chaque côté, dans le prolongement
+ * du portail) pour qu'il arrive pile à lui et pile aux carreaux ; il passe sous le pavage. Dans l'ordre : haut gauche, bas gauche (côté portail), bas droite, haut droite.
+ * En modification, on déplace chaque coin à la main (`garage-corner-<n>` dans les éléments du plan gardé par l'API).
  */
-export const PLAN_PATHS = ['M -273 40 A 1000 1000 0 0 0 -228 184 H -19 V 40 Z']
+export const PLAN_GARAGE_CORNERS: [number, number][] = [
+  [-274, 37],
+  [-227, 187],
+  [-10, 187],
+  [-10, 37],
+]
 /**
  * Le chemin carrelé de 1,5 m de large du portillon à la terrasse de la maison (y = 358) : son bout bas suit l'arc de la haie (rayon 1000)
  * pour ne pas dépasser dehors. Fondu dans le même tracé que le reste du pavage.

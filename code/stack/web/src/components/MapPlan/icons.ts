@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { HiOutlineVideoCamera } from 'react-icons/hi2'
 import { RiLightbulbFill } from 'react-icons/ri'
 import { LuHeater } from 'react-icons/lu'
-import { MdOutlineSensorWindow, MdSensorWindow } from 'react-icons/md'
+import { BsRouter } from 'react-icons/bs'
+import { MdOutlineHeatPump, MdOutlineSensorWindow, MdSensorWindow } from 'react-icons/md'
 import { TbAirConditioning } from 'react-icons/tb'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { Palette } from './features'
@@ -19,6 +20,20 @@ export const PLUG_IMAGE = 'plug-icon'
 export const SHUTTER_OPEN_IMAGE = 'shutter-icon-open'
 export const SHUTTER_CLOSED_IMAGE = 'shutter-icon-closed'
 export const AC_IMAGE = 'ac-icon'
+/** Les mêmes icônes au survol : le fond blanc du rond devient bleu pâle. */
+export const CAMERA_HOVER_IMAGE = 'camera-icon-hover'
+export const PLUG_HOVER_IMAGE = 'plug-icon-hover'
+export const SHUTTER_OPEN_HOVER_IMAGE = 'shutter-icon-open-hover'
+export const SHUTTER_CLOSED_HOVER_IMAGE = 'shutter-icon-closed-hover'
+export const AC_HOVER_IMAGE = 'ac-icon-hover'
+/** Le préfixe de l'image d'une ampoule survolée (`lamph-#ffa85a`) : comme `lamp-`, sur un fond bleu pâle. */
+export const LAMP_HOVER_PREFIX = 'lamph-'
+/** Le bleu pâle du fond d'une icône survolée. */
+export const HOVER_BACKGROUND = '#bfdbfe'
+/** La pompe à chaleur (Material `MdOutlineHeatPump`) : une icône **seule**, sans rond autour, comme l'emoji d'un clip. */
+export const HEATPUMP_IMAGE = 'heatpump-icon'
+/** Le routeur (la box, Bootstrap `BsRouter`) : lui aussi une icône seule, sans rond. */
+export const ROUTER_IMAGE = 'router-icon'
 
 /** Le côté de l'image en pixels (elle s'affiche à moitié, en pixels de l'écran, pour rester nette sur les écrans à haute densité) et celui de l'icône dedans. */
 const SIZE = 64
@@ -70,6 +85,49 @@ const draw = (
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
   })
 
+/** Le côté de l'icône seule (sans rond) dans son image. */
+const BARE_ICON = 56
+/** Le routeur est deux fois plus petit que la pompe à chaleur. */
+const ROUTER_ICON = BARE_ICON / 2
+
+/** Dessine une icône **seule** : ni fond ni bordure (comme un emoji), noire avec un fin liseré blanc pour rester lisible sur la photo. Rend null sans canvas ou si l'image ne charge pas. */
+const drawBare = (icon: ComponentType<{ size: number; color: string }>, side = BARE_ICON): Promise<ImageData | null> =>
+  new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = SIZE * SCALE
+    canvas.height = SIZE * SCALE
+    const context = canvas.getContext('2d')
+    if (!context) return resolve(null)
+    context.scale(SCALE, SCALE)
+    const white = new Image()
+    const black = new Image()
+    const svg = (color: string) =>
+      `data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderToStaticMarkup(createElement(icon, { size: side * SCALE, color })))}`
+    black.onload = () => {
+      const at = (SIZE - side) / 2
+      // Le liseré blanc : l'icône blanche décalée dans les huit directions, puis l'icône noire par-dessus.
+      for (const [dx, dy] of [
+        [-1.5, 0],
+        [1.5, 0],
+        [0, -1.5],
+        [0, 1.5],
+        [-1, -1],
+        [1, 1],
+        [-1, 1],
+        [1, -1],
+      ])
+        context.drawImage(white, at + dx, at + dy, side, side)
+      context.drawImage(black, at, at, side, side)
+      resolve(context.getImageData(0, 0, SIZE * SCALE, SIZE * SCALE))
+    }
+    black.onerror = () => resolve(null)
+    white.onload = () => {
+      black.src = svg('#000000')
+    }
+    white.onerror = () => resolve(null)
+    white.src = svg('#ffffff')
+  })
+
 /** Ajoute à la carte les images des icônes (dessinées par le navigateur, donc prêtes un instant après : les calques de symboles les affichent dès qu'elles sont là). */
 export const addMapIcons = (map: MapLibreMap, colors: Colors): void => {
   const images: [string, ComponentType<{ size: number; color: string }>, string, string, string?][] = [
@@ -82,7 +140,25 @@ export const addMapIcons = (map: MapLibreMap, colors: Colors): void => {
     [SHUTTER_CLOSED_IMAGE, MdSensorWindow, '#000000', '#000000', '#ffffff'],
     // La climatisation : comme la caméra, **fond blanc, icône noire, contour noir** ; son état (allumée, éteinte, injoignable) est dit par une pastille posée sur le contour (`addStatusDots`).
     [AC_IMAGE, TbAirConditioning, '#000000', '#000000', '#ffffff'],
+    // Les mêmes au survol : le fond blanc du rond devient bleu pâle.
+    [CAMERA_HOVER_IMAGE, HiOutlineVideoCamera, '#000000', '#000000', HOVER_BACKGROUND],
+    [PLUG_HOVER_IMAGE, LuHeater, '#000000', '#000000', HOVER_BACKGROUND],
+    [SHUTTER_OPEN_HOVER_IMAGE, MdOutlineSensorWindow, '#000000', '#000000', HOVER_BACKGROUND],
+    [SHUTTER_CLOSED_HOVER_IMAGE, MdSensorWindow, '#000000', '#000000', HOVER_BACKGROUND],
+    [AC_HOVER_IMAGE, TbAirConditioning, '#000000', '#000000', HOVER_BACKGROUND],
   ]
+  for (const [id, icon, side] of [
+    [HEATPUMP_IMAGE, MdOutlineHeatPump, BARE_ICON],
+    [ROUTER_IMAGE, BsRouter, ROUTER_ICON],
+  ] as const) {
+    void drawBare(icon, side).then((image) => {
+      try {
+        if (image && !map.hasImage(id)) map.addImage(id, image, { pixelRatio: PIXEL_RATIO })
+      } catch {
+        // La carte a été retirée entre-temps : rien à ajouter.
+      }
+    })
+  }
   for (const [id, icon, color, ring, background = colors.bg] of images) {
     void draw(icon, color, ring, background).then((image) => {
       try {
@@ -136,7 +212,7 @@ const bulbPaths = (): Path2D[] =>
         .map((d) => new Path2D(d))
 
 /** Dessine une ampoule **dans sa couleur** (avec un fin contour noir pour qu'une couleur pâle reste lisible) sur un rond blanc à contour noir, comme la caméra. Synchrone : la carte attend l'image. Rend null sans canvas. */
-const drawLamp = (color: string): ImageData | null => {
+const drawLamp = (color: string, background = '#ffffff'): ImageData | null => {
   const canvas = document.createElement('canvas')
   canvas.width = SIZE * SCALE
   canvas.height = SIZE * SCALE
@@ -145,7 +221,7 @@ const drawLamp = (color: string): ImageData | null => {
   context.scale(SCALE, SCALE)
   context.beginPath()
   context.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 3, 0, Math.PI * 2)
-  context.fillStyle = '#ffffff'
+  context.fillStyle = background
   context.fill()
   context.lineWidth = 4
   context.strokeStyle = '#000000'
@@ -190,9 +266,11 @@ export const watchDynamicImages = (map: MapLibreMap): void => {
       ? drawTemperature(event.id.slice(TEMPERATURE_PREFIX.length))
       : event.id.startsWith(LAMP_PREFIX)
         ? drawLamp(event.id.slice(LAMP_PREFIX.length))
-        : event.id.startsWith(EMOJI_PREFIX)
-          ? drawEmoji(event.id.slice(EMOJI_PREFIX.length))
-          : null
+        : event.id.startsWith(LAMP_HOVER_PREFIX)
+          ? drawLamp(event.id.slice(LAMP_HOVER_PREFIX.length), HOVER_BACKGROUND)
+          : event.id.startsWith(EMOJI_PREFIX)
+            ? drawEmoji(event.id.slice(EMOJI_PREFIX.length))
+            : null
     if (image) map.addImage(event.id, image, { pixelRatio: PIXEL_RATIO })
   })
 }

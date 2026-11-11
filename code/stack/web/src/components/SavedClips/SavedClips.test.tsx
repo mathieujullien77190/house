@@ -3,7 +3,7 @@ import { flush } from '@/test/fetch'
 import type { EventRow } from '@/types'
 import SavedClips from './SavedClips'
 
-vi.mock('@/lib/api', () => ({ fetchSavedEvents: vi.fn(), setClipSaved: vi.fn(), setClipNote: vi.fn(), setClipEmoji: vi.fn() }))
+vi.mock('@/lib/api', () => ({ fetchSavedEvents: vi.fn(), setClipSaved: vi.fn(), setClipEmoji: vi.fn() }))
 vi.mock('@/components/ShareButton', () => ({ default: () => <i data-testid="share" /> }))
 vi.mock('@/components/FullscreenBox', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 vi.mock('@/components/ClipPlayer', () => ({
@@ -145,61 +145,34 @@ describe('Home', () => {
     expect(screen.getByText('Clips sauvegardés')).toBeInTheDocument()
   })
 
-  it('la note d’un clip : posée depuis la liste, la liste montre celle que l’API a gardée', async () => {
-    vi.mocked(api.setClipNote).mockResolvedValue('renard')
-    await mount([event('a'), event('b', { note: 'chat' })])
-    fireEvent.click(screen.getAllByRole('button', { name: 'Note du clip' })[0])
-    fireEvent.change(screen.getByRole('textbox', { name: 'Note du clip' }), { target: { value: ' renard ' } })
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note du clip' }), { key: 'Enter' })
-    await act(flush)
-    expect(api.setClipNote).toHaveBeenCalledWith('k', 'a', 'renard')
-    expect(screen.getByText('renard')).toBeInTheDocument()
-    expect(screen.getByText('chat')).toBeInTheDocument()
-  })
-
-  it('l’emoji d’un clip : choisi depuis la liste, la liste montre celui que l’API a gardé ; « Aucun emoji » le retire', async () => {
+  it('l’emoji d’un clip : tapé dans le champ, celui de l’API est gardé ; un champ vide le retire', async () => {
     vi.mocked(api.setClipEmoji).mockResolvedValueOnce('🦊').mockResolvedValueOnce('')
     await mount([event('a'), event('b', { emoji: '🐦' })])
     fireEvent.click(screen.getAllByRole('button', { name: 'Emoji du clip' })[0])
-    fireEvent.click(screen.getByRole('button', { name: '🦊' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Emoji du clip' }), { target: { value: '🦊' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Emoji du clip' }), { key: 'Enter' })
     await act(flush)
     expect(api.setClipEmoji).toHaveBeenCalledWith('k', 'a', '🦊')
     expect(screen.getByText('🦊')).toBeInTheDocument()
     expect(screen.getByText('🐦')).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: 'Emoji du clip' })[0])
-    fireEvent.click(screen.getByRole('button', { name: 'Aucun emoji' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Emoji du clip' }), { target: { value: '' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Emoji du clip' }), { key: 'Enter' })
     await act(flush)
     expect(api.setClipEmoji).toHaveBeenLastCalledWith('k', 'a', null)
     expect(screen.queryByText('🦊')).toBeNull()
   })
 
-  it('l’emoji d’un clip ouvert est aussi sous le lecteur', async () => {
+  it('l’emoji d’un clip ouvert est aussi sur le lecteur', async () => {
     vi.mocked(api.setClipEmoji).mockResolvedValue('🦌')
     await mount([event('a', { emoji: '🐦' })])
     fireEvent.click(screen.getByLabelText(/voliere-interieur/))
     await act(flush)
     fireEvent.click(screen.getByRole('button', { name: 'Emoji du clip' }))
-    fireEvent.click(screen.getByRole('button', { name: '🦌' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Emoji du clip' }), { target: { value: '🦌' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Emoji du clip' }), { key: 'Enter' })
     await act(flush)
     expect(api.setClipEmoji).toHaveBeenCalledWith('k', 'a', '🦌')
-  })
-
-  it('la note d’un clip ouvert, puis la liste vidée entre-temps', async () => {
-    let done: (note: string) => void = () => undefined
-    vi.mocked(api.setClipNote).mockReturnValue(new Promise((resolve) => (done = resolve)))
-    await mount([event('a')])
-    fireEvent.click(screen.getByLabelText(/voliere-interieur/))
-    fireEvent.click(screen.getByRole('button', { name: 'Note du clip' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Note du clip' }), { target: { value: 'x' } })
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note du clip' }), { key: 'Enter' })
-    fireEvent.click(screen.getByRole('tab', { name: 'Non sauvegardé' }))
-    vi.mocked(api.setClipSaved).mockResolvedValue(undefined)
-    await act(flush)
-    await act(async () => {
-      done('x')
-      await flush()
-    })
-    expect(screen.getByText(/Aucun clip sauvegardé/)).toBeInTheDocument()
   })
 
   it('libérer pendant que la liste a été vidée entre-temps', async () => {
@@ -230,7 +203,6 @@ describe('HomeUI : cas que le conteneur ne produit pas', () => {
         saved={false}
         onSave={vi.fn()}
         saveFailed={false}
-        onNote={vi.fn()}
         onEmoji={vi.fn()}
         onOpen={vi.fn()}
         onBack={vi.fn()}

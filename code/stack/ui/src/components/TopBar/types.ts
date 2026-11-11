@@ -16,6 +16,4 @@ export interface TopBarProps<T extends string = string> {
   actions?: ReactNode
   /** Des boutons toujours dans la barre, **juste à gauche du bouton sandwich** sur téléphone (et tout à droite sur grand écran) : par exemple le bouton des notifications. Ils ne sont pas répétés dans le menu. */
   barActions?: ReactNode
-  /** Des éléments du menu sandwich seulement (téléphone) : par exemple le lien de la page invité. Le menu reste ouvert quand on les touche. */
-  menuItems?: ReactNode
 }

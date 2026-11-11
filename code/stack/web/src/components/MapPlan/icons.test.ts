@@ -7,7 +7,15 @@ import {
   CAMERA_DOT_OFF_IMAGE,
   CAMERA_DOT_ON_IMAGE,
   CAMERA_IMAGE,
+  HEATPUMP_IMAGE,
+  ROUTER_IMAGE,
+  AC_HOVER_IMAGE,
+  CAMERA_HOVER_IMAGE,
+  PLUG_HOVER_IMAGE,
+  SHUTTER_CLOSED_HOVER_IMAGE,
+  SHUTTER_OPEN_HOVER_IMAGE,
   EMOJI_PREFIX,
+  LAMP_HOVER_PREFIX,
   LAMP_PREFIX,
   PLUG_IMAGE,
   SHUTTER_CLOSED_IMAGE,
@@ -31,7 +39,12 @@ const fakeContext = () => ({
   drawImage: vi.fn(),
   fillRect: vi.fn(),
   fillText: vi.fn(),
-  measureText: vi.fn(() => ({ actualBoundingBoxLeft: 1, actualBoundingBoxRight: 20, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 2 })),
+  measureText: vi.fn(() => ({
+    actualBoundingBoxLeft: 1,
+    actualBoundingBoxRight: 20,
+    actualBoundingBoxAscent: 10,
+    actualBoundingBoxDescent: 2,
+  })),
   getImageData: vi.fn(() => ({ marker: 'image' })),
 })
 
@@ -50,13 +63,14 @@ const fakeMap = () => {
 }
 
 let context: ReturnType<typeof fakeContext> | null = null
-let imageOutcome: 'load' | 'error' = 'load'
+let imageOutcome: 'load' | 'error' | 'error-black' = 'load'
 
 class FakeImage {
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
-  set src(_value: string) {
-    queueMicrotask(() => (imageOutcome === 'load' ? this.onload?.() : this.onerror?.()))
+  set src(value: string) {
+    const fails = imageOutcome === 'error' || (imageOutcome === 'error-black' && value.includes('000000'))
+    queueMicrotask(() => (fails ? this.onerror?.() : this.onload?.()))
   }
 }
 
@@ -86,7 +100,22 @@ describe('addMapIcons', () => {
     const { map, raw, images } = fakeMap()
     addMapIcons(map, colors)
     await flush()
-    expect([...images].sort()).toEqual([AC_IMAGE, CAMERA_IMAGE, PLUG_IMAGE, SHUTTER_CLOSED_IMAGE, SHUTTER_OPEN_IMAGE].sort())
+    expect([...images].sort()).toEqual(
+      [
+        AC_IMAGE,
+        AC_HOVER_IMAGE,
+        CAMERA_IMAGE,
+        CAMERA_HOVER_IMAGE,
+        HEATPUMP_IMAGE,
+        PLUG_IMAGE,
+        PLUG_HOVER_IMAGE,
+        ROUTER_IMAGE,
+        SHUTTER_CLOSED_IMAGE,
+        SHUTTER_CLOSED_HOVER_IMAGE,
+        SHUTTER_OPEN_IMAGE,
+        SHUTTER_OPEN_HOVER_IMAGE,
+      ].sort(),
+    )
     expect(raw.addImage).toHaveBeenCalledWith(CAMERA_IMAGE, { marker: 'image' }, { pixelRatio: 2 })
     // une image déjà présente n'est pas ajoutée deux fois
     raw.addImage.mockClear()
@@ -102,6 +131,11 @@ describe('addMapIcons', () => {
     await flush()
     context = fakeContext()
     imageOutcome = 'error'
+    addMapIcons(map, colors)
+    await flush()
+    expect(raw.addImage).not.toHaveBeenCalled()
+    // la seconde image (l'icône noire) qui ne charge pas : aucune icône non plus
+    imageOutcome = 'error-black'
     addMapIcons(map, colors)
     await flush()
     expect(raw.addImage).not.toHaveBeenCalled()
@@ -125,8 +159,9 @@ describe('watchDynamicImages', () => {
     watchDynamicImages(map)
     ask(`${TEMPERATURE_PREFIX}21,5°`)
     ask(`${LAMP_PREFIX}#ffa85a`)
+    ask(`${LAMP_HOVER_PREFIX}#ffa85a`)
     ask(`${EMOJI_PREFIX}🦊`)
-    expect(raw.addImage.mock.calls.map((call) => call[0])).toEqual(['temp-21,5°', 'lamp-#ffa85a', 'emoji-🦊'])
+    expect(raw.addImage.mock.calls.map((call) => call[0])).toEqual(['temp-21,5°', 'lamp-#ffa85a', 'lamph-#ffa85a', 'emoji-🦊'])
     expect(context?.fillText).toHaveBeenCalledWith('21,5°', expect.any(Number), expect.any(Number))
     // l'ampoule dessine ses tracés (sans le fond transparent de l'icône)
     expect(context?.fill).toHaveBeenCalledWith(expect.any(FakePath2D))
