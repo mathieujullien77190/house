@@ -55,7 +55,7 @@ vi.mock('@/lib/usePinchZoom', () => ({
     return { handlers: {}, style: {} }
   },
 }))
-vi.mock('@/lib/api', () => ({ setClipSaved: vi.fn() }))
+vi.mock('@/lib/api', () => ({ setClipSaved: vi.fn(), setCameraPower: vi.fn() }))
 vi.mock('@/components/ClipPlayer', () => ({
   default: (props: any) => {
     h.clip = props
@@ -83,8 +83,6 @@ vi.mock('@/components/MarkersToggle', () => ({
   ),
 }))
 vi.mock('@/components/SnapshotImage', () => ({ default: (props: any) => <div data-testid="snapshot">{props.at}</div> }))
-vi.mock('@/components/PowerButton', () => ({ default: (props: any) => <div data-testid="power">{String(props.hideOff)}</div> }))
-vi.mock('@/components/ShareButton', () => ({ default: (props: any) => <div data-testid="share">{props.path}</div> }))
 vi.mock('@house/ui', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@house/ui')>()),
   ZoneEditor: (props: any) => {
@@ -97,8 +95,9 @@ vi.mock('@house/ui', async (importOriginal) => ({
     return (
       <section>
         <h2>{props.name}</h2>
-        <p data-testid="caption">{props.caption}</p>
         {slot('actions', props.actions)}
+        {slot('videoActions', props.videoActions)}
+        {slot('topLeft', props.topLeft)}
         {slot('media', props.media)}
         {slot('details', props.details)}
         {slot('clock', props.clock)}
@@ -160,19 +159,10 @@ beforeEach(() => {
 const pick = (e: EventRow, at: number | null = 995) => act(() => h.timeline.onEvent(e, at))
 
 describe('CameraCard : le direct', () => {
-  it('montre le nom, la légende du direct et l’adresse du flux (4K par défaut)', () => {
+  it('montre le nom et l’adresse du flux (4K par défaut)', () => {
     mount()
     expect(screen.getByRole('heading')).toHaveTextContent('voliere-interieur')
-    expect(screen.getByTestId('caption')).toHaveTextContent('Direct')
     expect(document.querySelector('img')).toHaveAttribute('src', '/stream?camera=voliere-interieur&quality=hd')
-  })
-  it('la première image donne la résolution du direct', () => {
-    mount()
-    const img = document.querySelector('img') as HTMLImageElement
-    Object.defineProperty(img, 'naturalWidth', { value: 640 })
-    Object.defineProperty(img, 'naturalHeight', { value: 360 })
-    fireEvent.load(img)
-    expect(screen.getByTestId('caption')).toHaveTextContent('640×360')
   })
   it('en 4K, le flux léger s’affiche d’abord ; le 4K se charge caché et le remplace dès sa première image', () => {
     mount()
@@ -187,27 +177,17 @@ describe('CameraCard : le direct', () => {
     fireEvent.load(hd)
     expect(sources()).toEqual(['/stream?camera=voliere-interieur&quality=hd'])
     expect(document.querySelector('img')?.closest('.opacity-0')).toBeNull()
-    expect(screen.getByTestId('caption')).toHaveTextContent('3840×2160')
     // revenir à « Léger » puis « 4K » repart du flux léger
-    fireEvent.click(screen.getByRole('tab', { name: 'Léger' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'L' }))
     expect(sources()).toEqual(['/stream?camera=voliere-interieur'])
     fireEvent.click(screen.getByRole('tab', { name: '4K' }))
     expect(sources()).toEqual(['/stream?camera=voliere-interieur&quality=hd', '/stream?camera=voliere-interieur'])
   })
-  it('en Léger, la première image donne la résolution du direct', () => {
-    mount()
-    fireEvent.click(screen.getByRole('tab', { name: 'Léger' }))
-    const img = document.querySelector('img') as HTMLImageElement
-    Object.defineProperty(img, 'naturalWidth', { value: 640 })
-    Object.defineProperty(img, 'naturalHeight', { value: 360 })
-    fireEvent.load(img)
-    expect(screen.getByTestId('caption')).toHaveTextContent('640×360')
-  })
-  it('« Léger » change le flux et oublie la résolution ; le même choix ne fait rien', () => {
+  it('« L » et « 4K » changent le flux ; le même choix ne fait rien', () => {
     mount()
     fireEvent.click(screen.getByRole('tab', { name: '4K' }))
     expect(document.querySelector('img')).toHaveAttribute('src', '/stream?camera=voliere-interieur&quality=hd')
-    fireEvent.click(screen.getByRole('tab', { name: 'Léger' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'L' }))
     expect(document.querySelector('img')).toHaveAttribute('src', '/stream?camera=voliere-interieur')
   })
   it('sur téléphone, le flux ajoute screen=mobile', () => {
@@ -216,16 +196,18 @@ describe('CameraCard : le direct', () => {
     expect(document.querySelector('img')?.getAttribute('src')).toContain('screen=mobile')
     expect(h.card.screen).toBe(true)
   })
-  it('sur téléphone, « Léger » s’écrit « L » (4K ne change pas) ; sur grand écran, « Léger »', () => {
+  it('« L / 4K » : « L » partout ; sur téléphone dans les actions, sur grand écran posé sur la vidéo', () => {
     h.s.mobile = true
     const phone = mount()
     expect(screen.getByRole('tab', { name: 'L' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '4K' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Léger' })).toBeNull()
+    expect(screen.getByTestId('actions')).toContainElement(screen.getByRole('tab', { name: 'L' }))
     phone.unmount()
     h.s.mobile = false
     mount()
-    expect(screen.getByRole('tab', { name: 'Léger' })).toBeInTheDocument()
+    expect(screen.getByTestId('videoActions')).toContainElement(screen.getByRole('tab', { name: 'L' }))
+    expect(screen.getByTestId('actions')).not.toContainElement(screen.getByRole('tab', { name: 'L' }))
   })
   it('caméra éteinte ou en démarrage : image noire avec le message', () => {
     h.s.power = power({ on: false })
@@ -242,10 +224,54 @@ describe('CameraCard : le direct', () => {
     mount()
     expect(document.querySelector('img')).not.toBeNull()
   })
-  it('passe l’état du bouton d’alimentation (caché sur téléphone)', () => {
-    h.s.mobile = true
+  it('sans switch (état inconnu) : seulement L et 4K, pas de « Off »', () => {
+    h.s.power = null
     mount()
-    expect(screen.getByTestId('power')).toHaveTextContent('true')
+    expect(screen.queryByRole('tab', { name: 'Off' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'L' })).toBeInTheDocument()
+  })
+  it('« Off » éteint la caméra au niveau du PoE et rend le nouvel état', async () => {
+    h.s.power = power()
+    const next = power({ on: false })
+    vi.mocked(api.setCameraPower).mockResolvedValue(next as never)
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: 'Off' }))
+    await act(flush)
+    expect(api.setCameraPower).toHaveBeenCalledWith('k', 'voliere-interieur', false)
+    expect(h.setPower).toHaveBeenCalledWith(next)
+  })
+  it('« Off » sur une caméra déjà éteinte : rien ; l’onglet Off est celui qui est choisi', () => {
+    h.s.power = power({ on: false })
+    mount()
+    expect(screen.getByRole('tab', { name: 'Off' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('tab', { name: 'Off' }))
+    expect(api.setCameraPower).not.toHaveBeenCalled()
+  })
+  it('« L » ou « 4K » rallume une caméra éteinte, puis choisit la qualité', async () => {
+    h.s.power = power({ on: false })
+    vi.mocked(api.setCameraPower).mockResolvedValue(power() as never)
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: 'L' }))
+    await act(flush)
+    expect(api.setCameraPower).toHaveBeenCalledWith('k', 'voliere-interieur', true)
+  })
+  it('un switch qui ne répond pas : le message, et un second clic reste possible', async () => {
+    h.s.power = power()
+    vi.mocked(api.setCameraPower).mockRejectedValue(new Error('x'))
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: 'Off' }))
+    await act(flush)
+    expect(screen.getByText('Le switch n’a pas répondu.')).toBeInTheDocument()
+  })
+  it('pendant un ordre en route, un autre clic est ignoré', async () => {
+    h.s.power = power()
+    let done: (value: never) => void = () => undefined
+    vi.mocked(api.setCameraPower).mockReturnValue(new Promise<never>((resolve) => (done = resolve)))
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: 'Off' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Off' }))
+    expect(api.setCameraPower).toHaveBeenCalledTimes(1)
+    await act(async () => done(power({ on: false }) as never))
   })
 })
 
@@ -318,11 +344,11 @@ describe('CameraCard : les repères des autres caméras', () => {
     expect(screen.queryByTestId('markers-toggle')).toBeNull()
     expect(screen.queryByTestId('layer')).toBeNull()
   })
-  it('sur téléphone : rien', () => {
+  it('sur téléphone : les repères et leur bouton aussi', () => {
     h.s.mobile = true
     mount({ others: ['b'], onOpenCamera: open })
-    expect(screen.queryByTestId('markers-toggle')).toBeNull()
-    expect(screen.queryByTestId('layer')).toBeNull()
+    expect(screen.getByTestId('markers-toggle')).toBeInTheDocument()
+    expect(screen.getByTestId('layer')).toBeInTheDocument()
   })
   it('caméra éteinte : le bouton reste mais pas la couche ni le son', () => {
     h.s.power = power({ on: false })
@@ -401,7 +427,7 @@ describe('CameraCard : le clip', () => {
 
   it('ouvert directement sur un clip', () => {
     mount({ events: [e], initialEventId: 'a' })
-    expect(h.clip.path).toBe('/clips/a/h264')
+    expect(h.clip.path).toBe('/clips/a')
     expect(h.timeline.playhead).toBe(995)
     expect(h.timeline.selectedEventId).toBe('a')
   })
@@ -422,12 +448,11 @@ describe('CameraCard : le clip', () => {
     const onRead = vi.fn()
     mount({ events: [e], onRead })
     pick(e)
-    expect(h.clip.path).toBe('/clips/a/h264')
+    expect(h.clip.path).toBe('/clips/a')
     expect(onRead).toHaveBeenCalledWith('a')
     expect(h.clip.restart).toBe(1)
     pick(e)
     expect(h.clip.restart).toBe(2)
-    expect(screen.getByTestId('caption').textContent).toMatch(/^Clip · /)
   })
   it('sans rappel de lecture, ouvrir un clip ne casse rien', () => {
     mount({ events: [e] })
@@ -440,11 +465,11 @@ describe('CameraCard : le clip', () => {
     rerender(<CameraCard apiKey="k" camera={camera()} events={[event('a', { saved: true })]} />)
     expect(screen.getByRole('tab', { name: 'Sauvegardé' })).toHaveAttribute('aria-selected', 'true')
   })
-  it('un événement disparu de la liste garde sa version cliquée', () => {
+  it('un événement disparu de la liste garde son clip', () => {
     const { rerender } = mount({ events: [e] })
     pick(e)
     rerender(<CameraCard apiKey="k" camera={camera()} events={[]} />)
-    expect(h.clip.path).toBe('/clips/a/h264')
+    expect(h.clip.path).toBe('/clips/a')
   })
 
   it('la lecture avance : position et durée', () => {
@@ -512,43 +537,30 @@ describe('CameraCard : le clip', () => {
     mount()
     act(() => h.timeline.onCursor(900))
     expect(screen.getByTestId('snapshot')).toHaveTextContent('900')
-    expect(screen.getByTestId('caption').textContent).toMatch(/^Image à /)
-    expect(screen.queryByRole('tab', { name: 'Léger' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'L' })).toBeNull()
   })
 })
 
 describe('CameraCard : version du clip', () => {
   const e = event('a')
-  it('H.264 / H.265 : change la version et reprend là où on en était', () => {
+  it('sur PC : le clip se lit en H.265 (l’original), sans choix de version', () => {
     mount({ events: [e] })
     pick(e)
-    act(() => h.timeline.onEvent(e, 995))
-    act(() => h.clip.onTime(12))
-    fireEvent.click(screen.getByRole('tab', { name: 'H.264 · 720p' }))
-    expect(h.clip.path).toBe('/clips/a/h264')
-    fireEvent.click(screen.getByRole('tab', { name: 'H.265 · 4K' }))
     expect(h.clip.path).toBe('/clips/a')
-    expect(h.clip.startAt).toBe(12)
+    expect(screen.queryByRole('tab', { name: /H\.26/ })).toBeNull()
   })
-  it('sans position de lecture : repart du début', () => {
-    mount({ events: [e] })
-    act(() => h.timeline.onEvent(e, null))
-    fireEvent.click(screen.getByRole('tab', { name: 'H.265 · 4K' }))
-    expect(h.clip.startAt).toBe(0)
-  })
-  it('sur téléphone : pas de choix, la copie légère H.264 joue (le 4K ne se lit pas)', () => {
+  it('sur téléphone : la copie légère H.264 joue (le 4K ne se lit pas), sans choix', () => {
     h.s.mobile = true
     mount({ events: [e] })
     pick(e)
-    expect(screen.queryByRole('tab', { name: '720p' })).toBeNull()
-    expect(screen.queryByRole('tab', { name: '4K' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /H\.26/ })).toBeNull()
     expect(h.clip.path).toBe('/clips/a/h264')
   })
-  it('pas de choix sans copie légère', () => {
+  it('sans copie légère, l’original partout', () => {
+    h.s.mobile = true
     mount({ events: [event('a', { clip_h264: null })] })
     pick(event('a', { clip_h264: null }))
     expect(h.clip.path).toBe('/clips/a')
-    expect(screen.queryByRole('tab', { name: '720p' })).toBeNull()
   })
 })
 
@@ -562,10 +574,8 @@ describe('CameraCard : sauvegarde et partage', () => {
     expect(api.setClipSaved).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('tab', { name: 'Sauvegardé' }))
     expect(api.setClipSaved).toHaveBeenCalledWith('k', 'a', true)
-    expect(screen.getByTestId('share')).toHaveTextContent('/clips/a/h264')
     fireEvent.click(screen.getByRole('tab', { name: 'Non sauvegardé' }))
     expect(api.setClipSaved).toHaveBeenLastCalledWith('k', 'a', false)
-    expect(screen.queryByTestId('share')).toBeNull()
   })
   it('un échec remet l’état d’avant', async () => {
     vi.mocked(api.setClipSaved).mockRejectedValue(new Error('x'))
@@ -575,18 +585,17 @@ describe('CameraCard : sauvegarde et partage', () => {
     await act(flush)
     expect(screen.getByRole('tab', { name: 'Non sauvegardé' })).toHaveAttribute('aria-selected', 'true')
   })
-  it('un clip déjà sauvegardé se partage ; sans copie légère, l’original', () => {
-    mount({ events: [event('a', { saved: true, clip_h264: null })] })
-    pick(event('a', { saved: true, clip_h264: null }))
-    expect(screen.getByTestId('share')).toHaveTextContent('/clips/a')
+  it('plus de bouton Partager dans le détail d’une caméra, clip sauvegardé ou non', () => {
+    mount({ events: [event('a', { saved: true })] })
+    pick(event('a', { saved: true }))
+    expect(screen.queryByRole('button', { name: /Partager/ })).toBeNull()
+    expect(document.querySelector('[data-testid="share"]')).toBeNull()
   })
-  it('sur téléphone : pas d’interrupteur, le partage est dans les détails', () => {
+  it('sur téléphone : pas d’interrupteur « Sauvegardé »', () => {
     h.s.mobile = true
     mount({ events: [event('a', { saved: true })] })
     pick(event('a', { saved: true }))
     expect(screen.queryByRole('tab', { name: 'Sauvegardé' })).toBeNull()
-    expect(screen.getByTestId('details')).toContainElement(screen.getByTestId('share'))
-    expect(screen.getAllByTestId('share')).toHaveLength(1)
   })
   it('sur téléphone, un clip non sauvegardé : rien dans les détails', () => {
     h.s.mobile = true
@@ -626,11 +635,11 @@ describe('CameraCard : zone de surveillance et enregistrement', () => {
     expect(screen.queryByRole('button', { name: 'Toute l’image' })).toBeNull()
     expect(screen.queryByText('Zone non enregistrée')).toBeNull()
   })
-  it('ni zone ni enregistrement sur téléphone, ni caméra éteinte, ni hors direct', () => {
+  it('sur téléphone : le rond d’enregistrement oui, la zone non ; ni caméra éteinte, ni hors direct', () => {
     h.s.mobile = true
     const phone = mount()
     expect(screen.queryByRole('button', { name: 'Zone de surveillance' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Enregistrer/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Enregistrer/ })).toBeInTheDocument()
     phone.unmount()
     h.s.mobile = false
     h.s.power = power({ on: false })
@@ -651,7 +660,7 @@ describe('CameraCard : zone de surveillance et enregistrement', () => {
     unmount()
     h.s.recorder = { ...h.s.recorder, recording: true, seconds: 72 }
     mount()
-    expect(screen.getByRole('button', { name: 'Arrêter (1:12)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Arrêter l’enregistrement (1:12)' })).toBeInTheDocument()
   })
   it('échec d’enregistrement et message de copie', () => {
     h.s.recorder = { ...h.s.recorder, failed: true, stopped: true }

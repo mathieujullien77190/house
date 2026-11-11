@@ -25,6 +25,8 @@ export const useBigView = (portrait = false): BigView => {
   const [big, setBig] = useState(false)
   // Vrai tant que la vue est demandée : une fermeture pendant que le plein écran se négocie annule la suite.
   const wanted = useRef(false)
+  // Vrai quand on quitte nous-mêmes le plein écran réel : `fullscreenchange` ne doit pas fermer la vue en grand.
+  const leaving = useRef(false)
 
   const close = useCallback(() => {
     wanted.current = false
@@ -50,7 +52,15 @@ export const useBigView = (portrait = false): BigView => {
       try {
         await screen.orientation.lock(portrait ? 'portrait' : 'landscape')
       } catch {
-        // verrou refusé (hors plein écran, navigateur sans l'API) : la vue se tourne d'elle-même si l'écran reste droit
+        // Verrou refusé (hors plein écran, navigateur sans l'API) : la vue se tourne d'elle-même si l'écran reste droit.
+        // Mais un élément en plein écran réel garde `transform: none` (imposé par le navigateur) : il ne peut pas se tourner.
+        // Écran resté droit : on quitte le plein écran réel, la vue en grand de la page (tournée) suffit.
+        if (!portrait && document.fullscreenElement && window.matchMedia('(orientation: portrait)').matches) {
+          leaving.current = true
+          document.exitFullscreen().catch(() => {
+            leaving.current = false
+          })
+        }
       }
     }
     enter()
@@ -60,6 +70,11 @@ export const useBigView = (portrait = false): BigView => {
   useEffect(() => {
     const onChange = () => {
       if (document.fullscreenElement) return
+      // Sortie voulue (verrou refusé, écran droit) : la vue en grand de la page reste ouverte.
+      if (leaving.current) {
+        leaving.current = false
+        return
+      }
       setBig(false)
       unlockOrientation()
     }

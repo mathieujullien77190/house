@@ -420,11 +420,16 @@ describe('MapPlan : sur téléphone', () => {
   it('le bouton « Modifier » n’existe pas quand la carte remplit l’écran (téléphone) ; il existe sinon', () => {
     const { unmount } = render(<MapPlan {...baseProps({ fill: true })} />)
     expect(screen.queryByRole('button', { name: EDIT_LABEL })).toBeNull()
-    // les cases à cocher restent
+    // les cases à cocher sont dans un petit menu fermé au départ
+    expect(screen.queryByRole('checkbox', { name: 'Clim' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Filtres' }))
     expect(screen.getByRole('checkbox', { name: 'Clim' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Filtres' }))
+    expect(screen.queryByRole('checkbox', { name: 'Clim' })).toBeNull()
     unmount()
     render(<MapPlan {...baseProps()} />)
     expect(screen.getByRole('button', { name: EDIT_LABEL })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Filtres' })).toBeNull()
   })
 })
 
@@ -445,6 +450,35 @@ describe('MapPlan : la carte suit la taille de son cadre', () => {
       expect(callbacks).toHaveLength(1)
       callbacks[0]()
       expect((map as unknown as { resize: ReturnType<typeof vi.fn> }).resize).toHaveBeenCalledTimes(1)
+      unmount()
+    } finally {
+      globalThis.ResizeObserver = original
+    }
+  })
+})
+
+describe('MapPlan : sur téléphone, la carte prend la place qui reste', () => {
+  it('sa hauteur va du haut de son cadre au bas de l’écran (moins la marge), remesurée quand le cadre change', () => {
+    const callbacks: (() => void)[] = []
+    const original = globalThis.ResizeObserver
+    globalThis.ResizeObserver = class {
+      constructor(callback: () => void) {
+        callbacks.push(callback)
+      }
+      observe() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true })
+    try {
+      const { container, unmount } = render(<MapPlan {...baseProps({ fill: true })} />)
+      const frame = container.firstElementChild?.firstElementChild as HTMLElement
+      expect(frame.style.height).toBe('784px')
+      Object.defineProperty(window, 'innerHeight', { value: 700, configurable: true })
+      window.dispatchEvent(new Event('resize'))
+      expect(frame.style.height).toBe('684px')
+      Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true })
+      callbacks[0]()
+      expect(frame.style.height).toBe('584px')
       unmount()
     } finally {
       globalThis.ResizeObserver = original

@@ -16,7 +16,7 @@ export const MAX_WINDOW = 14 * DAY
 /** Un cran de molette multiplie ou divise la fenêtre par ce facteur. */
 export const WHEEL_FACTOR = 1.25
 /** Au clic sur un événement, sa durée occupe cette part de l'axe. */
-export const EVENT_FOCUS_SHARE = 0.5
+export const EVENT_FOCUS_SHARE = 0.9
 /** Pas de graduation possibles ; on prend le plus petit qui donne au plus MAX_TICKS graduations. */
 export const TICK_STEPS = [
   5,

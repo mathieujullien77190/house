@@ -15,14 +15,14 @@ Le conteneur de `Timeline` de `@house/ui` (option `vertical` : `../../../../ui/s
 ## Clics
 
 - Clic sur l'axe → image de cet instant.
-- Clic dans un bloc → le clip repart toujours du début de la vidéo, où qu'on clique (se placer dans le clip se fait avec le lecteur vidéo, pas avec la frise) ; la fenêtre se recadre pour que l'événement occupe la moitié de l'axe ; le curseur suit la lecture (l'avance du clip sur l'événement vient de `clip_started_at`, ou se déduit de la durée de la vidéo pour les anciens clips).
+- Clic dans un bloc → le clip repart toujours du début de la vidéo, où qu'on clique (se placer dans le clip se fait avec le lecteur vidéo, pas avec la frise) ; la fenêtre se recadre pour que **tout le bloc bleu** (du début de la vidéo à la fin plus la queue, `focusOn`) occupe 90 % de l'axe (`EVENT_FOCUS_SHARE`) : on voit le clip entier ; le curseur suit la lecture (l'avance du clip sur l'événement vient de `clip_started_at`, ou se déduit de la durée de la vidéo pour les anciens clips).
 
 ## Sur téléphone (sous 1024 px, `lib/useMobile.ts`)
 
 La frise est **verticale, le plus récent en haut**, et la vue d'une caméra y est un **écran fixe** :
 
-- la vidéo sur le tiers du haut avec ses commandes dessus : L/4K pour le direct (pas de choix de version pour un clip sur téléphone : la copie légère H.264 joue toujours, le 4K ne se lit pas), Allumer en haut à droite si la caméra est éteinte (jamais « Éteindre » sur téléphone : `hideOff`), les températures en bas à gauche, **juste les valeurs, un bloc chacune** (`ValueChips`, sans le nom du capteur), « ⛶ » en bas à droite ;
-- la frise sur les deux tiers du bas avec « Direct » et les durées dedans (sans la ligne de dates ni le compteur « plus anciens ») ;
+- la vidéo sur la moitié du haut avec ses commandes dessus : L/4K pour le direct (pas de choix de version pour un clip sur téléphone : la copie légère H.264 joue toujours, le 4K ne se lit pas), Allumer en haut à droite si la caméra est éteinte (jamais « Éteindre » sur téléphone : `hideOff`), les températures en bas à gauche, **juste les valeurs, un bloc chacune** (`ValueChips`, sans le nom du capteur), « ⛶ » en bas à droite ;
+- la frise sur la moitié du bas avec « Direct » et les durées dedans (sans la ligne de dates ni le compteur « plus anciens ») ;
 - un bouton retour fixe en haut à gauche, **un carré de 32 px avec un petit triangle centré** ; ni titre, ni menu, ni « Oublier la clé » sur cet écran, `AppUI` ne rend que `CameraCard`.
 
 Sur grand écran elle est horizontale. Les gestes sont les mêmes (glisser, pincer, molette) mais lus le long de l'axe (`alongOf`, `fractionAlong`, `shiftSeconds` dans `helpers.ts`) ; le dessin retourne les positions en % (`vertical` de `@house/ui`).

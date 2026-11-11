@@ -20,7 +20,11 @@ import {
   SATELLITE,
   ALWAYS_HIT,
   EDIT_LABEL,
+  FILL_BOTTOM_GAP,
   FILTERS,
+  FILTERS_LABEL,
+  FILTERS_MENU_CLASS,
+  FILTERS_MENU_WRAPPER_CLASS,
   LAMP_LABEL_CLASS,
   LINK_LABEL,
   LINK_NONE,
@@ -125,6 +129,12 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
   }
 }
 
+/** Du haut du cadre au bas de l'écran, moins la marge de la page. */
+const fitHeight = (element: HTMLElement) => {
+  const top = element.getBoundingClientRect().top + window.scrollY
+  element.style.height = `${window.innerHeight - top - FILL_BOTTOM_GAP}px`
+}
+
 /** Les éléments vivants d'après les props. */
 const liveData = (props: ResolvedProps): LiveData => ({
   cage: props.cage,
@@ -170,6 +180,8 @@ const MapPlan = (given: MapPlanProps) => {
   })
   // La caméra survolée : son champ de vision s'affiche tant que la souris est dessus.
   const [hoveredCamera, setHoveredCamera] = useState('')
+  // Téléphone : le petit menu des filtres est ouvert ou fermé (fermé au départ).
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // La prise (le chauffage) survolée : son nom s'écrit en bas de la carte.
   const [hoveredPlug, setHoveredPlug] = useState('')
   // Le volet survolé ou touché, dont le texte s'écrit en bas de la carte.
@@ -256,14 +268,28 @@ const MapPlan = (given: MapPlanProps) => {
     }
   }, [])
 
-  // La Home reste montée (cachée) quand on change d'onglet : quand elle redevient visible, la carte reprend la taille de son cadre.
+  // Téléphone (`fill`) : la carte prend toute la place qui reste, du haut de son cadre au bas de l'écran (moins la marge de la page). Mesuré, pas deviné : la hauteur de la barre du haut varie.
+  const fill = Boolean(given.fill)
+  useEffect(() => {
+    const element = container.current
+    if (!fill || !element) return
+    const fit = () => fitHeight(element)
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [fill])
+
+  // La Home reste montée (cachée) quand on change d'onglet : quand elle redevient visible, la carte reprend la taille de son cadre (et, sur téléphone, sa hauteur est remesurée à sa vraie place).
   useEffect(() => {
     const element = container.current
     if (!element || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => mapRef.current?.resize())
+    const observer = new ResizeObserver(() => {
+      if (fill) fitHeight(element)
+      mapRef.current?.resize()
+    })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [fill])
 
   // Une vue imposée par le parent (par exemple quand on choisit une caméra) : la carte s'y place d'un coup, à chaque fois que la vue demandée change.
   const focus = given.focusView
@@ -377,6 +403,14 @@ const MapPlan = (given: MapPlanProps) => {
   const hoveredCameraItem = props.cameras.find((item) => item.id === hoveredCamera)
   const cameraName = hoveredCameraItem ? (props.links[hoveredCameraItem.id] ?? hoveredCameraItem.name) : ''
   const plugName = props.plugs.find((item) => item.id === hoveredPlug)?.name ?? ''
+  const filterBoxes = FILTERS.map((filter) => (
+    <Checkbox
+      key={filter.id}
+      label={filter.label}
+      checked={shown[filter.id]}
+      onChange={(checked) => setShown((current) => ({ ...current, [filter.id]: checked }))}
+    />
+  ))
 
   return (
     <div className={WRAPPER_CLASS}>
@@ -404,16 +438,16 @@ const MapPlan = (given: MapPlanProps) => {
             {EDIT_LABEL}
           </Button>
         )}
-        <div className={FILTERS_BAR_CLASS}>
-          {FILTERS.map((filter) => (
-            <Checkbox
-              key={filter.id}
-              label={filter.label}
-              checked={shown[filter.id]}
-              onChange={(checked) => setShown((current) => ({ ...current, [filter.id]: checked }))}
-            />
-          ))}
-        </div>
+        {given.fill ? (
+          <div className={FILTERS_MENU_WRAPPER_CLASS}>
+            <Button variant={filtersOpen ? 'active' : 'default'} aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+              {FILTERS_LABEL}
+            </Button>
+            {filtersOpen ? <div className={FILTERS_MENU_CLASS}>{filterBoxes}</div> : null}
+          </div>
+        ) : (
+          <div className={FILTERS_BAR_CLASS}>{filterBoxes}</div>
+        )}
       </div>
     </div>
   )

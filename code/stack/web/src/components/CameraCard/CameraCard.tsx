@@ -5,12 +5,10 @@ import CameraIndicators from '@/components/CameraIndicators'
 import FastScroll from '@/components/FastScroll'
 import { NORMAL_RATE } from '@/components/FastScroll/constants'
 import { speedOf } from '@/components/FastScroll/helpers'
-import PowerButton from '@/components/PowerButton'
+import RecordButton from '@/components/RecordButton'
 import RotatedMedia from '@/components/RotatedMedia'
-import ShareButton from '@/components/ShareButton'
-import { setClipSaved } from '@/lib/api'
+import { setCameraPower, setClipSaved } from '@/lib/api'
 import { rememberClipDuration } from '@/lib/clipDurations'
-import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
 import CameraMarkers from '@/components/CameraMarkers'
@@ -37,14 +35,13 @@ import {
   CAMERA_TITLE_PREFIX,
   HD_PRELOAD_CLASS,
   HIDDEN_PLAYER_CLASS,
+  LIVE_OFF_OPTION,
+  POWER_ERROR_TEXT,
   LIVE_QUALITY_LABEL,
-  LIVE_QUALITY_OPTIONS,
   LIVE_QUALITY_OPTIONS_SHORT,
   NO_CLIP_TEXT,
   NO_IMAGE_TEXT,
   ONGOING_CLIP_TEXT,
-  QUALITY_LABEL,
-  QUALITY_OPTIONS,
   SAVE_LABEL,
   SAVE_OPTIONS,
   CAMERA_LAMP,
@@ -53,9 +50,7 @@ import {
   MEDIA_HOST_CLASS,
   CONTROLS_OVERLAY_CLASS,
   RECORD_FAILED_TEXT,
-  RECORD_LABEL,
   RECORD_NOTE_CLASS,
-  RECORD_STOP_LABEL,
   RECORD_STOPPED_DETAIL,
   RECORD_STOPPED_TEXT,
   ZONE_BUTTON_LABEL,
@@ -63,8 +58,8 @@ import {
   ZONE_FAILED_TEXT,
   ZONE_RESET_LABEL,
 } from './constants'
-import { captionOf, clipLead, fadeFor, clipPathOf, liveCaption, orientationShown, temperatureItems } from './helpers'
-import type { CameraCardProps, LiveQuality, Quality } from './types'
+import { clipLead, fadeFor, clipPathOf, orientationShown, temperatureItems } from './helpers'
+import type { CameraCardProps, LiveChoice, LiveQuality } from './types'
 
 /**
  * Une caméra : en haut le direct (flux MJPEG relayé par l'API depuis go2rtc), remplacée par l'image gardée
@@ -84,7 +79,7 @@ const CameraCard = ({
   others = [],
   onOpenCamera,
 }: CameraCardProps) => {
-  // Sur téléphone (sous 1024 px) : un écran fixe, la vidéo sur le tiers du haut, la frise sur le reste.
+  // Sur téléphone (sous 1024 px) : un écran fixe, la vidéo sur la moitié du haut, la frise sur le reste.
   const mobile = useMobile()
   const [cursor, setCursor] = useState<number | null>(initialCursor ?? null)
   // L'événement cliqué ; sa version à jour (clip copié, fin du mouvement) vient de la liste relue chaque seconde.
@@ -96,10 +91,8 @@ const CameraCard = ({
   const [plays, setPlays] = useState(0)
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
   // La version du clip à lire (la légère par défaut : tous les appareils la lisent) et d'où la reprendre quand on en change.
-  const [quality, setQuality] = useState<Quality>('h264')
   const [resumeAt, setResumeAt] = useState(0)
   // La résolution réelle du direct, lue dans l'image du navigateur à la première image reçue.
-  const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null)
   // Le direct en 4K par défaut (le 4K est recodé en MJPEG par le mini PC : lourd) ; « Léger » reste au choix.
   const [liveQuality, setLiveQuality] = useState<LiveQuality>('hd')
   // Le 4K est lourd à démarrer : on montre d'abord le flux léger, le 4K se charge caché derrière et le remplace dès que sa première image est là (au lieu d'un « chargement »).
@@ -109,7 +102,7 @@ const CameraCard = ({
   // Le clip que l'appareil n'arrive pas à lire : son message (et « Fermer ») doivent se voir, pas rester dans le lecteur caché.
   const [failedClip, setFailedClip] = useState('')
   // L'alimentation lue sur le switch : coupée, le direct laisse place à une image noire.
-  const { power, setPower, failed: powerFailed } = usePower(apiKey, camera.name)
+  const { power, setPower } = usePower(apiKey, camera.name)
   // « Afficher en grand » : le média en plein écran, en paysage.
   // Caméra posée de côté : tout son média (direct, image, clip, zone) est tourné d'un quart de tour horaire, donc en portrait ; la vue en grand reste en portrait.
   // L'orientation de ce qu'on regarde : celle de l'événement (un clip pris avant que la caméra soit tournée reste en paysage), celle de l'événement le plus récent avant l'instant d'une image gardée, sinon celle de la caméra.
@@ -123,17 +116,18 @@ const CameraCard = ({
     `${selected?.id ?? (cursor !== null ? 'image' : 'live')}${bigView.big ? ':big' : ''}`,
     !mobile && bigView.big,
   )
-  const now = useClock(bigView.big)
+  // L'heure défile en vue en grand et tant qu'on est au direct (le bloc heure de la frise) ; sur une image ou un clip c'est celle du curseur, fixe.
+  const now = useClock(bigView.big || cursor === null)
   // La température du détecteur de la caméra (« motion exterieur » pour voliere-exterieur, « motion interieur » pour voliere-interieur), sur la vidéo.
   const sensorId = CAMERA_SENSOR[camera.name]
   const showTemperatures = sensorId !== undefined
   const sensors = useSensors(apiKey, showTemperatures)
   // La température ne se montre qu'en direct : pas pendant un clip ni sur l'image d'un instant passé (elle serait celle d'aujourd'hui).
   const isLive = picked === null && cursor === null
-  // Les icône de caméra des autres caméras : montrés ou cachés (le bouton à côté de l'icône du son), sur grand écran et en direct seulement.
+  // Les icône de caméra des autres caméras : montrés ou cachés (le bouton à côté de l'icône du son), sur grand écran comme sur téléphone (où un repère hors de l'image se colle au bord).
   const markersVisible = useMarkersVisible()
   // Les repères se voient en direct, sur une image d'un instant passé et pendant un clip : un clic ouvre l'autre caméra, **sur son image** à la même seconde (celle de l'image, ou l'endroit où en est le clip).
-  const markersAvailable = !mobile && onOpenCamera !== undefined && others.length > 0
+  const markersAvailable = onOpenCamera !== undefined && others.length > 0
   const temperatures = showTemperatures && isLive ? temperatureItems(sensors, [sensorId]) : []
   // Le rond de la lampe de la caméra (« Perruche » pour voliere-interieur), à côté de la température et seulement en direct comme elle.
   const lampId = CAMERA_LAMP[camera.name]
@@ -159,7 +153,7 @@ const CameraCard = ({
   const [editingZone, setEditingZone] = useState(false)
   const zone = useZone(apiKey, camera.name)
   const zoneEditing = editingZone && isLive && !placeholder && !mobile
-  // Les icône de caméra des autres caméras sur l'image du direct (sur grand écran seulement, pas sur téléphone) : on les déplace, un clic ouvre la caméra.
+  // Les icône de caméra des autres caméras sur l'image du direct (grand écran et téléphone) : on les déplace, un clic ouvre la caméra.
   const markers = useMarkers(apiKey, camera.name, others)
   // Les caméras éteintes (PoE coupé) : leur repère sur la vidéo est grisé et ne fait rien.
   const offCameras = useOffCameras(apiKey, markersAvailable)
@@ -173,7 +167,7 @@ const CameraCard = ({
   // Le son du direct est-il ouvert ? (gardé d'une caméra à l'autre, comme la vitesse.)
   const [soundOn, setSoundOn] = useState(initialSound ?? false)
   // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
-  const recorder = useRecording(apiKey, camera.name, isLive && !placeholder && !mobile)
+  const recorder = useRecording(apiKey, camera.name, isLive && !placeholder)
   // Caméra tournée : les commandes natives de la vidéo tourneraient avec elle ; le lecteur les pose ici, sous la vidéo, droites (hors vue en grand, où il n'y a pas de place).
   const [controlsHost, setControlsHost] = useState<HTMLDivElement | null>(null)
   const uprightControls = turned
@@ -188,7 +182,8 @@ const CameraCard = ({
   // Ce que la vidéo couvre sur la frise : elle commence `lead` avant l'événement et dure `videoDuration`.
   const clipRange =
     selected?.clip && videoDuration !== null ? { start: selected.started_at - lead, end: selected.started_at - lead + videoDuration } : null
-  const clipPath = selected ? clipPathOf(selected, quality) : null
+  // Sur PC les clips se lisent en H.265 (l'original) ; le téléphone ne lit pas le 4K : la copie légère H.264, sans choix.
+  const clipPath = selected ? clipPathOf(selected, mobile ? 'h264' : 'original') : null
   const onReady = useCallback(() => setReadyClip(clipPath), [clipPath])
   const selectedForDuration = selected?.id
   const onDuration = useCallback(
@@ -206,16 +201,33 @@ const CameraCard = ({
   // Changer de direct : la résolution lue à la première image n'est plus valable.
   const changeLiveQuality = (next: LiveQuality) => {
     if (next === liveQuality) return
-    setLiveSize(null)
     setHdReady(false)
     setLiveQuality(next)
   }
 
-  // Changer de version reprend la lecture là où elle en est.
-  const changeQuality = (next: Quality) => {
-    if (next === quality) return
-    setResumeAt(playhead !== null && selected ? Math.max(0, playhead - (selected.started_at - lead)) : 0)
-    setQuality(next)
+  // Allumer ou éteindre la caméra au niveau du PoE (API /poe) ; le switch qui ne répond pas est signalé.
+  const [powerBusy, setPowerBusy] = useState(false)
+  const [powerError, setPowerError] = useState(false)
+  const powerTo = async (on: boolean) => {
+    setPowerBusy(true)
+    setPowerError(false)
+    try {
+      setPower(await setCameraPower(apiKey, camera.name, on))
+    } catch {
+      setPowerError(true)
+    } finally {
+      setPowerBusy(false)
+    }
+  }
+  // Le sélecteur L / 4K / Off : « Off » coupe le PoE de la caméra ; L ou 4K la rallume si elle est éteinte, puis règlent la qualité du direct.
+  const changeLiveChoice = (next: LiveChoice) => {
+    if (powerBusy) return
+    if (next === 'off') {
+      if (power?.on) void powerTo(false)
+      return
+    }
+    if (power && !power.on) void powerTo(true)
+    changeLiveQuality(next)
   }
 
   // Le clip sauvegardé : l'état de la liste d'événements, ou celui qu'on vient de choisir (la liste se relit plus tard). Un échec remet l'état d'avant.
@@ -229,13 +241,8 @@ const CameraCard = ({
     setClipSaved(apiKey, id, next === 'yes').catch(() => setSavedChoice((current) => ({ ...current, [id]: before })))
   }
 
-  // L'interrupteur « Sauvegardé » n'existe que sur grand écran : sur téléphone on ne sauvegarde pas un clip (seul le partage d'un clip déjà sauvegardé reste).
+  // L'interrupteur « Sauvegardé » n'existe que sur grand écran : sur téléphone on ne sauvegarde pas un clip .
   const saveToggle = <Tabs label={SAVE_LABEL} options={[...SAVE_OPTIONS]} value={isSaved ? 'yes' : 'no'} onChange={changeSaved} compact />
-
-  // Un clip sauvegardé se partage : le menu de partage du système sur téléphone, le téléchargement ailleurs.
-  const sharePath = selected ? (selected.clip_h264 ?? selected.clip) : null
-  const shareButton =
-    isSaved && selected && sharePath ? <ShareButton path={sharePath} name={selected.id} title={describeEvent(selected)} /> : null
 
   // Les flèches du défilement des images : à côté de « 10 min, 1 h… » sous la vidéo, et sur la vidéo (en bas à gauche) en vue en grand, où la frise ne se voit pas.
   const fastScroll = !selected && cursor !== null ? <FastScroll rate={rate} onRate={setRate} onStep={step} /> : undefined
@@ -254,14 +261,7 @@ const CameraCard = ({
   // Un événement choisi dont la vidéo n'est pas encore là (en cours, ou fini mais pas encore copié) : un cadre noir et ce qu'on attend.
   const pendingText = selected && !selected.clip ? (ongoing ? ONGOING_CLIP_TEXT : NO_CLIP_TEXT) : ''
   // Le direct. En 4K : le flux 4K, chargé caché (`HD_PRELOAD_CLASS`) tant que sa première image n'est pas arrivée, avec le flux léger par-dessus ; en léger : le flux léger seul.
-  const lightImage = (onSize?: (width: number, height: number) => void) => (
-    <ImageBox
-      src={placeholder ? '' : liveSrc(camera.name, false, mobile)}
-      message={placeholder || NO_IMAGE_TEXT}
-      upright={turned}
-      onSize={onSize}
-    />
-  )
+  const lightImage = () => <ImageBox src={placeholder ? '' : liveSrc(camera.name, false, mobile)} message={placeholder || NO_IMAGE_TEXT} upright={turned} />
   const liveImage =
     liveQuality === 'hd' && !placeholder ? (
       <div className="relative">
@@ -270,16 +270,13 @@ const CameraCard = ({
             src={live}
             message={NO_IMAGE_TEXT}
             upright={turned}
-            onSize={(width, height) => {
-              setHdReady(true)
-              setLiveSize({ width, height })
-            }}
+            onSize={() => setHdReady(true)}
           />
         </div>
         {hdReady ? null : lightImage()}
       </div>
     ) : (
-      lightImage((width, height) => setLiveSize({ width, height }))
+      lightImage()
     )
   const still = pendingText ? (
     <ImageBox src="" message={pendingText} upright={turned} />
@@ -307,6 +304,7 @@ const CameraCard = ({
               restart={plays}
               onClose={back}
               controlsHost={uprightControls ? controlsHost : null}
+              barInset
               onReady={onReady}
               onFailure={() => setFailedClip(clipPath)}
               onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
@@ -320,41 +318,40 @@ const CameraCard = ({
     </RotatedMedia>
   )
 
+  // Le choix « L / 4K » du direct (pas pendant un clip ni sur une image d'un instant passé) : un petit carré de 32 px posé sur la vidéo, sur téléphone comme sur grand écran.
+  const liveQualityTabs =
+    selected || cursor !== null ? null : (
+      <Tabs
+        label={LIVE_QUALITY_LABEL}
+        options={power ? [...LIVE_QUALITY_OPTIONS_SHORT, LIVE_OFF_OPTION] : [...LIVE_QUALITY_OPTIONS_SHORT]}
+        value={power && !power.on ? 'off' : liveQuality}
+        onChange={changeLiveChoice}
+        compact
+        tiny
+      />
+    )
+
   return (
     <CameraCardUI
       screen={mobile}
       onBack={onBack}
       backLabel={camera.name}
       name={`${CAMERA_TITLE_PREFIX}${camera.name}`}
-      caption={captionOf(cursor, selected, liveCaption(placeholder ? null : liveSize))}
+      // « L / 4K » : posé sur la vidéo, en haut à droite, comme sur téléphone.
+      videoActions={mobile ? undefined : (liveQualityTabs ?? undefined)}
+      // L'enregistrement d'un clip : un petit rond posé en haut à gauche de la vidéo (à droite du bouton retour sur téléphone), gris au repos, rouge quand ça enregistre (en direct).
+      topLeft={
+        isLive && !placeholder ? (
+          <RecordButton recording={recorder.recording} busy={recorder.busy} seconds={recorder.seconds} onToggle={() => void recorder.toggle()} />
+        ) : undefined
+      }
       actions={
         <>
           {selected?.clip && !mobile ? saveToggle : null}
-          {!mobile ? shareButton : null}
-          {/* Sur téléphone, pas de choix : le 4K (H.265) ne se lit pas, la copie légère (H.264) est toujours celle qui joue. */}
-          {selected?.clip_h264 && !mobile ? (
-            <Tabs label={QUALITY_LABEL} compact options={[...QUALITY_OPTIONS]} value={quality} onChange={changeQuality} />
-          ) : null}
-          {selected || cursor !== null ? null : (
-            <Tabs
-              label={LIVE_QUALITY_LABEL}
-              options={[...(mobile ? LIVE_QUALITY_OPTIONS_SHORT : LIVE_QUALITY_OPTIONS)]}
-              value={liveQuality}
-              onChange={changeLiveQuality}
-              compact
-              tiny={mobile}
-            />
-          )}
+          {mobile ? liveQualityTabs : null}
           {isLive && !placeholder && !mobile ? (
             <Button variant={zoneEditing ? 'active' : 'default'} aria-pressed={zoneEditing} onClick={() => setEditingZone((on) => !on)}>
               {ZONE_BUTTON_LABEL}
-            </Button>
-          ) : null}
-          {isLive && !placeholder && !mobile ? (
-            <Button variant={recorder.recording ? 'danger' : 'default'} disabled={recorder.busy} onClick={() => void recorder.toggle()}>
-              {recorder.recording
-                ? `${RECORD_STOP_LABEL} (${Math.floor(recorder.seconds / 60)}:${String(recorder.seconds % 60).padStart(2, '0')})`
-                : RECORD_LABEL}
             </Button>
           ) : null}
           {recorder.failed ? <span className={ZONE_FAILED_CLASS}>{RECORD_FAILED_TEXT}</span> : null}
@@ -367,7 +364,7 @@ const CameraCard = ({
           ) : null}
           {zoneEditing && zone.reduced ? <Button onClick={zone.reset}>{ZONE_RESET_LABEL}</Button> : null}
           {zoneEditing && zone.failed ? <span className={ZONE_FAILED_CLASS}>{ZONE_FAILED_TEXT}</span> : null}
-          <PowerButton apiKey={apiKey} camera={camera.name} power={power} unavailable={powerFailed} hideOff={mobile} onPower={setPower} />
+          {powerError ? <span className={ZONE_FAILED_CLASS}>{POWER_ERROR_TEXT}</span> : null}
         </>
       }
       media={media}
@@ -380,7 +377,7 @@ const CameraCard = ({
       mediaGesture={zoneEditing ? undefined : pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
-      details={mobile ? (selected?.clip ? (shareButton ?? undefined) : indicators) : undefined}
+      details={mobile ? indicators : undefined}
       // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
       clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
       // Les repères (icône de caméra) des autres caméras, posés sur l'image du direct.
@@ -432,7 +429,14 @@ const CameraCard = ({
           playhead={playhead}
           clipRange={clipRange}
           rate={speedOf(rate)}
-          controls={bigView.big ? undefined : fastScroll}
+          controls={
+            bigView.big ? undefined : (
+              <>
+                <ValueChips values={[formatClock(cursor ?? now)]} />
+                {fastScroll}
+              </>
+            )
+          }
           onCursor={(time) => {
             // Retour au direct : la vitesse du défilement repasse à ×1.
             if (time === null) setRate(NORMAL_RATE)

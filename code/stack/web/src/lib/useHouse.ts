@@ -24,7 +24,7 @@ const toCameras = (live: { camera: string; orientation?: Camera['orientation']; 
   live.map(({ camera, orientation, rain, eyes }) => ({
     name: camera,
     orientation: orientation === 'portrait' ? 'portrait' : 'landscape',
-    rain: rain === 'rain' || rain === 'heavy' ? rain : 'off',
+    rain: rain === 'rain' || rain === 'heavy' || rain === 'fog' ? rain : 'off',
     eyes: eyes === true,
   }))
 

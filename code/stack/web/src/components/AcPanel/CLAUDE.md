@@ -6,3 +6,5 @@ Les climatisations Mitsubishi (API `/ac`, relue toutes les 10 s). Un bloc par un
 - Le bloc d'une unité est `AcUnitCard.tsx`, **partagé** avec l'aperçu de la carte (`../AcPreview/CLAUDE.md`), et **la lecture et les ordres sont le hook partagé `lib/useAcUnits.ts`** (une lecture qui échoue garde la dernière liste et dit pourquoi : l'onglet n'affiche alors que le message).
 - Une unité dont le module ne répond pas (`reachable: false`) montre seulement « Le module Wi-Fi de cette unité ne répond pas ». Aucune unité configurée (`AC_UNITS` absent) : l'API répond 503 et l'onglet le dit.
 - Pas de retour instantané du module après une commande à la télécommande : l'état se met à jour à la prochaine lecture (10 s).
+
+**Le salon est toujours en premier** (`salonFirst` de `lib/useAcUnits.ts`, tri stable : les autres gardent l'ordre de l'API), dans l'onglet Clim comme dans la carte.

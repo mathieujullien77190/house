@@ -1,16 +1,14 @@
-// Les fonctions pures des petits composants : App, ApiExplorer, CameraCard, CameraIndicators, CameraMosaic, Home, PlugPanel, PowerButton.
+// Les fonctions pures des petits composants : App, ApiExplorer, CameraCard, CameraIndicators, CameraMosaic, Home, PlugPanel.
 import { describe, expect, it } from 'vitest'
-import { rememberClipDuration } from '@/lib/clipDurations'
-import { describeEvent, formatTime } from '@/lib/format'
-import type { Camera, CameraPower, EventRow, HueLight, HueSensor, PlugState } from '@/types'
+import { formatTime } from '@/lib/format'
+import type { Camera, EventRow, HueLight, HueSensor, PlugState } from '@/types'
 import { prettify } from './ApiExplorer/helpers'
 import { eventsOf } from './App/helpers'
-import { captionOf, clipLead, clipPathOf, liveCaption, orientationShown, temperatureItems } from './CameraCard/helpers'
+import { clipLead, clipPathOf, orientationShown, temperatureItems } from './CameraCard/helpers'
 import { lampLabel, plugLabel } from './CameraIndicators/helpers'
 import { orderedCameras } from './CameraMosaic/helpers'
 import { captionOf as homeCaption, playablePath } from './SavedClips/helpers'
 import { countdownText, elapsedText } from './PlugPanel/helpers'
-import { statusText } from './PowerButton/helpers'
 
 const event = (over: Partial<EventRow> = {}): EventRow =>
   ({
@@ -64,20 +62,6 @@ describe('CameraCard/helpers', () => {
     expect(clipPathOf(event(), 'h264')).toBe('/clips/e/h264')
     expect(clipPathOf(event({ clip_h264: null }), 'h264')).toBe('/clips/e')
     expect(clipPathOf(event(), 'original')).toBe('/clips/e')
-  })
-
-  it('liveCaption : avec ou sans taille', () => {
-    expect(liveCaption(null)).toBe('Direct · MJPEG')
-    expect(liveCaption({ width: 640, height: 360 })).toBe('Direct · MJPEG · 640×360')
-  })
-
-  it('captionOf : événement en cours, terminé, instant, direct', () => {
-    rememberClipDuration('legende', 7)
-    const done = event({ id: 'legende' })
-    expect(captionOf(null, done, 'Direct')).toBe(`Clip · ${describeEvent(done)}`)
-    expect(captionOf(null, event({ ended_at: null }), 'Direct')).toBe(describeEvent(event({ ended_at: null })))
-    expect(captionOf(500, null, 'Direct')).toBe(`Image à ${formatTime(500)}`)
-    expect(captionOf(null, null, 'Direct')).toBe('Direct')
   })
 
   it('orientationShown : clip, image gardée, direct', () => {
@@ -141,25 +125,5 @@ describe('PlugPanel/helpers', () => {
     expect(countdownText(-1)).toBe('0 s')
     expect(countdownText(59)).toBe('59 s')
     expect(countdownText(754)).toBe('12 min 34 s')
-  })
-})
-
-describe('PowerButton/helpers', () => {
-  const power = (over: Partial<CameraPower>): CameraPower => ({
-    camera: 'c',
-    port: 1,
-    on: true,
-    powered: true,
-    watts: 5,
-    streaming: true,
-    ...over,
-  })
-  it('statusText', () => {
-    expect(statusText(power({ on: false, powered: true }))).toMatch(/.+/)
-    expect(statusText(power({ on: false, powered: false }))).toMatch(/.+/)
-    expect(statusText(power({ on: false, powered: true }))).not.toBe(statusText(power({ on: false, powered: false })))
-    expect(statusText(power({ powered: false }))).toMatch(/.+/)
-    expect(statusText(power({ streaming: false }))).toMatch(/.+/)
-    expect(statusText(power({}))).toBe('')
   })
 })

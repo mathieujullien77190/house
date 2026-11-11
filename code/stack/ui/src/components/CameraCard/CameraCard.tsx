@@ -3,8 +3,6 @@ import {
   BACK_ICON_CLASS,
   BACK_ICON_PATH,
   BIG_MEDIA_CLASS,
-  CAPTION_CLASS,
-  CAPTION_ROW_CLASS,
   CLOCK_CLASS,
   COLLAPSE_CLASS,
   COLLAPSE_ICON,
@@ -21,6 +19,8 @@ import {
   OVERLAY_DETAILS_CLASS,
   LAYER_CLASS,
   OVERLAY_TOP_CLASS,
+  OVERLAY_TOP_LEFT_CLASS,
+  OVERLAY_TOP_LEFT_PHONE_CLASS,
   SOUND_CLASS,
   SOUND_EXPANDED_CLASS,
   SOUND_SCREEN_CLASS,
@@ -28,8 +28,10 @@ import {
   SCREEN_EXPAND_CLASS,
   SCREEN_EXPAND_ICON,
   SCREEN_MEDIA_CLASS,
+  SCREEN_MEDIA_WIDE_CLASS,
   SCREEN_TIMELINE_CLASS,
   SCREEN_VIDEO_CLASS,
+  SCREEN_VIDEO_WIDE_CLASS,
   SCREEN_WARNING_CLASS,
   SECTION_CLASS,
   WARNING_CLASS,
@@ -47,7 +49,6 @@ const CameraCard = ({
   onBack,
   backLabel = '',
   name,
-  caption,
   warning = '',
   actions,
   media,
@@ -56,6 +57,8 @@ const CameraCard = ({
   clock,
   sound,
   layer,
+  videoActions,
+  topLeft,
   timeline,
   figureRef,
   expanded = false,
@@ -68,7 +71,8 @@ const CameraCard = ({
   const expandedClass = portraitMedia ? EXPANDED_UPRIGHT_CLASS : EXPANDED_CLASS
   // Le zoom : au doigt en vue en grand et sur l'écran du téléphone, à la molette partout (le parent décide de ce qu'il passe).
   const gesture = mediaGesture
-  // L'écran du téléphone : la vidéo sur le tiers du haut (commandes dessus), la frise sur le reste, pas de titre ni de légende.
+  const screenMediaClass = portraitMedia ? SCREEN_MEDIA_CLASS : SCREEN_MEDIA_WIDE_CLASS
+  // L'écran du téléphone : la vidéo sur la moitié du haut (commandes dessus), la frise sur le reste, pas de titre ni de légende.
   if (screen) {
     return (
       <section className={SCREEN_CLASS}>
@@ -79,7 +83,7 @@ const CameraCard = ({
             </svg>
           </button>
         )}
-        <figure ref={figureRef} className={expanded ? expandedClass : SCREEN_VIDEO_CLASS}>
+        <figure ref={figureRef} className={expanded ? expandedClass : portraitMedia ? SCREEN_VIDEO_CLASS : SCREEN_VIDEO_WIDE_CLASS}>
           <div
             className={
               expanded
@@ -87,13 +91,14 @@ const CameraCard = ({
                   ? `${BIG_MEDIA_CLASS} ${ZOOM_AREA_CLASS}`
                   : BIG_MEDIA_CLASS
                 : gesture
-                  ? `${SCREEN_MEDIA_CLASS} ${ZOOM_AREA_CLASS}`
-                  : SCREEN_MEDIA_CLASS
+                  ? `${screenMediaClass} ${ZOOM_AREA_CLASS}`
+                  : screenMediaClass
             }
             {...gesture?.handlers}
           >
             <div style={gesture?.style}>{media}</div>
           </div>
+          {expanded && details ? <div className={OVERLAY_DETAILS_CLASS}>{details}</div> : null}
           {expanded && clock ? <div className={CLOCK_CLASS}>{clock}</div> : null}
           {expanded && sound ? <div className={SOUND_EXPANDED_CLASS}>{sound}</div> : null}
           {expanded ? (
@@ -104,6 +109,7 @@ const CameraCard = ({
             ) : null
           ) : (
             <>
+              {topLeft ? <div className={OVERLAY_TOP_LEFT_PHONE_CLASS}>{topLeft}</div> : null}
               {actions ? <div className={OVERLAY_TOP_CLASS}>{actions}</div> : null}
               {details ? <div className={OVERLAY_DETAILS_CLASS}>{details}</div> : null}
               {sound ? <div className={SOUND_SCREEN_CLASS}>{sound}</div> : null}
@@ -128,11 +134,6 @@ const CameraCard = ({
         {actions}
       </div>
       <figure ref={figureRef} className={expanded ? expandedClass : FIGURE_CLASS}>
-        {expanded ? null : (
-          <figcaption className={`${CAPTION_ROW_CLASS} ${CAPTION_CLASS}`}>
-            <span>{caption}</span>
-          </figcaption>
-        )}
         {warning && !expanded ? <p className={WARNING_CLASS}>{warning}</p> : null}
         <div className={expanded ? undefined : portraitMedia ? MEDIA_BLOCK_PORTRAIT_CLASS : MEDIA_BLOCK_CLASS}>
           <div
@@ -143,6 +144,8 @@ const CameraCard = ({
           </div>
           {expanded ? null : (
             <>
+              {topLeft ? <div className={OVERLAY_TOP_LEFT_CLASS}>{topLeft}</div> : null}
+              {videoActions ? <div className={OVERLAY_TOP_CLASS}>{videoActions}</div> : null}
               {onExpand ? (
                 <button type="button" className={EXPAND_OVERLAY_CLASS} aria-label={EXPAND_LABEL} title={EXPAND_LABEL} onClick={onExpand}>
                   {SCREEN_EXPAND_ICON}

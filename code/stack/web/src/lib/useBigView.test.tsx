@@ -162,3 +162,71 @@ describe('useBigView', () => {
     expect(render(<View />).container.textContent).toBe('false')
   })
 })
+
+describe('useBigView, verrou refusé écran droit', () => {
+  const portraitScreen = (matches: boolean) => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches }) as unknown as typeof window.matchMedia
+  }
+
+  it('quitte le plein écran réel (il ne peut pas se tourner) et garde la vue en grand ouverte', async () => {
+    portraitScreen(true)
+    const { result, element } = host()
+    lock.mockRejectedValue(new Error('non'))
+    element.requestFullscreen = vi.fn(async () => {
+      fullscreen = document.body
+    })
+    await act(async () => {
+      result.current.open()
+      await flush()
+    })
+    expect(exit).toHaveBeenCalled()
+    fullscreen = null
+    act(() => {
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    expect(result.current.big).toBe(true)
+    // la sortie suivante, venant de l'utilisateur, ferme la vue
+    fullscreen = document.body
+    act(() => {
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    fullscreen = null
+    act(() => {
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    expect(result.current.big).toBe(false)
+  })
+
+  it('une sortie refusée ne laisse pas le drapeau levé', async () => {
+    portraitScreen(true)
+    const { result, element } = host()
+    lock.mockRejectedValue(new Error('non'))
+    exit.mockRejectedValue(new Error('non'))
+    element.requestFullscreen = vi.fn(async () => {
+      fullscreen = document.body
+    })
+    await act(async () => {
+      result.current.open()
+      await flush()
+    })
+    fullscreen = null
+    act(() => {
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    expect(result.current.big).toBe(false)
+  })
+
+  it('écran en paysage ou média portrait : le plein écran reste', async () => {
+    portraitScreen(false)
+    const { result, element } = host()
+    lock.mockRejectedValue(new Error('non'))
+    element.requestFullscreen = vi.fn(async () => {
+      fullscreen = document.body
+    })
+    await act(async () => {
+      result.current.open()
+      await flush()
+    })
+    expect(exit).not.toHaveBeenCalled()
+  })
+})

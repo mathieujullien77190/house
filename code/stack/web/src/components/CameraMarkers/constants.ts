@@ -10,7 +10,7 @@ export const DRAG_DISTANCE = 5
 export const LAYER_CLASS = 'absolute inset-0'
 /** Un repère : juste le dessin d'un appareil photo (sans cadre), centré sur sa place, avec une ombre pour rester lisible sur l'image ; on l'attrape au doigt comme à la souris (sans que la page défile). */
 export const MARKER_CLASS =
-  'pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 touch-none select-none leading-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
+  'pointer-events-auto absolute left-[var(--x)] top-[var(--y)] max-lg:left-[clamp(1rem,var(--x),calc(100%-1rem))] max-lg:top-[clamp(1rem,var(--y),calc(100%-1rem))] -translate-x-1/2 -translate-y-1/2 touch-none select-none leading-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
 /** Le curseur d'un repère : la main qui attrape quand on peut le déplacer, la main qui clique sinon. */
 export const MARKER_MOVABLE_CLASS = 'cursor-grab active:cursor-grabbing'
 export const MARKER_FIXED_CLASS = 'cursor-pointer'

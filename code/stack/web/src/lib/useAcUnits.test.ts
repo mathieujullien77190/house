@@ -28,6 +28,13 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 beforeEach(() => vi.clearAllMocks())
 
 describe('useAcUnits', () => {
+  it('met le salon en premier, les autres gardent leur ordre', async () => {
+    vi.mocked(api.fetchAc).mockResolvedValue([unit({ id: 'matou' }), unit({ id: 'invite' }), unit({ id: 'salon' })])
+    const { result } = renderHook(() => useAcUnits('k'))
+    await act(flush)
+    expect(result.current.units?.map((u) => u.id)).toEqual(['salon', 'matou', 'invite'])
+  })
+
   it('lit les unités ; avant la réponse : loading, ensuite rien à signaler', async () => {
     vi.mocked(api.fetchAc).mockResolvedValue([unit()])
     const { result } = renderHook(() => useAcUnits('k'))

@@ -142,12 +142,16 @@ export const buildCoverage = (times: number[], seconds: number, end: number): Ti
   return segments
 }
 
-/** La fenêtre qui met un événement au centre, sa durée occupant une part donnée de l'axe. */
+/**
+ * La fenêtre qui met un événement au centre : **tout son bloc bleu** (du début réel de la vidéo à un peu après la fin, comme `buildMarkers`) occupe la part donnée de l'axe,
+ * pour que le clip entier se voie.
+ */
 export const focusOn = (event: EventRow, share: number, now: number): { seconds: number; end: number } => {
-  const ended = event.ended_at ?? now
-  const duration = Math.max(1, ended - event.started_at)
+  const from = event.clip_started_at ?? event.started_at - MARKER_LEAD_SECONDS
+  const to = event.ended_at === null ? now : event.ended_at + MARKER_TAIL_SECONDS
+  const duration = Math.max(1, to - from)
   const seconds = clampWindow(duration / share)
-  const end = ended + (seconds - duration) / 2
+  const end = to + (seconds - duration) / 2
   return { seconds, end }
 }
 

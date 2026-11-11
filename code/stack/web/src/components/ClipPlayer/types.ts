@@ -1,6 +1,8 @@
 export interface ClipPlayerProps {
   /** Un élément hors du lecteur où poser les commandes (lecture, barre de temps) à la place des commandes natives : pour une vidéo tournée, elles restent droites. */
   controlsHost?: HTMLElement | null
+  /** La barre de commandes s'arrête avant les boutons posés en bas à droite de la vidéo (agrandir, son, repères). */
+  barInset?: boolean
   /** Plus utilisé pour télécharger : le cookie de session suffit. Gardé pour que le parent n'ait rien à changer. */
   apiKey?: string
   /** Chemin du service clips (/clips/id). */

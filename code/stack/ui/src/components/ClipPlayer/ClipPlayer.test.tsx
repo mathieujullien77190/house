@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import ClipPlayer from './ClipPlayer'
-import { formatClock } from './helpers'
 import type { ClipPlayerProps } from './types'
 import { CLOSE_LABEL, LOADING_TEXT, PAUSE_LABEL, PLAY_LABEL, SEEK_LABEL, SOUND_LABEL } from './constants'
 import { defaults, installMedia, stateOf } from '../../test/media'
@@ -31,20 +30,6 @@ const setup = (extra: Partial<ClipPlayerProps> = {}) => {
 const fire = (element: Element, type: string) => fireEvent(element, new Event(type))
 const audioPlays = () => media.play.mock.contexts.filter((context) => context instanceof HTMLAudioElement).length
 const audioPauses = () => media.pause.mock.contexts.filter((context) => context instanceof HTMLAudioElement).length
-
-describe('formatClock', () => {
-  it('écrit minutes et secondes sur deux chiffres', () => {
-    expect(formatClock(0)).toBe('0:00')
-    expect(formatClock(65.9)).toBe('1:05')
-    expect(formatClock(600)).toBe('10:00')
-  })
-
-  it('une durée inconnue, infinie ou négative vaut zéro', () => {
-    expect(formatClock(NaN)).toBe('0:00')
-    expect(formatClock(Infinity)).toBe('0:00')
-    expect(formatClock(-3)).toBe('0:00')
-  })
-})
 
 describe('ClipPlayer états', () => {
   it('sans adresse : message de téléchargement, ni vidéo ni commandes', () => {
@@ -127,7 +112,9 @@ describe('ClipPlayer durée et position', () => {
     defaults.duration = 90
     const { props } = setup()
     expect(props.onDuration).toHaveBeenCalledWith(90)
-    expect(screen.getByText('0:00 / 1:30')).toBeInTheDocument()
+    expect(screen.getByRole('slider')).toHaveAttribute('max', '90')
+    // le temps écrit est caché : seule la barre de position le montre
+    expect(screen.queryByText(/\d:\d\d/)).toBeNull()
   })
 
   it('sinon à l arrivée des métadonnées', () => {
@@ -151,15 +138,17 @@ describe('ClipPlayer durée et position', () => {
     const { video } = setup()
     stateOf(video()).duration = 125
     fire(video(), 'durationchange')
-    expect(screen.getByText('0:00 / 2:05')).toBeInTheDocument()
+    expect(screen.getByRole('slider')).toHaveAttribute('max', '125')
   })
 
   it('l avancée de la vidéo remonte la position et met à jour l affichage', () => {
     const { video, props } = setup()
+    stateOf(video()).duration = 20
+    fire(video(), 'durationchange')
     stateOf(video()).currentTime = 7
     fire(video(), 'timeupdate')
     expect(props.onTime).toHaveBeenCalledWith(7)
-    expect(screen.getByText('0:07 / 0:00')).toBeInTheDocument()
+    expect(screen.getByRole('slider')).toHaveValue('7')
   })
 
   it('la vidéo prête remonte onReady, une erreur remonte son code (0 sans code)', () => {
@@ -231,7 +220,6 @@ describe('ClipPlayer commandes', () => {
     expect(range).toHaveAttribute('max', '100')
     fireEvent.change(range, { target: { value: '42' } })
     expect(stateOf(video()).currentTime).toBe(42)
-    expect(screen.getByText('0:42 / 1:40')).toBeInTheDocument()
     expect(range).toHaveValue('42')
   })
 
@@ -249,6 +237,13 @@ describe('ClipPlayer commandes', () => {
     expect(host.querySelector('input[type="range"]')).not.toBeNull()
     expect(container.querySelector('input[type="range"]')).toBeNull()
     host.remove()
+  })
+
+  it('barInset : la barre posée dans l image s arrête avant les boutons du bas à droite', () => {
+    const { container } = setup({ barInset: true })
+    expect(container.querySelector('input[type="range"]')?.closest('.pr-24')).not.toBeNull()
+    const plain = setup({})
+    expect(plain.container.querySelector('input[type="range"]')?.closest('.pr-24')).toBeNull()
   })
 
   it('sans élément (null), elles sont posées dans l image', () => {

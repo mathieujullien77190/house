@@ -11,7 +11,7 @@ export interface CameraMarker {
 }
 
 /** Le mode pluie d'une caméra (réglé dans House Sync) : éteint, pluie ou pluie forte. */
-export type RainMode = 'off' | 'rain' | 'heavy'
+export type RainMode = 'off' | 'rain' | 'heavy' | 'fog'
 
 export interface CameraRow {
   camera: string

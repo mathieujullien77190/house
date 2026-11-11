@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Button from '../Button'
 import {
+  BAR_INSET_CLASS,
   BAR_OVERLAY_CLASS,
   BOX_CLASS,
   CLOSE_CLASS,
@@ -12,6 +13,7 @@ import {
   LOADING_TEXT,
   PAUSE_ICON,
   PAUSE_LABEL,
+  PLAY_BUTTON_CLASS,
   PLAY_ICON,
   PLAY_LABEL,
   PLAYER_CLASS,
@@ -20,10 +22,8 @@ import {
   SEEK_LABEL,
   SOUND_CLASS,
   SOUND_LABEL,
-  TIME_CLASS,
   VIDEO_CLASS,
 } from './constants'
-import { formatClock } from './helpers'
 import type { ClipPlayerProps } from './types'
 
 /** Le lecteur d'un clip : démarre à `startAt`, remonte sa durée et sa position, et joue le son du clip (un fichier à part) avec la vidéo. Le téléchargement est au parent. */
@@ -40,6 +40,7 @@ const ClipPlayer = ({
   onDuration,
   controlsHost = null,
   overlay,
+  barInset = false,
 }: ClipPlayerProps) => {
   const video = useRef<HTMLVideoElement>(null)
   const audio = useRef<HTMLAudioElement>(null)
@@ -150,9 +151,15 @@ const ClipPlayer = ({
   const bar =
     src && !error ? (
       <div className={CONTROLS_CLASS}>
-        <Button aria-label={playing ? PAUSE_LABEL : PLAY_LABEL} title={playing ? PAUSE_LABEL : PLAY_LABEL} onClick={togglePlay}>
+        <button
+          type="button"
+          className={PLAY_BUTTON_CLASS}
+          aria-label={playing ? PAUSE_LABEL : PLAY_LABEL}
+          title={playing ? PAUSE_LABEL : PLAY_LABEL}
+          onClick={togglePlay}
+        >
           {playing ? PAUSE_ICON : PLAY_ICON}
-        </Button>
+        </button>
         <input
           type="range"
           className={SEEK_CLASS}
@@ -163,13 +170,10 @@ const ClipPlayer = ({
           value={Math.min(time, duration || 0)}
           onChange={(event) => seek(Number(event.currentTarget.value))}
         />
-        <span className={TIME_CLASS}>
-          {formatClock(time)} / {formatClock(duration)}
-        </span>
       </div>
     ) : null
   // Dans l'élément du parent s'il en donne un (une vidéo tournée : les commandes restent droites), sinon posées dans l'image, en bas.
-  const controls = bar && controlsHost ? createPortal(bar, controlsHost) : bar ? <div className={BAR_OVERLAY_CLASS}>{bar}</div> : null
+  const controls = bar && controlsHost ? createPortal(bar, controlsHost) : bar ? <div className={barInset ? `${BAR_OVERLAY_CLASS} ${BAR_INSET_CLASS}` : BAR_OVERLAY_CLASS}>{bar}</div> : null
 
   const enableSound = () => {
     const sound = audio.current

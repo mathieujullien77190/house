@@ -1,17 +1,12 @@
-import { describeEvent, formatTime } from '@/lib/format'
 import type { SpecItem } from '@house/ui'
 import type { Camera, EventRow, HueSensor, Orientation } from '@/types'
 import type { Quality } from './types'
 import {
-  AT_CAPTION_PREFIX,
-  CLIP_CAPTION_PREFIX,
   CLIP_MAX_LEAD_SECONDS,
   FADE_MAX_MS,
   FADE_MIN_MS,
   FADE_SHARE,
   IMAGE_SECONDS,
-  LIVE_CAPTION,
-  LIVE_FORMAT,
   TEMPERATURE_LABEL,
   TEMPERATURE_UNKNOWN_TEXT,
 } from './constants'
@@ -40,16 +35,6 @@ export const clipLead = (event: EventRow, videoDuration: number | null): number 
 /** L'adresse du clip à lire : la copie H.264 si on la demande et qu'elle existe, sinon l'original. */
 export const clipPathOf = (event: EventRow, quality: Quality): string | null =>
   quality === 'h264' && event.clip_h264 ? event.clip_h264 : event.clip
-
-/** « Direct · MJPEG · 640×360 » : le type du flux et, une fois la première image reçue, sa résolution. */
-export const liveCaption = (size: { width: number; height: number } | null): string =>
-  [LIVE_CAPTION, LIVE_FORMAT, size ? `${size.width}×${size.height}` : ''].filter(Boolean).join(' · ')
-
-export const captionOf = (cursor: number | null, selected: EventRow | null, live: string): string => {
-  if (selected) return selected.ended_at === null ? describeEvent(selected) : `${CLIP_CAPTION_PREFIX}${describeEvent(selected)}`
-  if (cursor !== null) return `${AT_CAPTION_PREFIX}${formatTime(cursor)}`
-  return live
-}
 
 /**
  * L'orientation de ce que la carte montre : celle de l'événement choisi (son clip), celle de l'événement de la caméra le plus récent avant l'instant d'une image gardée (une image n'a pas

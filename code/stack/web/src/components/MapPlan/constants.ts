@@ -37,6 +37,8 @@ export const WRAPPER_CLASS = 'relative'
 export const MAP_CLASS = 'h-[530px] w-full overflow-hidden rounded-md border border-line'
 /** Sur téléphone : la carte, en paysage, remplit l'espace qui reste sous la barre du haut (la hauteur de l'écran moins la barre et les marges), au moins 15 rem. */
 export const MAP_FILL_CLASS = 'h-[calc(100dvh-8.5rem)] min-h-[15rem] w-full overflow-hidden rounded-md border border-line'
+/** Sur téléphone, la marge (px) laissée sous la carte : le bas de la page (`py-4`). La hauteur est mesurée (`fitHeight`) ; `MAP_FILL_CLASS` n'est que la valeur avant la mesure. */
+export const FILL_BOTTOM_GAP = 16
 /** Les commandes posées sur la carte (au-dessus de ses couches : z 10) : le choix de la caméra liée (en modification) et l'erreur en haut à droite, les cases à cocher en bas à gauche, « Modifier » tout en bas à gauche, suivi des cases à cocher. */
 export const LAYERS_CLASS = 'absolute right-2.5 top-2.5 z-10 flex flex-col items-end gap-2'
 /** Le bouton « Modifier » tout en bas à gauche de la carte, suivi des cases à cocher sur la même ligne. */
@@ -77,4 +79,9 @@ export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'shutter' | 'plug' | 'emo
 /** Les zones de saisie qui restent toujours (les étiquettes de température, la pompe à chaleur). */
 export const ALWAYS_HIT = ['label-hit', 'decor-hit']
 /** Les cases à cocher, **alignées en une ligne, à droite du bouton « Modifier », en bas à gauche de la carte** (elles passent à la ligne sur un écran étroit). */
+/** Sur téléphone (`fill`) : les cases sont dans un petit menu qui s'ouvre au-dessus du bouton « Filtres ». */
+export const FILTERS_LABEL = 'Filtres'
+export const FILTERS_MENU_WRAPPER_CLASS = 'relative'
+export const FILTERS_MENU_CLASS =
+  'absolute bottom-full left-0 mb-2 flex flex-col gap-2 whitespace-nowrap rounded-md border border-line bg-card px-3 py-2 shadow-lg'
 export const FILTERS_BAR_CLASS = 'flex flex-row flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-card/90 px-2 py-1.5'

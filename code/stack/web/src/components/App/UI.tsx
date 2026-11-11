@@ -78,7 +78,8 @@ const AppUI = ({
     <Page>
       <TopBar
         title={TITLE}
-        onTitle={ready ? () => onTab('home') : undefined}
+        // Un clic sur le titre rafraîchit la page (elle se rouvre sur Home, `DEFAULT_TAB`).
+        onTitle={ready ? () => window.location.reload() : undefined}
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
         info={ready ? <Weather apiKey={apiKey} /> : undefined}

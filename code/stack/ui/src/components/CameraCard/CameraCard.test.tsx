@@ -16,7 +16,6 @@ import {
 
 const base: CameraCardProps = {
   name: 'Volière extérieur',
-  caption: 'Dernière image',
   media: <div>vidéo</div>,
   timeline: <div>frise</div>,
 }
@@ -25,10 +24,10 @@ const mediaArea = () => screen.getByText('vidéo').parentElement?.parentElement 
 const gesture = () => ({ handlers: { onPointerDown: vi.fn() }, style: { transform: 'scale(2)' } })
 
 describe('CameraCard bureau', () => {
-  it('montre nom, légende, média et frise', () => {
+  it('montre nom, média et frise (plus de légende)', () => {
     renderCard()
     expect(screen.getByRole('heading', { name: 'Volière extérieur' })).toBeInTheDocument()
-    expect(screen.getByText('Dernière image')).toBeInTheDocument()
+    expect(screen.queryByRole('figure')?.querySelector('figcaption')).toBeNull()
     expect(screen.getByText('vidéo')).toBeInTheDocument()
     expect(screen.getByText('frise')).toBeInTheDocument()
   })
@@ -91,7 +90,6 @@ describe('CameraCard bureau en grand', () => {
       clock: <span>10:00</span>,
       onCollapse,
     })
-    expect(screen.queryByText('Dernière image')).toBeNull()
     expect(screen.queryByText('En cours')).toBeNull()
     expect(screen.queryByRole('button', { name: EXPAND_LABEL })).toBeNull()
     expect(screen.getByText('9 °C')).toBeInTheDocument()
@@ -123,7 +121,6 @@ describe('CameraCard écran du téléphone', () => {
   it('pas de titre ni de légende ; média et frise', () => {
     renderCard(screenProps)
     expect(screen.queryByRole('heading')).toBeNull()
-    expect(screen.queryByText('Dernière image')).toBeNull()
     expect(screen.getByText('vidéo')).toBeInTheDocument()
     expect(screen.getByText('frise')).toBeInTheDocument()
   })
@@ -168,10 +165,24 @@ describe('CameraCard écran du téléphone', () => {
     renderCard({ screen: true, figureRef })
     expect(figureRef.current?.tagName).toBe('FIGURE')
   })
+
+  it('média en portrait : garde la moitié du haut (sinon toute la largeur en 16/9)', () => {
+    const { rerender } = renderCard({ screen: true })
+    const wide = screen.getByText('vidéo').closest('figure')?.className
+    rerender(<CameraCard {...base} screen portraitMedia />)
+    expect(screen.getByText('vidéo').closest('figure')?.className).not.toBe(wide)
+  })
+
+  it('une commande en haut à gauche, à côté du bouton retour', () => {
+    const { rerender } = renderCard({ screen: true })
+    expect(screen.queryByText('REC')).toBeNull()
+    rerender(<CameraCard {...base} screen topLeft={<span>REC</span>} />)
+    expect(screen.getByText('REC')).toBeInTheDocument()
+  })
 })
 
 describe('CameraCard écran du téléphone en grand', () => {
-  it('cache retour, actions, détails, avertissement et ⛶ ; montre l heure et Réduire', () => {
+  it('cache retour, actions, avertissement et ⛶ ; montre détails, l heure et Réduire', () => {
     const onCollapse = vi.fn()
     renderCard({
       screen: true,
@@ -187,7 +198,8 @@ describe('CameraCard écran du téléphone en grand', () => {
     })
     expect(screen.queryByRole('button', { name: 'Retour' })).toBeNull()
     expect(screen.queryByText('actions')).toBeNull()
-    expect(screen.queryByText('détails')).toBeNull()
+    // Sur téléphone en vue en grand, les détails (température, pluie, œil) se voient en bas à gauche, comme `overlay` sur bureau.
+    expect(screen.getByText('détails')).toBeInTheDocument()
     expect(screen.queryByText('En cours')).toBeNull()
     expect(screen.queryByRole('button', { name: EXPAND_LABEL })).toBeNull()
     expect(screen.getByText('10:00')).toBeInTheDocument()
@@ -273,5 +285,22 @@ describe('CameraCard : la couche sur la vidéo', () => {
     expect(screen.queryByText('repères')).toBeNull()
     renderCard({ ...extra })
     expect(screen.queryByText('repères')).toBeNull()
+  })
+})
+
+describe('CameraCard : les commandes posées sur la vidéo (« L / 4K »)', () => {
+  it('bureau : posées en haut à droite de la vidéo, « Afficher en grand » en bas à droite', () => {
+    renderCard({ videoActions: <span>L / 4K</span>, onExpand: () => undefined })
+    expect(screen.getByText('L / 4K').parentElement).toHaveClass('top-2', 'right-2')
+    expect(screen.getByRole('button', { name: EXPAND_LABEL })).toHaveClass('bottom-2', 'right-2')
+  })
+  it('bureau : une commande en haut à gauche de la vidéo', () => {
+    renderCard({ topLeft: <span>REC</span> })
+    expect(screen.getByText('REC').parentElement).toHaveClass('top-2', 'left-2')
+  })
+  it('rien sans commandes', () => {
+    renderCard({})
+    expect(screen.queryByText('L / 4K')).toBeNull()
+    expect(screen.queryByText('REC')).toBeNull()
   })
 })

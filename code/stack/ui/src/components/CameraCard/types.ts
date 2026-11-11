@@ -8,15 +8,13 @@ export interface MediaGesture {
 }
 
 export interface CameraCardProps {
-  /** Écran du téléphone (sous 1024 px) : vidéo sur le tiers du haut avec ses commandes dessus, frise sur les deux tiers du bas, sans titre. */
+  /** Écran du téléphone (sous 1024 px) : vidéo sur la moitié du haut avec ses commandes dessus, frise sur la moitié du bas, sans titre. */
   screen?: boolean
   /** Le bouton retour fixe en haut à gauche de l'écran du téléphone (rien sans lui). */
   onBack?: () => void
   /** L'étiquette du bouton retour, une simple flèche (le nom de la caméra : infobulle et lecteurs d'écran). */
   backLabel?: string
   name: string
-  /** Légende au-dessus du média : « Dernière image », « Image à … », « Clip · … ». */
-  caption: string
   /** Un avertissement au-dessus du média (événement en cours, image indisponible), vide sinon. */
   warning?: string
   /** Ce qui est montré en haut : l'image, le lecteur du clip, l'image d'un instant… */
@@ -35,6 +33,10 @@ export interface CameraCardProps {
   sound?: ReactNode
   /** La frise, rendue par le parent. */
   timeline: ReactNode
+  /** Une commande posée sur la vidéo, en haut à gauche (sur téléphone à droite du bouton retour) : le rond d'enregistrement. */
+  topLeft?: ReactNode
+  /** Des commandes posées sur la vidéo, en haut à droite (grand écran ; sur téléphone elles sont dans `actions`) : « L / 4K ». */
+  videoActions?: ReactNode
   /** L'élément qui passe en plein écran : le parent le lit pour appeler l'API plein écran du navigateur. */
   figureRef?: RefObject<HTMLElement | null>
   /** Le média occupe tout l'écran, en paysage (tourné de 90° si le téléphone reste droit). */

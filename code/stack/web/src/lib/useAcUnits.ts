@@ -19,6 +19,9 @@ export interface AcUnits {
   change: (id: string, patch: AcPatch) => void
 }
 
+/** Le salon en premier, les autres dans l'ordre de l'API (le tri est stable). */
+export const salonFirst = (units: AcUnit[]): AcUnit[] => [...units].sort((a, b) => Number(b.id === 'salon') - Number(a.id === 'salon'))
+
 export const useAcUnits = (apiKey: string): AcUnits => {
   const [units, setUnits] = useState<AcUnit[] | null>(null)
   const [problem, setProblem] = useState<AcProblem>('loading')
@@ -31,7 +34,7 @@ export const useAcUnits = (apiKey: string): AcUnits => {
       fetchAc(apiKey)
         .then((next) => {
           if (cancelled) return
-          setUnits(next)
+          setUnits(salonFirst(next))
           setProblem(null)
         })
         .catch((error: unknown) => {

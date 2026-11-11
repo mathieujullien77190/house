@@ -24,7 +24,6 @@ export const Portail: StoryObj<typeof CameraCard> = {
   render: () => (
     <CameraCard
       name="voliere-exterieur"
-      caption="Image à 25/10/2026 15:43"
       media={<SnapshotImage src="" message="Pas d’image gardée à cet instant." />}
       timeline={
         <Timeline
@@ -53,7 +52,6 @@ export const Phone: StoryObj<typeof CameraCard> = {
       onBack={noop}
       backLabel="voliere-exterieur"
       name="voliere-exterieur"
-      caption="Direct"
       actions={<span>Léger · 4K</span>}
       details={<span>Température · 21,5 °C</span>}
       onExpand={noop}

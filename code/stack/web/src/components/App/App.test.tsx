@@ -129,11 +129,17 @@ describe('App : en-tête', () => {
 })
 
 describe('App : barre', () => {
-  it('le titre ramène à Home', () => {
-    render(<App />)
-    tab('Lumière')
-    fireEvent.click(screen.getByRole('button', { name: 'House' }))
-    expect(screen.getByTestId('home')).toBeInTheDocument()
+  it('le titre rafraîchit la page (qui s’ouvre sur Home)', () => {
+    const reload = vi.fn()
+    const original = window.location
+    Object.defineProperty(window, 'location', { value: { ...original, reload }, configurable: true })
+    try {
+      render(<App />)
+      fireEvent.click(screen.getByRole('button', { name: 'House' }))
+      expect(reload).toHaveBeenCalledTimes(1)
+    } finally {
+      Object.defineProperty(window, 'location', { value: original, configurable: true })
+    }
   })
   it('le bouton des notifications : absent si non géré, actif, bloqué', () => {
     h.notify = { state: 'unsupported', toggle: vi.fn() }

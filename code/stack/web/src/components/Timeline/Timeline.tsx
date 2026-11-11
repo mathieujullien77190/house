@@ -269,7 +269,7 @@ const Timeline = ({
   }
 
   // Un clic dans un événement : son clip remplace l'image et repart du début de la vidéo, où qu'on clique ;
-  // le curseur s'y place puis suit la lecture, et la fenêtre se recale pour que l'événement occupe la moitié de l'axe.
+  // le curseur s'y place puis suit la lecture, et la fenêtre se recale pour que l'événement couvre 90 % de l'axe (tout le bloc bleu).
   const chooseEvent = (id: string) => {
     const event = events.find((e) => e.id === id) ?? null
     // Un clic sur un événement lit son clip depuis le début de la vidéo : le curseur se place là, pas à l'endroit cliqué.

@@ -143,11 +143,15 @@ describe('événements', () => {
     expect(buildCoverage([990], 100, 1000)).toHaveLength(1)
   })
 
-  it('focusOn : centre l’événement, durée = part de l’axe', () => {
-    expect(focusOn(event('e', 1000, 1100), 0.5, 5000)).toEqual({ seconds: 200, end: 1150 })
-    expect(focusOn(event('e', 1000, null), 0.5, 1060)).toEqual({ seconds: 120, end: 1090 })
-    // durée nulle : 1 s au moins, fenêtre au minimum
-    expect(focusOn(event('e', 1000, 1000), 0.5, 5000).seconds).toBe(MIN_WINDOW)
+  it('focusOn : tout le bloc bleu (début de la vidéo à la fin + queue) occupe la part de l’axe, centré', () => {
+    // clip_started_at absent : 5 s avant le mouvement ; fin + 10 s : 995 à 1110 = 115 s, fenêtre de 230 s
+    expect(focusOn(event('e', 1000, 1100), 0.5, 5000)).toEqual({ seconds: 230, end: 1167.5 })
+    // clip_started_at donné : le bloc part de là
+    expect(focusOn({ ...event('e', 1000, 1100), clip_started_at: 980 }, 0.5, 5000)).toEqual({ seconds: 260, end: 1175 })
+    // en cours : jusqu'à maintenant
+    expect(focusOn(event('e', 1000, null), 0.5, 1060)).toEqual({ seconds: 130, end: 1092.5 })
+    // durée courte : fenêtre au minimum
+    expect(focusOn(event('e', 1000, 1000), 1, 5000).seconds).toBe(MIN_WINDOW)
   })
 })
 

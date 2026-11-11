@@ -5,6 +5,8 @@ export type Quality = 'h264' | 'original'
 
 /** Quel direct afficher : le flux léger (720p environ) ou le 4K recodé en MJPEG (lourd pour le mini PC). */
 export type LiveQuality = 'light' | 'hd'
+/** Le sélecteur du direct : L, 4K ou Off (Off éteint la caméra au niveau du PoE). */
+export type LiveChoice = LiveQuality | 'off'
 
 export interface CameraCardProps {
   apiKey: string

@@ -39,7 +39,7 @@ const CameraMarkers = ({ markers, onMove, onCommit, onRemove, onOpen, inactive =
             type="button"
             disabled={off}
             className={`${MARKER_CLASS} ${off ? MARKER_INACTIVE_CLASS : MARKERS_EDITABLE ? MARKER_MOVABLE_CLASS : MARKER_FIXED_CLASS}`}
-            style={{ left: `${marker.x * 100}%`, top: `${marker.y * 100}%` }}
+            style={{ '--x': `${marker.x * 100}%`, '--y': `${marker.y * 100}%` } as React.CSSProperties}
             title={marker.target}
             aria-label={`${OPEN_PREFIX}${marker.target}`}
             onPointerDown={(event) => {

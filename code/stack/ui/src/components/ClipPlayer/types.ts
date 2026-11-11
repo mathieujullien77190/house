@@ -27,4 +27,6 @@ export interface ClipPlayerProps {
   controlsHost?: HTMLElement | null
   /** Un calque posé par-dessus l'image de la vidéo, dans son cadre exactement (ni le bouton du son ni les commandes n'en font partie). */
   overlay?: ReactNode
+  /** La barre de commandes posée dans l'image s'arrête avant les boutons posés en bas à droite de la vidéo (agrandir, son, repères). Sans effet avec `controlsHost`. */
+  barInset?: boolean
 }
