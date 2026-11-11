@@ -102,7 +102,7 @@ export const COLUMNS: Column[] = [
     maxW: 490,
     role: 'app',
     groups: [
-      { label: 'Conteneurs', items: ['App', 'CameraMosaic', 'LiveTile', 'CameraCard', 'Timeline', 'PowerButton', 'ClipPlayer', 'SnapshotImage', 'KeyForm', 'ApiExplorer'] },
+      { label: 'Conteneurs', items: ['App', 'CameraMosaic', 'LiveTile', 'CameraCard', 'Timeline', 'ClipPlayer', 'SnapshotImage', 'KeyForm', 'ApiExplorer'] },
       { label: 'Lib', items: ['api.ts', 'useHouse.ts', 'usePower.ts', 'live.ts', 'format.ts'] },
     ],
   },
