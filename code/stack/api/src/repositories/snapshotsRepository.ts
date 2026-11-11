@@ -7,10 +7,10 @@ export const createSnapshotsRepository = (db: Database) => ({
     db
       .all<{ taken_at: number }>('SELECT taken_at FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY taken_at LIMIT ?', camera, from, to, limit)
       .map((row) => row.taken_at),
-  /** L'image la plus proche d'un instant, dans une tolérance : son chemin et son instant (son identifiant). */
-  nearest: (camera: string, at: number, tolerance: number): { path: string; taken_at: number } | null =>
-    db.get<{ path: string; taken_at: number }>(
-      'SELECT path, taken_at FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY ABS(taken_at - ?) LIMIT 1',
+  /** L'image la plus proche d'un instant, dans une tolérance : son chemin, son instant et son code permanent (`snapshots.code`, posé par House Sync). */
+  nearest: (camera: string, at: number, tolerance: number): { path: string; taken_at: number; code: string } | null =>
+    db.get<{ path: string; taken_at: number; code: string }>(
+      'SELECT path, taken_at, code FROM snapshots WHERE camera = ? AND taken_at BETWEEN ? AND ? ORDER BY ABS(taken_at - ?) LIMIT 1',
       camera,
       at - tolerance,
       at + tolerance,

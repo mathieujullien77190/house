@@ -10,7 +10,7 @@ const setup = () => {
   const saves: [string, boolean][] = []
   const notes: [string, string][] = []
   const emojis: [string, string | null][] = []
-  const state = { clip: 'clips/a.mp4' as string | null, audio: 'clips/a.aac' as string | null, saved: true, fail: false }
+  const state = { clip: 'clips/a.mp4' as string | null, audio: 'clips/a.aac' as string | null, shapes: 'clips/a.shapes.json' as string | null, saved: true, fail: false }
   const events = {
     list: (query: EventsQuery) => {
       queries.push(query)
@@ -18,6 +18,7 @@ const setup = () => {
     },
     clipPath: (_id: string, h264: boolean) => (state.clip === null ? null : h264 ? `${state.clip}.h264` : state.clip),
     clipAudioPath: () => state.audio,
+    clipShapesPath: () => state.shapes,
     setSaved: (id: string, saved: boolean) => {
       if (state.fail) throw new Error('disque plein')
       saves.push([id, saved])
@@ -67,10 +68,14 @@ test('les clips : original, copie H.264 et son, 404 sans fichier ou avec un iden
     assert.equal((await call(`${url}/clips/e1`)).body, 'clips/a.mp4|video/mp4')
     assert.equal((await call(`${url}/clips/e1/h264`)).body, 'clips/a.mp4.h264|video/mp4')
     assert.equal((await call(`${url}/clips/e1/audio`)).body, 'clips/a.aac|audio/aac')
+    assert.equal((await call(`${url}/clips/e1/shapes`)).body, 'clips/a.shapes.json|application/json')
+    assert.deepEqual((await call(`${url}/clips/a%20b/shapes`)).body, { error: 'shapes not found' })
     assert.equal((await call(`${url}/clips/a%20b`)).status, 404)
     assert.deepEqual((await call(`${url}/clips/a%20b/audio`)).body, { error: 'sound not found' })
     state.clip = null
     state.audio = null
+    state.shapes = null
+    assert.deepEqual((await call(`${url}/clips/e1/shapes`)).body, { error: 'shapes not found' })
     assert.deepEqual((await call(`${url}/clips/e1`)).body, { error: 'clip not found' })
     assert.deepEqual((await call(`${url}/clips/e1/audio`)).body, { error: 'sound not found' })
   })

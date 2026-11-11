@@ -31,6 +31,8 @@ export const createEventsRepository = (db: Database) => ({
     ),
   /** Le chemin du son d'un clip (<id>.aac sur le disque backup), ou null. */
   clipAudioPath: (id: string): string | null => db.get<{ path: string | null }>('SELECT clip_audio_path AS path FROM events WHERE id = ?', id)?.path ?? null,
+  /** Le chemin des contours du mouvement d'un clip (<id>.shapes.json sur le disque backup), ou null. */
+  clipShapesPath: (id: string): string | null => db.get<{ path: string | null }>('SELECT clip_shapes_path AS path FROM events WHERE id = ?', id)?.path ?? null,
   clipPath: (id: string, h264 = false): string | null =>
     db.get<{ path: string | null }>(`SELECT ${h264 ? 'clip_web_path' : 'clip_path'} AS path FROM events WHERE id = ?`, id)?.path ?? null,
 })

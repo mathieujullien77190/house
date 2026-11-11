@@ -54,13 +54,13 @@ export const withServer = async (handler: RequestListener, work: (url: string) =
 /** Le schéma de la base de House Sync, réduit aux colonnes que l'API lit. */
 export const SCHEMA = `
   CREATE TABLE live_streams (camera TEXT, url TEXT);
-  CREATE TABLE settings (camera TEXT, orientation TEXT, rain_now TEXT);
+  CREATE TABLE settings (camera TEXT, orientation TEXT, rain_now TEXT, eyes_now INTEGER);
   CREATE TABLE last_images (camera TEXT, url TEXT);
   CREATE TABLE events (
     id TEXT, camera TEXT, label TEXT, started_at INTEGER, ended_at INTEGER, clip_path TEXT,
-    clip_started_at INTEGER, clip_web_path TEXT, clip_audio_path TEXT, orientation TEXT
+    clip_started_at INTEGER, clip_web_path TEXT, clip_audio_path TEXT, clip_shapes_path TEXT, orientation TEXT
   );
-  CREATE TABLE snapshots (camera TEXT, taken_at INTEGER, path TEXT);
+  CREATE TABLE snapshots (camera TEXT, taken_at INTEGER, path TEXT, code TEXT);
 `
 
 /** Crée un fichier SQLite avec ce SQL (le schéma, puis des lignes). */
@@ -73,12 +73,12 @@ export const createDatabaseFile = (path: string, sql: string): void => {
 /** Les lignes de départ des tests : deux caméras, trois événements, trois images. */
 export const FIXTURE_ROWS = `
   INSERT INTO live_streams VALUES ('cam-a', 'http://go2rtc:1984/stream.html?src=cam-a_sub'), ('cam-b', 'pas une adresse');
-  INSERT INTO settings VALUES ('cam-a', 'portrait', 'heavy'), ('cam-b', 'landscape', NULL);
+  INSERT INTO settings VALUES ('cam-a', 'portrait', 'heavy', 1), ('cam-b', 'landscape', NULL, 0);
   INSERT INTO last_images VALUES ('cam-b', 'http://x/b.jpg'), ('cam-a', 'http://x/a.jpg');
-  INSERT INTO events VALUES ('e1', 'cam-a', 'mouvement', 100, 200, 'clips/e1.mp4', 90, 'clips/e1.h264.mp4', 'clips/e1.aac', 'portrait');
-  INSERT INTO events VALUES ('e2', 'cam-a', 'mouvement', 300, NULL, NULL, NULL, NULL, NULL, NULL);
-  INSERT INTO events VALUES ('e3', 'cam-b', 'mouvement', 150, 160, 'clips/e3.mp4', 140, NULL, NULL, 'landscape');
-  INSERT INTO snapshots VALUES ('cam-a', 1000, 'snaps/1000.jpg'), ('cam-a', 1060, 'snaps/1060.jpg'), ('cam-b', 1000, 'snaps/b1000.jpg');
+  INSERT INTO events VALUES ('e1', 'cam-a', 'mouvement', 100, 200, 'clips/e1.mp4', 90, 'clips/e1.h264.mp4', 'clips/e1.aac', 'clips/e1.shapes.json', 'portrait');
+  INSERT INTO events VALUES ('e2', 'cam-a', 'mouvement', 300, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+  INSERT INTO events VALUES ('e3', 'cam-b', 'mouvement', 150, 160, 'clips/e3.mp4', 140, NULL, NULL, NULL, 'landscape');
+  INSERT INTO snapshots VALUES ('cam-a', 1000, 'snaps/1000.jpg', 'aa'), ('cam-a', 1060, 'snaps/1060.jpg', 'ab'), ('cam-b', 1000, 'snaps/b1000.jpg', 'ba');
 `
 
 /** Une base de test avec son schéma et ses lignes dans ce dossier ; à fermer (`close`) avant de supprimer le dossier. */

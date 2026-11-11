@@ -32,8 +32,9 @@ export const snapshotsRouter = (snapshots: SnapshotsService, files: BackupFiles)
       res.status(404).json({ error: 'no snapshot near this time' })
       return
     }
-    // X-Snapshot-At : l'instant (secondes) de l'image, son identifiant ; la WebApp l'affiche sur l'image.
+    // X-Snapshot-At : l'instant (secondes) de l'image ; X-Snapshot-Code : son identifiant permanent (lettres, voir sync/src/snapshotCodes.ts), que la WebApp affiche sur l'image.
     res.setHeader('X-Snapshot-At', String(found.taken_at))
+    res.setHeader('X-Snapshot-Code', found.code)
     files.send(res, found.path, 'image/jpeg')
   })
   return router

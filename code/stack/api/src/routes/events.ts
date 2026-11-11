@@ -85,5 +85,12 @@ export const eventsRouter = (events: EventsService, files: BackupFiles): Router 
     if (!path) return void res.status(404).json({ error: 'sound not found' })
     files.send(res, path, 'audio/aac')
   })
+  // Les contours du mouvement du clip (JSON), que la WebApp dessine par-dessus la vidéo. 404 pour un clip fait avant leur ajout.
+  router.get('/clips/:id/shapes', (req, res) => {
+    const id = String(req.params.id)
+    const path = EVENT_ID.test(id) ? events.clipShapesPath(id) : null
+    if (!path) return void res.status(404).json({ error: 'shapes not found' })
+    files.send(res, path, 'application/json')
+  })
   return router
 }

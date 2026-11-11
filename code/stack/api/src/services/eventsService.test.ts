@@ -46,6 +46,7 @@ test('un événement devient une réponse avec les adresses de ses clips', async
       clip: '/clips/e1',
       clip_h264: '/clips/e1/h264',
       clip_audio: '/clips/e1/audio',
+      clip_shapes: '/clips/e1/shapes',
       clip_started_at: 90,
       saved: true,
       note: 'renard',
@@ -53,7 +54,7 @@ test('un événement devient une réponse avec les adresses de ses clips', async
       orientation: 'portrait',
     })
     // pas de clip, orientation inconnue : paysage
-    assert.deepEqual([e2.clip, e2.clip_h264, e2.clip_audio, e2.saved, e2.note, e2.orientation], [null, null, null, false, '', 'landscape'])
+    assert.deepEqual([e2.clip, e2.clip_h264, e2.clip_audio, e2.clip_shapes, e2.saved, e2.note, e2.orientation], [null, null, null, null, false, '', 'landscape'])
     assert.deepEqual([e3.clip, e3.clip_h264, e3.clip_audio, e3.orientation], ['/clips/e3', null, null, 'landscape'])
   })
 })
@@ -84,6 +85,8 @@ test('les chemins des clips et la sauvegarde', async () => {
     assert.equal(service.clipPath('e1'), 'clips/e1.mp4')
     assert.equal(service.clipPath('e1', true), 'clips/e1.h264.mp4')
     assert.equal(service.clipAudioPath('e1'), 'clips/e1.aac')
+    assert.equal(service.clipShapesPath('e1'), 'clips/e1.shapes.json')
+    assert.equal(service.clipShapesPath('e3'), null)
     assert.equal(service.setSaved('e1', true), true)
     assert.equal(saved.ids().has('e1'), true)
     assert.equal(service.setSaved('e1', false), true)

@@ -7,7 +7,7 @@ export const SNAPSHOT_TOLERANCE = 300
 
 export const createSnapshotsService = (snapshots: SnapshotsRepository) => ({
   times: (camera: string, from: number, to: number): number[] => snapshots.times(camera, from, to, MAX_SNAPSHOT_TIMES),
-  nearest: (camera: string, at: number): { path: string; taken_at: number } | null => snapshots.nearest(camera, Math.floor(at), SNAPSHOT_TOLERANCE),
+  nearest: (camera: string, at: number): { path: string; taken_at: number; code: string } | null => snapshots.nearest(camera, Math.floor(at), SNAPSHOT_TOLERANCE),
 })
 
 export type SnapshotsService = ReturnType<typeof createSnapshotsService>

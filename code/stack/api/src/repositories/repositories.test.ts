@@ -14,8 +14,8 @@ test('les caméras : orientation réglée ou paysage, pluie en cours, dernières
     try {
       const cameras = createCamerasRepository(db)
       assert.deepEqual(plain(cameras.liveStreams()), [
-        { camera: 'cam-a', url: 'http://go2rtc:1984/stream.html?src=cam-a_sub', orientation: 'portrait', rain: 'heavy' },
-        { camera: 'cam-b', url: 'pas une adresse', orientation: 'landscape', rain: 'off' },
+        { camera: 'cam-a', url: 'http://go2rtc:1984/stream.html?src=cam-a_sub', orientation: 'portrait', rain: 'heavy', eyes: true },
+        { camera: 'cam-b', url: 'pas une adresse', orientation: 'landscape', rain: 'off', eyes: false },
       ])
       assert.deepEqual(plain(cameras.lastImages()).length, 2)
       assert.deepEqual(plain(cameras.lastImages()), [
@@ -32,7 +32,7 @@ test('les caméras : rangées dans l’ordre d’arrivée, les inconnues après 
   await withTempDir((dir) => {
     const rows = `INSERT INTO live_streams VALUES ('zebre', 'z'), ('voliere-toit', 't'), ('abeille', 'a'), ('voliere-exterieur', 'e'), ('voliere-interieur', 'i'), ('salon-de-jardin', 's');
       INSERT INTO last_images VALUES ('zebre', 'z'), ('voliere-toit', 't'), ('abeille', 'a'), ('voliere-exterieur', 'e'), ('voliere-interieur', 'i'), ('salon-de-jardin', 's');
-      INSERT INTO events VALUES ('x1', 'zebre', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL), ('x2', 'voliere-toit', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL), ('x3', 'abeille', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL), ('x4', 'voliere-interieur', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL);`
+      INSERT INTO events VALUES ('x1', 'zebre', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL), ('x2', 'voliere-toit', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL), ('x3', 'abeille', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL), ('x4', 'voliere-interieur', 'mouvement', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL);`
     const db = openFixture(dir, rows)
     try {
       const order = ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'abeille', 'zebre']
@@ -48,12 +48,12 @@ test('les caméras : rangées dans l’ordre d’arrivée, les inconnues après 
 
 test('les caméras : une pluie faible, et une caméra sans réglage (paysage, pas de pluie)', async () => {
   await withTempDir((dir) => {
-    const rows = `${FIXTURE_ROWS} INSERT INTO live_streams VALUES ('cam-c', 'x'), ('cam-d', 'y'); INSERT INTO settings VALUES ('cam-c', 'landscape', 'rain');`
+    const rows = `${FIXTURE_ROWS} INSERT INTO live_streams VALUES ('cam-c', 'x'), ('cam-d', 'y'); INSERT INTO settings VALUES ('cam-c', 'landscape', 'rain', NULL);`
     const db = openFixture(dir, rows)
     try {
       assert.deepEqual(plain(createCamerasRepository(db).liveStreams()).slice(2), [
-        { camera: 'cam-c', url: 'x', orientation: 'landscape', rain: 'rain' },
-        { camera: 'cam-d', url: 'y', orientation: 'landscape', rain: 'off' },
+        { camera: 'cam-c', url: 'x', orientation: 'landscape', rain: 'rain', eyes: false },
+        { camera: 'cam-d', url: 'y', orientation: 'landscape', rain: 'off', eyes: false },
       ])
     } finally {
       db.close()
@@ -85,6 +85,9 @@ test('les événements : derniers, fenêtre, identifiants, derniers par caméra,
       assert.equal(events.clipAudioPath('e1'), 'clips/e1.aac')
       assert.equal(events.clipAudioPath('e3'), null)
       assert.equal(events.clipAudioPath('absent'), null)
+      assert.equal(events.clipShapesPath('e1'), 'clips/e1.shapes.json')
+      assert.equal(events.clipShapesPath('e3'), null)
+      assert.equal(events.clipShapesPath('absent'), null)
     } finally {
       db.close()
     }
@@ -99,7 +102,7 @@ test('les images : instants couverts et la plus proche dans la tolérance', asyn
       assert.deepEqual(snapshots.times('cam-a', 0, 2000, 10), [1000, 1060])
       assert.deepEqual(snapshots.times('cam-a', 0, 2000, 1), [1000])
       assert.deepEqual(snapshots.times('cam-a', 1001, 2000, 10), [1060])
-      assert.deepEqual({ ...snapshots.nearest('cam-a', 1050, 300) }, { path: 'snaps/1060.jpg', taken_at: 1060 })
+      assert.deepEqual({ ...snapshots.nearest('cam-a', 1050, 300) }, { path: 'snaps/1060.jpg', taken_at: 1060, code: 'ab' })
       assert.equal(snapshots.nearest('cam-a', 5000, 300), null)
     } finally {
       db.close()

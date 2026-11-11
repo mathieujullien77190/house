@@ -9,7 +9,7 @@ test('snapshots : instants couverts et image la plus proche', async () => {
   const seen: unknown[] = []
   const snapshots = {
     times: (camera: string, from: number, to: number) => (seen.push([camera, from, to]), [1, 2]),
-    nearest: (camera: string, at: number) => (camera === 'vide' ? null : { path: `snaps/${at}.jpg`, taken_at: 42 }),
+    nearest: (camera: string, at: number) => (camera === 'vide' ? null : { path: `snaps/${at}.jpg`, taken_at: 42, code: 'dz' }),
   } as unknown as SnapshotsService
   const files = { send: (res, path, type) => void res.send(`${path}|${type}`) } as BackupFiles
   await withServer(routerApp(snapshotsRouter(snapshots, files)), async (url) => {
@@ -28,6 +28,7 @@ test('snapshots : instants couverts et image la plus proche', async () => {
     const found = await call(`${url}/snapshot?camera=a&at=100`)
     assert.equal(found.body, 'snaps/100.jpg|image/jpeg')
     assert.equal(found.headers.get('x-snapshot-at'), '42')
+    assert.equal(found.headers.get('x-snapshot-code'), 'dz')
     assert.equal((await call(`${url}/snapshot?camera=vide&at=100`)).status, 404)
     assert.equal((await call(`${url}/snapshot?camera=a`)).status, 400)
     assert.equal((await call(`${url}/snapshot?camera=a&at=x`)).status, 400)
