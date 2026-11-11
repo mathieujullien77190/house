@@ -1,6 +1,7 @@
 // Tests des réglages par caméra et globaux.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { sunTimes } from './sun.ts'
 import { testContext } from './testing.ts'
 
 const at = (iso: string): number => Date.parse(iso) / 1000
@@ -20,6 +21,8 @@ test('une caméra sans réglage : tout par défaut', () => {
     orientation: 'landscape',
     rain_mode: 'off',
     rain_now: 'off',
+    eyes_mode: 'off',
+    eyes_now: false,
   })
 })
 
@@ -39,6 +42,8 @@ test('les réglages enregistrés, dont l\'orientation, sont relus', () => {
     orientation: 'portrait',
     rain_mode: 'off',
     rain_now: 'off',
+    eyes_mode: 'off',
+    eyes_now: false,
   })
   settings.saveCameraSettings({ camera: 'cam', mode: 'off', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 5, seconds: 120, orientation: 'landscape' })
   assert.equal(settings.cameraSettings('cam').clips_mode, 'off')
@@ -139,4 +144,37 @@ test('mode pluie : allumé, il suit la météo (pas de clips, une image toutes l
   db.exec("UPDATE settings SET rain_mode = 'on' WHERE camera = 'autre'")
   settings.setWeatherRain('none')
   assert.deepEqual([now('autre'), settings.cameraSettings('autre').rain_now], ['off', 'off'])
+})
+
+test('les yeux qui brillent : la fenêtre commence 30 min APRÈS le coucher et finit 30 min AVANT le lever', () => {
+  const { settings, config } = testContext()
+  settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 3, seconds: 60, orientation: 'landscape', eyes: 'on' })
+  const day = Date.parse('2026-11-09T12:00:00Z') / 1000
+  const today = sunTimes(day, config.housePosition)
+  const next = sunTimes(day + 86400, config.housePosition)
+  assert.ok(today && next)
+  const eyes = (time: number) => settings.eyesActive('cam', time)
+  assert.deepEqual(
+    [eyes(today.set - 60), eyes(today.set + 29 * 60), eyes(today.set + 31 * 60), eyes(next.rise - 31 * 60), eyes(next.rise - 29 * 60), eyes(next.rise + 60)],
+    [false, false, true, true, false, false],
+  )
+})
+
+test('les yeux qui brillent : le mode on ne tourne que la nuit, et refreshEyes le range', () => {
+  const { settings, db } = testContext()
+  const noon = at('2026-11-09T12:00:00Z')
+  const midnight = at('2026-11-09T23:00:00Z')
+  const save = (eyes: string) => settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 3, seconds: 60, orientation: 'landscape', eyes })
+  save('on')
+  assert.equal(settings.cameraSettings('cam').eyes_mode, 'on')
+  assert.deepEqual([settings.eyesActive('cam', noon), settings.eyesActive('cam', midnight)], [false, true])
+  settings.refreshEyes(midnight)
+  assert.equal(settings.cameraSettings('cam').eyes_now, true)
+  settings.refreshEyes(noon)
+  assert.equal(settings.cameraSettings('cam').eyes_now, false)
+  save('off')
+  assert.equal(settings.eyesActive('cam', midnight), false)
+  // l'ancienne valeur « night » se lit comme « on »
+  db.exec("UPDATE settings SET eyes_mode = 'night' WHERE camera = 'cam'")
+  assert.equal(settings.cameraSettings('cam').eyes_mode, 'on')
 })

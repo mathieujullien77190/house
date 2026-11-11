@@ -25,7 +25,7 @@ import type { ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
-import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_MOTION_SECONDS, MAX_SENSITIVITY, MIN_MOTION_SECONDS, MIN_RETENTION_DAYS, MIN_SENSITIVITY, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
+import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_MOTION_SECONDS, MAX_SENSITIVITY, MIN_MOTION_SECONDS, MIN_RETENTION_DAYS, MIN_SENSITIVITY, EYES_MODES, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
 import { readSpecs } from './specs.ts'
 import { readSystem } from './system.ts'
 
@@ -200,7 +200,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     if (req.method === 'POST' && pathname === '/logout') {
       return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, '') })
     }
-    // PUT /api/settings : { camera, clips_mode?, orientation?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, motion_min_seconds?, snapshot_seconds?, rain_mode? }, derrière la session.
+    // PUT /api/settings : { camera, clips_mode?, orientation?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, motion_min_seconds?, snapshot_seconds?, rain_mode?, eyes_mode? }, derrière la session.
     if (req.method === 'PUT' && pathname === '/api/settings') {
       if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
       const body = await readJsonObject(req)
@@ -228,7 +228,11 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (typeof orientation !== 'string' || !ORIENTATIONS.includes(orientation)) return sendJson(res, 400, { error: `orientation must be one of ${ORIENTATIONS.join(', ')}` })
       const rain = body.rain_mode === undefined ? current.rain_mode : body.rain_mode
       if (typeof rain !== 'string' || !RAIN_MODES.includes(rain)) return sendJson(res, 400, { error: `rain_mode must be one of ${RAIN_MODES.join(', ')}` })
-      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain })
+      // « night », l'ancienne valeur, vaut « on ».
+      const eyes = body.eyes_mode === 'night' ? 'on' : body.eyes_mode === undefined ? current.eyes_mode : body.eyes_mode
+      if (typeof eyes !== 'string' || !EYES_MODES.includes(eyes)) return sendJson(res, 400, { error: `eyes_mode must be one of ${EYES_MODES.join(', ')}` })
+      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain, eyes })
+      settings.refreshEyes(seconds(ctx))
       ctx.log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, un mouvement compte après ${minSeconds} s, une image toutes les ${secs} s`)
       resetLiveFpsCheck()
       return sendJson(res, 200, settings.cameraSettings(camera))

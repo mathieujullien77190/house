@@ -64,8 +64,10 @@ export const createClips = (ctx: Context, rec: Recorder) => {
   // Le son se demande quand la copie légère est là : l'enregistreur a alors tout fait (clip, son, copie légère).
   const clipsWithoutAudio = db.prepare('SELECT id, camera, clip_path FROM events WHERE clip_path IS NOT NULL AND clip_web_path IS NOT NULL AND clip_audio_path IS NULL AND started_at > ?')
   const updateAudioClip = db.prepare('UPDATE events SET clip_audio_path = ? WHERE id = ?')
-  const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path, clip_audio_path FROM events WHERE clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
-  const clearClipPaths = db.prepare('UPDATE events SET clip_path = NULL, clip_web_path = NULL, clip_audio_path = NULL WHERE id = ?')
+  const clipsWithoutShapes = db.prepare('SELECT id, camera, clip_path FROM events WHERE clip_path IS NOT NULL AND clip_web_path IS NOT NULL AND clip_shapes_path IS NULL AND started_at > ?')
+  const updateShapesClip = db.prepare('UPDATE events SET clip_shapes_path = ? WHERE id = ?')
+  const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path, clip_audio_path, clip_shapes_path FROM events WHERE clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
+  const clearClipPaths = db.prepare('UPDATE events SET clip_path = NULL, clip_web_path = NULL, clip_audio_path = NULL, clip_shapes_path = NULL WHERE id = ?')
 
   // Un événement lancé à la main ? Dit par l'enregistreur (le champ manual) ; l'événement relu dans la base n'a pas ce champ, on le demande une fois et on s'en souvient.
   const manualKnown = new Map<string, boolean>()
@@ -172,6 +174,33 @@ export const createClips = (ctx: Context, rec: Recorder) => {
     return copied
   }
 
+  // Les contours du mouvement d'un clip (<id>.shapes.json, à part de la vidéo) : l'enregistreur les fabrique avec le clip. Un clip sans contours (fait avant leur ajout, ou
+  // manuel) répond 404 : on ne le redemande plus jusqu'au prochain démarrage.
+  const noShapes = new Set<string>()
+  const syncShapesClips = async (): Promise<number> => {
+    const now = seconds(ctx)
+    let copied = 0
+    for (const row of clipsWithoutShapes.all(now - CLIP_RETRY_SECONDS) as { id: string; camera: string; clip_path: string }[]) {
+      if (noShapes.has(row.id) || !/^[\w.-]+$/.test(row.id) || !/^[\w-]+$/.test(row.camera)) continue
+      try {
+        const res = await rec.recorder(row.camera, `/api/events/${row.id}/shapes.json`, CLIP_TIMEOUT_MS)
+        if (res.status === 404) {
+          noShapes.add(row.id)
+          void res.body?.cancel().catch(() => undefined)
+          continue
+        }
+        if (!res.ok) continue
+        const path = row.clip_path.replace(/\.mp4$/, '.shapes.json')
+        await saveResponse(res, `${dataDir}/${path}`)
+        updateShapesClip.run(path, row.id)
+        copied += 1
+      } catch (error) {
+        ctx.log(`Contours ${row.id} non copiés : ${messageOf(error)}`)
+      }
+    }
+    return copied
+  }
+
   // ---- La durée de garde ----
   // Une seule durée (réglable depuis la page : table app_settings, pour toutes les caméras), un seul ménage par jour. Il efface, au-delà de la durée :
   // les clips non sauvegardés (ceux que la WebApp a marqués « sauvegardé », liste écrite par l'API, ne le sont jamais) ; les images ; les lignes du journal Hue ;
@@ -197,11 +226,11 @@ export const createClips = (ctx: Context, rec: Recorder) => {
     }
     let purged = 0
     const limit = now - settings.clipRetentionDays() * 86400
-    for (const row of expiredClips.all(limit) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null }[]) {
+    for (const row of expiredClips.all(limit) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null; clip_shapes_path: string | null }[]) {
       if (saved.has(row.id)) continue
       let failed = false
-      for (const path of [row.clip_path, row.clip_web_path, row.clip_audio_path]) {
-        if (!path || !/^clips\/[\w-]+\/[\w.-]+\.(mp4|aac)$/.test(path)) continue
+      for (const path of [row.clip_path, row.clip_web_path, row.clip_audio_path, row.clip_shapes_path]) {
+        if (!path || !/^clips\/[\w-]+\/[\w.-]+\.(mp4|aac|json)$/.test(path)) continue
         await unlink(`${dataDir}/${path}`).catch((error: NodeJS.ErrnoException) => {
           if (error.code !== 'ENOENT') failed = true
         })
@@ -223,7 +252,7 @@ export const createClips = (ctx: Context, rec: Recorder) => {
     return result
   }
 
-  return { copyClip, retryMissingClips, syncWebClips, syncAudioClips, purgeOldClips }
+  return { copyClip, retryMissingClips, syncWebClips, syncAudioClips, syncShapesClips, purgeOldClips }
 }
 
 export type Clips = ReturnType<typeof createClips>

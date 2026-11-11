@@ -40,6 +40,7 @@ const database = () => {
     CREATE TABLE camera_energy (camera TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (camera, hour));
     CREATE TABLE lamp_energy (lamp TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (lamp, hour));
     CREATE TABLE machine_energy (device TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (device, hour));
+    CREATE TABLE eye_detections (camera TEXT NOT NULL, taken_at INTEGER NOT NULL, path TEXT, PRIMARY KEY (camera, taken_at));
     CREATE TABLE plan (kind TEXT NOT NULL, id TEXT NOT NULL, longitude REAL, latitude REAL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, id));
   `)
   const insert = db.prepare('INSERT INTO events (id, camera, started_at) VALUES (?, ?, ?)')
@@ -95,6 +96,7 @@ test("une table sans filtre ignore ceux qu'on lui donne ; summarizeTables dit ce
   assert.deepEqual(tables.events, { match: 'camera', date: true })
   assert.deepEqual(tables.hue_events, { match: 'name', date: true })
   assert.deepEqual(tables.guest_visits, { match: 'cle', date: true })
+  assert.deepEqual(tables.eye_detections, { match: 'camera', date: true })
   assert.deepEqual(tables.settings, { match: null, date: false })
 })
 

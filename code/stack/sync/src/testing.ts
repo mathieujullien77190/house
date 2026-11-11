@@ -12,6 +12,7 @@ import { loadConfig, type Config } from './config.ts'
 import type { Context, Fetch } from './context.ts'
 import { initDatabase } from './database.ts'
 import { createCameraEnergyTable } from './cameraEnergy.ts'
+import { createEyesTable } from './eyes.ts'
 import { createLampEnergyTable } from './lampEnergy.ts'
 import { createMachineEnergyTable } from './machineEnergy.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
@@ -61,6 +62,7 @@ export const testContext = (handler: Handler = () => new Response('', { status: 
     createShutterLogTable(db)
     createCameraEnergyTable(db)
     createLampEnergyTable(db)
+    createEyesTable(db)
     createMachineEnergyTable(db)
     createPlanTable(db)
   } finally {

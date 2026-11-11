@@ -27,6 +27,7 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
   snapshot_seconds: 60,
   ...patch,
 })
+const EYES_GROUP = 'Yeux qui brillent'
 const RAIN_GROUP = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
 const SAVE_ERROR = /n’a pas pu être enregistré/
 
@@ -142,6 +143,16 @@ describe('réglages par caméra', () => {
     fireEvent.click(tab(RAIN_GROUP, 'ON'))
     await waitFor(() => expect(tab(RAIN_GROUP, 'ON').getAttribute('aria-selected')).toBe('true'))
     expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { rain_mode: 'on' })
+  })
+
+  it('les yeux qui brillent s’allument au clic (On), éteints tant que la caméra ne dit rien', async () => {
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
+    await loaded()
+    expect(tab(EYES_GROUP, 'Off').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getAllByText('Actif de 30 min après le coucher à 30 min avant le lever.').length).toBeGreaterThan(0)
+    fireEvent.click(tab(EYES_GROUP, 'On'))
+    await waitFor(() => expect(tab(EYES_GROUP, 'On').getAttribute('aria-selected')).toBe('true'))
+    expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { eyes_mode: 'on' })
   })
 
   it('le mode pluie dit ce qui est actif en ce moment : pluie, pluie forte, ou rien', async () => {

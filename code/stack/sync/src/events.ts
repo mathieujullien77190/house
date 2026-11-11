@@ -19,6 +19,7 @@ export const createEvents = (ctx: Context, rec: Recorder, clips: Clips) => {
   const insertMerge = db.prepare('INSERT OR IGNORE INTO merges (absorbed_id, kept_id, camera, absorbed_started_at, absorbed_ended_at, merged_at) VALUES (?, ?, ?, ?, ?, ?)')
   const clearWebClip = db.prepare('UPDATE events SET clip_web_path = NULL WHERE id = ?')
   const clearAudioClip = db.prepare('UPDATE events SET clip_audio_path = NULL WHERE id = ?')
+  const clearShapesClip = db.prepare('UPDATE events SET clip_shapes_path = NULL WHERE id = ?')
   // Un événement en cours est inséré sans fin ni clip ; une fois terminé, la même ligne reçoit sa fin et son clip.
   const upsertEvent = db.prepare(
     'INSERT INTO events (id, camera, label, started_at, ended_at, clip_path, clip_started_at) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
@@ -120,6 +121,7 @@ export const createEvents = (ctx: Context, rec: Recorder, clips: Clips) => {
       upsertEvent.run(event.id, event.camera, event.label, Math.floor(event.start_time), Math.floor(event.end_time), clip.path, clip.start)
       clearWebClip.run(event.id)
       clearAudioClip.run(event.id)
+      clearShapesClip.run(event.id)
       changed += 1
     }
     return changed

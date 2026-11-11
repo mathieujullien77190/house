@@ -4,6 +4,7 @@ export type Orientation = 'landscape' | 'portrait'
 
 /** Le mode pluie : off ou on (on : il suit la météo). */
 export type RainMode = 'off' | 'on'
+export type EyesMode = 'off' | 'on'
 
 /** Le niveau de pluie qui s'applique maintenant : off, rain ou heavy. */
 export type RainLevel = 'off' | 'rain' | 'heavy'
@@ -31,4 +32,8 @@ export interface CameraSetting {
   rain_mode?: RainMode
   /** Le niveau de pluie qui s'applique maintenant (le mode et la météo). */
   rain_now?: RainLevel
+  /** La recherche des yeux qui brillent : off ou on (la nuit, de 30 min après le coucher à 30 min avant le lever). */
+  eyes_mode?: EyesMode
+  /** Vrai quand la recherche tourne en ce moment. */
+  eyes_now?: boolean
 }

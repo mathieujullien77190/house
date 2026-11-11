@@ -3,7 +3,7 @@ import { readdir, stat, statfs } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 import { cameraOrderSql, compareCameras } from './cameraOrder.ts'
 
-export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'shutter_log', 'plan', 'camera_energy', 'lamp_energy', 'machine_energy']
+export const TABLES = ['events', 'last_images', 'live_streams', 'snapshots', 'hue_events', 'merges', 'settings', 'guest_visits', 'heating_log', 'shutter_log', 'plan', 'camera_energy', 'lamp_energy', 'machine_energy', 'eye_detections']
 export const MAX_PAGE_SIZE = 100
 
 export interface BackupFile {
@@ -31,6 +31,7 @@ interface TableFilterConfig {
 export const TABLE_FILTERS: Record<string, TableFilterConfig> = {
   events: { match: 'camera', date: 'started_at' },
   snapshots: { match: 'camera', date: 'taken_at' },
+  eye_detections: { match: 'camera', date: 'taken_at' },
   merges: { match: 'camera', date: 'absorbed_started_at' },
   hue_events: { match: 'name', date: 'happened_at' },
   guest_visits: { match: 'cle', date: 'started_at' },

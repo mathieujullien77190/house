@@ -1,6 +1,7 @@
 // La base SQLite de House Sync (events.db) : ses tables, les colonnes ajoutées après coup, le déclencheur d'orientation et la migration
 // unique des orientations. Seul House Sync écrit dans cette base ; House API la lit.
 import type { DatabaseSync } from 'node:sqlite'
+import { backfillSnapshotCodes } from './snapshotCodes.ts'
 
 export const ORIENTATIONS = ['landscape', 'portrait']
 export type Orientation = 'landscape' | 'portrait'
@@ -72,12 +73,16 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   addColumn(db, 'settings', 'rain_mode', 'TEXT')
   // Le niveau de pluie qui s'applique vraiment à la caméra (off, rain, heavy) : le mode pluie et la météo ; écrit par House Sync, lu par l'API pour le symbole.
   addColumn(db, 'settings', 'rain_now', 'TEXT')
+  // Les yeux qui brillent de la caméra (off ou on) et si la recherche tourne maintenant (0 ou 1), écrit par House Sync, lu par l'API pour l'icône œil.
+  addColumn(db, 'settings', 'eyes_mode', 'TEXT')
+  addColumn(db, 'settings', 'eyes_now', 'INTEGER')
   // Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
   addColumn(db, 'events', 'clip_started_at', 'INTEGER')
   // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).
   addColumn(db, 'events', 'clip_web_path', 'TEXT')
   // Idem pour le son du clip (AAC, à part de la vidéo), pour les caméras à son.
   addColumn(db, 'events', 'clip_audio_path', 'TEXT')
+  addColumn(db, 'events', 'clip_shapes_path', 'TEXT')
 
   // L'orientation de la caméra : « paysage » (le direct tel que la caméra le donne) ou « portrait » (caméra posée de côté : l'image est tournée d'un quart de tour horaire pour être droite). Elle se règle
   // par caméra dans la page (colonne `settings.orientation`, paysage par défaut) et chaque événement garde celle qu'avait sa caméra quand il a commencé (colonne `events.orientation`, posée par le
@@ -103,4 +108,11 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
     db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?)').run(ORIENTATION_MIGRATION_KEY, new Date(now()).toISOString())
     console.log(`Orientation : événements étiquetés (copie de la base : ${backup})`)
   }
+  // L'identifiant permanent des images gardées (voir `snapshotCodes.ts`) : la colonne, son index unique, puis (sans effet une fois faite) le code des images qui n'en ont pas encore.
+  addColumn(db, 'snapshots', 'code', 'TEXT')
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS snapshots_code ON snapshots (code)')
+  const coded = backfillSnapshotCodes(db)
+  if (coded > 0) console.log(`Images : ${coded} codes attribués`)
+  // L'ancienne valeur « night » du réglage des yeux qui brillent vaut « on » (à chaque ouverture : sans effet une fois faite).
+  db.exec("UPDATE settings SET eyes_mode = 'on' WHERE eyes_mode = 'night'")
 }

@@ -11,6 +11,8 @@ export const SNAPSHOT_CHOICES = [5, 10, 15, 30, 60, 120, 300]
 export const CLIP_MODES = ['always', 'night', 'off']
 export type ClipMode = 'always' | 'night' | 'off'
 export const NIGHT_MARGIN_SECONDS = 30 * 60
+/** Les yeux qui brillent cherchent en pleine nuit : de 30 min APRÈS le coucher à 30 min AVANT le lever (une marge négative : le contraire des clips de nuit), quand il fait vraiment noir. */
+export const EYES_MARGIN_SECONDS = -30 * 60
 /**
  * Le mode pluie d'une caméra : off (on ne fait rien) ou on. Allumé, quand la météo dit pluie ou pluie forte, la détection de mouvement est coupée (pas de clips) et une image est prise
  * toutes les `RAIN_SNAPSHOT_SECONDS` ; quand il ne pleut plus, tout revient comme avant (les réglages gardés ne changent jamais).
@@ -20,6 +22,9 @@ export type RainMode = 'off' | 'on'
 /** Le niveau de pluie qui s'applique à une caméra : éteint, pluie ou pluie forte (celui de la météo, quand le mode pluie est allumé). */
 export type RainLevel = 'off' | 'rain' | 'heavy'
 export const RAIN_SNAPSHOT_SECONDS = 5
+/** Les yeux qui brillent, par caméra : off ou on. Allumé, la nuit (de 30 min après le coucher à 30 min avant le lever), chaque image prise est envoyée à l'enregistreur qui cherche des yeux (`eyes.ts`). « night », ancienne valeur, vaut « on ». */
+export const EYES_MODES = ['off', 'on']
+export type EyesMode = 'off' | 'on'
 /** Images par seconde du direct 4K : de 1 à 25 (25 : toutes, au rythme de la caméra). */
 export const MAX_LIVE_FPS = 25
 /** La sensibilité de la détection de mouvement : de 1 (petits mouvements ignorés) à 5 (très sensible) ; 3 : les seuils de base. */
@@ -55,6 +60,10 @@ export interface CameraSettings {
   rain_mode: RainMode
   /** Le niveau de pluie qui s'applique maintenant (le mode et la météo) : off, rain ou heavy. */
   rain_now: RainLevel
+  /** La recherche des yeux qui brillent : off ou on. */
+  eyes_mode: EyesMode
+  /** Vrai quand la recherche tourne maintenant (le mode on et la nuit), rafraîchi chaque minute ; lu par l'API pour l'icône œil de la WebApp. */
+  eyes_now: boolean
 }
 
 /** Ce que la page change pour une caméra (tout est déjà validé). */
@@ -71,6 +80,7 @@ export interface CameraSettingsUpdate {
   seconds: number
   orientation: string
   rain?: string
+  eyes?: string
 }
 
 /** Le mode gardé en base : « on » (et les anciens « auto », « rain », « heavy ») est allumé ; tout le reste est éteint. */
@@ -81,7 +91,7 @@ const rainModeOf = (value: string | null | undefined): RainMode =>
 const rainNowOf = (mode: RainMode, weather: 'none' | 'rain' | 'heavy'): RainLevel => (mode === 'off' || weather === 'none' ? 'off' : weather)
 
 export const createSettings = (db: DatabaseSync, config: Config) => {
-  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode FROM settings WHERE camera = ?')
+  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode, eyes_mode, eyes_now FROM settings WHERE camera = ?')
   const saveSettings = db.prepare(
     'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, motion_sensitivity = excluded.motion_sensitivity, snapshot_seconds = excluded.snapshot_seconds',
   )
@@ -89,6 +99,8 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
   const setOrientation = db.prepare('UPDATE settings SET orientation = ? WHERE camera = ?')
   const setRain = db.prepare('UPDATE settings SET rain_mode = ? WHERE camera = ?')
   const setRainNow = db.prepare('UPDATE settings SET rain_now = ? WHERE camera = ?')
+  const setEyes = db.prepare('UPDATE settings SET eyes_mode = ? WHERE camera = ?')
+  const setEyesNow = db.prepare('UPDATE settings SET eyes_now = ? WHERE camera = ?')
   const settingsCameras = db.prepare('SELECT camera FROM settings')
   // La météo : aucune pluie, pluie ou pluie forte (lue par weather.ts).
   let weatherRain: 'none' | 'rain' | 'heavy' = 'none'
@@ -100,7 +112,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
 
   const cameraSettings = (camera: string): CameraSettings => {
     const row = settingsOf.get(camera) as
-      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null }
+      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null; eyes_mode: string | null; eyes_now: number | null }
       | undefined
     const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
     return {
@@ -116,6 +128,8 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       orientation: row?.orientation && ORIENTATIONS.includes(row.orientation) ? (row.orientation as Orientation) : DEFAULT_ORIENTATION,
       rain_mode: rainModeOf(row?.rain_mode),
       rain_now: rainNowOf(rainModeOf(row?.rain_mode), weatherRain),
+      eyes_mode: row?.eyes_mode === 'on' || row?.eyes_mode === 'night' ? 'on' : 'off',
+      eyes_now: row?.eyes_now === 1,
     }
   }
   /** Les réglages qui comptent vraiment : en mode pluie, pas de clips et une image toutes les 5 s, quoi que dise la page. */
@@ -124,9 +138,17 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
     return own.rain_now === 'off' ? own : { ...own, clips_mode: 'off', snapshot_seconds: RAIN_SNAPSHOT_SECONDS }
   }
 
+  /** La recherche des yeux est-elle active à cet instant (secondes) ? Le mode « on » et la pleine nuit (de 30 min après le coucher à 30 min avant le lever). */
+  const eyesActive = (camera: string, at: number): boolean => cameraSettings(camera).eyes_mode === 'on' && isNight(at, config.housePosition, EYES_MARGIN_SECONDS)
+
   return {
     cameraSettings,
     effectiveSettings,
+    eyesActive,
+    /** Range en base, pour l'API, si la recherche des yeux tourne maintenant (chaque minute et après un changement de réglage). */
+    refreshEyes: (at: number): void => {
+      for (const { camera } of settingsCameras.all() as { camera: string }[]) setEyesNow.run(eyesActive(camera, at) ? 1 : 0, camera)
+    },
     /** La météo a changé : le niveau de pluie de chaque caméra (celles dont le mode pluie est allumé) suit, et se range en base pour l'API. */
     setWeatherRain: (level: 'none' | 'rain' | 'heavy'): void => {
       weatherRain = level
@@ -144,6 +166,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       setOrientation.run(update.orientation, update.camera)
       if (update.minSeconds !== undefined) setMinSeconds.run(update.minSeconds, update.camera)
       if (update.rain !== undefined) setRain.run(update.rain, update.camera)
+      if (update.eyes !== undefined) setEyes.run(update.eyes, update.camera)
       setRainNow.run(cameraSettings(update.camera).rain_now, update.camera)
     },
     clipRetentionDays: (): number => {

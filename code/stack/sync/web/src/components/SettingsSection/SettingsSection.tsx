@@ -43,6 +43,9 @@ import {
   SLIDERS_CLASS,
   RAIN_CLOUD,
   RAIN_CLOUD_HINT,
+  EYES_HINT,
+  EYES_LABEL,
+  EYES_OPTIONS,
   RAIN_LABEL,
   RAIN_NOW_TEXT,
   RAIN_OPTIONS,
@@ -209,6 +212,16 @@ const SettingsSection = () => {
                   {setting.rain_now && setting.rain_now !== 'off' ? (
                     <span className={LABEL_CLASS}>{RAIN_NOW_TEXT[setting.rain_now]}</span>
                   ) : null}
+                </div>
+                <div className={GROUP_CLASS}>
+                  <span className={LABEL_CLASS}>{EYES_LABEL}</span>
+                  <Tabs
+                    label={EYES_LABEL}
+                    options={[...EYES_OPTIONS]}
+                    value={setting.eyes_mode ?? 'off'}
+                    onChange={(id) => change(setting.camera, { eyes_mode: id })}
+                  />
+                  <span className={LABEL_CLASS}>{EYES_HINT}</span>
                 </div>
                 <div className={GROUP_CLASS}>
                   <span className={LABEL_CLASS}>{ORIENTATION_LABEL}</span>

@@ -34,10 +34,10 @@ const event = (ctx: TestContext, patch: Partial<RecorderEvent> = {}): RecorderEv
 })
 const clipFile = (ctx: TestContext, name: string) => `${ctx.dir}/clips/cam/${name}`
 const insertEvent = (ctx: TestContext, patch: Record<string, unknown> = {}) => {
-  const row = { id: 'ev1', camera: 'cam', label: 'x', started_at: seconds(ctx) - 200, ended_at: seconds(ctx) - 100, clip_path: null, clip_web_path: null, clip_audio_path: null, ...patch }
+  const row = { id: 'ev1', camera: 'cam', label: 'x', started_at: seconds(ctx) - 200, ended_at: seconds(ctx) - 100, clip_path: null, clip_web_path: null, clip_audio_path: null, clip_shapes_path: null, ...patch }
   ctx.db
-    .prepare('INSERT INTO events (id, camera, label, started_at, ended_at, clip_path, clip_web_path, clip_audio_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(row.id as string, row.camera as string, row.label as string, row.started_at as number, row.ended_at as number | null, row.clip_path as string | null, row.clip_web_path as string | null, row.clip_audio_path as string | null)
+    .prepare('INSERT INTO events (id, camera, label, started_at, ended_at, clip_path, clip_web_path, clip_audio_path, clip_shapes_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(row.id as string, row.camera as string, row.label as string, row.started_at as number, row.ended_at as number | null, row.clip_path as string | null, row.clip_web_path as string | null, row.clip_audio_path as string | null, row.clip_shapes_path as string | null)
 }
 const eventRow = (ctx: TestContext, id = 'ev1') => ctx.db.prepare('SELECT * FROM events WHERE id = ?').get(id)
 const video = (start?: string) => new Response('VIDEO', { headers: start === undefined ? {} : { 'X-Clip-Start': start } })
@@ -174,15 +174,44 @@ test('syncAudioClips : le son, une fois la copie légère faite ; un 404 n\'est 
   assert.deepEqual(ctx.logs.slice(0, 2), ['Son boom non copié : réponse sans corps', 'Son exc non copié : coupé'])
 })
 
+test('syncShapesClips : les contours, une fois la copie légère faite ; un 404 n\'est plus redemandé', async () => {
+  const { ctx, clips } = setup({
+    '/api/events/ok/shapes.json': new Response('{"frames":[]}'),
+    '/api/events/vieux/shapes.json': new Response(null, { status: 404 }),
+    '/api/events/ko/shapes.json': new Response('', { status: 500 }),
+    '/api/events/boom/shapes.json': new Response(null, { status: 200 }),
+    '/api/events/exc/shapes.json': () => {
+      throw new Error('coupé')
+    },
+  })
+  for (const id of ['ok', 'vieux', 'ko', 'boom', 'exc']) insertEvent(ctx, { id, clip_path: `clips/cam/${id}.mp4`, clip_web_path: `clips/cam/${id}.h264.mp4` })
+  insertEvent(ctx, { id: '../mauvais', clip_path: 'clips/cam/x.mp4', clip_web_path: 'x' })
+  insertEvent(ctx, { id: 'sansleger', clip_path: 'clips/cam/z.mp4' })
+  assert.equal(await clips.syncShapesClips(), 1)
+  assert.equal(readFileSync(clipFile(ctx, 'ok.shapes.json'), 'utf8'), '{"frames":[]}')
+  assert.equal((eventRow(ctx, 'ok') as { clip_shapes_path: string }).clip_shapes_path, 'clips/cam/ok.shapes.json')
+  const asked = ctx.calls.length
+  await clips.syncShapesClips()
+  assert.equal(ctx.calls.slice(asked).filter((call) => /vieux/.test(call.url)).length, 0)
+  assert.deepEqual(ctx.logs.slice(0, 2), ['Contours boom non copiés : réponse sans corps', 'Contours exc non copiés : coupé'])
+})
+
+test('syncShapesClips : un 404 dont le corps ne se laisse pas fermer n\'arrête rien', async () => {
+  const stubborn = new Response(new ReadableStream({ cancel: () => Promise.reject(new Error('têtu')) }), { status: 404 })
+  const { ctx, clips } = setup({ '/api/events/muet/shapes.json': () => stubborn })
+  insertEvent(ctx, { id: 'muet', clip_path: 'clips/cam/muet.mp4', clip_web_path: 'clips/cam/muet.h264.mp4' })
+  assert.equal(await clips.syncShapesClips(), 0)
+})
+
 const expired = (ctx: TestContext, id: string, patch: Record<string, unknown> = {}) =>
-  insertEvent(ctx, { id, started_at: seconds(ctx) - 40 * 86400, ended_at: seconds(ctx) - 40 * 86400 + 30, clip_path: `clips/cam/${id}.mp4`, clip_web_path: `clips/cam/${id}.h264.mp4`, clip_audio_path: `clips/cam/${id}.aac`, ...patch })
+  insertEvent(ctx, { id, started_at: seconds(ctx) - 40 * 86400, ended_at: seconds(ctx) - 40 * 86400 + 30, clip_path: `clips/cam/${id}.mp4`, clip_web_path: `clips/cam/${id}.h264.mp4`, clip_audio_path: `clips/cam/${id}.aac`, clip_shapes_path: `clips/cam/${id}.shapes.json`, ...patch })
 
 test('purgeOldClips : efface les clips non sauvegardés trop vieux, garde la trace de l\'événement', async () => {
   const { ctx, clips } = setup()
   ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
   mkdirSync(`${ctx.dir}/clips/cam`, { recursive: true })
   writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: ['garde'] }))
-  for (const id of ['vieux', 'garde']) for (const suffix of ['.mp4', '.h264.mp4', '.aac']) writeFileSync(clipFile(ctx, `${id}${suffix}`), 'x')
+  for (const id of ['vieux', 'garde']) for (const suffix of ['.mp4', '.h264.mp4', '.aac', '.shapes.json']) writeFileSync(clipFile(ctx, `${id}${suffix}`), 'x')
   expired(ctx, 'vieux')
   expired(ctx, 'garde')
   // Un vieux clip dont les fichiers manquent déjà, un clip sans copie légère, un chemin inattendu, un clip récent.
@@ -193,6 +222,7 @@ test('purgeOldClips : efface les clips non sauvegardés trop vieux, garde la tra
   assert.equal((await clips.purgeOldClips()).clips, 4)
   assert.equal(existsSync(clipFile(ctx, 'vieux.mp4')), false)
   assert.equal(existsSync(clipFile(ctx, 'vieux.aac')), false)
+  assert.equal(existsSync(clipFile(ctx, 'vieux.shapes.json')), false)
   assert.equal(existsSync(clipFile(ctx, 'garde.mp4')), true)
   // Son clip effacé, l'événement (plus vieux que la durée de garde) part avec lui ; celui au clip sauvegardé reste.
   assert.equal(eventRow(ctx, 'vieux'), undefined)

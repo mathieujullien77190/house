@@ -48,7 +48,7 @@ export const createPoller = (
           ctx.log(`Enregistreur ${base} : ${messageOf(error)}`)
         }
       }
-      const repaired = (await clips.retryMissingClips()) + (await clips.syncWebClips()) + (await clips.syncAudioClips())
+      const repaired = (await clips.retryMissingClips()) + (await clips.syncWebClips()) + (await clips.syncAudioClips()) + (await clips.syncShapesClips())
       const taken = await snapshots(cameras)
       const purged = await clips.purgeOldClips()
       const removed = [

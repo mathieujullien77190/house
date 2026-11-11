@@ -20,11 +20,12 @@ test('une image par caméra, au rythme de son réglage', async () => {
   const at = sec(ctx.now())
   assert.equal(readFileSync(`${ctx.dir}/snapshots/cam/${at}.jpg`, 'utf8'), 'JPEG')
   assert.equal(ctx.calls[0]?.url, 'http://rec1:8080/api/cam/latest.jpg?h=720')
-  assert.deepEqual(ctx.db.prepare('SELECT camera, taken_at, path FROM snapshots').all().map((r) => ({ ...r })), [{ camera: 'cam', taken_at: at, path: `snapshots/cam/${at}.jpg` }])
+  assert.deepEqual(ctx.db.prepare('SELECT camera, taken_at, path, code FROM snapshots').all().map((r) => ({ ...r })), [{ camera: 'cam', taken_at: at, path: `snapshots/cam/${at}.jpg`, code: 'ea' }])
   ctx.time.advance(30_000)
   assert.equal(await snapshot(['cam']), 0)
   ctx.time.advance(30_000)
   assert.equal(await snapshot(['cam']), 1)
+  assert.deepEqual(ctx.db.prepare('SELECT code FROM snapshots ORDER BY taken_at').all().map((r) => r.code), ['ea', 'eb'])
 })
 
 test('une caméra qui ne répond pas ne prive pas les autres de leur image', async () => {

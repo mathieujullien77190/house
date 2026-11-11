@@ -7,6 +7,7 @@
   - **Enregistrement : clips et images**
     - **Toujours / La nuit / Jamais** (hors des clips gardés la détection de la caméra est éteinte) ;
     - le rythme des images de la frise : **5, 10, 15, 30 s, 1, 2 ou 5 min** ;
+    - **Yeux qui brillent** (Off / On, `eyes_mode`, comme le mode pluie) : allumé, de 30 min après le coucher à 30 min avant le lever, chaque image prise est examinée, et un ou deux points blancs saturés (les yeux d'un animal vus par la caméra infrarouge) lancent un événement de mouvement de la caméra, avec son clip. Une ligne d'aide dit les bornes. Pendant ce temps la WebApp montre une icône œil sur la caméra ;
     - le **Mode pluie** (OFF / ON) : allumé, quand la météo dit pluie ou forte pluie, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent (ils ne sont jamais modifiés). Sous le choix, un texte dit « Pluie en ce moment : mode pluie actif » quand il s'applique (`rain_now`) ;
     - l'**Orientation** (Paysage / Portrait) à côté de « Clips vidéo » : elle s'applique aux nouveaux événements (les anciens gardent la leur).
   - **Détection du mouvement** : un curseur « Sensibilité du mouvement » de 1 à 5 (sert quand une caméra rate un passage) et un curseur « Durée minimale d'un mouvement » de 0 (« aucune ») à 30 s (`motion_min_seconds`, 1 s au départ) : un mouvement plus court n'ouvre aucun événement.

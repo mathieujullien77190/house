@@ -32,6 +32,13 @@ export const RAIN_OPTIONS = [
   { id: 'off', label: 'OFF' },
   { id: 'on', label: 'ON' },
 ] as const
+/** Les yeux qui brillent : la nuit, les caméras infrarouges voient l'œil d'un animal comme un point blanc ; sur ON, chaque image prise de 30 min après le coucher à 30 min avant le lever est examinée, et un œil lance un événement de mouvement. La WebApp montre une icône œil sur la caméra pendant ce temps. */
+export const EYES_LABEL = 'Yeux qui brillent'
+export const EYES_OPTIONS = [
+  { id: 'off', label: 'Off' },
+  { id: 'on', label: 'On' },
+] as const
+export const EYES_HINT = 'Actif de 30 min après le coucher à 30 min avant le lever.'
 /** Ce qui est actif maintenant, écrit sous le choix. */
 export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif' } as const
 /** Le petit icône à côté du nom d'une caméra **en mode pluie** (il pleut et le mode s'applique) : 🌧️ pluie, ☔ pluie forte. Rien quand le mode est allumé sans pluie. */

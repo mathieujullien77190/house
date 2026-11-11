@@ -126,7 +126,7 @@ test('les services de données', async () => {
   const settings = json(await get('/api/settings')) as { camera: string }[]
   assert.deepEqual(settings.map((s) => s.camera), ['cam'])
   const full = json(await get('/api/overview')) as { database: { tables: unknown[]; size: number }; backup: { disk: { total: number } } }
-  assert.equal(full.database.tables.length, 14)
+  assert.equal(full.database.tables.length, 15)
   assert.ok(full.backup.disk.total > 0)
   const light = json(await get('/api/overview?part=database')) as typeof full
   assert.equal(light.backup.disk.total, 0)
@@ -239,12 +239,14 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
     { orientation: 1 },
     { rain_mode: 'auto' },
     { rain_mode: 1 },
+    { eyes_mode: 'jour' },
+    { eyes_mode: 1 },
   ]
   for (const patch of refused) assert.equal((await call({ ...putSettings({ camera: 'cam', ...patch }), cookie })).status, 400, JSON.stringify(patch))
   assert.equal(resets.length, 0)
   const res = await call({ ...putSettings({ camera: 'cam', clips_mode: 'night', snapshot_seconds: 120, live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, orientation: 'portrait' }), cookie })
   assert.equal(res.status, 200)
-  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off' })
+  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off', eyes_mode: 'off', eyes_now: false })
   assert.equal(resets.length, 1)
   assert.match(ctx.logs.at(-1) ?? '', /Réglages de cam : clips night, direct 4K à 10 images\/s/)
   // Un second envoi partiel garde le reste.
@@ -253,6 +255,14 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
   // Le mode pluie : allumé, puis gardé par un envoi qui n'en parle pas.
   assert.equal((json(await call({ ...putSettings({ camera: 'cam', rain_mode: 'on' }), cookie })) as { rain_mode: string }).rain_mode, 'on')
   assert.equal((json(await call({ ...putSettings({ camera: 'cam', live_fps: 9 }), cookie })) as { rain_mode: string }).rain_mode, 'on')
+  // Les yeux qui brillent : « on » (« night », l'ancienne valeur, vaut « on »), gardé par un envoi qui n'en parle pas, et « eyes_now » suit l'heure (ici midi : pas la nuit).
+  const eyes = json(await call({ ...putSettings({ camera: 'cam', eyes_mode: 'on' }), cookie })) as { eyes_mode: string; eyes_now: boolean }
+  assert.deepEqual([eyes.eyes_mode, eyes.eyes_now], ['on', false])
+  assert.equal((json(await call({ ...putSettings({ camera: 'cam', eyes_mode: 'off' }), cookie })) as { eyes_mode: string }).eyes_mode, 'off')
+  assert.equal((json(await call({ ...putSettings({ camera: 'cam', eyes_mode: 'night' }), cookie })) as { eyes_mode: string }).eyes_mode, 'on')
+  ctx.time.set(Date.UTC(2026, 10, 9, 23, 0, 0))
+  const night = json(await call({ ...putSettings({ camera: 'cam', live_fps: 7 }), cookie })) as { eyes_mode: string; eyes_now: boolean }
+  assert.deepEqual([night.eyes_mode, night.eyes_now], ['on', true])
 })
 
 test('PUT /api/retention : de 1 à 3650 jours', async () => {

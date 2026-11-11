@@ -34,6 +34,7 @@ test('une base neuve : toutes les tables et colonnes, migration faite une seule 
   const lines = quiet(() => initDatabase(db, dir, () => NOW))
   assert.match(lines[0] ?? '', /Orientation : événements étiquetés/)
   for (const table of ['events', 'last_images', 'live_streams', 'snapshots', 'settings', 'merges', 'app_settings']) assert.ok(columns(db, table).length > 0, table)
+  assert.ok(columns(db, 'snapshots').includes('code'))
   assert.ok(columns(db, 'events').includes('clip_audio_path'))
   assert.ok(columns(db, 'settings').includes('motion_sensitivity'))
   assert.deepEqual(readdirSync(dir), ['events.db.pre-orientation-2026-11-09T12-00-00-000Z'])
@@ -70,4 +71,23 @@ test('le déclencheur donne à un nouvel événement l\'orientation de sa camér
   insert.run('c', 'tournee', 'x', 1, 'landscape')
   const read = (id: string) => (db.prepare('SELECT orientation FROM events WHERE id = ?').get(id) as { orientation: string }).orientation
   assert.deepEqual([read('a'), read('b'), read('c')], ['portrait', 'landscape', 'landscape'])
+})
+
+test('les yeux qui brillent : l’ancienne valeur « night » devient « on » à l’ouverture, « off » reste', () => {
+  const db = new DatabaseSync(':memory:')
+  quiet(() => initDatabase(db, tempDir(), () => NOW))
+  db.exec("INSERT INTO settings (camera, snapshot_seconds, eyes_mode) VALUES ('a', 60, 'night'), ('b', 60, 'off'), ('c', 60, NULL)")
+  quiet(() => initDatabase(db, tempDir(), () => NOW))
+  const modes = db.prepare('SELECT camera, eyes_mode FROM settings ORDER BY camera').all().map((row) => ({ ...row }))
+  assert.deepEqual(modes, [{ camera: 'a', eyes_mode: 'on' }, { camera: 'b', eyes_mode: 'off' }, { camera: 'c', eyes_mode: null }])
+})
+
+test('une base d’avant les codes : la colonne est ajoutée et les images reçoivent leur code, une seule fois', () => {
+  const db = new DatabaseSync(':memory:')
+  db.exec('CREATE TABLE snapshots (camera TEXT NOT NULL, taken_at INTEGER NOT NULL, path TEXT NOT NULL, PRIMARY KEY (camera, taken_at))')
+  db.exec("INSERT INTO snapshots VALUES ('voliere-exterieur', 2, 'b'), ('voliere-exterieur', 1, 'a')")
+  const lines = quiet(() => initDatabase(db, tempDir(), () => NOW))
+  assert.ok(lines.includes('Images : 2 codes attribués'))
+  assert.deepEqual(db.prepare('SELECT taken_at, code FROM snapshots ORDER BY taken_at').all().map((row) => ({ ...row })), [{ taken_at: 1, code: 'ba' }, { taken_at: 2, code: 'bb' }])
+  assert.deepEqual(quiet(() => initDatabase(db, tempDir(), () => NOW)), [])
 })
