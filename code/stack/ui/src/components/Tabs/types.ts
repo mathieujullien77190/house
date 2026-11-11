@@ -12,4 +12,6 @@ export interface TabsProps<T extends string> {
   onChange: (id: T) => void
   /** Aussi haute qu'un `Button` (au lieu de l'être un peu plus) : pour une barre posée parmi des boutons. */
   compact?: boolean
+  /** De la taille d'un petit bouton rond (32 px) : pour deux mots très courts posés sur la vidéo. Prend le pas sur `compact`. */
+  tiny?: boolean
 }

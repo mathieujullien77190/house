@@ -2,7 +2,17 @@ import { createRef } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import CameraCard from './CameraCard'
 import type { CameraCardProps } from './types'
-import { COLLAPSE_ICON, COLLAPSE_LABEL, EXPAND_LABEL, LAYER_CLASS, SCREEN_EXPAND_ICON, SOUND_CLASS, SOUND_EXPANDED_CLASS, SOUND_SCREEN_CLASS, ZOOM_AREA_CLASS } from './constants'
+import {
+  COLLAPSE_ICON,
+  COLLAPSE_LABEL,
+  EXPAND_LABEL,
+  LAYER_CLASS,
+  SCREEN_EXPAND_ICON,
+  SOUND_CLASS,
+  SOUND_EXPANDED_CLASS,
+  SOUND_SCREEN_CLASS,
+  ZOOM_AREA_CLASS,
+} from './constants'
 
 const base: CameraCardProps = {
   name: 'Volière extérieur',
@@ -26,7 +36,9 @@ describe('CameraCard bureau', () => {
   it('actions à côté du nom, détails sous le média, avertissement, superposition : seulement s ils existent', () => {
     const { rerender } = renderCard()
     expect(screen.queryByText('actions')).toBeNull()
-    rerender(<CameraCard {...base} actions={<button>actions</button>} details={<p>détails</p>} warning="En cours" overlay={<span>9 °C</span>} />)
+    rerender(
+      <CameraCard {...base} actions={<button>actions</button>} details={<p>détails</p>} warning="En cours" overlay={<span>9 °C</span>} />,
+    )
     expect(screen.getByText('actions')).toBeInTheDocument()
     expect(screen.getByText('détails')).toBeInTheDocument()
     expect(screen.getByText('En cours')).toBeInTheDocument()
@@ -71,7 +83,14 @@ describe('CameraCard bureau', () => {
 describe('CameraCard bureau en grand', () => {
   it('cache légende, avertissement et bouton « en grand » ; montre l heure, la superposition et Réduire', () => {
     const onCollapse = vi.fn()
-    renderCard({ expanded: true, warning: 'En cours', onExpand: vi.fn(), overlay: <span>9 °C</span>, clock: <span>10:00</span>, onCollapse })
+    renderCard({
+      expanded: true,
+      warning: 'En cours',
+      onExpand: vi.fn(),
+      overlay: <span>9 °C</span>,
+      clock: <span>10:00</span>,
+      onCollapse,
+    })
     expect(screen.queryByText('Dernière image')).toBeNull()
     expect(screen.queryByText('En cours')).toBeNull()
     expect(screen.queryByRole('button', { name: EXPAND_LABEL })).toBeNull()

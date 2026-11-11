@@ -1,6 +1,7 @@
 import {
-  BACK_ARROW,
   BACK_CLASS,
+  BACK_ICON_CLASS,
+  BACK_ICON_PATH,
   BIG_MEDIA_CLASS,
   CAPTION_CLASS,
   CAPTION_ROW_CLASS,
@@ -73,7 +74,9 @@ const CameraCard = ({
       <section className={SCREEN_CLASS}>
         {expanded || !onBack ? null : (
           <button type="button" className={BACK_CLASS} aria-label={backLabel} title={backLabel} onClick={onBack}>
-            {BACK_ARROW}
+            <svg viewBox="0 0 10 10" className={BACK_ICON_CLASS} aria-hidden="true">
+              <path d={BACK_ICON_PATH} />
+            </svg>
           </button>
         )}
         <figure ref={figureRef} className={expanded ? expandedClass : SCREEN_VIDEO_CLASS}>

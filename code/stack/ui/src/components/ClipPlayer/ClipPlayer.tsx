@@ -39,6 +39,7 @@ const ClipPlayer = ({
   onTime,
   onDuration,
   controlsHost = null,
+  overlay,
 }: ClipPlayerProps) => {
   const video = useRef<HTMLVideoElement>(null)
   const audio = useRef<HTMLAudioElement>(null)
@@ -209,6 +210,7 @@ const ClipPlayer = ({
         ) : (
           <div className={BOX_CLASS}>{LOADING_TEXT}</div>
         )}
+        {src && !error ? overlay : null}
         {controls}
       </div>
       {audioSrc && src && !error ? <audio ref={audio} src={audioSrc} preload="auto" /> : null}

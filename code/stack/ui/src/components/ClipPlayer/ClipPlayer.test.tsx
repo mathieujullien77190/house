@@ -394,3 +394,14 @@ describe('ClipPlayer son à part', () => {
     expect(audioPlays()).toBe(plays)
   })
 })
+
+describe('ClipPlayer overlay', () => {
+  it('l’overlay est posé sur la vidéo, et disparaît sans adresse ou en cas d’erreur', () => {
+    const { rerender } = setup({ overlay: <span>contours</span> })
+    expect(screen.getByText('contours')).toBeInTheDocument()
+    rerender({ error: 'Clip perdu' })
+    expect(screen.queryByText('contours')).toBeNull()
+    rerender({ error: '', src: '' })
+    expect(screen.queryByText('contours')).toBeNull()
+  })
+})

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import Tabs from './Tabs'
 import { tabClass } from './helpers'
-import { ACTIVE_CLASS, COMPACT_ITEM_CLASS, IDLE_CLASS, ITEM_CLASS } from './constants'
+import { ACTIVE_CLASS, COMPACT_ITEM_CLASS, TINY_ITEM_CLASS, IDLE_CLASS, ITEM_CLASS } from './constants'
 
 const options = [
   { id: 'live', label: 'Direct' },
@@ -43,5 +43,12 @@ describe('Tabs', () => {
   it('compact : les onglets prennent la version basse', () => {
     render(<Tabs label="Qualité" options={[...options]} value="live" onChange={() => undefined} compact />)
     expect(screen.getByRole('tab', { name: 'Direct' }).className).toContain(COMPACT_ITEM_CLASS)
+  })
+
+  it('tiny : la taille d’un petit bouton, et il prend le pas sur compact', () => {
+    render(<Tabs label="Qualité" options={[...options]} value="live" onChange={() => undefined} compact tiny />)
+    const tab = screen.getByRole('tab', { name: 'Direct' })
+    expect(tab.className).toContain(TINY_ITEM_CLASS)
+    expect(tab.className).not.toContain(COMPACT_ITEM_CLASS)
   })
 })

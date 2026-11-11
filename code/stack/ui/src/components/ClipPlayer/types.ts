@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export interface ClipPlayerProps {
   /** Adresse de la vidéo (locale ou distante), vide tant qu'elle n'est pas prête. */
   src: string
@@ -23,4 +25,6 @@ export interface ClipPlayerProps {
    * vidéo tournée d'un quart de tour, les commandes restent droites. Absent (ou null) : les commandes natives, sur la vidéo.
    */
   controlsHost?: HTMLElement | null
+  /** Un calque posé par-dessus l'image de la vidéo, dans son cadre exactement (ni le bouton du son ni les commandes n'en font partie). */
+  overlay?: ReactNode
 }
