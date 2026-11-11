@@ -1,7 +1,7 @@
 // Le pilote des volets roulants : ce qui envoie vraiment un ordre radio. Deux pilotes :
 //  - `createMockDriver` : SIMULATION. Rien n'est envoyé, l'ordre est seulement noté. C'est le pilote par défaut, tant que SHUTTERS_ESP_URL est absent
 //    (aucun matériel n'est encore branché) : toute la chaîne (WebApp, API, journal, House Sync) marche et se teste sans radio.
-//  - `createEspSomfyDriver` : le VRAI pilote, à ajuster avec le matériel. L'ESP32 + CC1101 fait tourner le firmware ESPSomfy-RTS (voir l'onglet
+//  - `createEspSomfyDriver` : le VRAI pilote. L'ESP32 + CC1101 fait tourner le firmware ESPSomfy-RTS (voir l'onglet
 //    Architecture du site, vue « Volet ») ; ce pilote lui parle en HTTP par le Wi-Fi de la maison.
 // Le Somfy RTS est à SENS UNIQUE : l'ordre part, aucune réponse ne dit si le volet a bougé ni où il est.
 
@@ -35,14 +35,9 @@ const TIMEOUT_MS = 5000
 /**
  * Le pilote ESPSomfy-RTS.
  *
- * TODO (à ajuster avec le matériel, rien de ceci n'a pu être vérifié sans l'ESP32) :
- *  1. L'adresse : SHUTTERS_ESP_URL, par exemple http://192.168.1.60 (l'IP de l'ESP32 sur la box, à fixer par un bail DHCP).
- *  2. Le chemin et le corps de la commande. D'après la documentation du firmware ESPSomfy-RTS, une commande de volet est une requête
- *     `PUT /shadeCommand` avec un corps JSON `{"shadeId": 1, "command": "up"}` ; c'est ce qui est écrit ci-dessous. À CONFIRMER dans la page web
- *     du firmware (onglet « API » / « Swagger ») ou avec `curl -X PUT http://<esp>/shadeCommand -H 'Content-Type: application/json' -d '{"shadeId":1,"command":"up"}'`.
- *  3. L'authentification : si l'accès de l'ESP32 est protégé par un mot de passe, ajouter l'en-tête ici (SHUTTERS_ESP_TOKEN, non géré pour l'instant).
- *  4. L'arrêt : « stop » est envoyé comme « my » (sur un moteur RTS en mouvement, la touche My l'arrête). À vérifier sur un vrai volet.
- *  5. Le numéro de chaque volet (`shadeId`) est celui créé dans le firmware au moment de l'appairage (bouton PROG de la télécommande existante).
+ * Vérifié avec le matériel (volet cuisine, depuis le 9 novembre 2026) : `PUT /shadeCommand` avec `{"shadeId": 1, "command": "up"}` marche, sans authentification ;
+ * « stop » part comme « my » (la touche My arrête un moteur RTS en mouvement). L'adresse est SHUTTERS_ESP_URL (bail DHCP réservé dans la Freebox) et le `shadeId` est
+ * le numéro créé dans le firmware à l'appairage (bouton PROG de la télécommande). Pas de SHUTTERS_ESP_TOKEN : l'ESP32 n'est pas protégé par un mot de passe.
  */
 export const createEspSomfyDriver = (baseUrl: string, fetcher: typeof fetch = fetch): ShutterDriver => ({
   mock: false,

@@ -12,7 +12,7 @@ Les routes, une à une, et les équipements : `src/routes/CLAUDE.md`.
 src/
 ├── index.ts          démarrage : configuration, application, écoute du port et des signaux (seul fichier hors couverture des tests)
 ├── server.ts         le serveur : HTTPS (certificat de la maison) ou HTTP, et son arrêt
-├── config.ts         environnement validé : PORT, WEB_DIR, DATA_DIR, STATE_DIR, API_KEY (8 caractères au moins), GO2RTC_URLS (ou GO2RTC_URL), TLS_CERT/TLS_KEY, CA_CERT, RECORDER_URL, GUEST_*, PLUG_* (dont PLUG_TEMPERATURE_SENSOR), HOUSE_LATITUDE/HOUSE_LONGITUDE, HUE_BRIDGE_IP/HUE_APP_KEY, SWITCH_*, SHUTTERS/SHUTTERS_AUTO/SHUTTERS_ESP_URL
+├── config.ts         environnement validé : PORT, WEB_DIR, DATA_DIR, STATE_DIR, API_KEY (8 caractères au moins), GO2RTC_URLS (ou GO2RTC_URL), TLS_CERT/TLS_KEY, CA_CERT, RECORDER_URL, PLUG_* (dont PLUG_TEMPERATURE_SENSOR), HOUSE_LATITUDE/HOUSE_LONGITUDE, HUE_BRIDGE_IP/HUE_APP_KEY, SWITCH_*, SHUTTERS/SHUTTERS_AUTO/SHUTTERS_ESP_URL
 ├── app.ts            assemblage : base, dépôts, services, routes, statique, 404, erreurs
 ├── types.ts          lignes de la base et forme des réponses
 ├── db/database.ts    SQLite en lecture seule, ouverte au premier besoin (DatabaseNotReady → 503)

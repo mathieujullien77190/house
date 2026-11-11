@@ -1,5 +1,6 @@
 // Les lumières : les pièces du pont Hue et leurs lampes, et leur allumage (une pièce entière ou une lampe).
 import { hueColor } from '../lib/hueColor.ts'
+import { estimateWatts } from '../lib/hueWatts.ts'
 import { describeAutomations, type AutomationDto, type BehaviorInstance, type Named } from '../lib/automations.ts'
 import type { HueClient, HueSensor, HueState } from '../lib/hueClient.ts'
 import type { LampPositions, PositionsStore } from '../lib/positionsStore.ts'
@@ -13,6 +14,8 @@ export interface LightDto {
   reachable: boolean
   /** La couleur actuelle de la lampe en #rrggbb (à pleine luminosité) ; null pour une lampe qui ne change pas de couleur. */
   color: string | null
+  /** La puissance estimée en watts (voir `lib/hueWatts.ts`) ; null pour un modèle inconnu. */
+  watts: number | null
 }
 
 export interface RoomDto {
@@ -143,7 +146,7 @@ export const createHueService = (hue: HueClient, positions: PositionsStore) => {
     const [lights, groups] = await Promise.all([hue.lights(), hue.groups()])
     const toLight = (id: string): LightDto | null => {
       const light = lights[id]
-      return light ? { id, name: light.name, on: light.state.on, bri: light.state.bri ?? null, reachable: light.state.reachable, color: hueColor(light.state) } : null
+      return light ? { id, name: light.name, on: light.state.on, bri: light.state.bri ?? null, reachable: light.state.reachable, color: hueColor(light.state), watts: estimateWatts(light.modelid, light.state.on, light.state.bri ?? null, light.state.reachable) } : null
     }
     const rooms: RoomDto[] = []
     const placed = new Set<string>()

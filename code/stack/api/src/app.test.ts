@@ -50,7 +50,6 @@ const baseConfig = (dir: string): Config => ({
   plugMotionSensor: 'motion interieur',
   plugTemperatureSensor: 'motion interieur',
   housePosition: { latitude: 48.6, longitude: 2.7 },
-  guest: null,
   recorderUrl: null,
   tls: null,
   caCert: '',
@@ -89,7 +88,7 @@ test('l’application assemble les routes publiques, protégées, statiques et l
       assert.equal((await call(`${url}/`)).body, '<h1>House</h1>')
       assert.deepEqual((await call(`${url}/nimporte`)).body, { error: 'not found' })
       // services non configurés
-      for (const path of ['/hue', '/plug', '/poe', '/guest', '/shutters'])
+      for (const path of ['/hue', '/plug', '/poe', '/shutters'])
         assert.equal((await call(`${url}${path}`, 'GET', undefined, key)).status, 503, path)
       assert.equal((await call(`${url}/record/cam-a`, 'GET', undefined, key)).status, 503)
       // la clé donne une session par cookie
@@ -130,7 +129,7 @@ test('une prise sans pont Hue : le journal se lit, la règle répond 503', async
   })
 })
 
-test('tous les services configurés : pont Hue, prise, switch, enregistreur, page invité', async () => {
+test('tous les services configurés : pont Hue, prise, switch, enregistreur', async () => {
   const log = mock.method(console, 'error', () => undefined)
   const bridge = await listen((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -144,14 +143,12 @@ test('tous les services configurés : pont Hue, prise, switch, enregistreur, pag
         plug: { host: '127.0.0.1', port: 1, mac: '' },
         switchPoe: { url: 'http://127.0.0.1:1', user: 'a', password: 'b', ports: { cam: 1 } },
         recorderUrl: 'http://127.0.0.1:1',
-        guest: { key: 'invite', port: 8090, url: '' },
         caCert: join(dir, 'absent.crt'),
       }
       await serveApp(config, async (url) => {
         const key = { 'X-House-Key': KEY }
         const rooms = (await call(`${url}/hue`, 'GET', undefined, key)).body as { lights: { name: string }[] }[]
         assert.equal(rooms[0].lights[0].name, 'Lampe')
-        assert.equal((await call(`${url}/guest`, 'GET', undefined, key)).status, 200)
         assert.equal((await call(`${url}/plug`, 'GET', undefined, key)).status, 502)
         assert.equal((await call(`${url}/plug/heating`, 'GET', undefined, key)).status, 200)
         assert.deepEqual((await call(`${url}/plug/log`, 'GET', undefined, key)).body, [])

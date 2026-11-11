@@ -22,7 +22,6 @@ import { authRouter } from './auth.ts'
 import { camerasRouter } from './cameras.ts'
 import { caRouter } from './ca.ts'
 import { eventsRouter } from './events.ts'
-import { guestRouter, type GuestLink } from './guest.ts'
 import { hueRouter } from './hue.ts'
 import { liveRouter } from './live.ts'
 import { plugRouter } from './plug.ts'
@@ -55,8 +54,6 @@ export interface Services {
   heating: HeatingService | null
   /** Null quand aucun switch n'est configuré. */
   poe: PoeService | null
-  /** Null sans GUEST_KEY : /guest répond 503. */
-  guest: GuestLink | null
   files: BackupFiles
   /** Les zones de surveillance du mouvement, une par caméra. */
   zones: ZonesStore
@@ -87,7 +84,6 @@ export const SECURED_PATHS = [
   '/shutters',
   '/ac',
   '/hue',
-  '/guest',
   '/zones',
   '/markers',
   '/plan',
@@ -110,7 +106,6 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(acRouter(services.ac))
   router.use(shuttersRouter(services.shutters, services.shuttersAuto))
   router.use(hueRouter(services.hue))
-  router.use(guestRouter(services.guest))
   router.use(zonesRouter(services.zones))
   router.use(markersRouter(services.markers))
   router.use(planRouter(services.plan))

@@ -10,6 +10,8 @@ export interface HueConfig {
 
 export interface HueLight {
   name: string
+  /** Le modèle de la lampe chez le pont (par exemple LTG002) : sert à estimer sa consommation. */
+  modelid?: string
   state: { on: boolean; bri?: number; reachable: boolean; colormode?: string; xy?: [number, number]; ct?: number; hue?: number; sat?: number }
 }
 

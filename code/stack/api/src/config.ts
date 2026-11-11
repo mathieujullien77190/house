@@ -34,8 +34,6 @@ export interface Config {
   plugTemperatureSensor: string
   /** La position de la maison : le lever et le coucher du soleil (la nuit du chauffage). */
   housePosition: { latitude: number; longitude: number }
-  /** La page invité (guest/) : sa clé, son port et, si elle est ouverte à internet, son adresse publique ; null sans GUEST_KEY : /guest répond 503. */
-  guest: { key: string; port: number; url: string } | null
   /** L'enregistreur (motion), sur le réseau Docker : le bouton « Enregistrer » de la WebApp lui parle par /record ; null sans RECORDER_URL : /record répond 503. */
   recorderUrl: string | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
@@ -106,7 +104,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },
     plug: env.PLUG_HOST ? { host: env.PLUG_HOST, port: Number(env.PLUG_PORT ?? 9999), mac: env.PLUG_MAC ?? '' } : null,
     recorderUrl: env.RECORDER_URL ? env.RECORDER_URL.replace(/\/+$/, '') : null,
-    guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
     caCert: env.CA_CERT ?? '',
   }

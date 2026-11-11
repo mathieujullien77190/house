@@ -31,7 +31,6 @@ test('les valeurs par défaut', () => {
   assert.equal(config.plugTemperatureSensor, 'motion interieur')
   assert.deepEqual(config.housePosition, { latitude: 48.52, longitude: 2.64 })
   assert.equal(config.recorderUrl, null)
-  assert.equal(config.guest, null)
   assert.equal(config.tls, null)
   assert.equal(config.caCert, '')
 })
@@ -63,9 +62,6 @@ test('toutes les variables renseignées', async () => {
       PLUG_PORT: '1234',
       PLUG_MAC: 'AA:BB',
       RECORDER_URL: 'http://motion:8080//',
-      GUEST_KEY: 'g',
-      GUEST_PORT: '8091',
-      GUEST_PUBLIC_URL: 'https://x',
       TLS_CERT: cert,
       TLS_KEY: key,
       CA_CERT: 'ca.pem',
@@ -96,26 +92,23 @@ test('toutes les variables renseignées', async () => {
     assert.deepEqual(loadConfig({ API_KEY: '12345678', HOUSE_LATITUDE: '10', HOUSE_LONGITUDE: '20' }).housePosition, { latitude: 10, longitude: 20 })
     assert.deepEqual(config.plug, { host: '192.168.1.200', port: 1234, mac: 'AA:BB' })
     assert.equal(config.recorderUrl, 'http://motion:8080')
-    assert.deepEqual(config.guest, { key: 'g', port: 8091, url: 'https://x' })
     assert.deepEqual(config.tls, { cert, key })
     assert.equal(config.caCert, 'ca.pem')
   })
 })
 
-test('GO2RTC_URL, le switch par défaut, la prise et la page invité par défaut, un certificat absent', () => {
+test('GO2RTC_URL, le switch par défaut, la prise par défaut, un certificat absent', () => {
   const config = loadConfig({
     API_KEY: '12345678',
     GO2RTC_URL: 'http://solo:1984',
     SWITCH_PASSWORD: 'pw',
     PLUG_HOST: 'h',
-    GUEST_KEY: 'g',
     TLS_CERT: '/inexistant/c.pem',
     TLS_KEY: '/inexistant/k.pem',
   })
   assert.deepEqual(config.go2rtcUrls, ['http://solo:1984'])
   assert.deepEqual(config.switchPoe, { url: 'http://192.168.1.33', user: 'admin', password: 'pw', ports: {} })
   assert.deepEqual(config.plug, { host: 'h', port: 9999, mac: '' })
-  assert.deepEqual(config.guest, { key: 'g', port: 8090, url: '' })
   assert.equal(config.tls, null)
 })
 

@@ -95,7 +95,6 @@ export const createApp = (config: Config): Express => {
     recorderUrl: config.recorderUrl,
     savedClips,
     hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
-    guest: config.guest,
     plug,
     ac,
     shutters,

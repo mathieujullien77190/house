@@ -101,9 +101,9 @@ const fakeHue = (): Fake => {
   const fake: Fake = {
     calls: [],
     lights: {
-      '1': { name: 'Plafonnier', state: { on: true, bri: 100, reachable: true } },
-      '2': { name: 'Lampe', state: { on: false, reachable: true } },
-      '3': { name: 'Seule', state: { on: false, reachable: false } },
+      '1': { name: 'Plafonnier', modelid: 'LTG002', state: { on: true, bri: 100, reachable: true } },
+      '2': { name: 'Lampe', modelid: 'LTW010', state: { on: false, reachable: true } },
+      '3': { name: 'Seule', modelid: 'LTW010', state: { on: false, reachable: false } },
       '4': { name: 'Éteinte', state: { on: false, reachable: true } },
     },
     groups: {
@@ -159,8 +159,8 @@ test('les pièces et les lampes isolées', async () => {
       on: true,
       bri: 120,
       lights: [
-        { id: '1', name: 'Plafonnier', on: true, bri: 100, reachable: true, color: null },
-        { id: '2', name: 'Lampe', on: false, bri: null, reachable: true, color: null },
+        { id: '1', name: 'Plafonnier', on: true, bri: 100, reachable: true, color: null, watts: 1.1 },
+        { id: '2', name: 'Lampe', on: false, bri: null, reachable: true, color: null, watts: 0.4 },
       ],
     },
     { id: '11', name: 'Chambre', on: false, bri: null, lights: [] },
@@ -170,8 +170,8 @@ test('les pièces et les lampes isolées', async () => {
       on: false,
       bri: null,
       lights: [
-        { id: '3', name: 'Seule', on: false, bri: null, reachable: false, color: null },
-        { id: '4', name: 'Éteinte', on: false, bri: null, reachable: true, color: null },
+        { id: '3', name: 'Seule', on: false, bri: null, reachable: false, color: null, watts: 0 },
+        { id: '4', name: 'Éteinte', on: false, bri: null, reachable: true, color: null, watts: null },
       ],
     },
   ])
