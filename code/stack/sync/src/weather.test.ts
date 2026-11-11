@@ -8,6 +8,9 @@ test('rainLevelOf : aucune pluie, pluie, pluie forte (code météo et cumul de l
   assert.equal(rainLevelOf(0, 0), 'none')
   assert.equal(rainLevelOf(3, 0), 'none')
   assert.equal(rainLevelOf(71, 0), 'none')
+  // brouillard : les deux codes, même sans cumul
+  assert.equal(rainLevelOf(45, 0), 'fog')
+  assert.equal(rainLevelOf(48, 0), 'fog')
   // la pluie faible ne compte pas : bruine, pluie faible, averses faibles, pluie verglaçante faible
   assert.equal(rainLevelOf(61, 0.4), 'none')
   assert.equal(rainLevelOf(55, 0), 'none')

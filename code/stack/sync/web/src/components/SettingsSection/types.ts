@@ -7,7 +7,7 @@ export type RainMode = 'off' | 'on'
 export type EyesMode = 'off' | 'on'
 
 /** Le niveau de pluie qui s'applique maintenant : off, rain ou heavy. */
-export type RainLevel = 'off' | 'rain' | 'heavy'
+export type RainLevel = 'off' | 'rain' | 'heavy' | 'fog'
 
 export interface CameraSetting {
   camera: string

@@ -91,8 +91,8 @@ export const createClips = (ctx: Context, rec: Recorder) => {
   const copyClip = async (event: RecorderEvent): Promise<CopiedClip | null> => {
     // L'identifiant sert de nom de fichier : rien d'autre que des caractères sûrs.
     if (!/^[\w.-]+$/.test(event.id) || !/^[\w-]+$/.test(event.camera)) return null
-    // Clips désactivés pour cette caméra (réglage de la page) : l'événement est gardé, sans vidéo. Sauf un clip enregistré à la main : on l'a voulu.
-    if (!settings.keepsClip(event.camera, event.start_time) && !(await isManual(event))) return null
+    // Clips désactivés pour cette caméra (réglage de la page, ou mode pluie / brouillard) : l'événement est gardé, sans vidéo. Sauf un clip enregistré à la main (on l'a voulu) et un événement des yeux qui brillent (la recherche des yeux reste active quand la détection de mouvement est coupée).
+    if (!settings.keepsClip(event.camera, event.start_time) && event.label !== 'eyes' && !(await isManual(event))) return null
     if (event.end_time !== null && ctx.now() / 1000 - event.end_time < CLIP_SETTLE_SECONDS) return null
     // Un clip qui n'arrive pas (délai, coupure, disque) est sauté et sera retenté : il ne doit pas bloquer le tour des autres.
     try {

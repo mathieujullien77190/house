@@ -40,10 +40,10 @@ export const EYES_OPTIONS = [
 ] as const
 export const EYES_HINT = 'Actif de 30 min après le coucher à 30 min avant le lever.'
 /** Ce qui est actif maintenant, écrit sous le choix. */
-export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif' } as const
+export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif', fog: '🌫️ Brouillard en ce moment : mode pluie actif' } as const
 /** Le petit icône à côté du nom d'une caméra **en mode pluie** (il pleut et le mode s'applique) : 🌧️ pluie, ☔ pluie forte. Rien quand le mode est allumé sans pluie. */
-export const RAIN_CLOUD = { rain: '🌧️', heavy: '☔' } as const
-export const RAIN_CLOUD_HINT = { rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte' } as const
+export const RAIN_CLOUD = { rain: '🌧️', heavy: '☔', fog: '🌫️' } as const
+export const RAIN_CLOUD_HINT = { rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte', fog: 'Mode pluie actif : brouillard' } as const
 /** Les curseurs de cadence : le direct 4K et le léger, sur un écran de 1024 px et plus (PC) puis en dessous (téléphone). */
 export const FPS_SLIDERS = [
   { key: 'live_fps', label: 'Direct 4K · PC' },

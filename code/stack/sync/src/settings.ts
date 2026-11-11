@@ -14,13 +14,13 @@ export const NIGHT_MARGIN_SECONDS = 30 * 60
 /** Les yeux qui brillent cherchent en pleine nuit : de 30 min APRÈS le coucher à 30 min AVANT le lever (une marge négative : le contraire des clips de nuit), quand il fait vraiment noir. */
 export const EYES_MARGIN_SECONDS = -30 * 60
 /**
- * Le mode pluie d'une caméra : off (on ne fait rien) ou on. Allumé, quand la météo dit pluie ou pluie forte, la détection de mouvement est coupée (pas de clips) et une image est prise
+ * Le mode pluie d'une caméra : off (on ne fait rien) ou on. Allumé, quand la météo dit pluie, pluie forte ou brouillard, la détection de mouvement est coupée (pas de clips) et une image est prise
  * toutes les `RAIN_SNAPSHOT_SECONDS` ; quand il ne pleut plus, tout revient comme avant (les réglages gardés ne changent jamais).
  */
 export const RAIN_MODES = ['off', 'on']
 export type RainMode = 'off' | 'on'
 /** Le niveau de pluie qui s'applique à une caméra : éteint, pluie ou pluie forte (celui de la météo, quand le mode pluie est allumé). */
-export type RainLevel = 'off' | 'rain' | 'heavy'
+export type RainLevel = 'off' | 'rain' | 'heavy' | 'fog'
 export const RAIN_SNAPSHOT_SECONDS = 5
 /** Les yeux qui brillent, par caméra : off ou on. Allumé, la nuit (de 30 min après le coucher à 30 min avant le lever), chaque image prise est envoyée à l'enregistreur qui cherche des yeux (`eyes.ts`). « night », ancienne valeur, vaut « on ». */
 export const EYES_MODES = ['off', 'on']
@@ -88,7 +88,7 @@ const rainModeOf = (value: string | null | undefined): RainMode =>
   value === 'on' || value === 'auto' || value === 'rain' || value === 'heavy' ? 'on' : 'off'
 
 /** Le niveau qui s'applique : éteint, ou celui de la météo (aucune pluie : éteint, tout revient comme avant). */
-const rainNowOf = (mode: RainMode, weather: 'none' | 'rain' | 'heavy'): RainLevel => (mode === 'off' || weather === 'none' ? 'off' : weather)
+const rainNowOf = (mode: RainMode, weather: 'none' | 'rain' | 'heavy' | 'fog'): RainLevel => (mode === 'off' || weather === 'none' ? 'off' : weather)
 
 export const createSettings = (db: DatabaseSync, config: Config) => {
   const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode, eyes_mode, eyes_now FROM settings WHERE camera = ?')
@@ -103,7 +103,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
   const setEyesNow = db.prepare('UPDATE settings SET eyes_now = ? WHERE camera = ?')
   const settingsCameras = db.prepare('SELECT camera FROM settings')
   // La météo : aucune pluie, pluie ou pluie forte (lue par weather.ts).
-  let weatherRain: 'none' | 'rain' | 'heavy' = 'none'
+  let weatherRain: 'none' | 'rain' | 'heavy' | 'fog' = 'none'
   const knownCameras = db.prepare(`SELECT camera FROM last_images ORDER BY ${cameraOrderSql()}`)
   const retentionRow = db.prepare("SELECT value FROM app_settings WHERE key = 'clip_retention_days'")
   const saveRetention = db.prepare("INSERT INTO app_settings (key, value) VALUES ('clip_retention_days', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
@@ -150,7 +150,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       for (const { camera } of settingsCameras.all() as { camera: string }[]) setEyesNow.run(eyesActive(camera, at) ? 1 : 0, camera)
     },
     /** La météo a changé : le niveau de pluie de chaque caméra (celles dont le mode pluie est allumé) suit, et se range en base pour l'API. */
-    setWeatherRain: (level: 'none' | 'rain' | 'heavy'): void => {
+    setWeatherRain: (level: 'none' | 'rain' | 'heavy' | 'fog'): void => {
       weatherRain = level
       for (const { camera } of settingsCameras.all() as { camera: string }[]) setRainNow.run(cameraSettings(camera).rain_now, camera)
     },

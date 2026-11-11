@@ -2,7 +2,7 @@
 // et en tire un niveau : aucune pluie, pluie, ou pluie forte. Si la lecture échoue, le dernier niveau reste.
 import { messageOf, type Context } from './context.ts'
 
-export type WeatherRain = 'none' | 'rain' | 'heavy'
+export type WeatherRain = 'none' | 'rain' | 'heavy' | 'fog'
 
 /** On relit la météo à ce rythme (ms). */
 export const WEATHER_POLL_MS = 10 * 60 * 1000
@@ -16,6 +16,8 @@ const RAIN_MILLIMETRES = 2.5
  * (le cumul n'y change rien). **La pluie faible ne compte pas** : bruine (51 à 57), pluie faible (61), pluie verglaçante faible (66), averses faibles (80). La neige n'en est pas.
  */
 export const rainLevelOf = (code: number, millimetres: number): WeatherRain => {
+  // Le brouillard (45, 48) : les gouttelettes éclairées par l'infrarouge de la nuit déclenchent la détection, comme la pluie.
+  if (code === 45 || code === 48) return 'fog'
   if (code === 65 || code === 67 || code === 82 || (code >= 95 && code <= 99)) return 'heavy'
   const rain = code === 63 || code === 81 || millimetres >= RAIN_MILLIMETRES
   return rain ? 'rain' : 'none'
@@ -24,7 +26,7 @@ export const rainLevelOf = (code: number, millimetres: number): WeatherRain => {
 export const weatherUrl = (latitude: number, longitude: number): string =>
   `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,precipitation&timezone=auto`
 
-const RAIN_TEXT: Record<WeatherRain, string> = { none: 'plus de pluie', rain: 'pluie', heavy: 'pluie forte' }
+const RAIN_TEXT: Record<WeatherRain, string> = { none: 'plus de pluie', rain: 'pluie', heavy: 'pluie forte', fog: 'brouillard' }
 
 export const createWeather = (ctx: Context) => {
   const { config, settings } = ctx
