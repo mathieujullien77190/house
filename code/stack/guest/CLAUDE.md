@@ -18,7 +18,7 @@ Rien d'autre ne dépend d'elle. Elle n'a ni disque, ni base, ni accès à l'API,
 
 ## Accès
 
-- `GUEST_KEY` (`.env`, 16 caractères au moins, sans elle le service ne démarre pas). Le lien est `https://<adresse>:8090/?k=<GUEST_KEY>` et **la clé reste toujours dans l'adresse** : la page l'écrit dans l'adresse de chaque flux qu'elle ouvre, rien n'est gardé (ni cookie, ni session : `src/auth.ts` ne fait que comparer). Changer la clé invalide tous les liens. (Ce n'est pas la clé `API_KEY` de la pile.)
+- `GUEST_KEY` (`.env`, 16 caractères au moins, sans elle le service ne démarre pas). Le lien est `https://<adresse>:8090/?k=<GUEST_KEY>` et **la clé reste toujours dans l'adresse** : la page l'écrit dans l'adresse de chaque flux qu'elle ouvre, rien n'est gardé (ni cookie, ni session : `src/auth.ts` ne fait que comparer). Changer la clé invalide tous les liens. Le lien se copie dans **House Sync** (onglet Réglages, bloc Page invité : « Page invité ↗ » et « Copier le lien ») ; pour cela le conteneur `sync` reçoit `GUEST_KEY` et `GUEST_PUBLIC_URL` du même `.env` (il n'est plus dans la WebApp ni dans l'API). (Ce n'est pas la clé `API_KEY` de la pile.)
 - Sans la clé, ou avec une fausse, tout répond **404 avec une page « Not Found » banale** (`src/notFound.ts`, rien de la page invité n'y apparaît : ni `/`, ni `/stream` ne se laissent deviner) ; 10 essais ratés par adresse en 15 min, puis 429 (`src/attempts.ts`).
 - HTTPS avec le certificat de la maison (`data/certs`, monté en lecture seule) ; sans lui, HTTP. Ce certificat ne couvre pas un nom public, d'où Funnel.
 

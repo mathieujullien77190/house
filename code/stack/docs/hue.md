@@ -25,7 +25,7 @@ Le pont Philips Hue (`HUE_BRIDGE_IP`, clé d'application `HUE_APP_KEY` dans `.en
 | `motion` | `motion: true` ou `false` : un détecteur voit ou ne voit plus de mouvement |
 | `zigbee_connectivity` | `status` : `connected`, `connectivity_issue`... la liaison radio d'une lampe ou d'un appareil |
 
-Le nom (`name`) est celui du pont (lampe, scène, interrupteur, détecteur), rechargé toutes les 10 minutes et quand un nom manque. Les températures, la luminosité ambiante et les piles ne sont pas gardées. Les lignes de plus de `HUE_LOG_DAYS` jours (365) sont supprimées chaque jour. Le journal a commencé le 3 novembre 2026 à 18:28 UTC : rien n'existe avant.
+Le nom (`name`) est celui du pont (lampe, scène, interrupteur, détecteur), rechargé toutes les 10 minutes et quand un nom manque. Les températures, la luminosité ambiante et les piles ne sont pas gardées. Les lignes plus vieilles que la durée de garde des clips (réglage de la page, 15 jours par défaut) sont supprimées une fois par jour, vers 4 h (heure de Paris), par le ménage de House Sync (`sync/src/CLAUDE.md`). Le journal a commencé le 3 novembre 2026 à 18:28 UTC : rien n'existe avant.
 
 **D'où vient l'ordre : une origine devinée.** Le pont donne l'état qui a changé, **jamais celui qui l'a demandé**. `sync/src/hueOrigin.ts` rapproche donc chaque changement de ce qui s'est passé juste avant (fenêtres : interrupteur 4 s, scène 4 s, mouvement 15 s, règle à heure fixe de 2 s avant à 20 s après l'heure, reconnexion radio 2 min). Les règles à heure fixe sont lues dans le pont (`behavior_instance`, rechargées toutes les 10 minutes) avec le fuseau du pont (`Europe/Paris`) : celles qui sont actives, avec des jours et une heure de départ ; les règles au lever ou au coucher du soleil et celles des détecteurs ne sont pas des horaires.
 
@@ -48,3 +48,5 @@ Le nom (`name`) est celui du pont (lampe, scène, interrupteur, détecteur), rec
 - **Un allumage général inexpliqué** : cherche beaucoup de lignes `light` avec `on: true` dans la même seconde. Si elles sont précédées de lignes `zigbee_connectivity` en `connected` (`power`), c'est un retour du courant sur le circuit des lampes. Si elles sont précédées d'une `scene`, regarde son nom : la scène « Lumineux » d'une pièce, lancée par l'appli ou par une règle. S'il n'y a rien du tout, c'est un ordre direct (`unknown`).
 
 **Limites connues.** Le journal ne voit pas ce qui se passe quand House Sync est arrêté ou redémarre (les quelques secondes d'un `docker compose up --build sync`). Le pont n'envoie pas de rappel de ce qu'on a manqué. Une rafale d'événements (19 lampes d'un coup) fait 19 lignes.
+
+La consommation estimée des lampes (champ `watts` de `GET /hue`, `api/src/lib/hueWatts.ts` : puissance max du modèle `modelid`, veille 0,4 W, courbe de luminosité approchée) est cumulée par House Sync dans la table `lamp_energy` (`sync/src/CLAUDE.md`).

@@ -156,7 +156,7 @@ const SETTINGS: ArchView = {
   intro: [
     'Quatre réglages par caméra, sur la page de House Sync (onglet Réglages) : les clips gardés, le rythme des images de la frise et la cadence des deux directs (4K et léger). Ils sont gardés dans SQLite (table settings) et House Sync les applique.',
     'Les clips : « Toujours » garde tout ; « Jamais » éteint aussi la détection de mouvement (ffmpeg du flux léger est arrêté : pas d’événement, moins de processeur) ; « La nuit » ne garde que de 30 minutes avant le coucher du soleil à 30 minutes après son lever, l’heure du soleil étant calculée pour la maison. En dehors de cette fenêtre, c’est comme « Jamais ». Dans une volière où tout bouge le jour, les clips de nuit sont les seuls qui comptent.',
-    'Les images : une image JPEG par caméra toutes les 30 s, 1, 2 ou 5 minutes, gardées 7 jours pour la frise. Les deux directs, 4K et léger, ont chacun un curseur de 1 à 25 images par seconde ; House Sync change à chaud la source du flux MJPEG correspondant de go2rtc, ce qui réduit l’encodage JPEG et le débit (le décodage de la caméra reste complet).',
+    'Les images : une image JPEG par caméra toutes les 30 s, 1, 2 ou 5 minutes, gardées la durée de garde des clips pour la frise. Les deux directs, 4K et léger, ont chacun un curseur de 1 à 25 images par seconde ; House Sync change à chaud la source du flux MJPEG correspondant de go2rtc, ce qui réduit l’encodage JPEG et le débit (le décodage de la caméra reste complet).',
   ],
   ariaLabel:
     'Vue réglages : le réglage des clips (toujours, la nuit, jamais) décide si la détection de mouvement tourne et si les clips sont gardés sur le SSD ; le réglage des images fixe leur rythme de sauvegarde pour la frise ; les curseurs des directs 4K et léger règlent le nombre d’images par seconde des flux MJPEG de go2rtc',
@@ -172,7 +172,7 @@ const SETTINGS: ArchView = {
     { id: 'night', x: 340, y: 155, w: 620, h: 92, tone: 'warm', title: 'La nuit', lines: ['de 30 min avant le coucher du soleil à 30 min après le lever', 'dans cette fenêtre : comme « Toujours »', 'en dehors : comme « Jamais » (soleil calculé pour la maison)'] },
     { id: 'never', x: 340, y: 255, w: 620, h: 92, tone: 'dashed', title: 'Jamais', lines: ['détection éteinte : ffmpeg du flux léger arrêté', 'aucun événement, aucun clip, moins de processeur', 'les clips déjà gardés ne sont pas effacés'] },
     { id: 'snapset', x: 40, y: 440, w: 190, h: 80, tone: 'green', title: 'Une image toutes les', lines: ['30 s · 1 · 2 · 5 min', '1 min par défaut'] },
-    { id: 'snapout', x: 330, y: 440, w: 300, h: 80, tone: 'plain', title: 'SSD · snapshots', lines: ['une image par caméra, bande bleue de la frise', 'gardée 7 jours'] },
+    { id: 'snapout', x: 330, y: 440, w: 300, h: 80, tone: 'plain', title: 'SSD · snapshots', lines: ['une image par caméra, bande bleue de la frise', 'gardée comme les clips'] },
     { id: 'slider', x: 40, y: 585, w: 190, h: 50, tone: 'green', title: 'Curseur « Direct 4K »', lines: ['1 à 25 images/s'] },
     { id: 'slider-light', x: 40, y: 640, w: 190, h: 50, tone: 'green', title: 'Curseur « Direct léger »', lines: ['1 à 25 images/s'] },
     { id: 'go2rtc-4k', x: 330, y: 585, w: 300, h: 50, tone: 'plain', title: 'go2rtc · voliere-exterieur_main_mjpeg', lines: ['flux principal 4K H.265 recodé en JPEG'] },

@@ -104,6 +104,6 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
   **ne supprime jamais `events.db`** sans en avoir fait une copie.
 - L'enregistreur garde 6 h de segments (le 4K en continu ferait ~65 Go par jour) : si House Sync est arrêté, il
   rattrape tout au redémarrage tant que les clips existent (les clips aussi sont gardés 6 h). Entre deux
-  événements, c'est l'image de House Sync qu'on voit (une par minute par défaut, réglable ; 7 jours
-  gardés : `SNAPSHOT_INTERVAL_SECONDS`, `SNAPSHOT_RETENTION_DAYS` dans docker-compose.yml). Les images de la
+  événements, c'est l'image de House Sync qu'on voit (une par minute par défaut, réglable ; gardées la durée de garde
+  des clips, effacées au ménage quotidien : `SNAPSHOT_INTERVAL_SECONDS` dans docker-compose.yml). Les images de la
   période d'arrêt, elles, sont perdues.
