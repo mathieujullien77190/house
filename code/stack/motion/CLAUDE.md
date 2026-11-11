@@ -19,7 +19,7 @@ Le détail de chaque étape, les routes, les seuils : **`src/CLAUDE.md`**.
 - `segments.ts` : l'enregistrement par segments, le choix des segments d'une plage, le nettoyage. `clips.ts` : l'assemblage d'un clip. `merge.ts` : `findMergeGroups`, la fonction pure qui trouve les groupes à fusionner.
 - `events.ts` : le magasin d'événements, écrit dans `data/clips/events.json` (survit à un redémarrage). Au démarrage, `closeOrphans` ferme les événements restés ouverts par l'exécution précédente (le détecteur repart de zéro et ne les fermerait jamais : sinon un événement « en cours » pour toujours dans la frise) ; leur clip se fait ensuite comme les autres.
 - `audio.ts` : l'enregistrement du son à part (`recordAudio`), la liste et la purge des fichiers son. `sensitivity.ts` : `detectorForLevel`, les seuils pour un niveau de sensibilité. `zone.ts` : `parsePolygon` et `polygonMask`. (Fonctions pures.)
-- `server.ts` : l'API. `config.ts` : le réglage par l'environnement. `shutdown.ts` : l'arrêt (les ffmpeg lancés sont suivis, un seul gestionnaire de SIGTERM/SIGINT les arrête puis quitte).
+- `eyes.ts` : la recherche des yeux qui brillent (`detectEyes`, fonction pure, et le décodage d'un JPEG par ffmpeg), derrière `POST /api/eyes`. `trigger.ts` : `createTrigger`, l'ouverture ou la prolongation d'un événement de mouvement à la demande de House Sync (`POST /api/cameras/<caméra>/trigger?reason=eyes`, étiquette `eyes`). `server.ts` : l'API. `config.ts` : le réglage par l'environnement. `shutdown.ts` : l'arrêt (les ffmpeg lancés sont suivis, un seul gestionnaire de SIGTERM/SIGINT les arrête puis quitte).
 - `*.test.ts` : les tests.
 
 ## Régler

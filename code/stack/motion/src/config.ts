@@ -20,6 +20,8 @@ export interface Config {
   /** Un clip commence `preSeconds` avant l'événement et finit `postSeconds` après. */
   preSeconds: number
   postSeconds: number
+  /** Les contours du mouvement sont notés sur le flux léger, qui arrive plus tard que la vidéo 4K : on les avance de ce nombre de secondes dans le fichier du clip. */
+  shapesDelaySeconds: number
   /** Des clips qui se recouvrent sont fusionnés en un seul quand le dernier a cet âge (secondes). */
   mergeDelaySeconds: number
   /** Les caméras dont le son est gardé avec leurs clips de mouvement (vide : aucune), et la durée des petits fichiers son (comme les segments vidéo). */
@@ -53,6 +55,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   retentionSeconds: number(env.RETENTION_HOURS, 6) * 3600,
   preSeconds: number(env.PRE_SECONDS, 5),
   postSeconds: number(env.POST_SECONDS, 5),
+  shapesDelaySeconds: number(env.SHAPES_DELAY_SECONDS, 2.77),
   mergeDelaySeconds: number(env.MERGE_DELAY_MINUTES, 30) * 60,
   audioCameras: (env.AUDIO_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
   audioSegmentSeconds: number(env.AUDIO_SEGMENT_SECONDS, 10),

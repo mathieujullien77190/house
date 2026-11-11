@@ -3,10 +3,13 @@ import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { pipeline } from 'node:stream/promises'
 import { audioClipPath } from './audio.ts'
+import { shapesClipPath } from './shapes.ts'
+import { eyesFromJpeg, ffmpegDecoder, type Decoder } from './eyes.ts'
 import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
 import { parsePolygon, type Point } from './zone.ts'
+import { TRIGGER_REASONS, type Trigger } from './trigger.ts'
 import { isMotionSeconds, MAX_MOTION_SECONDS, MIN_MOTION_SECONDS } from './detector.ts'
 import { isSensitivity, MAX_SENSITIVITY, MIN_SENSITIVITY } from './sensitivity.ts'
 
@@ -44,22 +47,27 @@ export interface Recording {
 /** La taille maximale du corps d'une demande de zone (32 sommets tiennent dans moins de 1 Ko). */
 const MAX_BODY = 4096
 
-const readBody = (req: IncomingMessage): Promise<string | null> =>
+/** La taille maximale d'une image JPEG envoyée pour chercher des yeux. */
+const MAX_IMAGE = 3 * 1024 * 1024
+
+const readBytes = (req: IncomingMessage, max: number): Promise<Buffer | null> =>
   new Promise((resolve) => {
     let size = 0
     const chunks: Buffer[] = []
     req.on('data', (chunk: Buffer) => {
       size += chunk.length
-      if (size > MAX_BODY) {
+      if (size > max) {
         resolve(null)
         req.destroy()
         return
       }
       chunks.push(chunk)
     })
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('end', () => resolve(Buffer.concat(chunks)))
     req.on('error', () => resolve(null))
   })
+
+const readBody = async (req: IncomingMessage): Promise<string | null> => (await readBytes(req, MAX_BODY))?.toString('utf8') ?? null
 
 export const startServer = (
   config: Config,
@@ -67,6 +75,8 @@ export const startServer = (
   detection: Detection,
   recording: Recording,
   log: (message: string) => void,
+  decode: Decoder = ffmpegDecoder,
+  trigger?: Trigger,
 ) => {
   const clipPath = (id: string): string => `${config.clipsDir}/${id}.mp4`
 
@@ -122,6 +132,14 @@ export const startServer = (
       detection.setZone(zone[1], points)
       return json(res, 200, { camera: zone[1], points })
     }
+    // POST /api/cameras/<caméra>/trigger?reason=eyes : ouvre un événement de mouvement maintenant (étiqueté d'après la raison), ou prolonge celui qu'un appel précédent a ouvert ; son clip se fait comme les autres.
+    const triggerRoute = /^\/api\/cameras\/([\w-]+)\/trigger$/.exec(pathname)
+    if (req.method === 'POST' && triggerRoute) {
+      if (!config.cameras.includes(triggerRoute[1])) return json(res, 404, { error: 'unknown camera' })
+      const reason = searchParams.get('reason') ?? ''
+      if (!Object.hasOwn(TRIGGER_REASONS, reason)) return json(res, 400, { error: `reason must be one of ${Object.keys(TRIGGER_REASONS).join(', ')}` })
+      return json(res, 200, { camera: triggerRoute[1], reason, ...trigger?.fire(triggerRoute[1], TRIGGER_REASONS[reason]) })
+    }
     // GET, POST et DELETE /api/cameras/<caméra>/record : l'état de l'enregistrement lancé à la main, son début, son arrêt (le clip se fait ensuite comme celui d'un mouvement).
     const record = /^\/api\/cameras\/([\w-]+)\/record$/.exec(pathname)
     if (record) {
@@ -133,6 +151,14 @@ export const startServer = (
         return stopped ? json(res, 200, { recording: false, ...stopped }) : json(res, 409, { error: 'not recording' })
       }
       return json(res, 405, { error: 'method not allowed' })
+    }
+    // POST /api/eyes avec un JPEG : cherche des yeux qui brillent (la nuit, un petit point blanc saturé) ; rend { found, pair, distance, eyes: [{ x, y, size, peak, contrast }] }.
+    if (pathname === '/api/eyes') {
+      if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+      const jpeg = await readBytes(req, MAX_IMAGE)
+      if (jpeg === null) return json(res, 413, { error: 'image too large' })
+      const result = jpeg.length > 0 ? await eyesFromJpeg(jpeg, decode) : null
+      return result ? json(res, 200, result) : json(res, 400, { error: 'unreadable image' })
     }
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
 
@@ -182,6 +208,15 @@ export const startServer = (
       const path = audioClipPath(clipPath(sound[1]))
       if (!store.get(sound[1])?.has_audio || !existsSync(path)) return json(res, 404, { error: 'sound not found' })
       res.writeHead(200, { 'Content-Type': 'audio/aac', 'Content-Length': statSync(path).size })
+      return await pipeline(createReadStream(path), res)
+    }
+
+    // shapes.json : les contours du mouvement du clip ({ frames: [[secondes depuis le début du clip, polygones], ...] }) ; absent pour un clip fait avant leur ajout.
+    const shapesFile = /^\/api\/events\/([\w.-]+?)\/shapes\.json$/.exec(pathname)
+    if (shapesFile) {
+      const path = shapesClipPath(clipPath(shapesFile[1]))
+      if (!store.get(shapesFile[1])?.has_shapes || !existsSync(path)) return json(res, 404, { error: 'shapes not found' })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': statSync(path).size })
       return await pipeline(createReadStream(path), res)
     }
 

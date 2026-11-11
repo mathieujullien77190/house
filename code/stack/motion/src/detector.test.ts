@@ -1,7 +1,7 @@
 // Les tests du détecteur : node --test (npm test). Pas de dépendance.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { changedShare, createDetector, DEFAULT_CONFIG, isMotionSeconds } from './detector.ts'
+import { changedShapes, changedShare, convexHull, createDetector, DEFAULT_CONFIG, isMotionSeconds } from './detector.ts'
 
 const frame = (value: number, size = 100): Uint8Array => new Uint8Array(size).fill(value)
 
@@ -80,4 +80,42 @@ test('changedShare : le masque limite la zone, et une zone vide ou de mauvaise t
   assert.equal(changedShare(still, moved, 25, mask), 1 / 6)
   assert.equal(changedShare(still, moved, 25, new Uint8Array(100)), 0)
   assert.equal(changedShare(still, moved, 25, new Uint8Array(50)), 0)
+})
+
+test('convexHull : l’enveloppe d’un nuage, les points alignés ou trop peu', () => {
+  const hull = convexHull([[0, 0], [1, 0], [1, 1], [0, 1], [0.5, 0.5]])
+  assert.equal(hull.length, 4)
+  assert.ok(!hull.some(([x, y]) => x === 0.5 && y === 0.5))
+  assert.deepEqual(convexHull([[0, 0], [1, 1]]), [[0, 0], [1, 1]])
+  assert.ok(convexHull([[0, 0], [1, 1], [2, 2]]).length < 3)
+})
+
+test('changedShapes : un contour par mouvement, les parasites et les tailles différentes ignorés', () => {
+  const W = 40
+  const a = new Uint8Array(W * 20).fill(100)
+  const b = new Uint8Array(W * 20).fill(100)
+  for (let y = 2; y < 6; y += 1) for (let x = 2; x < 6; x += 1) b[y * W + x] = 200
+  for (let y = 12; y < 15; y += 1) for (let x = 30; x < 34; x += 1) b[y * W + x] = 200
+  b[10 * W + 20] = 200
+  const shapes = changedShapes(a, b, W, 25)
+  assert.equal(shapes.length, 2)
+  assert.ok(shapes[0].length >= 3)
+  assert.ok(shapes[0].every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1))
+  // un masque ne garde que la moitié gauche
+  const mask = new Uint8Array(W * 20)
+  for (let y = 0; y < 20; y += 1) for (let x = 0; x < 20; x += 1) mask[y * W + x] = 1
+  assert.equal(changedShapes(a, b, W, 25, mask).length, 1)
+  assert.deepEqual(changedShapes(a, a, W, 25), [])
+  assert.deepEqual(changedShapes(new Uint8Array(10), new Uint8Array(20), W, 25), [])
+  assert.deepEqual(changedShapes(a, b, W, 25, new Uint8Array(5)), [])
+  assert.deepEqual(changedShapes(new Uint8Array(0), new Uint8Array(0), W, 25), [])
+  assert.deepEqual(changedShapes(a, b, 0, 25), [])
+})
+
+test('changedShapes : au plus MAX_SHAPES contours, les plus grands', () => {
+  const W = 100
+  const a = new Uint8Array(W * 10).fill(100)
+  const b = new Uint8Array(W * 10).fill(100)
+  for (let k = 0; k < 10; k += 1) for (let y = 2; y < 5; y += 1) for (let x = 0; x < 3; x += 1) b[y * W + k * 10 + x] = 200
+  assert.equal(changedShapes(a, b, W, 25).length, 8)
 })

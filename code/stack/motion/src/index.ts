@@ -8,10 +8,12 @@ import { audioClipPath, buildAudioClip, pruneAudio, recordAudio } from './audio.
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
+import { createTrigger } from './trigger.ts'
 import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
 import { detectorForLevel, DEFAULT_SENSITIVITY } from './sensitivity.ts'
-import { polygonMask, type Point } from './zone.ts'
+import { clipToZone, polygonMask, type Point } from './zone.ts'
+import { appendShapes, buildShapesClip, pruneShapes, shapesClipPath } from './shapes.ts'
 import { startServer } from './server.ts'
 import { watchMotion } from './watcher.ts'
 
@@ -37,8 +39,16 @@ const detectors = new Map<string, typeof config.detector>(config.cameras.map((ca
 // House Sync l'envoie à chaque minute ; en mémoire, comme la sensibilité.
 const zones = new Map<string, { points: Point[] | null; mask: Uint8Array | null }>()
 
+// Les événements déclenchés de l'extérieur (les yeux qui brillent, vus par House Sync) : ouverts, prolongés puis fermés ici.
+const trigger = createTrigger(store)
+setInterval(() => {
+  for (const id of trigger.tick()) log(`événement déclenché ${id} fermé`)
+}, 5_000)
+
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
+// Les contours du mouvement de chaque caméra sont notés image par image dans un journal (shapes.ts), dont on tire le fichier des contours de chaque clip.
+const shapesDirOf = (camera: string) => `${config.recordingsDir}/${camera}/shapes`
 
 // Les enregistrements lancés à la main (bouton « Enregistrer »), par caméra : un mouvement fictif de l'appui à l'arrêt. Au plus MAX_MANUAL_SECONDS (on oublie vite un enregistrement).
 const MAX_MANUAL_SECONDS = 180
@@ -66,13 +76,14 @@ for (const camera of config.cameras) {
     { ...config, detector: detectors.get(camera) ?? config.detector },
     (event) => {
       if (event.type === 'start') {
-        const record = store.open(camera, event.at)
+        // Le flux léger arrive `shapesDelaySeconds` après la vidéo : l'événement (la barre bleue de la frise) commence à l'instant où le mouvement apparaît dans la vidéo, comme le premier contour.
+        const record = store.open(camera, event.at - config.shapesDelaySeconds)
         open.set(camera, record.id)
         log(`${camera} : mouvement ${record.id}`)
       } else {
         const id = open.get(camera)
         if (id) {
-          store.close(id, event.startedAt + event.durationSeconds)
+          store.close(id, event.startedAt - config.shapesDelaySeconds + event.durationSeconds)
           open.delete(camera)
           log(`${camera} : fin de mouvement ${id} (${event.durationSeconds.toFixed(1)} s)`)
         }
@@ -89,6 +100,12 @@ for (const camera of config.cameras) {
       }
     },
     () => zones.get(camera)?.mask ?? null,
+    (hulls) => {
+      // Chaque contour est découpé par la zone : rien n'est montré hors de ce qui est surveillé.
+      const zone = zones.get(camera)?.points ?? null
+      const clipped = hulls.map((hull) => clipToZone(hull, zone)).filter((shape): shape is Point[] => shape !== null)
+      appendShapes(shapesDirOf(camera), Date.now() / 1000, clipped)
+    },
   )
 }
 
@@ -152,6 +169,8 @@ startServer(
     stop: stopManual,
   },
   log,
+  undefined,
+  trigger,
 )
 
 // La copie H.264 720p de chaque clip qui n'en a pas (un navigateur sans décodeur H.265 ne lit que celle-là). Une à la fois :
@@ -212,6 +231,19 @@ const makeClips = async () => {
       if (built.segments > 0) {
         store.markClip(record.id, built.start)
         log(`${record.camera} : clip ${record.id} (${built.segments} segments)`)
+        // Les contours du mouvement du clip, calés sur son début ; absents si le journal n'en a pas (clip manuel, clip d'avant).
+        try {
+          const done = buildShapesClip({
+            dir: shapesDirOf(record.camera),
+            output: shapesClipPath(`${config.clipsDir}/${record.id}.mp4`),
+            from: built.start,
+            to: record.end_time + config.postSeconds,
+            delay: config.shapesDelaySeconds,
+          })
+          if (done) store.markShapes(record.id)
+        } catch (error) {
+          log(`${record.camera} : contours du clip ${record.id} impossibles : ${error instanceof Error ? error.message : String(error)}`)
+        }
         // Le son du clip (caméras à son seulement), à part de la vidéo et calé sur son début ; un échec n'empêche pas le clip.
         if (config.audioCameras.includes(record.camera)) {
           try {
@@ -246,6 +278,7 @@ const mergeOverlaps = () => {
       rmSync(`${config.clipsDir}/${id}.mp4`, { force: true })
       rmSync(webClipPath(`${config.clipsDir}/${id}.mp4`), { force: true })
       rmSync(audioClipPath(`${config.clipsDir}/${id}.mp4`), { force: true })
+      rmSync(shapesClipPath(`${config.clipsDir}/${id}.mp4`), { force: true })
     }
     store.merge(group, now)
     log(`${group.length} événements fusionnés en ${group[0]}`)
@@ -258,6 +291,7 @@ setInterval(() => {
   const before = Date.now() / 1000 - config.retentionSeconds
   for (const camera of config.cameras) pruneSegments(`${config.recordingsDir}/${camera}`, before)
   for (const camera of config.audioCameras) pruneAudio(audioDirOf(camera), before)
+  for (const camera of config.cameras) pruneShapes(shapesDirOf(camera), before)
   for (const record of store.prune(before)) {
     try {
       unlinkSync(`${config.clipsDir}/${record.id}.mp4`)
@@ -266,6 +300,7 @@ setInterval(() => {
     }
     rmSync(webClipPath(`${config.clipsDir}/${record.id}.mp4`), { force: true })
     rmSync(audioClipPath(`${config.clipsDir}/${record.id}.mp4`), { force: true })
+    rmSync(shapesClipPath(`${config.clipsDir}/${record.id}.mp4`), { force: true })
   }
 }, PRUNE_MS)
 

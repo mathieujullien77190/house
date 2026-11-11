@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { changedShare } from './detector.ts'
-import { parsePolygon, polygonMask, type Point } from './zone.ts'
+import { clipToZone, parsePolygon, polygonMask, type Point } from './zone.ts'
 
 const FULL: Point[] = [
   [0, 0],
@@ -82,4 +82,18 @@ test('le mouvement hors de la zone ne compte pas, dans la zone il compte pour to
   assert.equal(changedShare(before, rightMoves, 25, null), 0.5)
   assert.equal(changedShare(before, rightMoves, 25, mask), 0)
   assert.equal(changedShare(before, leftMoves, 25, mask), 1)
+})
+
+test('clipToZone : sans zone le contour tel quel, une zone qui le recouvre le découpe, hors zone rien', () => {
+  const square: Point[] = [[0.2, 0.2], [0.6, 0.2], [0.6, 0.6], [0.2, 0.6]]
+  assert.deepEqual(clipToZone(square, null), square)
+  const cut = clipToZone(square, LEFT_HALF)
+  assert.ok(cut && cut.length >= 3)
+  assert.ok(cut.every(([x]) => x <= 0.5 + 1e-9))
+  const reversed = clipToZone([...square].reverse(), LEFT_HALF)
+  assert.ok(reversed && reversed.every(([x]) => x <= 0.5 + 1e-9))
+  const far: Point[] = [[0.8, 0.8], [0.9, 0.8], [0.9, 0.9], [0.8, 0.9]]
+  assert.equal(clipToZone(far, LEFT_HALF), null)
+  const inside = clipToZone([[0.1, 0.1], [0.3, 0.1], [0.3, 0.3], [0.1, 0.3]], FULL)
+  assert.equal(inside?.length, 4)
 })

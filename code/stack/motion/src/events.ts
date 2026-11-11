@@ -3,10 +3,13 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
+/** Pourquoi l'événement existe : un mouvement vu par le détecteur, ou des yeux qui brillent (déclenché par House Sync, `trigger.ts`). */
+export type MotionLabel = 'motion' | 'eyes'
+
 export interface MotionRecord {
   id: string
   camera: string
-  label: 'motion'
+  label: MotionLabel
   /** Secondes depuis 1970. */
   start_time: number
   end_time: number | null
@@ -15,6 +18,8 @@ export interface MotionRecord {
   manual?: boolean
   /** Le son du clip existe (fichier <id>.aac à côté du clip) : il est gardé seulement pour les clips de mouvement des caméras à son. */
   has_audio?: boolean
+  /** Les contours du mouvement du clip existent (fichier <id>.shapes.json à côté du clip), pour les clips faits depuis leur ajout. */
+  has_shapes?: boolean
   /** Secondes depuis 1970 : le début réel du clip (le segment qui précède l'événement), connu une fois le clip fait. */
   clip_start?: number
   /** Fusion : l'identifiant de l'événement qui a absorbé celui-ci (il n'a plus de clip et n'est plus listé). */
@@ -61,11 +66,11 @@ export const createEventStore = (file: string) => {
   }
 
   return {
-    open: (camera: string, startTime: number, manual = false): MotionRecord => {
+    open: (camera: string, startTime: number, manual = false, label: MotionLabel = 'motion'): MotionRecord => {
       const record: MotionRecord = {
         id: eventId(camera, startTime),
         camera,
-        label: 'motion',
+        label,
         start_time: startTime,
         end_time: null,
         has_clip: false,
@@ -101,6 +106,14 @@ export const createEventStore = (file: string) => {
         save()
       }
     },
+    /** Les contours du clip sont faits. */
+    markShapes: (id: string) => {
+      const record = events.find((e) => e.id === id)
+      if (record) {
+        record.has_shapes = true
+        save()
+      }
+    },
     /** Le son du clip est fait. */
     markAudio: (id: string) => {
       const record = events.find((e) => e.id === id)
@@ -121,6 +134,7 @@ export const createEventStore = (file: string) => {
       first.has_clip = false
       delete first.clip_start
       delete first.has_audio
+      delete first.has_shapes
       first.merged_at = at
       for (const other of others) {
         other.merged_into = first.id
@@ -128,6 +142,7 @@ export const createEventStore = (file: string) => {
         other.has_clip = false
         delete other.clip_start
         delete other.has_audio
+        delete other.has_shapes
       }
       save()
     },

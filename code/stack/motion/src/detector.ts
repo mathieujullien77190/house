@@ -50,6 +50,101 @@ export const changedShare = (
   return watched === 0 ? 0 : changed / watched
 }
 
+/** Un point de l'image, en parts de sa largeur et de sa hauteur (0 à 1). */
+export type ShapePoint = [number, number]
+
+/** L'enveloppe convexe d'un nuage de points (chaîne monotone d'Andrew), dans l'ordre ; moins de 3 sommets si les points sont alignés. */
+export const convexHull = (points: ShapePoint[]): ShapePoint[] => {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  if (sorted.length < 3) return sorted
+  const cross = (o: ShapePoint, a: ShapePoint, b: ShapePoint) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+  const build = (list: ShapePoint[]): ShapePoint[] => {
+    const hull: ShapePoint[] = []
+    for (const point of list) {
+      while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], point) <= 0) hull.pop()
+      hull.push(point)
+    }
+    hull.pop()
+    return hull
+  }
+  return [...build(sorted), ...build([...sorted].reverse())]
+}
+
+/** Deux pixels changés à cette distance (en pixels de l'image analysée) ou moins sont du même mouvement. */
+const GROUP_DISTANCE = 3
+/** Au plus ce nombre de contours par image (les plus grands) : un feuillage agité n'en fait pas des dizaines. */
+const MAX_SHAPES = 8
+
+/**
+ * Les contours du mouvement entre deux images de largeur `width` : les pixels changés (avec un `mask`, seuls les pixels surveillés comptent) sont regroupés
+ * quand ils sont proches (`GROUP_DISTANCE`), et chaque groupe donne un contour, son enveloppe convexe, en parts de l'image. Un pixel changé sans au moins deux voisins
+ * changés (parasite) est écarté. Rend une liste vide s'il n'y a pas de forme. Un contour peut déborder d'une zone concave : index.ts le découpe par la zone (`clipToZone`).
+ */
+export const changedShapes = (
+  previous: Uint8Array,
+  current: Uint8Array,
+  width: number,
+  pixelThreshold: number,
+  mask: Uint8Array | null = null,
+): ShapePoint[][] => {
+  if (previous.length !== current.length || current.length === 0 || width <= 0 || (mask && mask.length !== current.length)) return []
+  const height = current.length / width
+  const changed = new Uint8Array(current.length)
+  for (let i = 0; i < current.length; i += 1) {
+    if (mask && mask[i] === 0) continue
+    if (Math.abs(current[i] - previous[i]) > pixelThreshold) changed[i] = 1
+  }
+  // Les pixels isolés (moins de deux voisins changés) sont des parasites.
+  const kept = new Uint8Array(current.length)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!changed[y * width + x]) continue
+      let neighbours = 0
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if ((dx !== 0 || dy !== 0) && x + dx >= 0 && x + dx < width && y + dy >= 0 && y + dy < height) neighbours += changed[(y + dy) * width + x + dx]
+        }
+      }
+      if (neighbours >= 2) kept[y * width + x] = 1
+    }
+  }
+  // Les groupes : un remplissage par propagation, deux pixels à GROUP_DISTANCE ou moins étant voisins.
+  const seen = new Uint8Array(current.length)
+  const groups: { size: number; points: ShapePoint[] }[] = []
+  for (let start = 0; start < kept.length; start += 1) {
+    if (!kept[start] || seen[start]) continue
+    const stack = [start]
+    seen[start] = 1
+    const group = { size: 0, points: [] as ShapePoint[] }
+    while (stack.length > 0) {
+      const at = stack.pop() as number
+      const x = at % width
+      const y = Math.floor(at / width)
+      group.size += 1
+      // Les quatre coins du pixel : le contour entoure le pixel entier.
+      group.points.push([x / width, y / height], [(x + 1) / width, y / height], [x / width, (y + 1) / height], [(x + 1) / width, (y + 1) / height])
+      for (let dy = -GROUP_DISTANCE; dy <= GROUP_DISTANCE; dy += 1) {
+        for (let dx = -GROUP_DISTANCE; dx <= GROUP_DISTANCE; dx += 1) {
+          const nx = x + dx
+          const ny = y + dy
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+          const index = ny * width + nx
+          if (kept[index] && !seen[index]) {
+            seen[index] = 1
+            stack.push(index)
+          }
+        }
+      }
+    }
+    groups.push(group)
+  }
+  return groups
+    .sort((a, b) => b.size - a.size)
+    .slice(0, MAX_SHAPES)
+    .map((group) => convexHull(group.points))
+    .filter((hull) => hull.length >= 3)
+}
+
 export type MotionEvent =
   { type: 'start'; at: number; score: number } | { type: 'end'; at: number; startedAt: number; durationSeconds: number; peak: number }
 

@@ -2,7 +2,7 @@
 // sortie, on compare chaque image à la précédente (detector.ts) et on rend chaque début et chaque fin de mouvement.
 import { spawn } from 'node:child_process'
 import type { Config } from './config.ts'
-import { changedShare, createDetector, type MotionEvent } from './detector.ts'
+import { changedShapes, changedShare, createDetector, type MotionEvent, type ShapePoint } from './detector.ts'
 import { isStopping, track } from './shutdown.ts'
 
 const RETRY_SECONDS = 5
@@ -18,6 +18,7 @@ const run = (
   onEvent: (event: MotionEvent) => void,
   enabled: () => boolean,
   mask: () => Uint8Array | null,
+  onShape: (shapes: ShapePoint[][]) => void,
 ): Promise<string> =>
   new Promise((resolve) => {
     const frameSize = config.width * config.height
@@ -53,7 +54,11 @@ const run = (
         const frame = Uint8Array.from(pending.subarray(0, frameSize))
         pending = pending.subarray(frameSize)
         if (previous) {
-          const event = detector.push(changedShare(previous, frame, config.detector.pixelThreshold, mask()), Date.now() / 1000)
+          const share = changedShare(previous, frame, config.detector.pixelThreshold, mask())
+          // Le contour n'existe que pour un vrai mouvement (assez de pixels, pas un changement de lumière).
+          const moving = share >= config.detector.areaThreshold && share < config.detector.lightChangeThreshold
+          onShape(moving ? changedShapes(previous, frame, config.width, config.detector.pixelThreshold, mask()) : [])
+          const event = detector.push(share, Date.now() / 1000)
           if (event) onEvent(event)
         }
         previous = frame
@@ -95,13 +100,15 @@ export const watchMotion = async (
   enabled: () => boolean = () => true,
   onSuspend: () => void = () => undefined,
   mask: () => Uint8Array | null = () => null,
+  onShape: (shapes: ShapePoint[][]) => void = () => undefined,
 ): Promise<never> => {
   for (;;) {
     // Suspendue : rien ne tourne, on attend qu'elle revienne.
     while (!enabled()) await new Promise((resolve) => setTimeout(resolve, CHECK_MS))
-    const reason = await run(url, config, onEvent, enabled, mask)
+    const reason = await run(url, config, onEvent, enabled, mask, onShape)
     // Un mouvement ouvert quand ffmpeg s'arrête (suspension, flux figé, caméra coupée) ne recevra jamais sa fin : on le ferme.
     onSuspend()
+    onShape([])
     if (isStopping()) await new Promise<never>(() => undefined)
     if (reason === SUSPENDED) {
       log(`${reason}`)
