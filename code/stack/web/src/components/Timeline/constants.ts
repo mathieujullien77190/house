@@ -41,8 +41,10 @@ export const TICK_MIN_PX = 70
 /** Sur la frise verticale (téléphone), un repère ne demande que la hauteur de son libellé. */
 export const TICK_MIN_PX_VERTICAL = 48
 export const MIN_TICKS = 2
-/** Le bloc d'un événement commence ce nombre de secondes avant le mouvement : comme le clip, qui garde 5 s d'avant. */
+/** Sans le début réel du clip, le bloc d'un événement commence ce nombre de secondes avant le mouvement : comme le clip, qui garde 5 s d'avant. */
 export const MARKER_LEAD_SECONDS = 5
+/** Le bloc d'un événement finit ce nombre de secondes après le mouvement : les 5 s d'après du clip et, en moyenne, une demi-tranche de 10 s (le clip finit sur un segment entier). */
+export const MARKER_TAIL_SECONDS = 10
 /** Largeur minimale d'un événement sur l'axe, en % : un événement court reste cliquable. */
 export const MIN_WIDTH = 1.2
 /** Deux images à moins de ce délai (secondes) forment une même plage de couverture. */

@@ -62,20 +62,23 @@ const Timeline = ({
   onCursor,
   onEvent,
   playhead,
-  clipRange,
   selectedEventId,
   fill = false,
   rate = 1,
   controls,
   initialCursor,
+  stepRef,
 }: TimelineProps) => {
   // Sur téléphone (sous 1024 px) la frise est verticale, le plus récent en haut ; sur grand écran, horizontale.
   const vertical = useMobile()
   const [seconds, setSeconds] = useState(NOW_ZOOM_SECONDS)
   // Un instant de départ (ouvert depuis l'image d'une autre caméra) : la fenêtre le contient, centré si c'est loin du direct.
-  const pastStart = initialCursor !== undefined && initialCursor <= liveEnd(nowSeconds(), NOW_ZOOM_SECONDS) - NOW_ZOOM_SECONDS ? initialCursor : null
+  const pastStart =
+    initialCursor !== undefined && initialCursor <= liveEnd(nowSeconds(), NOW_ZOOM_SECONDS) - NOW_ZOOM_SECONDS ? initialCursor : null
   const startsLive = pastStart === null
-  const [end, setEnd] = useState(() => (pastStart === null ? liveEnd(nowSeconds(), NOW_ZOOM_SECONDS) : Math.round(pastStart + NOW_ZOOM_SECONDS / 2)))
+  const [end, setEnd] = useState(() =>
+    pastStart === null ? liveEnd(nowSeconds(), NOW_ZOOM_SECONDS) : Math.round(pastStart + NOW_ZOOM_SECONDS / 2),
+  )
   const [live, setLive] = useState(startsLive)
   const [selectedId, setSelectedId] = useState('')
   // La carte a fermé l'événement (bouton « Fermer » du lecteur) : la sélection de la frise suit, sinon le curseur resterait figé.
@@ -211,6 +214,23 @@ const Timeline = ({
     return () => clearTimeout(timer)
   }, [cursor, selectedId, dragging, onCursor, times, rate])
 
+  // Un pas d'une image (les boutons de la vitesse 0, donnés par le parent) : le curseur saute à l'image gardée juste avant ou juste après lui, la fenêtre le suit s'il sort.
+  const stepBy = (direction: -1 | 1) => {
+    if (cursor === null) return
+    const target = direction > 0 ? times.find((time) => time > cursor) : [...times].reverse().find((time) => time < cursor)
+    if (target === undefined) return
+    setCursor(target)
+    reported.current = target
+    lastStep.current = Date.now()
+    onCursor(target)
+    const { seconds: current, end: currentEnd } = view.current
+    const position = positionOf(target, currentEnd, current)
+    if (position > FOLLOW_EDGE * 100 || position < 100 - FOLLOW_EDGE * 100) place(target + current * 0.5, current)
+  }
+  useEffect(() => {
+    if (stepRef) stepRef.current = stepBy
+  })
+
   // La molette zoome autour de l'instant sous le pointeur. Écouteur non passif : la page ne doit pas défiler.
   useEffect(() => {
     const axis = axisRef.current
@@ -342,10 +362,6 @@ const Timeline = ({
   const shownCursor = selectedId && playhead !== null ? playhead : cursor
   const nowPosition = positionOf(nowSeconds(), end, seconds)
   const nowX = nowPosition > 0 && nowPosition < 100 ? nowPosition : null
-  // L'étendue de la vidéo, bornée à la fenêtre : le clip déborde de l'événement, le curseur la suit jusqu'au bout.
-  const spanStart = clipRange ? Math.max(0, positionOf(clipRange.start, end, seconds)) : 0
-  const spanEnd = clipRange ? Math.min(100, positionOf(clipRange.end, end, seconds)) : 0
-  const clipSpan = selectedId && clipRange && spanEnd > spanStart ? { x: spanStart, width: spanEnd - spanStart } : null
   const cursorX = shownCursor === null ? null : positionOf(shownCursor, end, seconds)
 
   return (
@@ -360,7 +376,7 @@ const Timeline = ({
       markers={markers.map(({ event, ...marker }) => ({ id: event.id, ...marker }))}
       coverage={buildCoverage(times, seconds, end)}
       nowX={nowX}
-      clipSpan={clipSpan}
+      clipSpan={null}
       cursorX={cursorX !== null && cursorX >= 0 && cursorX <= 100 ? cursorX : null}
       axisRef={axisRef}
       onRange={(id) => {

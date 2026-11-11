@@ -216,6 +216,17 @@ describe('CameraCard : le direct', () => {
     expect(document.querySelector('img')?.getAttribute('src')).toContain('screen=mobile')
     expect(h.card.screen).toBe(true)
   })
+  it('sur téléphone, « Léger » s’écrit « L » (4K ne change pas) ; sur grand écran, « Léger »', () => {
+    h.s.mobile = true
+    const phone = mount()
+    expect(screen.getByRole('tab', { name: 'L' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '4K' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Léger' })).toBeNull()
+    phone.unmount()
+    h.s.mobile = false
+    mount()
+    expect(screen.getByRole('tab', { name: 'Léger' })).toBeInTheDocument()
+  })
   it('caméra éteinte ou en démarrage : image noire avec le message', () => {
     h.s.power = power({ on: false })
     const first = mount()
@@ -525,11 +536,13 @@ describe('CameraCard : version du clip', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'H.265 · 4K' }))
     expect(h.clip.startAt).toBe(0)
   })
-  it('sur téléphone : libellés courts', () => {
+  it('sur téléphone : pas de choix, la copie légère H.264 joue (le 4K ne se lit pas)', () => {
     h.s.mobile = true
     mount({ events: [e] })
     pick(e)
-    expect(screen.getByRole('tab', { name: '720p' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '720p' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: '4K' })).toBeNull()
+    expect(h.clip.path).toBe('/clips/a/h264')
   })
   it('pas de choix sans copie légère', () => {
     mount({ events: [event('a', { clip_h264: null })] })
@@ -738,6 +751,18 @@ describe('CameraCard : défilement des images', () => {
     expect(h.timeline.rate).toBe(0)
     fireEvent.click(screen.getByLabelText('Plus lent, ou en arrière'))
     expect(h.timeline.rate).toBe(-1)
+  })
+
+  it('à ×0, les boutons « image précédente / suivante » appellent le pas de la frise', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    const step = vi.fn()
+    h.timeline.stepRef.current = step
+    fireEvent.click(screen.getByLabelText('Plus lent, ou en arrière'))
+    fireEvent.click(screen.getByLabelText('Image suivante'))
+    expect(step).toHaveBeenLastCalledWith(1)
+    fireEvent.click(screen.getByLabelText('Image précédente'))
+    expect(step).toHaveBeenLastCalledWith(-1)
   })
 
   it('le retour au direct remet la vitesse à ×1', () => {

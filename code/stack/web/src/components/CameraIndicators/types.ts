@@ -9,4 +9,6 @@ export interface CameraIndicatorsProps {
   plug: PlugState | null
   /** Le mode pluie de la caméra : pluie ou pluie forte montre son symbole ; éteint ou absent, rien. */
   rain?: RainMode
+  /** La recherche des yeux qui brillent tourne : l'icône œil. */
+  eyes?: boolean
 }

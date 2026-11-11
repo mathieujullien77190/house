@@ -23,11 +23,6 @@ export const QUALITY_OPTIONS = [
   { id: 'h264', label: 'H.264 · 720p' },
   { id: 'original', label: 'H.265 · 4K' },
 ] as const
-/** Sur téléphone, le commutateur est posé sur la vidéo : juste la définition, sans le codec. */
-export const QUALITY_OPTIONS_SHORT = [
-  { id: 'h264', label: '720p' },
-  { id: 'original', label: '4K' },
-] as const
 export const SAVE_LABEL = 'Sauvegarder le clip (jamais effacé)'
 export const SAVE_OPTIONS = [
   { id: 'no', label: 'Non sauvegardé' },
@@ -36,6 +31,11 @@ export const SAVE_OPTIONS = [
 export const LIVE_QUALITY_LABEL = 'Qualité du direct'
 export const LIVE_QUALITY_OPTIONS = [
   { id: 'light', label: 'Léger' },
+  { id: 'hd', label: '4K' },
+] as const
+/** Sur téléphone, « Léger » s'écrit « L » : le sélecteur prend moins de place. */
+export const LIVE_QUALITY_OPTIONS_SHORT = [
+  { id: 'light', label: 'L' },
   { id: 'hd', label: '4K' },
 ] as const
 export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'

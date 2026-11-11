@@ -11,3 +11,6 @@ export const RAIN_HINT = {
   rain: 'Il pleut : le mode pluie est actif, la détection de mouvement est coupée et une image est gardée toutes les 5 secondes.',
   heavy: 'Forte pluie : le mode pluie est actif, la détection de mouvement est coupée et une image est gardée toutes les 5 secondes.',
 } as const
+/** L'œil de la recherche des yeux qui brillent : un dessin dans le même bloc, de la même taille que celui de la pluie (🌧️). */
+export const EYES_CHIP = '👁️'
+export const EYES_HINT = 'Détection des yeux qui brillent active (de 30 min après le coucher à 30 min avant le lever).'

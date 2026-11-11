@@ -20,11 +20,12 @@ export interface HouseState {
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-const toCameras = (live: { camera: string; orientation?: Camera['orientation']; rain?: Camera['rain'] }[]): Camera[] =>
-  live.map(({ camera, orientation, rain }) => ({
+const toCameras = (live: { camera: string; orientation?: Camera['orientation']; rain?: Camera['rain']; eyes?: boolean }[]): Camera[] =>
+  live.map(({ camera, orientation, rain, eyes }) => ({
     name: camera,
     orientation: orientation === 'portrait' ? 'portrait' : 'landscape',
     rain: rain === 'rain' || rain === 'heavy' ? rain : 'off',
+    eyes: eyes === true,
   }))
 
 export const useHouse = (): HouseState => {

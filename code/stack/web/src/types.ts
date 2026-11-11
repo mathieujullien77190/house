@@ -19,6 +19,8 @@ export interface CameraRow {
   orientation: Orientation
   /** Le niveau de pluie qui s'applique à la caméra (le mode pluie de House Sync et la météo). */
   rain?: RainMode
+  /** Vrai quand la recherche des yeux qui brillent tourne (réglage de House Sync, la nuit). */
+  eyes?: boolean
 }
 
 export interface EventRow {
@@ -34,6 +36,8 @@ export interface EventRow {
   clip_h264: string | null
   /** Le son du clip (AAC, à part de la vidéo), joué avec elle ; null s'il n'y en a pas. */
   clip_audio: string | null
+  /** Les contours du mouvement du clip (JSON), ou null pour un clip fait avant leur ajout. */
+  clip_shapes: string | null
   /** Secondes depuis 1970 : le début réel du clip (il précède l'événement), ou null (anciens clips). */
   clip_started_at: number | null
   /** Sauvegardé : jamais effacé par le ménage (les autres clips le sont après la durée de garde réglée dans House Sync). */
@@ -215,5 +219,7 @@ export interface Camera {
   orientation: Orientation
   /** Le mode pluie (éteint, pluie, pluie forte) : allumé, la détection est coupée et une image est gardée toutes les 5 s. */
   rain?: RainMode
+  /** La recherche des yeux qui brillent tourne : l'icône œil sur la caméra. */
+  eyes?: boolean
 }
 

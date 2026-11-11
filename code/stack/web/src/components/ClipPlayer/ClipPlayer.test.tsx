@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { flush, reply, stubFetch } from '@/test/fetch'
 import ClipPlayer from './ClipPlayer'
 import { FAILURE_TEXT } from './constants'
 
@@ -53,5 +54,46 @@ describe('ClipPlayer', () => {
     Object.defineProperty(video(), 'readyState', { value: 4, configurable: true })
     fireEvent.loadedMetadata(video())
     expect(onDuration).toHaveBeenCalled()
+  })
+})
+
+describe('ClipPlayer : contours du mouvement', () => {
+  const FRAMES = { frames: [[1, [[[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]]]]] }
+  const seek = (time: number) => {
+    Object.defineProperty(video(), 'currentTime', { value: time, configurable: true })
+    fireEvent.timeUpdate(video())
+  }
+
+  it('charge les contours avec la clé et les dessine selon la position de lecture', async () => {
+    const spy = stubFetch(() => reply(FRAMES))
+    const onTime = vi.fn()
+    const { container } = render(<ClipPlayer path="/clips/1" shapesSrc="/clips/1/shapes" apiKey="k" onClose={vi.fn()} onTime={onTime} />)
+    await act(flush)
+    expect(spy.mock.calls[0][0]).toBe('/clips/1/shapes')
+    seek(1.2)
+    expect(onTime).toHaveBeenCalledWith(1.2)
+    expect(container.querySelectorAll('polygon')).toHaveLength(1)
+    seek(5)
+    expect(container.querySelectorAll('polygon')).toHaveLength(0)
+  })
+
+  it('un clip sans contours (404) ou sans adresse : rien n’est dessiné', async () => {
+    stubFetch(() => reply({}, 404))
+    const { container, unmount } = render(<ClipPlayer path="/clips/1" shapesSrc="/clips/1/shapes" onClose={vi.fn()} />)
+    await act(flush)
+    seek(1)
+    expect(container.querySelector('polygon')).toBeNull()
+    unmount()
+    const spy = stubFetch(() => reply(FRAMES))
+    render(<ClipPlayer path="/clips/1" onClose={vi.fn()} />)
+    await act(flush)
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('démonté avant la réponse, rien n’est gardé', async () => {
+    stubFetch(() => reply(FRAMES))
+    const { unmount } = render(<ClipPlayer path="/clips/1" shapesSrc="/clips/1/shapes" onClose={vi.fn()} />)
+    unmount()
+    await act(flush)
   })
 })

@@ -56,8 +56,8 @@ const LiveTile = ({ apiKey, camera, lastEvent, read, onOpenClip, onOpen }: LiveT
       name={`${NAME_PREFIX}${camera.name}`}
       caption={caption}
       overlay={
-        (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off') && !placeholder ? (
-          <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} rain={camera.rain} />
+        (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off' || camera.eyes === true) && !placeholder ? (
+          <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} rain={camera.rain} eyes={camera.eyes} />
         ) : undefined
       }
       media={

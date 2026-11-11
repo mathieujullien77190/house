@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, CameraCard as CameraCardUI, SnapshotImage as ImageBox, Tabs, ValueChips, ZoneEditor } from '@house/ui'
 import ClipPlayer from '@/components/ClipPlayer'
 import CameraIndicators from '@/components/CameraIndicators'
@@ -39,12 +39,12 @@ import {
   HIDDEN_PLAYER_CLASS,
   LIVE_QUALITY_LABEL,
   LIVE_QUALITY_OPTIONS,
+  LIVE_QUALITY_OPTIONS_SHORT,
   NO_CLIP_TEXT,
   NO_IMAGE_TEXT,
   ONGOING_CLIP_TEXT,
   QUALITY_LABEL,
   QUALITY_OPTIONS,
-  QUALITY_OPTIONS_SHORT,
   SAVE_LABEL,
   SAVE_OPTIONS,
   CAMERA_LAMP,
@@ -141,8 +141,14 @@ const CameraCard = ({
   // Le carré de la prise connectée, à côté du rond de la lampe (vert allumée, rouge éteinte), en direct aussi.
   const plug = usePlug(apiKey, CAMERA_WITH_PLUG.includes(camera.name) && isLive)
   const indicators =
-    isLive && (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off') ? (
-      <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} rain={camera.rain} />
+    isLive && (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off' || camera.eyes === true) ? (
+      <CameraIndicators
+        temperatures={temperatures.map((item) => item.value)}
+        lamp={lamp}
+        plug={plug}
+        rain={camera.rain}
+        eyes={camera.eyes}
+      />
     ) : undefined
   const off = power !== null && !power.on
   // Courant mis mais flux pas encore reçu : la caméra démarre (environ une minute), le direct reviendra tout seul.
@@ -161,6 +167,9 @@ const CameraCard = ({
   // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
   // La vitesse de défilement des images se garde d'une caméra à l'autre (ouverte depuis un repère).
   const [rate, setRate] = useState(initialRate ?? NORMAL_RATE)
+  // Un pas d'une image (boutons de la vitesse 0) : c'est la frise qui le fait (elle connaît les images gardées).
+  const stepRef = useRef<((direction: -1 | 1) => void) | null>(null)
+  const step = (direction: -1 | 1) => stepRef.current?.(direction)
   // Le son du direct est-il ouvert ? (gardé d'une caméra à l'autre, comme la vitesse.)
   const [soundOn, setSoundOn] = useState(initialSound ?? false)
   // Le clip enregistré à la main : le bouton « Enregistrer un clip » (en direct, caméra allumée, pas sur téléphone : ni lui ni la zone de surveillance n'y sont proposés).
@@ -229,7 +238,7 @@ const CameraCard = ({
     isSaved && selected && sharePath ? <ShareButton path={sharePath} name={selected.id} title={describeEvent(selected)} /> : null
 
   // Les flèches du défilement des images : à côté de « 10 min, 1 h… » sous la vidéo, et sur la vidéo (en bas à gauche) en vue en grand, où la frise ne se voit pas.
-  const fastScroll = !selected && cursor !== null ? <FastScroll rate={rate} onRate={setRate} /> : undefined
+  const fastScroll = !selected && cursor !== null ? <FastScroll rate={rate} onRate={setRate} onStep={step} /> : undefined
 
   const back = () => {
     setFailedClip('')
@@ -293,6 +302,7 @@ const CameraCard = ({
               apiKey={apiKey}
               path={clipPath}
               audioSrc={selected.clip_audio ?? undefined}
+              shapesSrc={selected.clip_shapes ?? undefined}
               startAt={resumeAt}
               restart={plays}
               onClose={back}
@@ -321,17 +331,19 @@ const CameraCard = ({
         <>
           {selected?.clip && !mobile ? saveToggle : null}
           {!mobile ? shareButton : null}
-          {selected?.clip_h264 ? (
-            <Tabs
-              label={QUALITY_LABEL}
-              compact
-              options={[...(mobile ? QUALITY_OPTIONS_SHORT : QUALITY_OPTIONS)]}
-              value={quality}
-              onChange={changeQuality}
-            />
+          {/* Sur téléphone, pas de choix : le 4K (H.265) ne se lit pas, la copie légère (H.264) est toujours celle qui joue. */}
+          {selected?.clip_h264 && !mobile ? (
+            <Tabs label={QUALITY_LABEL} compact options={[...QUALITY_OPTIONS]} value={quality} onChange={changeQuality} />
           ) : null}
           {selected || cursor !== null ? null : (
-            <Tabs label={LIVE_QUALITY_LABEL} options={[...LIVE_QUALITY_OPTIONS]} value={liveQuality} onChange={changeLiveQuality} compact />
+            <Tabs
+              label={LIVE_QUALITY_LABEL}
+              options={[...(mobile ? LIVE_QUALITY_OPTIONS_SHORT : LIVE_QUALITY_OPTIONS)]}
+              value={liveQuality}
+              onChange={changeLiveQuality}
+              compact
+              tiny={mobile}
+            />
           )}
           {isLive && !placeholder && !mobile ? (
             <Button variant={zoneEditing ? 'active' : 'default'} aria-pressed={zoneEditing} onClick={() => setEditingZone((on) => !on)}>
@@ -411,6 +423,7 @@ const CameraCard = ({
       timeline={
         <Timeline
           initialCursor={initialCursor}
+          stepRef={stepRef}
           fill={mobile}
           apiKey={apiKey}
           camera={camera.name}

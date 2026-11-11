@@ -126,6 +126,13 @@ describe('événements', () => {
     expect(byId.bord.x + byId.bord.width).toBeLessThanOrEqual(100)
   })
 
+  it('buildMarkers : le bloc couvre tout le clip, du début réel de la vidéo à un peu après la fin', () => {
+    const withClip = { ...event('clip', 950, 960), clip_started_at: 940 } as EventRow
+    const { markers } = buildMarkers([withClip], 100, 1000, '', 1000)
+    expect(markers[0].x).toBeCloseTo(40, 0)
+    expect(markers[0].x + markers[0].width).toBeCloseTo(70, 0)
+  })
+
   it('buildCoverage : des plages d’images rapprochées', () => {
     const segments = buildCoverage([900, 960, 1500, 1560], 1000, 2000)
     expect(segments).toHaveLength(2)

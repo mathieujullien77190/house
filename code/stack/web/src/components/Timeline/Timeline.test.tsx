@@ -261,17 +261,14 @@ describe('Timeline : événements', () => {
     expect(ui.props.live).toBe(true)
   })
 
-  it('la lecture du clip déplace le curseur, borné à la fenêtre ; la plage du clip se montre', async () => {
+  it('la lecture du clip déplace le curseur, borné à la fenêtre ; plus de cadre en pointillés', async () => {
     const { rerender } = setup({ events: recent, selectedEventId: 'b' })
     await settle()
     rerender({ selectedEventId: 'b', playhead: NOW - 45, clipRange: { start: NOW - 55, end: NOW - 35 } })
     expect(ui.props.cursorX).toBeGreaterThan(0)
-    expect(ui.props.clipSpan).not.toBeNull()
+    expect(ui.props.clipSpan).toBeNull()
     rerender({ selectedEventId: 'b', playhead: NOW + 1e6, clipRange: { start: NOW - 55, end: NOW - 35 } })
     expect(ui.props.cursorX).toBeNull()
-    // plage hors de la fenêtre
-    rerender({ selectedEventId: 'b', playhead: null, clipRange: { start: 1, end: 2 } })
-    expect(ui.props.clipSpan).toBeNull()
   })
 })
 
@@ -511,6 +508,30 @@ describe('Timeline : le curseur avance en temps réel', () => {
     await settle(3000)
     expect(onCursor).not.toHaveBeenCalled()
     up(axis, 1, 600)
+  })
+})
+
+describe('Timeline : un pas d’une image (stepRef)', () => {
+  it('avance ou recule le curseur jusqu’à l’image gardée suivante ou précédente ; rien au bord ni sans curseur', async () => {
+    vi.mocked(api.fetchSnapshotTimes).mockResolvedValue([NOW - 29, NOW - 20, NOW - 10, NOW - 3])
+    const stepRef = { current: null as ((direction: -1 | 1) => void) | null }
+    const { axis, onCursor } = setup({ rate: 0, stepRef })
+    await settle()
+    // Sans curseur (direct) : rien.
+    act(() => stepRef.current?.(1))
+    expect(onCursor).not.toHaveBeenCalled()
+    click(axis, 250)
+    const clicked = onCursor.mock.calls.at(-1)?.[0] as number
+    onCursor.mockClear()
+    act(() => stepRef.current?.(1))
+    expect(onCursor).toHaveBeenLastCalledWith([NOW - 29, NOW - 20, NOW - 10, NOW - 3].find((time) => time > clicked))
+    act(() => stepRef.current?.(-1))
+    expect(onCursor).toHaveBeenCalledTimes(2)
+    // Au bord : plus d'image avant la plus ancienne, rien ne change.
+    for (let index = 0; index < 4; index += 1) act(() => stepRef.current?.(-1))
+    const calls = onCursor.mock.calls.length
+    act(() => stepRef.current?.(-1))
+    expect(onCursor.mock.calls).toHaveLength(calls)
   })
 })
 

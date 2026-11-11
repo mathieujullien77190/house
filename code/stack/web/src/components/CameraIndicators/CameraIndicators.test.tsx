@@ -37,6 +37,16 @@ describe('CameraIndicators', () => {
   })
 })
 
+describe('CameraIndicators : les yeux qui brillent', () => {
+  it('l’icône œil n’apparaît que si la recherche tourne, et s’explique au clic', () => {
+    const { rerender } = render(<CameraIndicators temperatures={[]} lamp={null} plug={null} />)
+    expect(screen.queryByRole('button', { name: /yeux qui brillent/ })).toBeNull()
+    rerender(<CameraIndicators temperatures={[]} lamp={null} plug={null} eyes />)
+    fireEvent.click(screen.getByRole('button', { name: /yeux qui brillent/ }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('de 30 min après le coucher à 30 min avant le lever')
+  })
+})
+
 describe('CameraIndicators : les ronds de la carte', () => {
   it('la lampe et le chauffage ont le rond blanc à bordure noire de la carte, avec leur icône ; le chauffage a sa pastille verte ou rouge', () => {
     const { rerender } = render(<CameraIndicators temperatures={[]} lamp={lamp} plug={plug} />)

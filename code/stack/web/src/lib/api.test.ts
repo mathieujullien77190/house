@@ -21,6 +21,7 @@ import {
   fetchRecording,
   fetchSavedEvents,
   fetchSensors,
+  fetchClipShapes,
   fetchSnapshot,
   fetchSnapshotTimes,
   fetchMarkers,
@@ -110,16 +111,26 @@ describe('lectures (GET)', () => {
     expect(await fetchPlan('k')).toEqual({ trees: [] })
   })
 
-  it('fetchSnapshot lit l’instant exact de l’image', async () => {
-    const spy = stubFetch(() => reply('img', 200, { 'X-Snapshot-At': '1234' }))
+  it('fetchClipShapes lit les contours du clip', async () => {
+    const spy = stubFetch(() => reply({ frames: [[1, [[[0.1, 0.1], [0.2, 0.1], [0.2, 0.2]]]]] }))
+    const result = await fetchClipShapes('k', '/clips/e1/shapes')
+    expect(result.frames).toHaveLength(1)
+    expect(spy.mock.calls[0][0]).toBe('/clips/e1/shapes')
+  })
+
+  it('fetchSnapshot lit l’instant exact et le code de l’image', async () => {
+    const spy = stubFetch(() => reply('img', 200, { 'X-Snapshot-At': '1234', 'X-Snapshot-Code': 'dab' }))
     const result = await fetchSnapshot('k', 'a b', 10.9)
     expect(result.takenAt).toBe(1234)
+    expect(result.code).toBe('dab')
     expect(await result.blob.text()).toBe('img')
     expect(spy.mock.calls[0][0]).toBe('/snapshot?camera=a%20b&at=10')
   })
   it.each([[''], ['0'], ['abc']])('fetchSnapshot : en-tête « %s » donne null', async (header) => {
     stubFetch(() => reply('img', 200, header ? { 'X-Snapshot-At': header } : {}))
-    expect((await fetchSnapshot('k', 'c', 1)).takenAt).toBeNull()
+    const result = await fetchSnapshot('k', 'c', 1)
+    expect(result.takenAt).toBeNull()
+    expect(result.code).toBe('')
   })
 })
 

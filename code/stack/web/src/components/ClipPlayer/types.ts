@@ -7,6 +7,8 @@ export interface ClipPlayerProps {
   path: string
   /** Chemin du son du clip (/clips/id/audio), joué avec la vidéo ; absent : un clip sans son. */
   audioSrc?: string
+  /** Chemin des contours du mouvement du clip (/clips/id/shapes), dessinés par-dessus la vidéo ; absent : un clip sans contours. */
+  shapesSrc?: string
   /** Appelé par le bouton Fermer, montré seulement en cas d'erreur (sinon la frise a « Maintenant »). */
   onClose: () => void
   /** Appelé quand la première image de la vidéo est prête. */

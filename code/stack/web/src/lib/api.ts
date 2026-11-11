@@ -192,11 +192,11 @@ export const fetchLampPositions = async (key: string): Promise<Record<string, { 
 export const fetchSnapshotTimes = async (key: string, camera: string, from: number, to: number): Promise<number[]> =>
   (await request(key, `/snapshots?camera=${encodeURIComponent(camera)}&from=${Math.floor(from)}&to=${Math.ceil(to)}`)).json()
 
-/** L'image la plus proche d'un instant, avec son identifiant (son instant exact ; 404 s’il n’y en a pas à cinq minutes près). */
-export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<{ blob: Blob; takenAt: number | null }> => {
+/** L'image la plus proche d'un instant, avec son instant exact et son code permanent (lettres ; vide si l'API n'en donne pas) ; 404 s’il n’y en a pas à cinq minutes près. */
+export const fetchSnapshot = async (key: string, camera: string, at: number): Promise<{ blob: Blob; takenAt: number | null; code: string }> => {
   const res = await request(key, `/snapshot?camera=${encodeURIComponent(camera)}&at=${Math.floor(at)}`)
   const takenAt = Number(res.headers.get('X-Snapshot-At'))
-  return { blob: await res.blob(), takenAt: Number.isFinite(takenAt) && takenAt > 0 ? takenAt : null }
+  return { blob: await res.blob(), takenAt: Number.isFinite(takenAt) && takenAt > 0 ? takenAt : null, code: res.headers.get('X-Snapshot-Code') ?? '' }
 }
 /** Un service quelconque, pour l'explorateur de l'API : le statut et le corps tel quel. */
 export const callService = async (key: string, path: string): Promise<{ status: number; body: string }> => {
@@ -300,6 +300,11 @@ export interface RecordingState {
 }
 export const fetchRecording = async (key: string, camera: string): Promise<RecordingState> =>
   (await request(key, `/record/${encodeURIComponent(camera)}`)).json()
+/** Les contours du mouvement d'un clip : pour chaque instant (secondes depuis le début du clip), des polygones de points [x, y] en parts de l'image (0 à 1). */
+export interface ClipShapes {
+  frames: [number, [number, number][][]][]
+}
+export const fetchClipShapes = async (key: string, path: string): Promise<ClipShapes> => (await request(key, path)).json()
 const recordingCall = async (key: string, camera: string, method: 'POST' | 'DELETE'): Promise<void> => {
   const res = await fetch(`/record/${encodeURIComponent(camera)}`, { method, headers: { [KEY_HEADER]: key } })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')

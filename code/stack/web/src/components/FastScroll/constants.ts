@@ -7,5 +7,10 @@ export const FASTER_LABEL = 'Plus vite, ou en avant'
 export const RATES = [-600, -300, -120, -60, -30, -10, -5, -2, -1, 0, 1, 2, 5, 10, 30, 60, 120, 300, 600]
 /** Le rang de ×1 (temps réel, en avant). */
 export const NORMAL_RATE = 10
+/** Les deux boutons de la vitesse 0 : une image en arrière, une image en avant (autres symboles que les flèches de vitesse ◀ ▶). */
+export const STEP_BACK_LABEL = 'Image précédente'
+export const STEP_FORWARD_LABEL = 'Image suivante'
+export const STEP_BACK_TEXT = '|◀'
+export const STEP_FORWARD_TEXT = '▶|'
 export const BOX_CLASS = 'flex items-center gap-1'
 export const RATE_TEXT_CLASS = 'min-w-12 text-center text-xs tabular-nums text-neutral-300'

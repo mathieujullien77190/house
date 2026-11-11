@@ -5,6 +5,7 @@ import {
   COVERAGE_GAP,
   FUTURE_SHARE,
   MARKER_LEAD_SECONDS,
+  MARKER_TAIL_SECONDS,
   MAX_REFRESH_MS,
   MAX_TICKS,
   MAX_WINDOW,
@@ -95,10 +96,16 @@ export const buildMarkers = (events: EventRow[], seconds: number, end: number, s
   const start = end - seconds
   // Un événement en cours s'arrête à maintenant, jamais dans le futur.
   const until = Math.min(end, now)
-  const visible = events.filter((event) => (event.ended_at ?? until) >= start && event.started_at - MARKER_LEAD_SECONDS <= end)
+  // Le bloc couvre tout le clip, même là où rien ne bouge : du début réel de la vidéo (ou 5 s avant le mouvement) à un peu après la fin.
+  const spanOf = (event: EventRow): [number, number] => [
+    event.clip_started_at ?? event.started_at - MARKER_LEAD_SECONDS,
+    event.ended_at === null ? until : Math.min(until + MARKER_TAIL_SECONDS, event.ended_at + MARKER_TAIL_SECONDS),
+  ]
+  const visible = events.filter((event) => spanOf(event)[1] >= start && spanOf(event)[0] <= end)
   const markers = [...visible].reverse().map((event) => {
-    const x = Math.max(0, positionOf(event.started_at - MARKER_LEAD_SECONDS, end, seconds))
-    const right = Math.min(100, positionOf(event.ended_at ?? until, end, seconds))
+    const [from, to] = spanOf(event)
+    const x = Math.max(0, positionOf(from, end, seconds))
+    const right = Math.min(100, positionOf(to, end, seconds))
     const real = Math.max(0.01, right - x)
     const width = Math.max(MIN_WIDTH, real)
     return {

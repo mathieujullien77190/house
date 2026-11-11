@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import FastScroll from './FastScroll'
 import { speedOf } from './helpers'
-import { FASTER_LABEL, NORMAL_RATE, RATES, SLOWER_LABEL } from './constants'
+import { FASTER_LABEL, NORMAL_RATE, RATES, SLOWER_LABEL, STEP_BACK_LABEL, STEP_FORWARD_LABEL } from './constants'
 
 describe('FastScroll', () => {
   it('écrit la vitesse entre les flèches', () => {
@@ -31,6 +31,20 @@ describe('FastScroll', () => {
     rerender(<FastScroll rate={RATES.length - 1} onRate={vi.fn()} />)
     expect(screen.getByLabelText(FASTER_LABEL)).toBeDisabled()
     expect(screen.getByLabelText(SLOWER_LABEL)).toBeEnabled()
+  })
+
+  it('à ×0 : deux boutons font défiler les images une par une ; ailleurs, ou sans onStep, ils n’existent pas', () => {
+    const onStep = vi.fn()
+    const zero = RATES.indexOf(0)
+    const { rerender } = render(<FastScroll rate={zero} onRate={vi.fn()} onStep={onStep} />)
+    fireEvent.click(screen.getByLabelText(STEP_BACK_LABEL))
+    expect(onStep).toHaveBeenLastCalledWith(-1)
+    fireEvent.click(screen.getByLabelText(STEP_FORWARD_LABEL))
+    expect(onStep).toHaveBeenLastCalledWith(1)
+    rerender(<FastScroll rate={NORMAL_RATE} onRate={vi.fn()} onStep={onStep} />)
+    expect(screen.queryByLabelText(STEP_BACK_LABEL)).toBeNull()
+    rerender(<FastScroll rate={zero} onRate={vi.fn()} />)
+    expect(screen.queryByLabelText(STEP_FORWARD_LABEL)).toBeNull()
   })
 
   it('un rang hors liste vaut ×1', () => {
