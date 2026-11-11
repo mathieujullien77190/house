@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { createRecorder } from './recorder.ts'
-import { createSnapshots } from './snapshots.ts'
+import { createSnapshots, purgeSnapshots } from './snapshots.ts'
 import { testContext } from './testing.ts'
 
 const setup = (answer: (path: string) => Response | Promise<Response>, cameras = ['cam']) => {
@@ -41,8 +41,8 @@ test('une caméra qui ne répond pas ne prive pas les autres de leur image', asy
   assert.equal(existsSync(`${ctx.dir}/snapshots/lente`), false)
 })
 
-test('le ménage retire les images de plus de 7 jours (fichiers et lignes), au plus une fois par minute', async () => {
-  const { ctx, snapshot } = setup(() => new Response('JPEG'))
+test('purgeSnapshots retire les images plus vieilles que la limite (fichiers et lignes)', async () => {
+  const { ctx } = setup(() => new Response('JPEG'))
   const now = sec(ctx.now())
   mkdirSync(`${ctx.dir}/snapshots/cam`, { recursive: true })
   writeFileSync(`${ctx.dir}/snapshots/cam/vieille.jpg`, 'x')
@@ -50,17 +50,9 @@ test('le ménage retire les images de plus de 7 jours (fichiers et lignes), au p
   insert.run('cam', now - 8 * 86400, 'snapshots/cam/vieille.jpg')
   insert.run('cam', now - 9 * 86400, 'snapshots/cam/absente.jpg')
   insert.run('cam', now - 2 * 86400, 'snapshots/cam/recente.jpg')
-  await snapshot([])
+  assert.equal(await purgeSnapshots(ctx, now - 7 * 86400), 2)
   assert.deepEqual(ctx.db.prepare('SELECT path FROM snapshots').all().map((r) => r.path), ['snapshots/cam/recente.jpg'])
   assert.equal(existsSync(`${ctx.dir}/snapshots/cam/vieille.jpg`), false)
-  // Moins d'une minute plus tard, pas de nouveau ménage.
-  insert.run('cam', now - 8 * 86400, 'snapshots/cam/encore.jpg')
-  ctx.time.advance(30_000)
-  await snapshot([])
-  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM snapshots').get()?.n, 2)
-  ctx.time.advance(30_000)
-  await snapshot([])
-  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM snapshots').get()?.n, 1)
 })
 
 test('les caméras sont prises en parallèle, et l’image est datée de son arrivée', async () => {

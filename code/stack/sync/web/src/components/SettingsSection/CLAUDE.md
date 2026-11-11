@@ -2,7 +2,7 @@
 
 **Tous** les réglages de House Sync, en **blocs repliables** : un bloc **Général** (réglages communs), **un bloc par caméra** (titre = son nom) qui réunit **tous ses réglages**, puis la **Page invité**. Chaque clic ou curseur relâché est enregistré tout de suite, un échec s'affiche. Ce que fait chaque réglage côté service : `../../../../src/CLAUDE.md`.
 
-- **Général (toutes les caméras)** : la durée de garde des clips non sauvegardés (liste de 7, 15, 30, 60, 90 ou 180 jours, `GET`/`PUT /api/retention`, `RETENTION_OPTIONS`).
+- **Général (toutes les caméras)** : la durée de garde (clips non sauvegardés, images, journal des lampes, événements sans clip, fusions : un ménage par jour vers 4 h) (liste de 7, 15, 30, 60, 90 ou 180 jours, `GET`/`PUT /api/retention`, `RETENTION_OPTIONS`).
 - **Un bloc par caméra**, trois rangées :
   - **Enregistrement : clips et images**
     - **Toujours / La nuit / Jamais** (hors des clips gardés la détection de la caméra est éteinte) ;
@@ -11,6 +11,6 @@
     - l'**Orientation** (Paysage / Portrait) à côté de « Clips vidéo » : elle s'applique aux nouveaux événements (les anciens gardent la leur).
   - **Détection du mouvement** : un curseur « Sensibilité du mouvement » de 1 à 5 (sert quand une caméra rate un passage) et un curseur « Durée minimale d'un mouvement » de 0 (« aucune ») à 30 s (`motion_min_seconds`, 1 s au départ) : un mouvement plus court n'ouvre aucun événement.
   - **Direct dans la WebApp** : quatre curseurs, « Direct 4K » et « Direct léger », chacun pour le PC (1024 px et plus) et pour le téléphone, de 1 à 25 images par seconde, envoyés au relâchement seulement si la valeur a changé.
-- **Page invité** : un seul curseur, 1 à 25 images par seconde, pour les vignettes et la caméra agrandie en 4K, PC et téléphone confondus (`GET`/`PUT /api/guest`), et le bouton « En ligne / Coupée » (l'interrupteur de la page).
+- **Page invité** : un seul curseur, 1 à 25 images par seconde, pour les vignettes et la caméra agrandie en 4K, PC et téléphone confondus (`GET`/`PUT /api/guest`), et le bouton « En ligne / Coupée » (l'interrupteur de la page). Sous le curseur, `GuestLink` (`../GuestLink/CLAUDE.md`) : le lien « Page invité ↗ » (nouvel onglet) et le bouton « Copier le lien », quand l'API de House Sync donne `guest_link` (`GUEST_KEY` dans le `.env`) ; rien sans lui.
 
-- **Le petit nuage du mode pluie** à côté du nom de chaque caméra (titre de son bloc) : ☁️ le mode est allumé (pas de pluie en ce moment), 🌧️ il pleut et le mode s'applique, ☔ pluie forte ; rien si le mode est éteint.
+- **Le petit nuage du mode pluie** à côté du nom de chaque caméra (titre de son bloc) : 🌧️ il pleut et le mode s'applique, ☔ pluie forte ; rien si le mode est éteint ou s'il ne pleut pas.

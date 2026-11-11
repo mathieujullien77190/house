@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
-import { fetchCameraEnergy, fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchPower, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
-import type { CameraEnergy, Media, Docker, HueBridge, NetworkInterface, Overview, Power, Specs, System } from '@/types'
+import { fetchCameraEnergy, fetchLampEnergy, fetchMachineEnergy, fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
+import type { CameraEnergy, Media, Docker, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Specs, System } from '@/types'
 import AppUI from './UI'
 import { DEFAULT_TAB, DESKTOP_QUERY, LIVE_CAPACITY, LIVE_MS, REFRESH_MS } from './constants'
 import type { Status, TabId } from './types'
@@ -23,8 +23,9 @@ const App = () => {
   const [status, setStatus] = useState<Status>('checking')
   const [message, setMessage] = useState('')
   const [overview, setOverview] = useState<Overview | null>(null)
-  const [power, setPower] = useState<Power | null>(null)
   const [cameraEnergy, setCameraEnergy] = useState<CameraEnergy | null>(null)
+  const [lampEnergy, setLampEnergy] = useState<LampEnergy | null>(null)
+  const [machineEnergy, setMachineEnergy] = useState<MachineEnergy | null>(null)
   const [system, setSystem] = useState<System | null>(null)
   const [specs, setSpecs] = useState<Specs | null>(null)
   const [docker, setDocker] = useState<Docker | null>(null)
@@ -52,11 +53,12 @@ const App = () => {
     } else if (target === 'system') {
       // Le reste est secondaire (si une mesure ne se lit pas, la page marche quand même) et se charge en parallèle.
       const next = await fetchOverview(true)
-      const [nextPower, nextEnergy, nextSystem, nextSpecs, nextNetwork, nextBridge] = await Promise.all([soft(fetchPower()), soft(fetchCameraEnergy()), soft(fetchSystem()), soft(fetchSpecs()), soft(fetchNetwork()), soft(fetchHue())])
+      const [nextEnergy, nextLampEnergy, nextMachineEnergy, nextSystem, nextSpecs, nextNetwork, nextBridge] = await Promise.all([soft(fetchCameraEnergy()), soft(fetchLampEnergy()), soft(fetchMachineEnergy()), soft(fetchSystem()), soft(fetchSpecs()), soft(fetchNetwork()), soft(fetchHue())])
       if (generation.current !== started) return
       setOverview(next)
-      setPower(nextPower)
       setCameraEnergy(nextEnergy)
+      setLampEnergy(nextLampEnergy)
+      setMachineEnergy(nextMachineEnergy)
       setSystem(nextSystem)
       setSpecs(nextSpecs)
       setNetwork(nextNetwork)
@@ -158,8 +160,9 @@ const App = () => {
       status={status}
       message={message}
       overview={overview}
-      power={power}
       cameraEnergy={cameraEnergy}
+      lampEnergy={lampEnergy}
+      machineEnergy={machineEnergy}
       system={system}
       specs={specs}
       history={history}

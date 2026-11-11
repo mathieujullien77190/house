@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { createClips, saveResponse } from './clips.ts'
+import { createClips, NOTHING_PURGED, parisNow, PURGE_DONE_KEY, saveResponse } from './clips.ts'
 import { createRecorder } from './recorder.ts'
 import type { RecorderEvent } from './recorder.ts'
 import { testContext, type TestContext } from './testing.ts'
@@ -179,6 +179,7 @@ const expired = (ctx: TestContext, id: string, patch: Record<string, unknown> = 
 
 test('purgeOldClips : efface les clips non sauvegardés trop vieux, garde la trace de l\'événement', async () => {
   const { ctx, clips } = setup()
+  ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
   mkdirSync(`${ctx.dir}/clips/cam`, { recursive: true })
   writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: ['garde'] }))
   for (const id of ['vieux', 'garde']) for (const suffix of ['.mp4', '.h264.mp4', '.aac']) writeFileSync(clipFile(ctx, `${id}${suffix}`), 'x')
@@ -189,35 +190,105 @@ test('purgeOldClips : efface les clips non sauvegardés trop vieux, garde la tra
   expired(ctx, 'nu', { clip_web_path: null, clip_audio_path: null })
   expired(ctx, 'louche', { clip_path: '../../etc/passwd', clip_web_path: null, clip_audio_path: null })
   insertEvent(ctx, { id: 'recent', clip_path: 'clips/cam/recent.mp4' })
-  assert.equal(await clips.purgeOldClips(), 4)
+  assert.equal((await clips.purgeOldClips()).clips, 4)
   assert.equal(existsSync(clipFile(ctx, 'vieux.mp4')), false)
   assert.equal(existsSync(clipFile(ctx, 'vieux.aac')), false)
   assert.equal(existsSync(clipFile(ctx, 'garde.mp4')), true)
-  const row = eventRow(ctx, 'vieux') as { clip_path: null; clip_web_path: null; clip_audio_path: null }
-  assert.deepEqual([row.clip_path, row.clip_web_path, row.clip_audio_path], [null, null, null])
+  // Son clip effacé, l'événement (plus vieux que la durée de garde) part avec lui ; celui au clip sauvegardé reste.
+  assert.equal(eventRow(ctx, 'vieux'), undefined)
   assert.equal((eventRow(ctx, 'garde') as { clip_path: string }).clip_path, 'clips/cam/garde.mp4')
   assert.equal((eventRow(ctx, 'recent') as { clip_path: string }).clip_path, 'clips/cam/recent.mp4')
 })
 
 test('purgeOldClips : au plus toutes les 10 minutes ; liste illisible = rien d\'effacé', async () => {
   const { ctx, clips } = setup()
+  ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
   ctx.config.savedClipsFile = `${ctx.dir}/absent/saved.json`
   expired(ctx, 'vieux')
-  assert.equal(await clips.purgeOldClips(), 0)
+  assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
   assert.deepEqual(ctx.logs, ['Ménage des clips sauté : la liste des clips sauvegardés est illisible'])
   ctx.time.advance(60_000)
   ctx.config.savedClipsFile = `${ctx.dir}/saved.json`
-  assert.equal(await clips.purgeOldClips(), 0)
+  assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
   ctx.time.advance(600_000)
-  assert.equal(await clips.purgeOldClips(), 1)
+  assert.equal((await clips.purgeOldClips()).clips, 1)
+})
+
+test('purgeOldClips : une fois par jour, à heure fixe (04:00 à Paris), pas avant, pas deux fois le même jour', async () => {
+  const { ctx, clips } = setup()
+  mkdirSync(`${ctx.dir}/clips/cam`, { recursive: true })
+  writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: [] }))
+  // 3 h 30 à Paris (2 h 30 UTC) : trop tôt, rien n'est fait.
+  ctx.time.set(Date.parse('2026-11-10T02:30:00Z'))
+  expired(ctx, 'un')
+  assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
+  // 4 h 05 : le ménage passe.
+  ctx.time.set(Date.parse('2026-11-10T03:05:00Z'))
+  assert.equal((await clips.purgeOldClips()).clips, 1)
+  // Plus tard le même jour : un autre clip trop vieux reste (c'est voulu, il partira demain).
+  ctx.time.set(Date.parse('2026-11-10T15:00:00Z'))
+  expired(ctx, 'deux')
+  assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
+  // Le lendemain, après l'heure : il passe.
+  ctx.time.set(Date.parse('2026-11-11T03:10:00Z'))
+  assert.equal((await clips.purgeOldClips()).clips, 1)
+})
+
+test('le ménage du jour efface aussi images, journal Hue, événements sans clip et fusions, au-delà de la durée de garde', async () => {
+  const { ctx, clips } = setup()
+  ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
+  writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: ['garde'] }))
+  const now = seconds(ctx)
+  const old = now - 40 * 86400
+  const recent = now - 2 * 86400
+  // Événements : un vieux sans clip (part), un vieux dont le clip part avec le ménage (part), un vieux au clip sauvegardé (reste), un récent sans clip (reste).
+  expired(ctx, 'sans-clip', { clip_path: null, clip_web_path: null, clip_audio_path: null })
+  expired(ctx, 'efface')
+  expired(ctx, 'garde')
+  insertEvent(ctx, { id: 'recent', started_at: recent, ended_at: recent + 30 })
+  // Images, journal Hue, fusions.
+  const snap = ctx.db.prepare('INSERT INTO snapshots (camera, taken_at, path) VALUES (?, ?, ?)')
+  snap.run('cam', old, 'snapshots/cam/vieille.jpg')
+  snap.run('cam', recent, 'snapshots/cam/recente.jpg')
+  const hue = ctx.db.prepare("INSERT INTO hue_events (happened_at, happened_ms, resource, resource_id, name, change, origin, detail) VALUES (?, ?, 'light', 'L', 'n', '{}', 'unknown', '')")
+  hue.run(old, old * 1000)
+  hue.run(recent, recent * 1000)
+  const merge = ctx.db.prepare('INSERT INTO merges (absorbed_id, kept_id, camera, absorbed_started_at, absorbed_ended_at, merged_at) VALUES (?, ?, ?, ?, ?, ?)')
+  merge.run('a1', 'k', 'cam', old, old + 5, old)
+  merge.run('a2', 'k', 'cam', recent, recent + 5, recent)
+  assert.deepEqual(await clips.purgeOldClips(), { clips: 1, snapshots: 1, journal: 1, events: 2, merges: 1 })
+  assert.deepEqual(ctx.db.prepare('SELECT id FROM events ORDER BY id').all().map((r) => r.id), ['garde', 'recent'])
+  assert.equal((eventRow(ctx, 'garde') as { clip_path: string }).clip_path, 'clips/cam/garde.mp4')
+  assert.deepEqual(ctx.db.prepare('SELECT path FROM snapshots').all().map((r) => r.path), ['snapshots/cam/recente.jpg'])
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM hue_events').get()?.n, 1)
+  assert.deepEqual(ctx.db.prepare('SELECT absorbed_id FROM merges').all().map((r) => r.absorbed_id), ['a2'])
+})
+
+test('liste des clips sauvegardés illisible : rien du tout n est effacé et le jour n est pas marqué fait', async () => {
+  const { ctx, clips } = setup()
+  ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
+  ctx.config.savedClipsFile = `${ctx.dir}/absent/saved.json`
+  const old = seconds(ctx) - 40 * 86400
+  expired(ctx, 'sans-clip', { clip_path: null, clip_web_path: null, clip_audio_path: null })
+  ctx.db.prepare('INSERT INTO snapshots (camera, taken_at, path) VALUES (?, ?, ?)').run('cam', old, 'snapshots/cam/vieille.jpg')
+  ctx.db.prepare('INSERT INTO merges (absorbed_id, kept_id, camera, absorbed_started_at, absorbed_ended_at, merged_at) VALUES (?, ?, ?, ?, ?, ?)').run('a1', 'k', 'cam', old, old + 5, old)
+  assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
+  for (const table of ['events', 'snapshots', 'merges']) assert.equal(ctx.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.n, 1)
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM app_settings WHERE key = ?').get(PURGE_DONE_KEY)?.n, 0)
+})
+
+test('parisNow : le jour et la minute à l’heure de Paris (heure d’été comprise)', () => {
+  assert.deepEqual(parisNow(Date.parse('2026-11-10T23:30:00Z')), { day: '2026-11-11', minutes: 30 })
+  assert.deepEqual(parisNow(Date.parse('2026-07-10T02:00:00Z')), { day: '2026-07-10', minutes: 240 })
 })
 
 test('purgeOldClips : un fichier qui ne s\'efface pas garde sa ligne pour le prochain ménage', async () => {
   const { ctx, clips } = setup()
+  ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
   // Le « fichier » est un dossier : unlink échoue autrement que par ENOENT.
   mkdirSync(clipFile(ctx, 'bloque.mp4'), { recursive: true })
   expired(ctx, 'bloque', { clip_web_path: null, clip_audio_path: null })
-  assert.equal(await clips.purgeOldClips(), 0)
+  assert.equal((await clips.purgeOldClips()).clips, 0)
   assert.equal((eventRow(ctx, 'bloque') as { clip_path: string }).clip_path, 'clips/cam/bloque.mp4')
 })
 

@@ -33,7 +33,7 @@ const SAVE_ERROR = /n’a pas pu être enregistré/
 beforeEach(() => {
   vi.resetAllMocks()
   m.fetchRetention.mockResolvedValue(15)
-  m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true })
+  m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: null })
   m.fetchSettings.mockResolvedValue([camera()])
 })
 
@@ -52,7 +52,7 @@ describe('chargement', () => {
   it('montre les réglages lus : durée de garde, caméras, page invité', async () => {
     await loaded()
     expect(screen.getAllByText('voliere-exterieur')[0]).toBeTruthy()
-    expect(tab('Durée de garde des clips (toutes les caméras)', '15 jours').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Durée de garde (clips, images, journal des lampes, événements)', '15 jours').getAttribute('aria-selected')).toBe('true')
     expect(tab('Clips vidéo', 'Toujours').getAttribute('aria-selected')).toBe('true')
     expect(tab('Orientation', 'Paysage').getAttribute('aria-selected')).toBe('true')
     expect(tab('Une image toutes les', '1 min').getAttribute('aria-selected')).toBe('true')
@@ -63,7 +63,7 @@ describe('chargement', () => {
   })
 
   it('la page invité coupée', async () => {
-    m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: false })
+    m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: false, guest_link: null })
     await loaded()
     expect(tab('Page invité', 'Coupée').getAttribute('aria-selected')).toBe('true')
   })
@@ -84,7 +84,7 @@ describe('chargement', () => {
       return { promise, resolve, reject }
     }
     const retention = later<number>()
-    const guest = later<{ guest_fps: number; guest_enabled: boolean }>()
+    const guest = later<api.GuestSettings>()
     const settings = later<CameraSetting[]>()
     m.fetchRetention.mockReturnValue(retention.promise)
     m.fetchGuest.mockReturnValue(guest.promise)
@@ -93,7 +93,7 @@ describe('chargement', () => {
     unmount()
     await act(async () => {
       retention.resolve(30)
-      guest.resolve({ guest_fps: 3, guest_enabled: true })
+      guest.resolve({ guest_fps: 3, guest_enabled: true, guest_link: null })
       settings.resolve([])
     })
     const again = later<number>()
@@ -108,15 +108,15 @@ describe('durée de garde', () => {
   it('un clic l’enregistre', async () => {
     m.saveRetention.mockResolvedValue(30)
     await loaded()
-    fireEvent.click(tab('Durée de garde des clips (toutes les caméras)', '30 jours'))
-    await waitFor(() => expect(tab('Durée de garde des clips (toutes les caméras)', '30 jours').getAttribute('aria-selected')).toBe('true'))
+    fireEvent.click(tab('Durée de garde (clips, images, journal des lampes, événements)', '30 jours'))
+    await waitFor(() => expect(tab('Durée de garde (clips, images, journal des lampes, événements)', '30 jours').getAttribute('aria-selected')).toBe('true'))
     expect(m.saveRetention).toHaveBeenCalledWith(30)
   })
 
   it('un échec le dit', async () => {
     m.saveRetention.mockRejectedValue(new Error('x'))
     await loaded()
-    fireEvent.click(tab('Durée de garde des clips (toutes les caméras)', '30 jours'))
+    fireEvent.click(tab('Durée de garde (clips, images, journal des lampes, événements)', '30 jours'))
     expect(await screen.findByText(SAVE_ERROR)).toBeTruthy()
   })
 })
@@ -172,15 +172,20 @@ describe('réglages par caméra', () => {
   })
 })
 
-describe('le petit nuage du mode pluie', () => {
-  it('rien si le mode est éteint ; ☁️ s’il est allumé sans pluie ; 🌧️ quand il pleut ; ☔ pluie forte', async () => {
+describe('le petit icône du mode pluie', () => {
+  it('rien si le mode est éteint, ni s’il est allumé sans pluie ; 🌧️ quand il pleut ; ☔ pluie forte', async () => {
     m.fetchSettings.mockResolvedValue([camera({ rain_mode: 'off' })])
     const { unmount } = render(<SettingsSection />)
     await waitFor(() => expect(screen.getByText('voliere-exterieur')).toBeTruthy())
     expect(screen.queryByRole('img')).toBeNull()
     unmount()
+    // Mode allumé mais pas de pluie : aucun icône.
+    m.fetchSettings.mockResolvedValue([camera({ rain_mode: 'on', rain_now: 'off' })])
+    const armed = render(<SettingsSection />)
+    await waitFor(() => expect(screen.getByText('voliere-exterieur')).toBeTruthy())
+    expect(screen.queryByRole('img')).toBeNull()
+    armed.unmount()
     for (const [patch, cloud, hint] of [
-      [{ rain_mode: 'on', rain_now: 'off' }, '☁️', 'Mode pluie allumé : pas de pluie en ce moment'],
       [{ rain_mode: 'on', rain_now: 'rain' }, '🌧️', 'Mode pluie actif : il pleut'],
       [{ rain_mode: 'on', rain_now: 'heavy' }, '☔', 'Mode pluie actif : pluie forte'],
     ] as const) {
@@ -254,13 +259,26 @@ describe('page invité', () => {
   const GUEST_FPS = 'Page invité · images par seconde (toutes les caméras, PC et téléphone)'
 
   it('l’interrupteur coupe puis remet la page', async () => {
-    m.saveGuest.mockResolvedValueOnce({ guest_fps: 2, guest_enabled: false }).mockResolvedValueOnce({ guest_fps: 2, guest_enabled: true })
+    m.saveGuest.mockResolvedValueOnce({ guest_fps: 2, guest_enabled: false, guest_link: null }).mockResolvedValueOnce({ guest_fps: 2, guest_enabled: true, guest_link: null })
     await loaded()
     fireEvent.click(tab('Page invité', 'Coupée'))
     await waitFor(() => expect(tab('Page invité', 'Coupée').getAttribute('aria-selected')).toBe('true'))
     expect(m.saveGuest).toHaveBeenCalledWith({ guest_enabled: false })
     fireEvent.click(tab('Page invité', 'En ligne'))
     await waitFor(() => expect(tab('Page invité', 'En ligne').getAttribute('aria-selected')).toBe('true'))
+  })
+
+  it('montre le lien de la page invité quand l’API le donne, et rien sinon', async () => {
+    m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: { key: 'abc', port: 8090, url: 'https://pub.example/' } })
+    await loaded()
+    expect(screen.getByRole('link', { name: 'Page invité ↗' }).getAttribute('href')).toBe('https://pub.example/?k=abc')
+    expect(screen.getByRole('button', { name: 'Copier le lien' })).toBeTruthy()
+  })
+
+  it('sans lien, ni lien ni bouton de copie', async () => {
+    await loaded()
+    expect(screen.queryByRole('link', { name: 'Page invité ↗' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Copier le lien' })).toBeNull()
   })
 
   it('un échec de l’interrupteur le dit', async () => {
@@ -271,7 +289,7 @@ describe('page invité', () => {
   })
 
   it('le curseur est envoyé au relâchement s’il a changé', async () => {
-    m.saveGuest.mockResolvedValue({ guest_fps: 8, guest_enabled: true })
+    m.saveGuest.mockResolvedValue({ guest_fps: 8, guest_enabled: true, guest_link: null })
     await loaded()
     const input = slider(GUEST_FPS)
     fireEvent.change(input, { target: { value: '8' } })
@@ -282,7 +300,7 @@ describe('page invité', () => {
   })
 
   it('le curseur se relâche aussi au clavier', async () => {
-    m.saveGuest.mockResolvedValue({ guest_fps: 6, guest_enabled: true })
+    m.saveGuest.mockResolvedValue({ guest_fps: 6, guest_enabled: true, guest_link: null })
     await loaded()
     fireEvent.change(slider(GUEST_FPS), { target: { value: '6' } })
     fireEvent.keyUp(slider(GUEST_FPS))

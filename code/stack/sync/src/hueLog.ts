@@ -1,8 +1,8 @@
 // Le journal des lampes Hue : House Sync écoute le flux d'événements du pont (hueStream.ts) et garde dans la table
 // `hue_events` de SQLite chaque changement de lampe, chaque scène lancée, chaque appui sur un interrupteur, chaque mouvement
 // et chaque lampe qui se reconnecte, avec une origine devinée (hueOrigin.ts : le pont ne dit pas qui a donné l'ordre).
-// Ce que le pont envoie en continu (températures, luminosité, piles) n'est pas gardé. Les lignes de plus de HUE_LOG_DAYS
-// jours (365 par défaut) sont supprimées chaque jour : c'est le journal, pas les clips.
+// Ce que le pont envoie en continu (températures, luminosité, piles) n'est pas gardé. Les lignes plus vieilles que la
+// durée de garde des clips (réglage global de la page) sont supprimées par le ménage quotidien (clips.ts, `purgeHueLog`).
 import https from 'node:https'
 import type { DatabaseSync } from 'node:sqlite'
 import { classifyLight, classifyScene, deviceVerdict, ORIGINS, scheduleAt, type Origin, type Schedule, type Trigger, type Verdict } from './hueOrigin.ts'
@@ -43,7 +43,6 @@ export interface HueLogQuery {
 export interface HueLogOptions {
   address: string
   key: string
-  days?: number
   log: (message: string) => void
   now?: () => number
   /** Pour les essais : les règles à heure fixe et le fuseau du pont, avant qu'on les lise dans le pont. */
@@ -183,10 +182,12 @@ export const localClock = (ms: number, timeZone: string): { weekday: string; sec
   return { weekday: part('weekday').toLowerCase(), secondOfDay: Number(part('hour')) * 3600 + Number(part('minute')) * 60 + Number(part('second')) }
 }
 
+/** Supprime les lignes du journal plus vieilles que `limit` (secondes depuis 1970) et rend leur nombre. */
+export const purgeHueLog = (db: DatabaseSync, limit: number): number => Number(db.prepare(`DELETE FROM ${HUE_LOG_TABLE} WHERE happened_at < ?`).run(limit).changes)
+
 export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
   const { address, key, log } = options
   const now = options.now ?? Date.now
-  const days = Math.max(1, Math.floor(options.days ?? 365) || 365)
   const configured = ADDRESS.test(address) && key !== ''
 
   db.exec(`
@@ -206,7 +207,6 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
   const insert = db.prepare(
     `INSERT INTO ${HUE_LOG_TABLE} (happened_at, happened_ms, resource, resource_id, name, change, origin, detail) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-  const purge = db.prepare(`DELETE FROM ${HUE_LOG_TABLE} WHERE happened_at < ?`)
 
   // Les noms lisibles : lampes, scènes, appareils (interrupteurs, détecteurs). Rechargés de temps en temps et quand un nom manque.
   let lights = new Map<string, string>()
@@ -305,14 +305,6 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
 
   let stream: HueStream | null = null
   const timers: NodeJS.Timeout[] = []
-  // Une erreur de SQLite pendant le nettoyage quotidien reste dans le journal : elle ne doit pas arrêter House Sync.
-  const prune = (): void => {
-    try {
-      purge.run(Math.floor(now() / 1000) - days * DAY_SECONDS)
-    } catch (error) {
-      log(`Hue : nettoyage du journal impossible (${error instanceof Error ? error.message : String(error)})`)
-    }
-  }
 
   return {
     status,
@@ -346,14 +338,13 @@ export const createHueLog = (db: DatabaseSync, options: HueLogOptions) => {
     /** Ouvre le flux du pont : sans adresse ou sans clé, rien ne se passe. */
     start: (): void => {
       if (!configured) return void log('Hue : journal inactif (HUE_BRIDGE_IP ou HUE_APP_KEY absente)')
-      prune()
       void refreshNames()
       void refreshRules().then(() => log(`Hue : ${schedules.length} règle(s) à heure fixe, fuseau ${timeZone}`))
       stream = openHueStream(address, key, handle, (state) => {
         listening = state === 'flux ouvert'
         log(`Hue : ${state}`)
       })
-      timers.push(setInterval(() => void refreshNames(), NAMES_REFRESH_MS), setInterval(() => void refreshRules(), NAMES_REFRESH_MS), setInterval(prune, DAY_SECONDS * 1000))
+      timers.push(setInterval(() => void refreshNames(), NAMES_REFRESH_MS), setInterval(() => void refreshRules(), NAMES_REFRESH_MS))
       timers.forEach((timer) => timer.unref())
     },
     stop: (): void => {

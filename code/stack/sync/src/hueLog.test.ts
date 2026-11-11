@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, mock, test } from 'node:test'
-import { changeOf, createHueLog, lightIdOf, localClock, parseLogQuery, schedulesOf } from './hueLog.ts'
+import { changeOf, createHueLog, lightIdOf, localClock, parseLogQuery, purgeHueLog, schedulesOf } from './hueLog.ts'
 import type { HueStreamItem } from './hueStream.ts'
 import { clock, fakeHttpsGet, flush, type BridgeAnswer } from './testing.ts'
 
@@ -113,7 +113,7 @@ const setup = (options: { address?: string; key?: string; schedules?: never; sta
   const db = new DatabaseSync(':memory:')
   const time = clock(options.start ?? Date.UTC(2026, 10, 9, 9, 0, 0))
   const logs: string[] = []
-  const hue = createHueLog(db, { address: options.address ?? '192.168.1.2', key: options.key ?? 'cle', days: 1, log: (m) => void logs.push(m), now: time.now })
+  const hue = createHueLog(db, { address: options.address ?? '192.168.1.2', key: options.key ?? 'cle', log: (m) => void logs.push(m), now: time.now })
   return { db, time, logs, hue }
 }
 
@@ -289,7 +289,7 @@ test('le fuseau du pont : gardé s\'il manque, refusé s\'il est invalide, et le
   second.hue.stop()
 })
 
-test('les rechargements et le nettoyage reviennent à l\'heure ; stop arrête tout', async () => {
+test('les rechargements reviennent à l\'heure ; stop arrête tout', async () => {
   mock.timers.enable({ apis: ['setInterval'] })
   const { requests } = bridge()
   const { hue, db, time } = setup()
@@ -298,28 +298,26 @@ test('les rechargements et le nettoyage reviennent à l\'heure ; stop arrête to
   await flush()
   await flush()
   const before = requests.length
-  hue.handle(update({ type: 'light', id: 'L1', on: { on: true } }))
-  // Un vieux changement, que le nettoyage quotidien retire.
   time.advance(3 * 86_400_000)
   mock.timers.tick(10 * 60_000)
   await flush()
   await flush()
   assert.ok(requests.length > before)
-  mock.timers.tick(86_400_000)
-  assert.equal(rows(db).length, 0)
   hue.stop()
   const after = requests.length
   mock.timers.tick(86_400_000)
   assert.equal(requests.length, after)
 })
 
-test('le nettoyage quotidien qui échoue reste dans le journal', () => {
+test('purgeHueLog retire les lignes plus vieilles que la limite et les compte', () => {
   bridge()
-  const { hue, db, logs } = setup()
-  db.exec('DROP TABLE hue_events')
-  hue.start()
-  assert.match(logs.join('\n'), /nettoyage du journal impossible/)
-  hue.stop()
+  const { hue, db, time } = setup()
+  hue.handle(update({ type: 'light', id: 'L1', on: { on: true } }))
+  time.advance(3 * 86_400_000)
+  hue.handle(update({ type: 'light', id: 'L1', on: { on: false } }))
+  assert.equal(purgeHueLog(db, Math.floor(time.now() / 1000) - 86_400), 1)
+  assert.equal(rows(db).length, 1)
+  assert.equal(purgeHueLog(db, Math.floor(time.now() / 1000) - 86_400), 0)
 })
 
 test('stop avant start ne casse rien', () => {
@@ -333,14 +331,12 @@ test('localClock : un morceau de date absent donne zéro', (t) => {
   assert.deepEqual(localClock(0, 'UTC'), { weekday: '', secondOfDay: 0 })
 })
 
-test('les valeurs par défaut : horloge réelle et 365 jours (jours à zéro ou absents)', () => {
-  for (const days of [undefined, 0]) {
-    const db = new DatabaseSync(':memory:')
-    const hue = createHueLog(db, { address: '', key: '', days, log: () => undefined })
-    assert.equal(hue.status().configured, false)
-    hue.handle(update({ type: 'zigbee_connectivity', owner: own('D1'), status: 'connected' }))
-    assert.equal(rows(db).length, 1)
-  }
+test('les valeurs par défaut : horloge réelle', () => {
+  const db = new DatabaseSync(':memory:')
+  const hue = createHueLog(db, { address: '', key: '', log: () => undefined })
+  assert.equal(hue.status().configured, false)
+  hue.handle(update({ type: 'zigbee_connectivity', owner: own('D1'), status: 'connected' }))
+  assert.equal(rows(db).length, 1)
 })
 
 test('les erreurs qui ne sont pas des Error sont mises en texte', async () => {
@@ -364,7 +360,7 @@ test('une scène ou un détecteur sans identifiant ni propriétaire est gardé q
   assert.deepEqual(rows(db).map((row) => row.resource), ['scene', 'motion'])
 })
 
-test('un échec de SQLite qui n\'est pas une Error est mis en texte, à l\'écriture comme au nettoyage', () => {
+test('un échec de SQLite qui n\'est pas une Error est mis en texte à l\'écriture', () => {
   bridge()
   const db = new DatabaseSync(':memory:')
   const logs: string[] = []
@@ -378,8 +374,5 @@ test('un échec de SQLite qui n\'est pas une Error est mis en texte, à l\'écri
   })
   const hue = createHueLog(failing, { address: '192.168.1.2', key: 'cle', log: (m) => void logs.push(m) })
   hue.handle(update({ type: 'light', id: 'L1', on: { on: true } }))
-  hue.start()
   assert.match(logs.join('\n'), /événement ignoré \(sqlite brut\)/)
-  assert.match(logs.join('\n'), /nettoyage du journal impossible \(sqlite brut\)/)
-  hue.stop()
 })

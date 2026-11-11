@@ -11,8 +11,9 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   fetchDocker: vi.fn(),
   fetchHue: vi.fn(),
   fetchNetwork: vi.fn(),
-  fetchPower: vi.fn(),
   fetchCameraEnergy: vi.fn(),
+  fetchLampEnergy: vi.fn(),
+  fetchMachineEnergy: vi.fn(),
   fetchSpecs: vi.fn(),
   fetchSystem: vi.fn(),
   fetchTable: vi.fn(),
@@ -54,14 +55,15 @@ beforeEach(() => {
   m.fetchDocker.mockResolvedValue(docker())
   m.fetchHue.mockResolvedValue(bridge())
   m.fetchNetwork.mockResolvedValue([link()])
-  m.fetchPower.mockResolvedValue({ cpu: { watts: 10, ageSeconds: 1 }, cameras: [], camerasError: null })
-  m.fetchCameraEnergy.mockResolvedValue({ since: '2026-11-08T12:00:00.000Z', cameras: [{ camera: 'cam', kwh: 0.5, cost: 0.08 }], total: { kwh: 0.5, cost: 0.08 } })
+  m.fetchCameraEnergy.mockResolvedValue({ since: '2026-11-08T12:00:00.000Z', cameras: [{ camera: 'cam', kwh: 0.5, cost: 0.08, watts: 5 }], total: { kwh: 0.5, cost: 0.08 } })
+  m.fetchLampEnergy.mockResolvedValue({ since: '2026-11-08T12:00:00.000Z', lamps: [{ lamp: 'Spot', kwh: 0.25, cost: 0.04, watts: 2.5 }], total: { kwh: 0.25, cost: 0.04 } })
+  m.fetchMachineEnergy.mockResolvedValue({ since: '2026-11-08T12:00:00.000Z', kwh: 0.75, cost: 0.12, watts: 12.5 })
   m.fetchSpecs.mockResolvedValue(specs())
   m.fetchSystem.mockResolvedValue(system())
   m.fetchTable.mockResolvedValue(tablePage([{ id: 'e1', camera: 'cam', started_at: 5, clip_path: 'clips/cam/e1.mp4' }]))
   m.fetchClips.mockResolvedValue({ items: [], total: 0, page: 0, size: 20, options: [] })
   m.fetchRetention.mockResolvedValue(15)
-  m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true })
+  m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: null })
   m.fetchSettings.mockResolvedValue([])
   m.login.mockResolvedValue(undefined)
   m.logout.mockResolvedValue(undefined)
@@ -237,16 +239,23 @@ describe('onglet Machine', () => {
     expect(screen.getByText('Pont Hue')).toBeTruthy()
     expect(screen.getByText('Adresses IP de la maison')).toBeTruthy()
     expect(screen.getByText('En direct (2 dernières minutes)')).toBeTruthy()
-    expect(screen.getByText('Consommation électrique')).toBeTruthy()
-    expect(screen.getByText('Consommation des caméras (estimation)')).toBeTruthy()
-    expect(screen.getAllByText('0,500 kWh')).toHaveLength(2)
-    expect(screen.getByText('cam · 0,08 €')).toBeTruthy()
+    expect(screen.getByText('Consommation électrique (estimation)')).toBeTruthy()
+    expect(screen.getByText('20,0 W · 1,500 kWh · 0,24 €')).toBeTruthy()
+    expect(screen.getByText('Caméras')).toBeTruthy()
+    expect(screen.getByText('cam')).toBeTruthy()
+    expect(screen.getAllByText('5,0 W · 0,500 kWh · 0,08 €')).toHaveLength(2)
+    expect(screen.getByText('Lampes Hue')).toBeTruthy()
+    expect(screen.getByText('Spot')).toBeTruthy()
+    expect(screen.getAllByText('2,5 W · 0,250 kWh · 0,04 €')).toHaveLength(2)
+    expect(screen.getByText('Mini PC (processeur seul)')).toBeTruthy()
+    expect(screen.getByText('12,5 W · 0,750 kWh · 0,12 €')).toBeTruthy()
     expect(m.fetchOverview).toHaveBeenLastCalledWith(true)
   })
 
   it('chaque mesure qui manque est dite, le reste de la page marche', async () => {
-    m.fetchPower.mockRejectedValue(new Error('x'))
     m.fetchCameraEnergy.mockRejectedValue(new Error('x'))
+    m.fetchLampEnergy.mockRejectedValue(new Error('x'))
+    m.fetchMachineEnergy.mockRejectedValue(new Error('x'))
     m.fetchSystem.mockRejectedValue(new Error('x'))
     m.fetchSpecs.mockRejectedValue(new Error('x'))
     m.fetchNetwork.mockRejectedValue(new Error('x'))
@@ -256,8 +265,7 @@ describe('onglet Machine', () => {
     await goTo('Machine')
     expect(await screen.findByText('Caractéristiques indisponibles.')).toBeTruthy()
     expect(screen.getByText('Réseau indisponible.')).toBeTruthy()
-    expect(screen.getByText('Consommation indisponible.')).toBeTruthy()
-    expect(screen.getByText('Énergie des caméras indisponible.')).toBeTruthy()
+    expect(screen.getByText('Consommation électrique (estimation) indisponible.')).toBeTruthy()
     expect(screen.getAllByText('Mesure indisponible.')).toHaveLength(2)
     expect(screen.queryByText('Place sur le disque')).toBeNull()
     expect(screen.queryByText('Pont Hue')).toBeNull()

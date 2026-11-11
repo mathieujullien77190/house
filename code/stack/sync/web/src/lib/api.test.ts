@@ -7,8 +7,9 @@ import {
   fetchHue,
   fetchNetwork,
   fetchOverview,
-  fetchPower,
   fetchCameraEnergy,
+  fetchLampEnergy,
+  fetchMachineEnergy,
   fetchRetention,
   fetchSettings,
   fetchSpecs,
@@ -80,8 +81,9 @@ describe('lectures', () => {
     ['fetchHue', fetchHue, '/api/hue'],
     ['fetchNetwork', fetchNetwork, '/api/network'],
     ['fetchSystem', fetchSystem, '/api/system'],
-    ['fetchPower', fetchPower, '/api/power'],
     ['fetchCameraEnergy', fetchCameraEnergy, '/api/camera-energy'],
+    ['fetchLampEnergy', fetchLampEnergy, '/api/lamp-energy'],
+    ['fetchMachineEnergy', fetchMachineEnergy, '/api/machine-energy'],
   ])('%s lit %s', async (_name, read, path) => {
     answer({ ok: true })
     expect(await read()).toEqual({ ok: true })
@@ -136,8 +138,8 @@ describe('écritures', () => {
   })
 
   it('saveGuest envoie le changement', async () => {
-    answer({ guest_fps: 5, guest_enabled: false })
-    expect(await saveGuest({ guest_enabled: false })).toEqual({ guest_fps: 5, guest_enabled: false })
+    answer({ guest_fps: 5, guest_enabled: false, guest_link: null })
+    expect(await saveGuest({ guest_enabled: false })).toEqual({ guest_fps: 5, guest_enabled: false, guest_link: null })
     expect(lastCall()[1]?.body).toBe('{"guest_enabled":false}')
   })
 })

@@ -1,21 +1,42 @@
 // Les clips : copie du clip d'un événement (et de sa copie légère, de son son) depuis l'enregistreur vers le disque backup, reprise des
-// copies manquées, et ménage des clips plus vieux que la durée de garde.
+// copies manquées, et ménage quotidien de tout ce qui est plus vieux que la durée de garde (clips, images, journal Hue, événements, fusions).
 import { createWriteStream, mkdirSync } from 'node:fs'
 import { rename, unlink } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { messageOf, seconds, type Context } from './context.ts'
 import { CLIP_TIMEOUT_MS, type Recorder, type RecorderEvent } from './recorder.ts'
+import { purgeHueLog } from './hueLog.ts'
 import { readSavedIds } from './savedClips.ts'
+import { purgeSnapshots } from './snapshots.ts'
 
 export type CopiedClip = { path: string; start: number | null }
+
+/** Ce que le ménage quotidien a retiré : vieux clips (fichiers), images, lignes du journal Hue, événements sans clip, lignes de fusions. */
+export type Purged = { clips: number; snapshots: number; journal: number; events: number; merges: number }
+export const NOTHING_PURGED: Purged = { clips: 0, snapshots: 0, journal: 0, events: 0, merges: 0 }
 
 // Un clip peut ne pas être prêt au moment de la copie : on réessaie tant que l'enregistreur garde ses enregistrements.
 export const CLIP_RETRY_SECONDS = 6 * 3600
 // L'enregistreur écrit ses enregistrements par segments de 10 s : un clip demandé trop tôt après la fin de l'événement
 // est tronqué. On attend ce délai après la fin avant de copier.
 export const CLIP_SETTLE_SECONDS = 20
-const PURGE_EVERY_SECONDS = 600
+/** Le ménage des clips passe **une fois par jour, à heure fixe** (heure de Paris) : un clip peut donc vivre jusqu'à N jours et presque 24 h (15 j 23 h pour N = 15), c'est voulu. */
+export const PURGE_AT = '04:00'
+/** Le jour (Paris) du dernier ménage fait, dans app_settings : le ménage ne se refait pas le même jour, même après un redémarrage. */
+export const PURGE_DONE_KEY = 'clips_purged_on'
+/** Si la liste des clips sauvegardés est illisible, le ménage sauté n'est retenté qu'au bout de ce délai (pas à chaque tour). */
+const PURGE_RETRY_SECONDS = 600
+
+const parisFormat = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+/** Le jour (AAAA-MM-JJ) et la minute de la journée (0 à 1439) à Paris pour un instant en millisecondes. */
+export const parisNow = (ms: number): { day: string; minutes: number } => {
+  const parts = Object.fromEntries(parisFormat.formatToParts(new Date(ms)).map((part) => [part.type, part.value]))
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) }
+}
+
+const PURGE_MINUTES = Number(PURGE_AT.slice(0, 2)) * 60 + Number(PURGE_AT.slice(3, 5))
 
 /** Écrit la réponse dans un fichier : en flux (un clip 4K ne tient pas tout entier en mémoire), dans un fichier temporaire renommé à la fin
  * (une coupure ne laisse jamais un clip tronqué sous son vrai nom). */
@@ -151,22 +172,32 @@ export const createClips = (ctx: Context, rec: Recorder) => {
     return copied
   }
 
-  // ---- La durée de garde des clips ----
-  // Un clip non sauvegardé est effacé du disque après la durée de garde (réglable depuis la page : table app_settings, pour toutes les
-  // caméras) ; ceux que la WebApp a marqués « sauvegardé » (la liste est un fichier écrit par l'API) ne le sont jamais. L'événement reste
-  // dans la base (sans vidéo) : la frise garde sa trace. Rien n'est effacé si la liste des clips sauvegardés n'est pas lisible.
+  // ---- La durée de garde ----
+  // Une seule durée (réglable depuis la page : table app_settings, pour toutes les caméras), un seul ménage par jour. Il efface, au-delà de la durée :
+  // les clips non sauvegardés (ceux que la WebApp a marqués « sauvegardé », liste écrite par l'API, ne le sont jamais) ; les images ; les lignes du journal Hue ;
+  // les événements dont le clip n'est pas gardé (un événement au clip sauvegardé garde son clip_path et reste) ; les lignes de fusions.
+  // Rien n'est effacé, de rien, si la liste des clips sauvegardés n'est pas lisible.
   let lastPurgeAt = 0
-  const purgeOldClips = async (): Promise<number> => {
+  const purgedOn = db.prepare('SELECT value FROM app_settings WHERE key = ?')
+  const markPurged = db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+  const oldEvents = db.prepare('DELETE FROM events WHERE started_at < ? AND clip_path IS NULL')
+  const oldMerges = db.prepare('DELETE FROM merges WHERE merged_at < ?')
+  const purgeOldClips = async (): Promise<Purged> => {
     const now = seconds(ctx)
-    if (now - lastPurgeAt < PURGE_EVERY_SECONDS) return 0
+    // Une fois par jour, à `PURGE_AT` (heure de Paris) ou dès que possible après : pas avant l'heure, pas deux fois le même jour.
+    const { day, minutes } = parisNow(ctx.now())
+    if (minutes < PURGE_MINUTES) return NOTHING_PURGED
+    if ((purgedOn.get(PURGE_DONE_KEY) as { value: string } | undefined)?.value === day) return NOTHING_PURGED
+    if (now - lastPurgeAt < PURGE_RETRY_SECONDS) return NOTHING_PURGED
     lastPurgeAt = now
     const saved = await readSavedIds(config.savedClipsFile)
     if (!saved) {
       ctx.log('Ménage des clips sauté : la liste des clips sauvegardés est illisible')
-      return 0
+      return NOTHING_PURGED
     }
     let purged = 0
-    for (const row of expiredClips.all(now - settings.clipRetentionDays() * 86400) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null }[]) {
+    const limit = now - settings.clipRetentionDays() * 86400
+    for (const row of expiredClips.all(limit) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null }[]) {
       if (saved.has(row.id)) continue
       let failed = false
       for (const path of [row.clip_path, row.clip_web_path, row.clip_audio_path]) {
@@ -180,7 +211,16 @@ export const createClips = (ctx: Context, rec: Recorder) => {
       clearClipPaths.run(row.id)
       purged += 1
     }
-    return purged
+    // Après les clips : un événement dont le clip vient d'être effacé (clip_path NULL) part avec eux, un clip sauvegardé garde le sien.
+    const result: Purged = {
+      clips: purged,
+      snapshots: await purgeSnapshots(ctx, limit),
+      journal: purgeHueLog(db, limit),
+      events: Number(oldEvents.run(limit).changes),
+      merges: Number(oldMerges.run(limit).changes),
+    }
+    markPurged.run(PURGE_DONE_KEY, day)
+    return result
   }
 
   return { copyClip, retryMissingClips, syncWebClips, syncAudioClips, purgeOldClips }

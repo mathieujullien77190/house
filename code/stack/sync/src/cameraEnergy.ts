@@ -13,7 +13,7 @@ export const SINCE_KEY = 'camera_energy_since'
 /** Un relevé vaut au plus 5 minutes : après une panne, on ne compte pas de consommation que personne n'a mesurée. */
 export const MAX_GAP_MS = 300_000
 const MINUTE_MS = 60_000
-const HOUR_MS = 3_600_000
+export const HOUR_MS = 3_600_000
 
 /** €/kWh en heures creuses et en heures pleines : des constantes, les mêmes que `api/src/lib/heatingSettings.ts` (tarif TotalEnergies du 8 novembre 2026) ; si l'un change, changer l'autre. */
 export const OFF_PEAK_PRICE_KWH = 0.1589
@@ -133,5 +133,7 @@ export const createCameraEnergy = (ctx: Context, targetOf: () => ApiTarget | nul
     previous = { at, watts: new Map(cameras.map((camera) => [camera.camera, camera.watts])) }
     return true
   }
-  return { sample }
+  /** La dernière puissance connue (W) de chaque caméra ; vide tant qu'aucun relevé n'a réussi. */
+  const current = (): Map<string, number> => new Map(previous?.watts ?? [])
+  return { sample, current }
 }

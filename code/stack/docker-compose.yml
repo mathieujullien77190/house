@@ -97,8 +97,6 @@ services:
       # (table hue_events, d'où vient chaque changement). Sans clé, le journal reste inactif.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
       HUE_APP_KEY: ${HUE_APP_KEY:-}
-      # Les lignes du journal plus vieilles que ce nombre de jours sont supprimées chaque jour.
-      HUE_LOG_DAYS: ${HUE_LOG_DAYS:-365}
       # La page de House Sync (base SQLite et disque backup), derrière la même clé que l'API, en HTTPS.
       HOUSE_KEY: ${API_KEY}
       PAGE_PORT: "8081"
@@ -106,17 +104,21 @@ services:
       TLS_KEY: /certs/key.pem
       DATA_DIR: /data
       POLL_INTERVAL_SECONDS: "5"
-      # Une image par caméra (une par minute par défaut, réglable depuis la page), gardée 7 jours.
+      # Une image par caméra (une par minute par défaut, réglable depuis la page), gardée la durée de garde ci-dessous.
       SNAPSHOT_INTERVAL_SECONDS: "60"
-      SNAPSHOT_RETENTION_DAYS: "7"
-      # Les clips non sauvegardés sont effacés du disque backup après ce nombre de jours (réglable depuis la page, qui prend le dessus) ;
-      # les clips sauvegardés depuis la WebApp (liste écrite par l'API dans data/house) ne le sont jamais.
+      # La durée de garde, en jours (réglable depuis la page, qui prend le dessus). Une fois par jour, vers 4 h (heure de Paris), House Sync efface
+      # au-delà : les clips non sauvegardés, les images, le journal des lampes Hue, les événements sans clip et les fusions. Les clips sauvegardés
+      # depuis la WebApp (liste écrite par l'API dans data/house) ne sont jamais effacés, ni leurs événements.
       CLIP_RETENTION_DAYS: ${CLIP_RETENTION_DAYS:-15}
       SAVED_CLIPS_FILE: /house/saved-clips.json
       ZONES_FILE: /house/zones.json
       GUEST_STATE_FILE: /guest/state.json
       # Les visites de la page invité (une ligne JSON par visite, importée toutes les 15 s dans la table guest_visits), lues dans le dossier que la page remplit.
       GUEST_VISITS_FILE: /guest-visits/visits.jsonl
+      # Le lien de la page invité (guest/) : la page Réglages l'affiche (clé comprise) avec un bouton « Copier le lien » (GET /api/guest, derrière la session). GUEST_PUBLIC_URL :
+      # son adresse publique si elle est ouverte à internet (sinon la page prend son propre hôte et le port 8090).
+      GUEST_KEY: ${GUEST_KEY:-}
+      GUEST_PUBLIC_URL: ${GUEST_PUBLIC_URL:-}
       # Le journal des activations du chauffage (écrit par House API dans data/house, importé toutes les 30 s dans la table heating_log).
       HEATING_LOG_FILE: /house/heating-log.jsonl
       # Le journal des ordres aux volets roulants (écrit par House API dans data/house, importé toutes les 30 s dans la table shutter_log).
@@ -202,12 +204,8 @@ services:
       PLUG_TEMPERATURE_SENSOR: ${PLUG_TEMPERATURE_SENSOR:-}
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
-      # La page invité (guest/) : la WebApp en affiche le lien (clé comprise) et un bouton « Copier » (GET /guest, derrière la clé de l'API). GUEST_PUBLIC_URL : son adresse publique
-      # si elle est ouverte à internet (sinon la WebApp prend son propre hôte et le port 8090).
       # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API.
       RECORDER_URL: http://motion:8080
-      GUEST_KEY: ${GUEST_KEY:-}
-      GUEST_PUBLIC_URL: ${GUEST_PUBLIC_URL:-}
       # Ce que l'API écrit : les positions des ampoules sur le plan et la liste des clips sauvegardés (data/house, créé par l'utilisateur de la machine).
       STATE_DIR: /state
       # Le certificat de la maison : HTTPS pour la WebApp.

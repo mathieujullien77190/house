@@ -32,6 +32,7 @@ const setup = (env: Record<string, string> = {}, prepare: (ctx: TestContext) => 
   const page = createPage(ctx, {
     hueLog: { list: (params) => (hueCalls.push(params.toString()), { status: { configured: false, listening: false, lastEventAt: null }, entries: [] }) },
     resetLiveFpsCheck: () => void resets.push('reset'),
+    watts: { cameras: () => new Map([['cam', 6.5]]), lamps: () => new Map([['Spot', 4]]), machine: () => 12.5 },
   })
   const call = async (spec: Call): Promise<FakeResponse> => {
     const headers: Record<string, string> = {}
@@ -121,11 +122,11 @@ test('les services de données', async () => {
   const get = async (url: string) => call({ url, cookie })
   withCamera(ctx)
   assert.deepEqual(json(await get('/api/retention')), { clip_retention_days: 15 })
-  assert.deepEqual(json(await get('/api/guest')), { guest_fps: 2, guest_enabled: true })
+  assert.deepEqual(json(await get('/api/guest')), { guest_fps: 2, guest_enabled: true, guest_link: null })
   const settings = json(await get('/api/settings')) as { camera: string }[]
   assert.deepEqual(settings.map((s) => s.camera), ['cam'])
   const full = json(await get('/api/overview')) as { database: { tables: unknown[]; size: number }; backup: { disk: { total: number } } }
-  assert.equal(full.database.tables.length, 12)
+  assert.equal(full.database.tables.length, 14)
   assert.ok(full.backup.disk.total > 0)
   const light = json(await get('/api/overview?part=database')) as typeof full
   assert.equal(light.backup.disk.total, 0)
@@ -140,6 +141,14 @@ test('les services de données', async () => {
   assert.equal(power.camerasError, 'API non configurée')
   const energy = json(await get('/api/camera-energy')) as { since: string | null; cameras: unknown[]; total: { kwh: number } }
   assert.deepEqual(energy, { since: null, cameras: [], total: { kwh: 0, cost: 0 } })
+  assert.deepEqual(json(await get('/api/lamp-energy')), { since: null, lamps: [], total: { kwh: 0, cost: 0 } })
+  assert.deepEqual(json(await get('/api/machine-energy')), { since: null, kwh: 0, cost: 0, watts: 12.5 })
+  ctx.db.exec("INSERT INTO camera_energy VALUES ('cam', 'h', 1, 0, 0.1), ('autre', 'h', 1, 0, 0.1)")
+  ctx.db.exec("INSERT INTO lamp_energy VALUES ('Spot', 'h', 1, 0, 0.1), ('Eteinte', 'h', 0.5, 0, 0.1)")
+  const cameras = (json(await get('/api/camera-energy')) as { cameras: { camera: string; watts: number | null }[] }).cameras
+  assert.deepEqual(cameras.map((c) => [c.camera, c.watts]), [['autre', null], ['cam', 6.5]])
+  const lamps = (json(await get('/api/lamp-energy')) as { lamps: { lamp: string; watts: number | null }[] }).lamps
+  assert.deepEqual(lamps.map((l) => [l.lamp, l.watts]), [['Spot', 4], ['Eteinte', null]])
   assert.equal((await get('/api/inconnu')).status, 404)
   assert.equal((await get('/files/autre/chose.txt')).status, 404)
 })
@@ -261,6 +270,14 @@ test('PUT /api/retention : de 1 à 3650 jours', async () => {
   assert.deepEqual(json(await call({ url: '/api/retention', cookie })), { clip_retention_days: 30 })
 })
 
+test('GET et PUT /api/guest donnent le lien de la page invité quand GUEST_KEY est réglée', async () => {
+  const { call, login } = setup({ GUEST_KEY: 'cle-invite', GUEST_PUBLIC_URL: 'https://pub.example/' })
+  const cookie = await login()
+  const link = { key: 'cle-invite', port: 8090, url: 'https://pub.example/' }
+  assert.deepEqual(json(await call({ url: '/api/guest', cookie })), { guest_fps: 2, guest_enabled: true, guest_link: link })
+  assert.deepEqual(json(await call({ method: 'PUT', url: '/api/guest', body: { guest_fps: 3 }, cookie })), { guest_fps: 3, guest_enabled: true, guest_link: link })
+})
+
 test('PUT /api/guest : cadence et interrupteur de la page invité', async () => {
   const { ctx, call, login, resets } = setup()
   const put = (body: unknown, cookie?: string) => call({ method: 'PUT', url: '/api/guest', body, cookie })
@@ -269,11 +286,11 @@ test('PUT /api/guest : cadence et interrupteur de la page invité', async () => 
   assert.equal((await call({ method: 'PUT', url: '/api/guest', rawBody: '[', cookie })).status, 400)
   assert.equal((await put({ guest_fps: 0 }, cookie)).status, 400)
   assert.equal((await put({ guest_enabled: 'non' }, cookie)).status, 400)
-  assert.deepEqual(json(await put({ guest_fps: 6 }, cookie)), { guest_fps: 6, guest_enabled: true })
+  assert.deepEqual(json(await put({ guest_fps: 6 }, cookie)), { guest_fps: 6, guest_enabled: true, guest_link: null })
   assert.equal(ctx.logs.at(-1), 'Page invité : 6 images/s')
-  assert.deepEqual(json(await put({ guest_enabled: false }, cookie)), { guest_fps: 6, guest_enabled: false })
+  assert.deepEqual(json(await put({ guest_enabled: false }, cookie)), { guest_fps: 6, guest_enabled: false, guest_link: null })
   assert.ok(ctx.logs.includes('Page invité : coupée'))
-  assert.deepEqual(json(await put({ guest_enabled: true, guest_fps: 7 }, cookie)), { guest_fps: 7, guest_enabled: true })
+  assert.deepEqual(json(await put({ guest_enabled: true, guest_fps: 7 }, cookie)), { guest_fps: 7, guest_enabled: true, guest_link: null })
   assert.ok(ctx.logs.includes('Page invité : en ligne'))
   assert.equal(resets.length, 3)
   // L'interrupteur ne s'écrit pas : 500.

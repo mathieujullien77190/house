@@ -51,8 +51,15 @@ export const createPoller = (
       const repaired = (await clips.retryMissingClips()) + (await clips.syncWebClips()) + (await clips.syncAudioClips())
       const taken = await snapshots(cameras)
       const purged = await clips.purgeOldClips()
+      const removed = [
+        purged.clips ? `, ${purged.clips} vieux clip(s) effacé(s)` : '',
+        purged.snapshots ? `, ${purged.snapshots} vieille(s) image(s) effacée(s)` : '',
+        purged.journal ? `, ${purged.journal} ligne(s) du journal des lampes effacée(s)` : '',
+        purged.events ? `, ${purged.events} vieil(s) événement(s) effacé(s)` : '',
+        purged.merges ? `, ${purged.merges} vieille(s) fusion(s) effacée(s)` : '',
+      ].join('')
       ctx.log(
-        `${cameras.length} caméra(s), ${copied} nouvel(aux) événement(s)${ongoing ? `, ${ongoing} en cours` : ''}${merged ? `, ${merged} fusionné(s)` : ''}${repaired ? `, ${repaired} clip(s) récupéré(s)` : ''}${taken ? `, ${taken} image(s)` : ''}${purged ? `, ${purged} vieux clip(s) effacé(s)` : ''}`,
+        `${cameras.length} caméra(s), ${copied} nouvel(aux) événement(s)${ongoing ? `, ${ongoing} en cours` : ''}${merged ? `, ${merged} fusionné(s)` : ''}${repaired ? `, ${repaired} clip(s) récupéré(s)` : ''}${taken ? `, ${taken} image(s)` : ''}${removed}`,
       )
     } catch (error) {
       ctx.log(`Enregistreur : ${messageOf(error)}`)

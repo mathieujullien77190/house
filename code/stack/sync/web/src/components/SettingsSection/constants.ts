@@ -5,8 +5,8 @@ export const SECTION_DETECTION = 'Détection du mouvement'
 export const SECTION_LIVE = 'Direct dans la WebApp'
 export const SECTION_GUEST = 'Page invité'
 export const CLIPS_LABEL = 'Clips vidéo'
-/** La durée de garde des clips, pour toutes les caméras : au-delà, un clip non sauvegardé est effacé du disque. */
-export const RETENTION_LABEL = 'Durée de garde des clips (toutes les caméras)'
+/** La durée de garde, pour toutes les caméras : au-delà, un clip non sauvegardé, les images, le journal des lampes, les événements sans clip et les fusions sont effacés (une fois par jour). */
+export const RETENTION_LABEL = 'Durée de garde (clips, images, journal des lampes, événements)'
 export const RETENTION_OPTIONS = [
   { id: '7', label: '7 jours' },
   { id: '15', label: '15 jours' },
@@ -34,9 +34,9 @@ export const RAIN_OPTIONS = [
 ] as const
 /** Ce qui est actif maintenant, écrit sous le choix. */
 export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif' } as const
-/** Le petit nuage à côté du nom d'une caméra dont le mode pluie est allumé : ☁️ le mode est ON (la météo ne dit pas pluie), 🌧️ il pleut et le mode s'applique, ☔ pluie forte. */
-export const RAIN_CLOUD = { armed: '☁️', rain: '🌧️', heavy: '☔' } as const
-export const RAIN_CLOUD_HINT = { armed: 'Mode pluie allumé : pas de pluie en ce moment', rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte' } as const
+/** Le petit icône à côté du nom d'une caméra **en mode pluie** (il pleut et le mode s'applique) : 🌧️ pluie, ☔ pluie forte. Rien quand le mode est allumé sans pluie. */
+export const RAIN_CLOUD = { rain: '🌧️', heavy: '☔' } as const
+export const RAIN_CLOUD_HINT = { rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte' } as const
 /** Les curseurs de cadence : le direct 4K et le léger, sur un écran de 1024 px et plus (PC) puis en dessous (téléphone). */
 export const FPS_SLIDERS = [
   { key: 'live_fps', label: 'Direct 4K · PC' },

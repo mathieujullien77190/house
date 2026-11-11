@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Collapsible, Notice, Tabs } from '@house/ui'
+import GuestLink from '@/components/GuestLink'
 import { fetchGuest, fetchRetention, fetchSettings, saveGuest, saveRetention, saveSetting } from '@/lib/api'
 import {
   CHOICES_CLASS,
@@ -171,8 +172,8 @@ const SettingsSection = () => {
       {settings.map((setting) => {
         const level = draft[`${setting.camera}:motion`] ?? setting.motion_sensitivity
         const minSeconds = draft[`${setting.camera}:minseconds`] ?? setting.motion_min_seconds
-        // Le petit nuage du mode pluie : le niveau qui s'applique maintenant, sinon un nuage seul si le mode est allumé.
-        const cloud = setting.rain_now && setting.rain_now !== 'off' ? setting.rain_now : setting.rain_mode === 'on' ? 'armed' : null
+        // Le petit icône du mode pluie : seulement quand la caméra est vraiment en mode pluie (il pleut et le mode s'applique) ; rien sinon, même si le mode est allumé.
+        const cloud = setting.rain_now && setting.rain_now !== 'off' ? setting.rain_now : null
         return (
           <Collapsible
             key={setting.camera}
@@ -348,6 +349,11 @@ const SettingsSection = () => {
                 />
               </div>
             </div>
+          </div>
+        ) : null}
+        {guest?.guest_link ? (
+          <div className={ROW_CLASS}>
+            <GuestLink info={guest.guest_link} />
           </div>
         ) : null}
       </Collapsible>

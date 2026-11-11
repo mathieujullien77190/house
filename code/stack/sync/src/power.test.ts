@@ -5,7 +5,7 @@ import https from 'node:https'
 import { syncBuiltinESMExports } from 'node:module'
 import { writeFileSync } from 'node:fs'
 import { afterEach, mock, test } from 'node:test'
-import { fetchCameraPower, parseCameras, parseCpuPower, readCpuPower, readPower, type ApiTarget } from './power.ts'
+import { fetchCameraPower, fetchLampPower, parseCameras, parseLamps, parseCpuPower, readCpuPower, readPower, type ApiTarget } from './power.ts'
 import { tempDir } from './testing.ts'
 
 afterEach(() => {
@@ -59,6 +59,29 @@ test('parseCameras : les entrées complètes seulement', () => {
     { camera: 'b', watts: 0, powered: false },
   ])
   assert.equal(parseCameras({}), null)
+})
+
+test('parseLamps : une fois par lampe, sans estimation ou « à placer » = laissée de côté', () => {
+  const lamp = (id: unknown, name: unknown, watts: unknown) => ({ id, name, watts })
+  assert.deepEqual(
+    parseLamps([
+      { lights: [lamp('3', 'Plafonnier', 4.5), lamp('4', 'Sans modèle', null), lamp(5, 'Numéro', 1), lamp('1', 'À placer', 2)] },
+      { lights: [lamp('3', 'Plafonnier', 4.5), lamp('6', 7, 1), lamp(undefined, 'Sans id', 1)] },
+      { lights: 'x' },
+      null,
+    ]),
+    [
+      { lamp: 'Plafonnier', watts: 4.5 },
+      { lamp: 'Numéro', watts: 1 },
+    ],
+  )
+  assert.equal(parseLamps({}), null)
+})
+
+test('fetchLampPower : lit /hue', async () => {
+  const calls = fakeApi((_req, answer) => answer(200, JSON.stringify([{ lights: [{ id: '3', name: 'Spot', watts: 2 }] }])))
+  assert.deepEqual(await fetchLampPower(target), [{ lamp: 'Spot', watts: 2 }])
+  assert.equal(calls[0]?.[0], 'https://api:8080/hue')
 })
 
 test('fetchCameraPower : réponse valable', async () => {

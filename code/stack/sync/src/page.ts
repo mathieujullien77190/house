@@ -19,6 +19,8 @@ import { intSetting, readJsonObject, sendJson } from './http.ts'
 import { createAttemptLimiter } from './attempts.ts'
 import { readNetwork } from './network.ts'
 import { readCameraEnergy } from './cameraEnergy.ts'
+import { readLampEnergy } from './lampEnergy.ts'
+import { readMachineEnergy } from './machineEnergy.ts'
 import { readPower, type ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
@@ -49,9 +51,16 @@ export const apiTargetOf = (config: Config): ApiTarget | null =>
     ? { url: config.apiUrl, key: config.houseKey, ca: readFileSync(config.apiCaFile, 'utf8'), servername: config.apiServername }
     : null
 
-export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; resetLiveFpsCheck: () => void }) => {
+/** La dernière puissance connue (W) que les relevés de chaque minute gardent en mémoire : par caméra, par lampe, et du processeur (null : pas encore de relevé). */
+export interface CurrentWatts {
+  cameras: () => Map<string, number>
+  lamps: () => Map<string, number>
+  machine: () => number | null
+}
+
+export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; resetLiveFpsCheck: () => void; watts: CurrentWatts }) => {
   const { db, config, settings } = ctx
-  const { hueLog, resetLiveFpsCheck } = deps
+  const { hueLog, resetLiveFpsCheck, watts } = deps
   const dataDir = config.dataDir
   const webDir = config.webDir
 
@@ -128,10 +137,13 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     }
   }
 
+  // Les réglages de la page invité : cadence, interrupteur et de quoi bâtir son lien (clé, port, adresse publique ; null sans GUEST_KEY).
+  const guestBody = async (fps: number) => ({ guest_fps: fps, guest_enabled: await readGuestEnabled(config.guestStateFile), guest_link: config.guest })
+
   // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
   const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
     if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: settings.clipRetentionDays() })
-    if (pathname === '/api/guest') return sendJson(res, 200, { guest_fps: settings.guestFps(), guest_enabled: await readGuestEnabled(config.guestStateFile) })
+    if (pathname === '/api/guest') return sendJson(res, 200, await guestBody(settings.guestFps()))
     if (pathname === '/api/settings') return sendJson(res, 200, settings.knownCameras().map((camera) => settings.cameraSettings(camera)))
     if (pathname === '/api/overview') return sendJson(res, 200, await overview(params.get('part') !== 'database'))
     if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(config.dockerFile, config.composeFile))
@@ -140,7 +152,17 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     if (pathname === '/api/hue-log') return sendJson(res, 200, hueLog.list(params))
     if (pathname === '/api/network') return sendJson(res, 200, await readNetwork())
     if (pathname === '/api/system') return sendJson(res, 200, await readSystem())
-    if (pathname === '/api/camera-energy') return sendJson(res, 200, readCameraEnergy(db))
+    if (pathname === '/api/camera-energy') {
+      const energy = readCameraEnergy(db)
+      const current = watts.cameras()
+      return sendJson(res, 200, { ...energy, cameras: energy.cameras.map((c) => ({ ...c, watts: current.get(c.camera) ?? null })) })
+    }
+    if (pathname === '/api/lamp-energy') {
+      const energy = readLampEnergy(db)
+      const current = watts.lamps()
+      return sendJson(res, 200, { ...energy, lamps: energy.lamps.map((l) => ({ ...l, watts: current.get(l.lamp) ?? null })) })
+    }
+    if (pathname === '/api/machine-energy') return sendJson(res, 200, { ...readMachineEnergy(db), watts: watts.machine() })
     if (pathname === '/api/power') return sendJson(res, 200, await readPower(config.powerFile, apiTargetOf(config)))
     if (pathname === '/api/table') {
       const { page, size } = pageParams(params)
@@ -242,7 +264,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       settings.saveGuestFps(fps)
       resetLiveFpsCheck()
       if (body.guest_fps !== undefined) ctx.log(`Page invité : ${fps} images/s`)
-      return sendJson(res, 200, { guest_fps: fps, guest_enabled: await readGuestEnabled(config.guestStateFile) })
+      return sendJson(res, 200, await guestBody(fps))
     }
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
     if (pathname.startsWith('/api/') || pathname.startsWith('/files/')) {

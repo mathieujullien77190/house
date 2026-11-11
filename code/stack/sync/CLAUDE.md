@@ -13,9 +13,11 @@ Le journal des lampes Hue (flux d'événements du pont, table `hue_events`) tour
 
 Sert `web/dist` en public. Derrière la session (clé et cookie : `../docs/securite.md`) : `POST /login` avec la clé `HOUSE_KEY` = `API_KEY` (une clé de moins de 8 caractères n'ouvre aucune session ; 10 essais ratés par adresse en 15 min puis 429, `src/attempts.ts` ; cookie signé, `src/session.ts`), puis :
 
-- `GET` et `PUT /api/settings`, `GET` et `PUT /api/retention`, `GET` et `PUT /api/guest` (réglages : `src/CLAUDE.md`) ;
+- `GET` et `PUT /api/settings`, `GET` et `PUT /api/retention`, `GET` et `PUT /api/guest` (réglages et lien de la page invité : `src/CLAUDE.md`) ;
 - `/api/overview` (`?part=database` : seulement la base, sans parcourir le disque backup, pour les onglets qui n'ont pas besoin de ses chiffres), `/api/power`, `/api/system` (dont `cpu.perThread`), `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (la fiche publique du pont, sans clé : `src/hue.ts`), `/api/hue-log` (le journal des lampes : `../docs/hue.md`) ;
-- `/api/camera-energy` (l'énergie estimée des caméras depuis le début, par caméra et au total : `src/cameraEnergy.ts`) ;
+- `/api/camera-energy` (l'énergie estimée des caméras depuis le début, par caméra et au total, avec la puissance actuelle `watts` : `src/cameraEnergy.ts`) ;
+- `/api/lamp-energy` (celle des lampes Hue, par lampe et au total, avec `watts` : `src/lampEnergy.ts`) ;
+- `/api/machine-energy` (celle du mini PC, processeur seul, au total, avec `watts` : `src/machineEnergy.ts`) ; les trois alimentent l'arbre de consommation de la page Machine ;
 - `/api/table?name=&page=&size=` (dont `hue_events`), `/api/clips?page=&size=` et `/files/…` (en-tête `Range` : réponse 206, `src/range.ts`).
 
 Les petits outils HTTP (corps JSON borné, réponse JSON, entier de réglage) sont dans `src/http.ts`. Les lectures sont dans `src/data.ts` (fonctions pures, pagination bornée à 100). Une erreur dans une requête répond 500 sans arrêter le service.
@@ -27,10 +29,10 @@ Les petits outils HTTP (corps JSON borné, réponse JSON, entier de réglage) so
 - `config.ts` : `loadConfig(env)`, toutes les variables d'environnement lues une fois (aucun autre module ne lit `process.env`, sauf `specs.ts`, `network.ts` et `hue.ts` pour leurs chemins de la machine). Les valeurs par défaut sont celles du compose.
 - `database.ts` : le schéma de `events.db`, les colonnes ajoutées après coup (`addColumn`), le déclencheur d'orientation et la migration unique des orientations (`initDatabase`).
 - `settings.ts` : réglages par caméra et globaux (`cameraSettings`, `keepsClip`, durée de garde, cadence de la page invité).
-- `recorder.ts` (requêtes vers les enregistreurs, `syncCameras`), `clips.ts` (copie des clips, copie légère, son, reprises, ménage de la durée de garde), `events.ts` (événements terminés, en cours, fusions), `control.ts` (détection, sensibilité, zone, cadence des directs go2rtc), `snapshots.ts` (une image par caméra à son rythme, de 5 s à 5 min), `weather.ts` (la pluie lue sur Open-Meteo toutes les 10 min pour le mode pluie des caméras ; position `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`), `imports.ts` (plan de la maison, visites de la page invité, journal du chauffage, journal des volets), `poll.ts` (le tour de polling).
+- `recorder.ts` (requêtes vers les enregistreurs, `syncCameras`), `clips.ts` (copie des clips, copie légère, son, reprises, ménage quotidien de la durée de garde : clips, images, journal Hue, événements, fusions), `events.ts` (événements terminés, en cours, fusions), `control.ts` (détection, sensibilité, zone, cadence des directs go2rtc), `snapshots.ts` (une image par caméra à son rythme, de 5 s à 5 min), `weather.ts` (la pluie lue sur Open-Meteo toutes les 10 min pour le mode pluie des caméras ; position `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`), `imports.ts` (plan de la maison, visites de la page invité, journal du chauffage, journal des volets), `poll.ts` (le tour de polling).
 - `page.ts` : la page (session, services de données, fichiers du disque backup, `createPageServer` HTTP ou HTTPS).
 - `app.ts` : `startApp(deps)` assemble tout et rend `stop`.
-- Petits modules : `data.ts`, `http.ts`, `hueLog.ts`, `hueStream.ts`, `hueOrigin.ts`, `guestVisits.ts`, `heatingLog.ts`, `shutterLog.ts`, `cameraEnergy.ts`, `cameraOrder.ts` (l’ordre d’arrivée des caméras dans toutes les listes), `guestState.ts`, `plan.ts`, `zones.ts`, `savedClips.ts`, `sun.ts` (**copié** dans `api/src/lib/sun.ts` : si l’un change, changer l’autre), `power.ts`, `docker.ts`, `network.ts`, `specs.ts`, `system.ts` ; `specs.ts` et `system.ts` prennent en option un préfixe de `/proc` et `/sys` (`root`) pour les essais.
+- Petits modules : `data.ts`, `http.ts`, `hueLog.ts`, `hueStream.ts`, `hueOrigin.ts`, `guestVisits.ts`, `heatingLog.ts`, `shutterLog.ts`, `cameraEnergy.ts`, `lampEnergy.ts`, `machineEnergy.ts`, `cameraOrder.ts` (l’ordre d’arrivée des caméras dans toutes les listes), `guestState.ts`, `plan.ts`, `zones.ts`, `savedClips.ts`, `sun.ts` (**copié** dans `api/src/lib/sun.ts` : si l’un change, changer l’autre), `power.ts`, `docker.ts`, `network.ts`, `specs.ts`, `system.ts` ; `specs.ts` et `system.ts` prennent en option un préfixe de `/proc` et `/sys` (`root`) pour les essais.
 
 ## Tests
 

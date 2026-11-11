@@ -12,8 +12,8 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'disk', label: 'Disque' },
   { id: 'system', label: 'Machine' },
   { id: 'docker', label: 'Docker' },
-  { id: 'schema', label: 'Schéma' },
   { id: 'settings', label: 'Réglages' },
+  { id: 'schema', label: 'Schéma' },
 ]
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification…'
@@ -56,10 +56,7 @@ export const NETWORK_MISSING_TEXT = 'Réseau indisponible.'
 export const MEMORY_CHART_LABEL = 'Mémoire utilisée et disponible'
 export const CPU_CHART_LABEL = 'Part du processeur utilisée et libre'
 export const SYSTEM_MISSING_TEXT = 'Mesure indisponible.'
-export const POWER_TITLE = 'Consommation électrique'
-export const POWER_MISSING_TEXT = 'Consommation indisponible.'
-export const CAMERA_ENERGY_TITLE = 'Consommation des caméras (estimation)'
-export const CAMERA_ENERGY_MISSING_TEXT = 'Énergie des caméras indisponible.'
+export const ENERGY_MISSING_TEXT = 'Consommation électrique (estimation) indisponible.'
 export const LOADING_TEXT = 'Chargement…'
 
 /** Les graphiques l'un sous l'autre de 360 à 1024 px (mobile), côte à côte au-delà (bureau). */

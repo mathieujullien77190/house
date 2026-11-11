@@ -11,6 +11,8 @@ export const MAIN_COLUMNS: Record<string, string[]> = {
   plan: ['kind', 'id', 'longitude', 'latitude', 'data'],
   guest_visits: ['id', 'started_at', 'ip', 'origin', 'cle', 'camera', 'status', 'path'],
   camera_energy: ['camera', 'hour', 'wh_offpeak', 'wh_peak', 'cost'],
+  lamp_energy: ['lamp', 'hour', 'wh_offpeak', 'wh_peak', 'cost'],
+  machine_energy: ['device', 'hour', 'wh_offpeak', 'wh_peak', 'cost'],
   heating_log: ['id', 'started_at', 'origin', 'minutes', 'temperature', 'cost'],
 }
 export const DETAILS_CLASS = 'm-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 font-mono text-[0.78rem]'

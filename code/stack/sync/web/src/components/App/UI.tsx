@@ -1,8 +1,9 @@
-import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PieChart, SimpleTable, SpecList, Totals, TopBar } from '@house/ui'
+import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PieChart, SimpleTable, SpecList, TopBar } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
 import SchemaSection from '@/components/SchemaSection'
 import SettingsSection from '@/components/SettingsSection'
 import KeyForm from '@/components/KeyForm'
+import EnergyTree from '@/components/EnergyTree'
 import MediaPanel from '@/components/MediaPanel'
 import TableSection from '@/components/TableSection'
 import { buildDiskChart } from '@/lib/disk'
@@ -16,16 +17,14 @@ import {
   containerDetail,
 } from '@/lib/docker'
 import { memoryPercent } from '@/lib/live'
-import { buildCameraEnergyTotals, cameraEnergyNote } from '@/lib/cameraEnergy'
-import { buildPowerTotals } from '@/lib/power'
+import { buildEnergyTree } from '@/lib/energyTree'
 import { buildBridgeItems, bridgeSummary } from '@/lib/hue'
 import { buildLinkItems, linkSummary } from '@/lib/network'
 import { buildSpecItems } from '@/lib/specs'
 import { buildCpuChart, buildMemoryChart } from '@/lib/system'
 import {
   BACKUP_TITLE,
-  CAMERA_ENERGY_MISSING_TEXT,
-  CAMERA_ENERGY_TITLE,
+  ENERGY_MISSING_TEXT,
   CPU_CHART_LABEL,
   CPU_MEMORY_TITLE,
   MEMORY_CHART_LABEL,
@@ -59,8 +58,6 @@ import {
   GRID_CLASS,
   LOADING_TEXT,
   LOCKED_TEXT,
-  POWER_MISSING_TEXT,
-  POWER_TITLE,
   SPECS_MISSING_TEXT,
   SPECS_TITLE,
   LOGOUT_LABEL,
@@ -77,7 +74,7 @@ import {
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, power, cameraEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
@@ -86,6 +83,7 @@ const AppUI = ({ status, message, overview, power, cameraEnergy, system, specs, 
   const specItems = specs ? buildSpecItems(specs) : []
   const linkItems = network ? buildLinkItems(network) : []
   const diskChart = overview ? buildDiskChart(overview) : null
+  const energyTree = buildEnergyTree(cameraEnergy, lampEnergy, machineEnergy)
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : loadedAt ? `mis à jour ${loadedAt}` : ''
   return (
     <Page>
@@ -199,19 +197,9 @@ const AppUI = ({ status, message, overview, power, cameraEnergy, system, specs, 
                   )}
                 </div>
               </Collapsible>
-              <Collapsible title={POWER_TITLE}>
-                {power ? <Totals totals={buildPowerTotals(power)} /> : <Notice text={POWER_MISSING_TEXT} />}
-              </Collapsible>
-              <Collapsible title={CAMERA_ENERGY_TITLE}>
-                {cameraEnergy ? (
-                  <>
-                    <Totals totals={buildCameraEnergyTotals(cameraEnergy)} />
-                    <Notice text={cameraEnergyNote(cameraEnergy)} />
-                  </>
-                ) : (
-                  <Notice text={CAMERA_ENERGY_MISSING_TEXT} />
-                )}
-              </Collapsible>
+              <div className={GRID_CLASS}>
+                <section>{energyTree ? <EnergyTree node={energyTree} /> : <Notice text={ENERGY_MISSING_TEXT} />}</section>
+              </div>
             </>
           ) : tab === 'docker' ? (
             <>

@@ -1,7 +1,7 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
 import type { CameraSetting } from '@/components/SettingsSection'
 import { NO_FILTER, filterQuery } from '@/lib/filter'
-import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HueBridge, NetworkInterface, Overview, Page, Power, Row, Specs, System } from '@/types'
+import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Page, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
   status: number
@@ -46,15 +46,23 @@ export const saveRetention = async (days: number): Promise<number> =>
     ).json()) as { clip_retention_days: number }
   ).clip_retention_days
 
-/** La page invité : ses images par seconde (vignettes et 4K, PC et téléphone, toutes les caméras) et si elle est en ligne ou coupée (port fermé). */
+/** De quoi bâtir le lien de la page invité : sa clé, son port et son adresse publique (vide tant qu'elle n'est pas ouverte à internet). */
+export interface GuestLinkInfo {
+  key: string
+  port: number
+  url: string
+}
+
+/** La page invité : ses images par seconde (vignettes et 4K, PC et téléphone, toutes les caméras), si elle est en ligne ou coupée (port fermé), et son lien (null sans GUEST_KEY). */
 export interface GuestSettings {
   guest_fps: number
   guest_enabled: boolean
+  guest_link: GuestLinkInfo | null
 }
 
 export const fetchGuest = async (): Promise<GuestSettings> => (await request('/api/guest')).json()
 
-export const saveGuest = async (patch: Partial<GuestSettings>): Promise<GuestSettings> =>
+export const saveGuest = async (patch: Partial<Pick<GuestSettings, 'guest_fps' | 'guest_enabled'>>): Promise<GuestSettings> =>
   (await request('/api/guest', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
 
 /** La vue d'ensemble : sans `full`, seulement la base (rapide, sans parcourir le disque backup) ; avec, aussi le disque (clips, images, place). */
@@ -70,9 +78,11 @@ export const fetchNetwork = async (): Promise<NetworkInterface[]> => (await requ
 
 export const fetchSystem = async (): Promise<System> => (await request('/api/system')).json()
 
-export const fetchPower = async (): Promise<Power> => (await request('/api/power')).json()
 
 export const fetchCameraEnergy = async (): Promise<CameraEnergy> => (await request('/api/camera-energy')).json()
+
+export const fetchLampEnergy = async (): Promise<LampEnergy> => (await request('/api/lamp-energy')).json()
+export const fetchMachineEnergy = async (): Promise<MachineEnergy> => (await request('/api/machine-energy')).json()
 
 export const fetchTable = async (name: string, page: number, size: number, filter: Filter = NO_FILTER): Promise<FilteredPage<Row>> =>
   (await request(`/api/table?name=${encodeURIComponent(name)}&page=${page}&size=${size}${filterQuery(filter)}`)).json()

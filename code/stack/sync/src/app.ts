@@ -19,6 +19,8 @@ import { createSnapshots } from './snapshots.ts'
 import { createWeather, WEATHER_POLL_MS } from './weather.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createCameraEnergy, createCameraEnergyTable } from './cameraEnergy.ts'
+import { createLampEnergy, createLampEnergyTable } from './lampEnergy.ts'
+import { createMachineEnergy, createMachineEnergyTable } from './machineEnergy.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
 import { createShutterLogTable } from './shutterLog.ts'
 import { createPlanTable } from './plan.ts'
@@ -46,13 +48,15 @@ export const startApp = async (deps: AppDeps) => {
 
   // Le journal des lampes Hue : l'écoute du flux d'événements du pont, gardée dans la table hue_events (hueLog.ts).
   // Il lui faut l'adresse du pont et sa clé d'application (HUE_BRIDGE_IP et HUE_APP_KEY) ; sans l'une, il reste inactif.
-  const hueLog = createHueLog(db, { address: config.hueAddress, key: config.hueKey, days: config.hueLogDays, log: deps.log, now: deps.now })
+  const hueLog = createHueLog(db, { address: config.hueAddress, key: config.hueKey, log: deps.log, now: deps.now })
   // Les visites de la page invité et le plan de la maison : des fichiers que les autres services écrivent (lecture seule ici), importés dans la base.
   db.exec('CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
   createGuestVisitsTable(db)
   createHeatingLogTable(db)
   createShutterLogTable(db)
   createCameraEnergyTable(db)
+  createLampEnergyTable(db)
+  createMachineEnergyTable(db)
   createPlanTable(db)
 
   const rec = createRecorder(ctx)
@@ -62,6 +66,8 @@ export const startApp = async (deps: AppDeps) => {
   const snapshots = createSnapshots(ctx, rec)
   const imports = createImports(ctx)
   const cameraEnergy = createCameraEnergy(ctx, () => apiTargetOf(config))
+  const lampEnergy = createLampEnergy(ctx, () => apiTargetOf(config))
+  const machineEnergy = createMachineEnergy(ctx)
   const poller = createPoller(ctx, { rec, events, clips, control, snapshots })
   // Les images toutes les 5, 10 ou 15 s : un minuteur à part (chaque seconde, pour tomber à une seconde près), car le tour de polling est de 30 s.
   const snapshotTimer = setInterval(() => void snapshots.again(), 1_000)
@@ -69,7 +75,7 @@ export const startApp = async (deps: AppDeps) => {
   const weather = createWeather(ctx)
   void weather.poll()
   const weatherTimer = setInterval(() => void weather.poll(), WEATHER_POLL_MS)
-  const page = createPage(ctx, { hueLog, resetLiveFpsCheck: control.resetLiveFpsCheck })
+  const page = createPage(ctx, { hueLog, resetLiveFpsCheck: control.resetLiveFpsCheck, watts: { cameras: cameraEnergy.current, lamps: lampEnergy.current, machine: machineEnergy.current } })
 
   void imports.syncPlan()
   const planTimer = setInterval(() => void imports.syncPlan(), 30_000)
@@ -84,8 +90,15 @@ export const startApp = async (deps: AppDeps) => {
   server.listen(config.pagePort, () => deps.log(`Page de House Sync en ${secure ? 'HTTPS' : 'HTTP'} sur le port ${config.pagePort}`))
 
   // L'énergie des caméras (estimation) : un relevé de la puissance PoE par minute.
+  // Celle des lampes Hue (la puissance estimée par House API) et celle du mini PC (le processeur seul) suivent le même rythme.
   void cameraEnergy.sample()
-  const energyTimer = setInterval(() => void cameraEnergy.sample(), 60_000)
+  void lampEnergy.sample()
+  void machineEnergy.sample()
+  const energyTimer = setInterval(() => {
+    void cameraEnergy.sample()
+    void lampEnergy.sample()
+    void machineEnergy.sample()
+  }, 60_000)
 
   // ---- Le polling ----
   deps.log(`House Sync démarré (${config.dataDir}/events.db, toutes les ${config.intervalMs / 1000} s)`)

@@ -77,8 +77,34 @@ export interface Power {
 /** L'énergie des caméras depuis le début du suivi (estimation) ; `since` : ISO, null tant qu'aucun relevé n'a réussi. */
 export interface CameraEnergy {
   since: string | null
-  cameras: { camera: string; kwh: number; cost: number }[]
+  cameras: { camera: string; kwh: number; cost: number; watts: number | null }[]
   total: { kwh: number; cost: number }
+}
+
+/** L'énergie des lampes Hue depuis le début du suivi (estimation), la plus gourmande d'abord ; `since` : ISO, null tant qu'aucun relevé n'a réussi. */
+export interface LampEnergy {
+  since: string | null
+  lamps: { lamp: string; kwh: number; cost: number; watts: number | null }[]
+  total: { kwh: number; cost: number }
+}
+
+/** L'énergie du processeur du mini PC depuis le début du suivi (estimation, sans carte mère ni SSD) ; `since` : ISO, null tant qu'aucun relevé n'a réussi. */
+export interface MachineEnergy {
+  since: string | null
+  kwh: number
+  cost: number
+  /** La puissance actuelle (W) du processeur ; null tant qu'aucun relevé n'a réussi. */
+  watts: number | null
+}
+
+/** Un nœud de l'arbre de la consommation : un appareil (feuille) ou un groupe dont les chiffres sont la somme de ses enfants. `watts` : puissance actuelle (null : inconnue), `kwh` et `cost` : depuis le début du suivi. */
+export interface EnergyNode {
+  id: string
+  label: string
+  watts: number | null
+  kwh: number
+  cost: number
+  children: EnergyNode[]
 }
 
 export interface System {

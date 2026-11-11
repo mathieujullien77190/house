@@ -135,3 +135,11 @@ test('la date de départ survit à un redémarrage ; une base qui échoue est no
   assert.equal(await again.sample(), true)
   assert.ok(ctx.logs.some((line) => line.startsWith('Énergie des caméras : ') && !line.includes('sauté')))
 })
+
+test('current : vide avant le premier relevé, puis la dernière puissance de chaque caméra', async () => {
+  const { answer, energy } = setup('2026-11-09T02:00:00Z')
+  assert.deepEqual([...energy.current()], [])
+  answer.current = [cam('a', 6), cam('b', 12)]
+  await energy.sample()
+  assert.deepEqual([...energy.current()], [['a', 6], ['b', 12]])
+})

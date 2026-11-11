@@ -1,5 +1,5 @@
 // La consommation que montre la page de House Sync : la puissance du processeur (fichier écrit sur l'hôte par
-// `power/house-power.sh`) et celle de chaque caméra (le PoE lu par House API chez le switch).
+// `power/house-power.sh`) et celle de chaque caméra (le PoE lu par House API chez le switch) ; les lampes Hue (estimation de House API) pour l'énergie.
 import { readFile } from 'node:fs/promises'
 import { request } from 'node:https'
 
@@ -59,11 +59,44 @@ export interface ApiTarget {
   servername: string
 }
 
-/** L'état PoE des caméras, lu chez House API (même clé) ; échoue avec un message lisible. */
-export const fetchCameraPower = (target: ApiTarget): Promise<CameraPower[]> =>
+export interface LampPower {
+  /** Le nom de la lampe chez le pont Hue. */
+  lamp: string
+  /** La puissance estimée par House API (`watts` de `GET /hue`). */
+  watts: number
+}
+
+/**
+ * Les lampes Hue **placées dans une zone de la maison** (identifiants du pont) : celles de la page Lumière hors du groupe « À placer ». Seules elles comptent dans la consommation. **Copie assumée**
+ * des lampes de `ZONES` dans `web/src/components/Lights/constants.ts` : si l'un change, changer l'autre.
+ */
+export const PLACED_LAMPS: ReadonlySet<string> = new Set(['15', '9', '10', '19', '8', '6', '4', '28', '13', '14', '3', '5', '7', '27', '11', '16', '18', '22', '26'])
+
+/** Les lampes de `GET /hue` (pièces et leurs lampes), chacune une fois même si plusieurs pièces la citent ; une lampe sans estimation (`watts` nul) ou « à placer » (hors de `PLACED_LAMPS`) est laissée de côté. */
+export const parseLamps = (data: unknown): LampPower[] | null => {
+  if (!Array.isArray(data)) return null
+  const lamps = new Map<string, LampPower>()
+  for (const room of data as { lights?: unknown }[]) {
+    if (!Array.isArray(room?.lights)) continue
+    for (const item of room.lights as { id?: unknown; name?: unknown; watts?: unknown }[]) {
+      if (
+        (typeof item.id === 'string' || typeof item.id === 'number') &&
+        PLACED_LAMPS.has(String(item.id)) &&
+        typeof item.name === 'string' &&
+        typeof item.watts === 'number'
+      ) {
+        lamps.set(String(item.id), { lamp: item.name, watts: item.watts })
+      }
+    }
+  }
+  return [...lamps.values()]
+}
+
+/** Lit `path` chez House API (même clé, même CA) et le passe à `parse` ; échoue avec un message lisible. */
+const fetchApi = <T>(target: ApiTarget, path: string, parse: (data: unknown) => T | null): Promise<T> =>
   new Promise((resolve, reject) => {
     const req = request(
-      `${target.url}/poe`,
+      `${target.url}${path}`,
       { headers: { 'X-House-Key': target.key }, ca: target.ca, servername: target.servername, timeout: 8000 },
       (res) => {
         let text = ''
@@ -72,8 +105,8 @@ export const fetchCameraPower = (target: ApiTarget): Promise<CameraPower[]> =>
         res.on('end', () => {
           if (res.statusCode !== 200) return reject(new Error(`API : réponse ${res.statusCode}`))
           try {
-            const cameras = parseCameras(JSON.parse(text))
-            if (cameras) resolve(cameras)
+            const parsed = parse(JSON.parse(text))
+            if (parsed) resolve(parsed)
             else reject(new Error('API : réponse inattendue'))
           } catch {
             reject(new Error('API : réponse illisible'))
@@ -85,6 +118,12 @@ export const fetchCameraPower = (target: ApiTarget): Promise<CameraPower[]> =>
     req.on('timeout', () => req.destroy(new Error('pas de réponse')))
     req.end()
   })
+
+/** L'état PoE des caméras, lu chez House API (`GET /poe`). */
+export const fetchCameraPower = (target: ApiTarget): Promise<CameraPower[]> => fetchApi(target, '/poe', parseCameras)
+
+/** La puissance estimée des lampes Hue, lue chez House API (`GET /hue`). */
+export const fetchLampPower = (target: ApiTarget): Promise<LampPower[]> => fetchApi(target, '/hue', parseLamps)
 
 export const readPower = async (cpuFile: string, target: ApiTarget | null): Promise<PowerReport> => {
   const cpu = await readCpuPower(cpuFile)

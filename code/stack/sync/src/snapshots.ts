@@ -1,7 +1,7 @@
 // Une image par caméra toutes les SNAPSHOT_INTERVAL_SECONDS, dans snapshots/<caméra>/<horodatage>.jpg,
-// puis le ménage des images plus vieilles que SNAPSHOT_RETENTION_DAYS (fichiers et lignes).
+// puis (`purgeSnapshots`, appelé par le ménage quotidien de clips.ts) le ménage des images plus vieilles que la durée de garde (fichiers et lignes).
 // L'enregistreur n'enregistre que sur mouvement : entre deux événements, il ne reste rien. House Sync garde donc
-// une image par minute et par caméra (image du flux principal, 720 px de haut) pendant quelques jours.
+// une image par minute et par caméra (image du flux principal, 720 px de haut) pendant la durée de garde.
 import { mkdirSync } from 'node:fs'
 import { unlink, writeFile } from 'node:fs/promises'
 import { seconds, type Context } from './context.ts'
@@ -9,13 +9,22 @@ import type { Recorder } from './recorder.ts'
 
 const SNAPSHOT_HEIGHT = 720
 
+/** Supprime les images plus vieilles que `limit` (secondes depuis 1970) : fichier puis ligne. Rend leur nombre. */
+export const purgeSnapshots = async (ctx: Context, limit: number): Promise<number> => {
+  const { db, config } = ctx
+  const rows = db.prepare('SELECT camera, taken_at, path FROM snapshots WHERE taken_at < ?').all(limit) as { camera: string; taken_at: number; path: string }[]
+  const remove = db.prepare('DELETE FROM snapshots WHERE camera = ? AND taken_at = ?')
+  for (const row of rows) {
+    await unlink(`${config.dataDir}/${row.path}`).catch(() => undefined)
+    remove.run(row.camera, row.taken_at)
+  }
+  return rows.length
+}
+
 export const createSnapshots = (ctx: Context, rec: Recorder) => {
   const { db, config, settings } = ctx
   const insertSnapshot = db.prepare('INSERT OR IGNORE INTO snapshots (camera, taken_at, path) VALUES (?, ?, ?)')
-  const oldSnapshots = db.prepare('SELECT camera, taken_at, path FROM snapshots WHERE taken_at < ?')
-  const deleteSnapshot = db.prepare('DELETE FROM snapshots WHERE camera = ? AND taken_at = ?')
   const lastSnapshotAt = new Map<string, number>()
-  let lastCleanAt = 0
   // Les caméras du dernier tour de polling, pour le minuteur rapide (`again`) qui prend les images toutes les 5, 10 ou 15 s entre deux tours (30 s).
   let known: string[] = []
   let running = false
@@ -42,15 +51,7 @@ export const createSnapshots = (ctx: Context, rec: Recorder) => {
         return 1
       }),
     )
-    const taken = results.reduce((sum, n) => sum + n, 0)
-    if (now - lastCleanAt < 60) return taken
-    lastCleanAt = now
-    const limit = now - config.snapshotRetentionDays * 86400
-    for (const row of oldSnapshots.all(limit) as { camera: string; taken_at: number; path: string }[]) {
-      await unlink(`${config.dataDir}/${row.path}`).catch(() => undefined)
-      deleteSnapshot.run(row.camera, row.taken_at)
-    }
-    return taken
+    return results.reduce((sum, n) => sum + n, 0)
   }
   /** Un tour de plus, entre deux tours de polling : seules les caméras dont l'image est due en prennent une. Jamais deux à la fois. */
   const again = async (): Promise<number> => {
