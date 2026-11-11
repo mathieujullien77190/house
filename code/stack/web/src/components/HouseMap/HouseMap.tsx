@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import AcPreview from '@/components/AcPreview'
 import ClipPreview from '@/components/ClipPreview'
-import { CAMERA_LAMP } from '@/components/CameraCard/constants'
 import { PLAN_PLUG_POSITION } from '@/components/Lights'
 import LiveTile from '@/components/LiveTile'
 import MapPlan from '@/components/MapPlan'
 import PlugPanel from '@/components/PlugPanel'
 import ShutterPreview from '@/components/ShutterPreview'
 import { decorItemId, DEFAULT_DECORS } from '@/components/MapPlan/helpers'
-import { roomItems, roomRectsFrom } from '@/components/MapPlan/helpers'
+import { roomRectsFrom } from '@/components/MapPlan/helpers'
 import { PLAN_ROOMS } from '@/components/Lights/constants'
-import { garageCornerId, garageRingFrom, tilesCornerId, tilesRingFrom } from '@/components/MapPlan/helpers'
+import { garageRingFrom, tilesRingFrom } from '@/components/MapPlan/helpers'
 import { PARCEL_GATES } from '@/components/MapPlan/parcel'
 import { acItemId, useAcPlan } from '@/lib/useAcPlan'
 import { emojiItemId, useClipEmojis } from '@/lib/useClipEmojis'
@@ -43,10 +42,7 @@ import type { HouseMapProps } from './types'
 const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onOpenShutter, onOpenPlug }: HouseMapProps) => {
   const plan = usePlan(apiKey)
   const { trees, hedges, offsets, links, cage, cameras: planCameras } = plan
-  const { moveTree, resizeTree, moveHedge, moveOffset, link, moveCamera, adjustCamera, moveItem, moveItems } = plan
-  const [selectedHedge, setSelectedHedge] = useState('')
-  // L'arbre choisi : une poignée sur son bord règle sa taille.
-  const [selectedTree, setSelectedTree] = useState('')
+  const { link, moveCamera, adjustCamera, moveItem } = plan
   // Toutes les lampes du pont (relues toutes les 5 s ; rien sans pont Hue).
   const { lamps: planLamps, toggle: toggleLamp } = useLampPlan(apiKey, plan.items, true)
   // Les emoji des clips sauvegardés (relus toutes les 30 s) : on les déplace en modification, un clic montre le clip.
@@ -59,21 +55,11 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   const { shutters } = useShutterPlan(apiKey, plan.items, true)
   // Les étiquettes de température : dehors (la météo) et deux dans la cage à perruches (les détecteurs).
   const labels = useTemperatureLabels(apiKey, plan.items, cage, acs, true)
-  const lamp = planLamps.find((item) => item.id === CAMERA_LAMP['voliere-interieur'])
   // La position de la prise (déplacée, sinon sa place de départ) ; celle des lampes vient de `planLamps`.
   const plugAt = plan.items[PLUG_ID] ?? PLAN_PLUG_POSITION
   // La prise connectée, avec son état (marche ou arrêt) ; rien sans prise configurée.
   const plug = usePlug(apiKey, true)
   const planPlugs = plug ? [{ id: PLUG_ID, name: plug.alias, x: plugAt.x, y: plugAt.y, on: plug.on }] : []
-  // On déplace la cage : la lampe et la prise qui sont dedans la suivent.
-  const moveCage = (x: number, y: number) => {
-    const dx = x - cage.x
-    const dy = y - cage.y
-    if (dx === 0 && dy === 0) return
-    plan.moveCage(x, y)
-    if (lamp) moveItem(lamp.id, lamp.x + dx, lamp.y + dy)
-    if (plug) moveItem(PLUG_ID, plugAt.x + dx, plugAt.y + dy)
-  }
   // Une caméra du plan dont la vraie caméra est éteinte (PoE coupé sur le switch) : on lit l'alimentation de **toutes** les caméras, pas seulement de deux.
   const offNames = useOffCameras(apiKey)
   const offPlanIds = Object.entries(links)
@@ -192,18 +178,13 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
         links={links}
         onLink={link}
         cage={cage}
-        onMoveCage={moveCage}
         offsets={offsets}
-        onMoveOffset={moveOffset}
         rooms={roomRectsFrom(
           plan.items,
           PLAN_ROOMS.map((room) => room.rects.length),
         )}
-        onMoveRooms={(rooms) => moveItems(roomItems(rooms))}
         garage={garageRingFrom(plan.items)}
-        onMoveGarage={(ring) => moveItems(Object.fromEntries(ring.map(([x, y], index) => [garageCornerId(index), { x, y }])))}
         tiles={tilesRingFrom(plan.items)}
-        onMoveTiles={(ring) => moveItems(Object.fromEntries(ring.map(([x, y], index) => [tilesCornerId(index), { x, y }])))}
         cameras={shownCameras}
         selectedCameraId={selectedCamera}
         onOpenCamera={(planId) => (links[planId] ? onOpenCamera(links[planId]) : undefined)}
@@ -212,14 +193,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
         onMoveCamera={moveCamera}
         onAdjustCamera={adjustCamera}
         hedges={hedges}
-        selectedHedgeId={selectedHedge}
-        onSelectHedge={(id) => setSelectedHedge((current) => (id === '' || current === id ? '' : id))}
-        onMoveHedge={moveHedge}
         trees={trees}
-        selectedTreeId={selectedTree}
-        onSelectTree={setSelectedTree}
-        onMoveTree={moveTree}
-        onResizeTree={resizeTree}
         gates={PARCEL_GATES}
         lamps={planLamps}
         onMoveLamp={moveItem}

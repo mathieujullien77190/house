@@ -20,7 +20,6 @@ import {
   SATELLITE,
   ALWAYS_HIT,
   EDIT_LABEL,
-  SNAP_LABEL,
   FILTERS,
   LAMP_LABEL_CLASS,
   LINK_LABEL,
@@ -39,7 +38,6 @@ import {
   ACTIONS_CLASS,
   WRAPPER_CLASS,
 } from './constants'
-import { PLAN_GARAGE_CORNERS } from '@/components/Lights/constants'
 import { attachEditing } from './edit'
 import { planToLngLat } from './projection'
 import { addMapIcons, addStatusDots, watchDynamicImages } from './icons'
@@ -48,7 +46,6 @@ import {
   liveFeatures,
   readPalette,
   staticFeatures,
-  tilesOutline,
   type LiveData,
   type Palette,
   type PlanDecor,
@@ -75,7 +72,7 @@ const EMPTY_LINKS: Record<string, string> = {}
 
 /** Les couches du toit et celles des pièces : le toit est caché, les pièces se voient. */
 const ROOF_LAYERS = ['plan-toit']
-const ROOM_LAYERS = ['plan-pieces', 'plan-cloisons', 'plan-claustras']
+const ROOM_LAYERS = ['plan-pieces', 'plan-cloisons']
 
 /**
  * Les props complétées et réduites à ce que la carte montre et permet : une lampe à placer ne se voit qu'en modification ; hors modification, plus de déplacement ni de réglage
@@ -111,34 +108,20 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
     selectedCameraId: given.selectedCameraId ?? '',
     cameraNames: given.cameraNames ?? EMPTY_NAMES,
     links: given.links ?? EMPTY_LINKS,
-    selectedTreeId: given.selectedTreeId ?? '',
-    selectedHedgeId: given.selectedHedgeId ?? '',
   }
   if (editing) return base
   return {
     ...base,
     onMoveCamera: undefined,
     onAdjustCamera: undefined,
-    onMoveTree: undefined,
-    onResizeTree: undefined,
-    onSelectTree: undefined,
-    onMoveHedge: undefined,
-    onSelectHedge: undefined,
-    onMoveCage: undefined,
-    onMoveOffset: undefined,
-    onMoveTiles: undefined,
-    onMoveGarage: undefined,
     onMoveLamp: undefined,
     onMoveAc: undefined,
     onMoveShutter: undefined,
     onMoveLabel: undefined,
     onMoveEmoji: undefined,
     onMoveDecor: undefined,
-    onMoveRooms: undefined,
     onMovePlug: undefined,
     onLink: undefined,
-    selectedTreeId: '',
-    selectedHedgeId: '',
   }
 }
 
@@ -146,12 +129,8 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
 const liveData = (props: ResolvedProps): LiveData => ({
   cage: props.cage,
   offsets: props.offsets,
-  rooms: props.rooms ?? null,
-  canEditRooms: Boolean(props.onMoveRooms),
   tiles: props.tiles ?? null,
-  canEditTiles: Boolean(props.onMoveTiles),
   garage: props.garage ?? null,
-  canEditGarage: Boolean(props.onMoveGarage),
   gates: props.gates,
   cameras: props.cameras,
   trees: props.trees,
@@ -165,17 +144,13 @@ const liveData = (props: ResolvedProps): LiveData => ({
   decors: props.decors,
   selectedCameraId: props.selectedCameraId,
   hoveredCameraId: props.hoveredCameraId,
-  selectedTreeId: props.selectedTreeId,
-  selectedHedgeId: props.selectedHedgeId,
-  canEditHedges: Boolean(props.onMoveHedge),
-  canResizeTrees: Boolean(props.onResizeTree),
   canAdjustCameras: Boolean(props.onAdjustCamera),
 })
 
 /**
  * Une carte (MapLibre GL) centrée sur la maison, tournée pour que la maison soit droite à l'écran : deux fonds au choix (photo aérienne, Plan IGN en vecteur, net à tout zoom),
  * et le plan de la maison dessiné par la carte elle-même, en longitude et latitude : il ne glisse pas pendant un zoom. Le toit est caché : on voit les pièces, les cloisons, les
- * caméras et les lampes. Les caméras, lampes, arbres, haies et prise se prennent à la souris en mode modification ; le reste de la carte se déplace. « Recentrer » ramène la vue de départ.
+ * caméras et les lampes. Les caméras, lampes, climatisations, volets, étiquettes, emoji, icônes seules et prise se prennent à la souris en mode modification ; le reste de la carte se déplace. « Recentrer » ramène la vue de départ.
  */
 const MapPlan = (given: MapPlanProps) => {
   // Le plan ne se modifie que si on l'a demandé : sinon seuls les clics sur une caméra (son champ de vision) ou une lampe (l'allumer) restent.
@@ -223,13 +198,6 @@ const MapPlan = (given: MapPlanProps) => {
   useEffect(() => {
     latest.current = props
   })
-  // Les coins des carreaux et du chemin se calent sur les lignes droites (case « Aligner », cochée au départ).
-  const [snap, setSnap] = useState(true)
-  const snapRef = useRef(snap)
-  useEffect(() => {
-    snapRef.current = snap
-  }, [snap])
-
   useEffect(() => {
     const element = container.current
     // Garde pour TypeScript : le conteneur est toujours posé quand l'effet tourne.
@@ -278,13 +246,7 @@ const MapPlan = (given: MapPlanProps) => {
         setProblem(error instanceof Error ? error.message : String(error))
       }
     })
-    const detach = attachEditing(map, () => ({
-      ...latest.current,
-      tilesRing: latest.current.tiles ?? tilesOutline(latest.current.cage),
-      roomRects: latest.current.rooms ?? defaultRoomRects(),
-      garageRing: latest.current.garage ?? PLAN_GARAGE_CORNERS,
-      snap: snapRef.current,
-    }))
+    const detach = attachEditing(map, () => latest.current)
 
     return () => {
       detach()
@@ -442,7 +404,6 @@ const MapPlan = (given: MapPlanProps) => {
             {EDIT_LABEL}
           </Button>
         )}
-        {given.fill || !editing ? null : <Checkbox label={SNAP_LABEL} checked={snap} onChange={setSnap} />}
         <div className={FILTERS_BAR_CLASS}>
           {FILTERS.map((filter) => (
             <Checkbox

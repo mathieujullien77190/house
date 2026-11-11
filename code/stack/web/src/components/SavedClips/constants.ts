@@ -7,7 +7,6 @@ export const ACTIONS_CLASS = 'flex flex-wrap items-center gap-2'
 export const OPENED_CAPTION_CLASS = 'mb-0 mt-6'
 export const GRID_CLASS = 'mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3'
 export const SECTION_CLASS = 'mt-4'
-export const SECTION_TITLE_CLASS = 'mb-0 mt-4 text-lg font-bold'
 export const THUMB_CLASS = 'aspect-video w-full bg-black object-cover'
 export const PLAYER_WRAP_CLASS = 'relative mt-3'
 /** Une vignette et sa note : le repère de l'emoji, posé sur la vignette. */

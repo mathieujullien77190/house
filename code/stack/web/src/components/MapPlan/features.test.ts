@@ -30,13 +30,9 @@ const camera = (over: Partial<PlanCamera> = {}): PlanCamera => ({
 
 const data = (over: Partial<LiveData> = {}): LiveData => ({
   offsets: {},
-  rooms: null,
-  canEditRooms: false,
   tiles: null,
-  canEditTiles: false,
   decors: [],
   garage: null,
-  canEditGarage: false,
   gates: PLAN_GATES as PlanGate[],
   cage: { x: 583, y: 0, w: 100, h: 200 },
   hedges: [
@@ -73,12 +69,8 @@ const data = (over: Partial<LiveData> = {}): LiveData => ({
     { id: 'p1', x: 1, y: 1, on: true },
     { id: 'p2', x: 2, y: 2, on: false },
   ] as PlanPlug[],
-  selectedHedgeId: '',
-  selectedTreeId: '',
   hoveredCameraId: '',
   selectedCameraId: '',
-  canEditHedges: true,
-  canResizeTrees: true,
   canAdjustCameras: true,
   ...over,
 })
@@ -160,21 +152,10 @@ describe('staticFeatures', () => {
     expect(polygons).toHaveLength(1)
     expect(polygons[0]).toHaveLength(1)
   })
-  it('un mur « screen » (claustra) est marqué à part', () => {
-    PLAN_WALLS.push({ x1: 0, y1: 0, x2: 10, y2: 0, screen: true })
-    try {
-      const walls = props(staticFeatures()).filter((p) => p.part === 'wall')
-      expect(walls.at(-1)?.screen).toBe(1)
-    } finally {
-      PLAN_WALLS.pop()
-    }
-  })
-  it('un mur marqué « screen » (claustra, pointillé) se distingue d’un mur plein ; il n’y en a plus dans le plan', () => {
+  it('tous les murs sont pleins (plus de claustra en pointillé)', () => {
     const walls = props(staticFeatures()).filter((p) => p.part === 'wall')
-    expect(walls.slice(-PLAN_WALLS.length).map((w) => w.screen)).toEqual(PLAN_WALLS.map((w) => (w.screen ? 1 : 0)))
-    // Le mur de l'entrée est maintenant un mur plein : plus rien en pointillé.
-    expect(walls.some((w) => w.screen === 1)).toBe(false)
-    expect(walls.every((w) => w.screen === 0)).toBe(true)
+    expect(walls.length).toBeGreaterThan(0)
+    expect(walls.every((w) => !('screen' in w))).toBe(true)
   })
 })
 
@@ -209,46 +190,32 @@ describe('liveFeatures', () => {
     expect(hits.map((f) => f.properties)).toEqual([expect.objectContaining({ id: 'pac', image: 'img-pac' })])
   })
 
-  it('les coins des carreaux ont une poignée en modification ; un contour modifié remplace le calculé', () => {
-    const handles = (over: Partial<LiveData>) =>
-      liveFeatures(data(over), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'tiles-vertex')
-    expect(handles({ canEditTiles: false })).toHaveLength(0)
-    expect(handles({ canEditTiles: true }).length).toBeGreaterThanOrEqual(4)
+  it('un contour des carreaux gardé dans le plan remplace le calculé', () => {
     const ring: [number, number][] = [
       [0, 0],
       [100, 0],
       [100, 50],
     ]
-    expect(handles({ canEditTiles: true, tiles: ring }).map((f) => (f.properties as { index: number }).index)).toEqual([0, 1, 2])
-    const shapes = liveFeatures(data({ tiles: ring }), palette).shapes.features
-    expect(shapes.find((f) => (f.properties as { kind: string }).kind === 'tiles')?.geometry.type).toBe('Polygon')
+    const tiles = (over: Partial<LiveData>) =>
+      liveFeatures(data(over), palette).shapes.features.find((f) => (f.properties as { kind: string }).kind === 'tiles')?.geometry
+    expect(tiles({})?.type).toBe('MultiPolygon')
+    expect(tiles({ tiles: ring })?.type).toBe('Polygon')
   })
 
-  it('les coins des pièces ont un rond en modification : un seul par coin partagé, avec tous ses coins', () => {
-    const handles = (over: Partial<LiveData>) =>
-      liveFeatures(data(over), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'room-vertex')
-    expect(handles({ canEditRooms: false })).toHaveLength(0)
-    const rooms = [
-      [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
-      [{ x1: 10, y1: 0, x2: 20, y2: 10 }],
-    ]
-    const found = handles({ canEditRooms: true, rooms })
-    expect(found).toHaveLength(6)
-    expect(found.map((f) => (f.properties as { refs: string }).refs)).toContain('0.0.1;1.0.0')
-    expect(handles({ canEditRooms: true }).length).toBeGreaterThan(0)
-  })
-
-  it('les coins du chemin du garage ont une poignée en modification, au coin décalé ; un contour modifié remplace celui de départ', () => {
-    const handles = (over: Partial<LiveData>) =>
-      liveFeatures(data(over), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'garage-vertex')
-    expect(handles({ canEditGarage: false })).toHaveLength(0)
-    expect(handles({ canEditGarage: true })).toHaveLength(4)
+  it('un contour du chemin du garage gardé dans le plan remplace celui de départ', () => {
     const ring: [number, number][] = [
       [0, 0],
       [10, 0],
       [10, 5],
     ]
-    expect(handles({ canEditGarage: true, garage: ring })).toHaveLength(3)
+    const garage = (over: Partial<LiveData>) =>
+      liveFeatures(data(over), palette).shapes.features.find((f) => (f.properties as { kind: string }).kind === 'garage')?.geometry
+    expect(garage({ garage: ring })).not.toEqual(garage({}))
+  })
+
+  it('aucune poignée de coin, de milieu, de sommet ou d’arbre n’est dessinée', () => {
+    const kinds = props(liveFeatures(data({ selectedCameraId: 'c1', canAdjustCameras: true }), palette).points).map((p) => String(p.kind))
+    expect(kinds.filter((k) => k.includes('vertex') || k.includes('-mid') || k === 'tree-handle')).toEqual([])
   })
 
   it('applique les décalages au chemin du garage et aux portes', () => {
@@ -260,18 +227,14 @@ describe('liveFeatures', () => {
     expect(gate(shifted)).not.toEqual(gate(plain))
   })
 
-  it('un élément choisi montre sa poignée, sa vue et se met en valeur', () => {
-    const { shapes, points } = liveFeatures(data({ selectedHedgeId: 'h1', selectedTreeId: 't1', selectedCameraId: 'c1' }), palette)
+  it('une caméra choisie montre sa poignée et sa vue', () => {
+    const { shapes, points } = liveFeatures(data({ selectedCameraId: 'c1' }), palette)
     const kinds = props(points).map((p) => p.kind)
-    expect(kinds.filter((k) => k === 'hedge-vertex')).toHaveLength(2)
-    expect(kinds).toContain('tree-handle')
     expect(kinds).toContain('camera-handle')
     const all = props(shapes)
     expect(all.some((p) => p.kind === 'fov')).toBe(true)
-    expect(all.find((p) => p.id === 'h1')?.selected).toBe(1)
-    expect(all.find((p) => p.id === 'h2')?.selected).toBe(0)
-    expect(all.find((p) => p.id === 't1')).toMatchObject({ stroke: 'A', strokeWidth: 3 })
-    expect(all.find((p) => p.id === 't2')).toMatchObject({ stroke: 'G', strokeWidth: 1.5 })
+    expect(all.find((p) => p.id === 'h1')).toMatchObject({ kind: 'hedge' })
+    expect(all.find((p) => p.id === 't1')).toMatchObject({ stroke: 'G', strokeWidth: 1.5 })
     // l'état d'une caméra est sur son point : allumée (contour vert), éteinte (rond rouge) ou inexistante (caméra rouge)
     const hits = props(points).filter((p) => p.kind === 'camera-hit')
     expect(hits.find((p) => p.id === 'c1')?.state).toBe('on')
@@ -281,11 +244,7 @@ describe('liveFeatures', () => {
   it('sans droit de modification : pas de poignées', () => {
     const { points } = liveFeatures(
       data({
-        selectedHedgeId: 'h1',
-        selectedTreeId: 't1',
         selectedCameraId: 'c1',
-        canEditHedges: false,
-        canResizeTrees: false,
         canAdjustCameras: false,
       }),
       palette,

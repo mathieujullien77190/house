@@ -1,4 +1,4 @@
-import type { PlanCamera, PlanHedge, PlanTree } from '@house/ui'
+import type { PlanCamera } from '@house/ui'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { attachEditing, type EditContext } from './edit'
 
@@ -36,45 +36,11 @@ const mouse = (px: number, py: number, plan = { x: 0, y: 0 }) => ({
 })
 
 const cam: PlanCamera = { id: 'c1', name: 'c', x: 100, y: 100, angle: 0, fov: 60, near: 10, far: 200 }
-const tree: PlanTree = { id: 't1', x: 50, y: 50, r: 20 }
-const hedge: PlanHedge = {
-  id: 'h1',
-  points: [
-    [0, 0],
-    [10, 10],
-    [20, 20],
-  ],
-}
-
 const context = (over: Partial<EditContext> = {}): EditContext => ({
   cameras: [cam],
-  trees: [tree],
-  hedges: [hedge],
-  offsets: { garage: { dx: 5, dy: 6 } },
-  cage: { x: 10, y: 20, w: 100, h: 100 },
   onMoveCamera: vi.fn(),
   onAdjustCamera: vi.fn(),
   onSelectCamera: vi.fn(),
-  onMoveTree: vi.fn(),
-  onResizeTree: vi.fn(),
-  onSelectTree: vi.fn(),
-  onMoveHedge: vi.fn(),
-  onMoveTiles: vi.fn(),
-  onMoveGarage: vi.fn(),
-  garageRing: [
-    [0, 0],
-    [10, 0],
-    [10, 10],
-  ],
-  snap: false,
-  tilesRing: [
-    [0, 0],
-    [10, 0],
-    [10, 10],
-  ],
-  onSelectHedge: vi.fn(),
-  onMoveOffset: vi.fn(),
-  onMoveCage: vi.fn(),
   onMoveLamp: vi.fn(),
   onToggleLamp: vi.fn(),
   onHoverLamp: vi.fn(),
@@ -183,21 +149,15 @@ describe('attachEditing', () => {
       fire('touchstart', { ...mouse(1, 1), points: [1] })
       expect(canvas.style.cursor).toBe('grabbing')
     })
-    it('prend l’élément de la couche la plus prioritaire', () => {
-      const { fire, state, ctx } = setup()
+    it('prend l’élément de la couche la plus prioritaire (la poignée avant l’icône)', () => {
+      const { drag, ctx, state } = setup()
       state.hits = [
-        { layer: 'plan-cage', properties: { kind: 'cage', id: 'cage' } },
         { layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } },
+        { layer: 'plan-poignees', properties: { kind: 'camera-handle', id: 'c1' } },
       ]
-      fire('mousedown', mouse(1, 1))
-      fire('mouseup')
-      expect(ctx.onSelectCamera).toHaveBeenCalledWith('c1')
-    })
-    it('un arbre saisi est choisi, même sans pouvoir le déplacer', () => {
-      const { fire, state, ctx } = setup({ onMoveTree: undefined })
-      state.hits = [{ layer: 'plan-arbres', properties: { kind: 'tree', id: 't1' } }]
-      fire('mousedown', mouse(1, 1))
-      expect(ctx.onSelectTree).toHaveBeenCalledWith('t1')
+      drag({ layer: 'plan-poignees', properties: { kind: 'camera-handle', id: 'c1' } }, { x: 124, y: 100 })
+      expect(ctx.onAdjustCamera).toHaveBeenCalled()
+      expect(ctx.onMoveCamera).not.toHaveBeenCalled()
     })
     it('sans rappel pour ce genre, rien n’est saisi (sauf une caméra, qu’on peut choisir)', () => {
       const { fire, state, canvas } = setup({ onMoveLamp: undefined, onToggleLamp: undefined, onMoveCamera: undefined })
@@ -238,9 +198,9 @@ describe('attachEditing', () => {
       fire('mousemove', mouse(1, 1))
       expect(canvas.style.cursor).toBe('')
     })
-    it('un élément saisissable d’un genre sans rappel de déplacement propre donne la main', () => {
+    it('la poignée d’une caméra, sans rappel de déplacement propre, donne la main', () => {
       const { fire, state, canvas } = setup()
-      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 0 } }]
+      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'camera-handle', id: 'c1' } }]
       fire('mousemove', mouse(1, 1))
       expect(canvas.style.cursor).toBe('grab')
     })
@@ -368,14 +328,6 @@ describe('attachEditing', () => {
       fire('click', mouse(1, 1))
       expect(ctx.onHoverLamp).toHaveBeenCalledWith('')
     })
-    it('relâcher la cage sans la bouger ne choisit rien', () => {
-      const { fire, state, ctx } = setup()
-      state.hits = [{ layer: 'plan-cage', properties: { kind: 'cage', id: 'cage' } }]
-      fire('mousedown', mouse(1, 1))
-      fire('mouseup')
-      expect(ctx.onSelectCamera).not.toHaveBeenCalled()
-      expect(ctx.onToggleLamp).not.toHaveBeenCalled()
-    })
   })
 
   describe('déplacements', () => {
@@ -390,162 +342,15 @@ describe('attachEditing', () => {
       ['camera', { layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }, 'onMoveCamera', ['c1', 30, 40]],
       ['lampe', { layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l1' } }, 'onMoveLamp', ['l1', 30, 40]],
       ['prise', { layer: 'plan-saisie', properties: { kind: 'plug-hit', id: 'p1' } }, 'onMovePlug', ['p1', 30, 40]],
-      ['arbre', { layer: 'plan-arbres', properties: { kind: 'tree', id: 't1' } }, 'onMoveTree', ['t1', 30, 40]],
     ] as const)('déplace %s', (_name, hit, callback, args) => {
       const { drag, ctx } = setup()
       drag(hit, { x: 30.2, y: 40.4 })
       expect(ctx[callback]).toHaveBeenCalledWith(...args)
     })
-    it('déplace la cage de l’écart parcouru', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-cage', properties: { kind: 'cage', id: 'cage' } }, { x: 30, y: 40 }, { x: 10, y: 10 })
-      expect(ctx.onMoveCage).toHaveBeenCalledWith(30, 50)
-    })
-    it.each([
-      ['garage', 'plan-garage', 'garage', { dx: 5, dy: 6 }],
-      ['portail', 'plan-portes', 'gate', { dx: 0, dy: 0 }],
-    ])('déplace %s avec son décalage de départ', (id, layer, kind, base) => {
-      const { drag, ctx } = setup()
-      drag({ layer, properties: { kind, id } }, { x: 20, y: 30 }, { x: 10, y: 10 })
-      expect(ctx.onMoveOffset).toHaveBeenCalledWith(id, base.dx + 10, base.dy + 20)
-    })
-    it('déplace un coin des carreaux : le contour entier est rendu', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 1 } }, { x: 30.2, y: 40.4 })
-      expect(ctx.onMoveTiles).toHaveBeenCalledWith([
-        [0, 0],
-        [30, 40],
-        [10, 10],
-      ])
-    })
-    it('déplace un coin du chemin du garage, sans son décalage', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-poignees', properties: { kind: 'garage-vertex', id: 'garage', index: 1 } }, { x: 30, y: 40 })
-      expect(ctx.onMoveGarage).toHaveBeenCalledWith([
-        [0, 0],
-        [25, 34],
-        [10, 10],
-      ])
-    })
-    it('déplace un coin partagé de pièces : tous les coins tenus bougent, les autres ne bougent pas', () => {
-      const rooms = [
-        [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
-        [{ x1: 10, y1: 0, x2: 20, y2: 10 }],
-      ]
-      const { drag, ctx } = setup({ roomRects: rooms, onMoveRooms: vi.fn() })
-      drag({ layer: 'plan-poignees', properties: { kind: 'room-vertex', id: 'rooms', refs: '0.0.1;1.0.0' } }, { x: 12.4, y: 3.6 })
-      expect(ctx.onMoveRooms).toHaveBeenCalledWith([
-        [{ x1: 0, y1: 4, x2: 12, y2: 10 }],
-        [{ x1: 12, y1: 4, x2: 20, y2: 10 }],
-      ])
-    })
-    it('un coin de pièce se cale sur les lignes des autres coins quand l’alignement est actif', () => {
-      const rooms = [
-        [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
-        [{ x1: 10, y1: 0, x2: 20, y2: 10 }],
-      ]
-      const { drag, ctx } = setup({ roomRects: rooms, onMoveRooms: vi.fn(), snap: true })
-      drag({ layer: 'plan-poignees', properties: { kind: 'room-vertex', id: 'rooms', refs: '0.0.2;1.0.3' } }, { x: 19, y: 1 })
-      expect(ctx.onMoveRooms).toHaveBeenCalledWith([
-        [{ x1: 0, y1: 0, x2: 20, y2: 0 }],
-        [{ x1: 20, y1: 0, x2: 20, y2: 0 }],
-      ])
-    })
-    it('casse une ligne du chemin du garage : le rond du milieu crée un coin, puis on le tient', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-poignees-milieu', properties: { kind: 'garage-mid', id: 'garage', index: 0 } }, { x: 45, y: 56 })
-      expect(ctx.onMoveGarage).toHaveBeenNthCalledWith(1, [
-        [0, 0],
-        [5, 0],
-        [10, 0],
-        [10, 10],
-      ])
-      expect(ctx.onMoveGarage).toHaveBeenLastCalledWith([
-        [0, 0],
-        [40, 50],
-        [10, 0],
-        [10, 10],
-      ])
-    })
     it('déplace une icône seule (pompe à chaleur) en modification', () => {
       const { drag, ctx } = setup({ onMoveDecor: vi.fn() })
       drag({ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'pac' } }, { x: 30.4, y: 40.6 })
       expect(ctx.onMoveDecor).toHaveBeenCalledWith('pac', 30, 41)
-    })
-    it('un coin de pièce sans liste de coins dans la saisie ne déplace rien', () => {
-      const { drag, ctx } = setup({ roomRects: [[{ x1: 0, y1: 0, x2: 10, y2: 10 }]], onMoveRooms: vi.fn() })
-      drag({ layer: 'plan-poignees', properties: { kind: 'room-vertex', id: 'rooms' } }, { x: 5, y: 5 })
-      expect(ctx.onMoveRooms).toHaveBeenCalledWith([[{ x1: 0, y1: 0, x2: 10, y2: 10 }]])
-    })
-    it('cale un coin du chemin du garage quand l’alignement est actif', () => {
-      const { drag, ctx } = setup({ snap: true })
-      drag({ layer: 'plan-poignees', properties: { kind: 'garage-vertex', id: 'garage', index: 1 } }, { x: 7, y: 8 })
-      expect(ctx.onMoveGarage).toHaveBeenCalled()
-    })
-    it('casse une ligne : le rond du milieu crée un coin tout de suite, puis on le tient', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-poignees-milieu', properties: { kind: 'tiles-mid', id: 'tiles', index: 0 } }, { x: 40, y: 50 })
-      // Un coin de plus au milieu de (0,0)-(10,0), créé à la saisie, puis déplacé.
-      expect(ctx.onMoveTiles).toHaveBeenNthCalledWith(1, [
-        [0, 0],
-        [5, 0],
-        [10, 0],
-        [10, 10],
-      ])
-      expect(ctx.onMoveTiles).toHaveBeenLastCalledWith([
-        [0, 0],
-        [40, 50],
-        [10, 0],
-        [10, 10],
-      ])
-    })
-    it('un double clic sur un coin le retire, sauf s’il n’en reste que trois', () => {
-      const { fire, state, ctx } = setup({
-        tilesRing: [
-          [0, 0],
-          [10, 0],
-          [10, 10],
-          [0, 10],
-        ],
-      })
-      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 1 } }]
-      fire('dblclick', { ...mouse(1, 1), preventDefault: vi.fn() })
-      expect(ctx.onMoveTiles).toHaveBeenCalledWith([
-        [0, 0],
-        [10, 10],
-        [0, 10],
-      ])
-    })
-    it('à trois coins, un double clic n’en retire plus', () => {
-      const { fire, state, ctx } = setup()
-      state.hits = [{ layer: 'plan-poignees', properties: { kind: 'garage-vertex', id: 'garage', index: 1 } }]
-      fire('dblclick', { ...mouse(1, 1), preventDefault: vi.fn() })
-      expect(ctx.onMoveGarage).not.toHaveBeenCalled()
-    })
-    it('cale un coin sur l’alignement de ses voisins quand l’alignement est actif', () => {
-      const { drag, ctx } = setup({ snap: true })
-      // Le coin 1 est entre (0, 0) et (10, 10) : x à 2 de 0 → 0, y à 3 de 10 → 10.
-      drag({ layer: 'plan-poignees', properties: { kind: 'tiles-vertex', id: 'tiles', index: 1 } }, { x: 2, y: 7 })
-      expect(ctx.onMoveTiles).toHaveBeenCalledWith([
-        [0, 0],
-        [0, 10],
-        [10, 10],
-      ])
-    })
-    it('règle le rayon d’un arbre, borné', () => {
-      const { drag, ctx } = setup()
-      const handle = { layer: 'plan-poignees', properties: { kind: 'tree-handle', id: 't1' } }
-      drag(handle, { x: 80, y: 50 })
-      expect(ctx.onResizeTree).toHaveBeenLastCalledWith('t1', 30)
-      drag(handle, { x: 50, y: 50 })
-      expect(ctx.onResizeTree).toHaveBeenLastCalledWith('t1', 5)
-      drag(handle, { x: 5000, y: 50 })
-      expect(ctx.onResizeTree).toHaveBeenLastCalledWith('t1', 400)
-    })
-    it('un arbre inconnu n’est pas redimensionné', () => {
-      const { drag, ctx } = setup({ trees: [] })
-      drag({ layer: 'plan-poignees', properties: { kind: 'tree-handle', id: 'fantome' } }, { x: 80, y: 50 })
-      expect(ctx.onResizeTree).not.toHaveBeenCalled()
     })
     it('règle la direction, la longueur et l’ouverture d’une caméra', () => {
       const { drag, ctx } = setup()
@@ -577,30 +382,6 @@ describe('attachEditing', () => {
       fire('mousemove', mouse(100, 100, { x: 5, y: 5 }))
       expect(ctx.onAdjustCamera).not.toHaveBeenCalled()
     })
-    it('déplace une haie entière', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-haies', properties: { kind: 'hedge', id: 'h1' } }, { x: 5, y: 7 }, { x: 1, y: 2 })
-      expect(ctx.onMoveHedge).toHaveBeenCalledWith('h1', [
-        [4, 5],
-        [14, 15],
-        [24, 25],
-      ])
-    })
-    it('déplace un sommet de haie', () => {
-      const { drag, ctx } = setup()
-      drag({ layer: 'plan-poignees', properties: { kind: 'hedge-vertex', id: 'h1', index: 1 } }, { x: 33, y: 44 })
-      expect(ctx.onMoveHedge).toHaveBeenCalledWith('h1', [
-        [0, 0],
-        [33, 44],
-        [20, 20],
-      ])
-    })
-    it('une haie inconnue ne bouge pas', () => {
-      const { drag, ctx } = setup({ hedges: [] })
-      drag({ layer: 'plan-haies', properties: { kind: 'hedge', id: 'h1' } }, { x: 5, y: 7 })
-      drag({ layer: 'plan-poignees', properties: { kind: 'hedge-vertex', id: 'h1', index: 0 } }, { x: 5, y: 7 })
-      expect(ctx.onMoveHedge).not.toHaveBeenCalled()
-    })
     it('si le rappel a disparu pendant le geste, rien ne casse', () => {
       const fake = fakeMap()
       let ctx = context()
@@ -609,13 +390,7 @@ describe('attachEditing', () => {
         { layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } },
         { layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l' } },
         { layer: 'plan-saisie', properties: { kind: 'plug-hit', id: 'p' } },
-        { layer: 'plan-arbres', properties: { kind: 'tree', id: 't1' } },
-        { layer: 'plan-cage', properties: { kind: 'cage', id: 'cage' } },
-        { layer: 'plan-garage', properties: { kind: 'garage', id: 'garage' } },
-        { layer: 'plan-poignees', properties: { kind: 'tree-handle', id: 't1' } },
         { layer: 'plan-poignees', properties: { kind: 'camera-handle', id: 'c1' } },
-        { layer: 'plan-haies', properties: { kind: 'hedge', id: 'h1' } },
-        { layer: 'plan-poignees', properties: { kind: 'hedge-vertex', id: 'h1', index: 0 } },
       ]
       for (const hit of kinds) {
         ctx = context()
@@ -625,12 +400,7 @@ describe('attachEditing', () => {
           onMoveCamera: undefined,
           onMoveLamp: undefined,
           onMovePlug: undefined,
-          onMoveTree: undefined,
-          onMoveCage: undefined,
-          onMoveOffset: undefined,
-          onResizeTree: undefined,
           onAdjustCamera: undefined,
-          onMoveHedge: undefined,
         })
         fake.handlers.get('mousemove')?.(mouse(100, 100, { x: 300, y: 300 }))
         fake.handlers.get('mouseup')?.({})
@@ -645,20 +415,27 @@ describe('attachEditing', () => {
       fire('mouseup')
       expect(canvas.style.cursor).toBe('')
     })
-    it('un clic sur une haie la choisit', () => {
-      const { fire, state, ctx } = setup()
-      state.hits = [{ layer: 'plan-haies', properties: { kind: 'hedge', id: 'h1' } }]
-      fire('mousedown', mouse(1, 1))
-      fire('mouseup')
-      expect(ctx.onSelectHedge).toHaveBeenCalledWith('h1')
-    })
-    it('un clic sur une lampe ne choisit ni caméra ni haie', () => {
+    it('un clic sur une lampe ne choisit pas de caméra', () => {
       const { fire, state, ctx } = setup()
       state.hits = [{ layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l' } }]
       fire('mousedown', mouse(1, 1))
       fire('mouseup')
       expect(ctx.onSelectCamera).not.toHaveBeenCalled()
-      expect(ctx.onSelectHedge).not.toHaveBeenCalled()
+    })
+    it('un toucher sur une étiquette, une icône seule ou une poignée ne fait rien', () => {
+      const { fire, state, ctx, canvas } = setup({ onMoveLabel: vi.fn(), onMoveDecor: vi.fn() })
+      for (const [layer, kind] of [
+        ['plan-saisie', 'label-hit'],
+        ['plan-saisie', 'decor-hit'],
+        ['plan-poignees', 'camera-handle'],
+      ]) {
+        state.hits = [{ layer, properties: { kind, id: 'x' } }]
+        fire('mousedown', mouse(1, 1))
+        fire('mouseup')
+      }
+      expect(ctx.onSelectCamera).not.toHaveBeenCalled()
+      expect(ctx.onToggleLamp).not.toHaveBeenCalled()
+      expect(canvas.style.cursor).toBe('')
     })
     it('un glissement n’est pas un clic, et le clic qui le suit n’efface pas la sélection', () => {
       const { drag, fire, ctx, state } = setup()
@@ -671,8 +448,6 @@ describe('attachEditing', () => {
       // le clic suivant, lui, désélectionne
       fire('click', mouse(1, 1))
       expect(ctx.onSelectCamera).toHaveBeenCalledWith('')
-      expect(ctx.onSelectTree).toHaveBeenCalledWith('')
-      expect(ctx.onSelectHedge).toHaveBeenCalledWith('')
     })
     it('un clic sur un élément ne désélectionne pas', () => {
       const { fire, state, ctx } = setup()
@@ -681,17 +456,14 @@ describe('attachEditing', () => {
       expect(ctx.onSelectCamera).not.toHaveBeenCalled()
     })
     it('un clic dans le vide sans rappels de choix ne casse rien', () => {
-      const { fire } = setup({ onSelectCamera: undefined, onSelectTree: undefined, onSelectHedge: undefined })
+      const { fire } = setup({ onSelectCamera: undefined })
       fire('click', mouse(1, 1))
     })
-    it('relâcher une caméra sans rappel de choix, ou une haie sans rappel', () => {
-      const { fire, state } = setup({ onSelectCamera: undefined, onSelectHedge: undefined })
+    it('relâcher une caméra sans rappel de choix', () => {
+      const { fire, state } = setup({ onSelectCamera: undefined })
       state.hits = [{ layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }]
       fire('mousedown', mouse(1, 1))
-      fire('mouseup')
-      state.hits = [{ layer: 'plan-haies', properties: { kind: 'hedge', id: 'h1' } }]
-      fire('mousedown', mouse(1, 1))
-      fire('mouseup')
+      expect(() => fire('mouseup')).not.toThrow()
     })
   })
 

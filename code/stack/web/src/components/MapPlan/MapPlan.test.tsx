@@ -103,8 +103,6 @@ const baseProps = (over: Partial<MapPlanProps> = {}): MapPlanProps => ({
   offsets: {},
   cage: { x: 0, y: 0, w: 10, h: 10 },
   selectedCameraId: '',
-  selectedTreeId: '',
-  selectedHedgeId: '',
   cameraNames: ['voliere-interieur', 'voliere-exterieur'],
   links: {},
   ...over,
@@ -255,7 +253,7 @@ describe('MapPlan : le toit', () => {
     const map = loaded()
     expect(screen.queryByRole('button', { name: /toit/i })).toBeNull()
     expect(map.visibility.get('plan-toit')).toBe('none')
-    for (const id of ['plan-pieces', 'plan-cloisons', 'plan-claustras']) expect(map.visibility.get(id)).toBe('visible')
+    for (const id of ['plan-pieces', 'plan-cloisons']) expect(map.visibility.get(id)).toBe('visible')
   })
 
   it('rien avant le chargement du style', () => {
@@ -316,13 +314,13 @@ describe('MapPlan : les lampes', () => {
 
   it('en modification : tout se déplace, lampes comprises', () => {
     const onMoveLamp = vi.fn()
-    const onMoveTree = vi.fn()
-    render(<MapPlan {...baseProps({ onMoveLamp, onMoveTree })} />)
+    const onMoveDecor = vi.fn()
+    render(<MapPlan {...baseProps({ onMoveLamp, onMoveDecor })} />)
     const context = editContext()
     expect(context().onMoveLamp).toBeUndefined()
     fireEvent.click(screen.getByRole('button', { name: EDIT_LABEL }))
     expect(context().onMoveLamp).toBe(onMoveLamp)
-    expect(context().onMoveTree).toBe(onMoveTree)
+    expect(context().onMoveDecor).toBe(onMoveDecor)
   })
 
   it('hors modification, toucher une lampe reste possible (onToggleLamp conservé)', () => {

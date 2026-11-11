@@ -44,10 +44,8 @@ export const PLAN_LAYERS = [
   'plan-toit',
   'plan-pieces',
   'plan-cloisons',
-  'plan-claustras',
   'plan-haies',
   'plan-portails',
-  'plan-portes',
   'plan-lien',
   'plan-cameras',
   'plan-survol-cameras',
@@ -70,21 +68,11 @@ export const PLAN_LAYERS = [
   'plan-decors',
   'plan-emojis',
   'plan-saisie',
-  'plan-poignees-milieu',
   'plan-poignees',
 ] as const
 
-/** Ce qu'on peut saisir à la souris, du plus au moins prioritaire. */
-export const INTERACTIVE_LAYERS = [
-  'plan-poignees',
-  'plan-poignees-milieu',
-  'plan-saisie',
-  'plan-portes',
-  'plan-arbres',
-  'plan-haies',
-  'plan-cage',
-  'plan-garage',
-] as const
+/** Ce qu'on peut saisir à la souris, du plus au moins prioritaire : la poignée d'une caméra, puis les icônes. */
+export const INTERACTIVE_LAYERS = ['plan-poignees', 'plan-saisie'] as const
 
 /**
  * Le jumeau d'un calque d'icônes pour le survol : mêmes position, taille et rotation, mais l'image de l'icône sur fond **bleu pâle** (le fond blanc du rond devient bleu). Il ne montre
@@ -151,7 +139,7 @@ export const addPlanLayers = (
   const kind = (name: string) => ['==', ['get', 'kind'], name]
   const opacity = MAP_PLAN_OPACITY
 
-  // Le chemin du garage : du béton, comme le reste, mais déplaçable.
+  // Le chemin du garage : du béton, comme le reste.
   map.addLayer({
     id: 'plan-garage',
     type: 'fill',
@@ -189,7 +177,7 @@ export const addPlanLayers = (
     ...only(STATIC_SOURCE, part('roof')),
     paint: { 'fill-color': '#374151', 'fill-opacity': opacity },
   })
-  // Toit caché : les pièces (un fond clair), leurs murs, les cloisons et les claustras (en pointillés).
+  // Toit caché : les pièces (un fond clair), leurs murs, et les cloisons.
   map.addLayer({
     id: 'plan-pieces',
     type: 'fill',
@@ -200,16 +188,9 @@ export const addPlanLayers = (
   map.addLayer({
     id: 'plan-cloisons',
     type: 'line',
-    ...only(STATIC_SOURCE, part('wall'), ['!=', ['get', 'screen'], 1]),
+    ...only(STATIC_SOURCE, part('wall')),
     layout: { visibility: 'none', 'line-cap': 'round' },
     paint: { 'line-color': ROOM_LINE, 'line-width': widthByZoom(5) },
-  })
-  map.addLayer({
-    id: 'plan-claustras',
-    type: 'line',
-    ...only(STATIC_SOURCE, part('wall'), ['==', ['get', 'screen'], 1]),
-    layout: { visibility: 'none' },
-    paint: { 'line-color': ROOM_LINE, 'line-width': widthByZoom(5), 'line-dasharray': [2, 2] },
   })
   map.addLayer({
     id: 'plan-haies',
@@ -219,7 +200,7 @@ export const addPlanLayers = (
     paint: {
       'line-color': '#15803d',
       'line-width': widthByZoom(56),
-      'line-opacity': ['case', ['==', ['get', 'selected'], 1], 0.6, opacity],
+      'line-opacity': opacity,
     },
   })
   map.addLayer({
@@ -228,13 +209,6 @@ export const addPlanLayers = (
     ...only(SHAPES_SOURCE, kind('gate')),
     layout: { 'line-cap': 'butt' },
     paint: { 'line-color': '#92400e', 'line-width': widthByZoom(9), 'line-opacity': opacity },
-  })
-  // La zone de saisie des portes : un trait transparent bien plus épais que le dessin (une porte est fine, 23 cm).
-  map.addLayer({
-    id: 'plan-portes',
-    type: 'line',
-    ...only(SHAPES_SOURCE, kind('gate')),
-    paint: { 'line-color': '#000000', 'line-opacity': 0, 'line-width': 20 },
   })
   // La ligne bleue de l'objet choisi à son bloc : **sous les icônes** (calques posés avant elles), au-dessus du plan.
   map.addLayer({
@@ -424,23 +398,11 @@ export const addPlanLayers = (
     ],
     paint: { 'circle-radius': 14, 'circle-color': '#000000', 'circle-opacity': 0 },
   })
-  // Le rond au milieu d'un côté (blanc, cerclé de la couleur du thème) : le glisser casse la ligne.
-  map.addLayer({
-    id: 'plan-poignees-milieu',
-    type: 'circle',
-    source: POINTS_SOURCE,
-    filter: ['in', ['get', 'kind'], ['literal', ['tiles-mid', 'garage-mid']]],
-    paint: { 'circle-radius': 5, 'circle-color': '#ffffff', 'circle-stroke-color': palette.accent, 'circle-stroke-width': 2 },
-  })
   map.addLayer({
     id: 'plan-poignees',
     type: 'circle',
     source: POINTS_SOURCE,
-    filter: [
-      'in',
-      ['get', 'kind'],
-      ['literal', ['camera-handle', 'tree-handle', 'hedge-vertex', 'tiles-vertex', 'garage-vertex', 'room-vertex']],
-    ],
+    filter: ['==', ['get', 'kind'], 'camera-handle'],
     paint: { 'circle-radius': 7, 'circle-color': palette.accent, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 },
   })
 }

@@ -11,8 +11,6 @@ export const COLLAPSE_LABEL = 'Réduire'
 export const COLLAPSE_ICON = '✕'
 
 export const CAPTION_ROW_CLASS = 'flex flex-wrap items-center justify-between gap-2'
-export const EXPAND_CLASS =
-  'cursor-pointer rounded-md border border-line bg-bg px-2 py-1 text-[1rem] text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
 /**
  * Plein écran : tout l'écran, fond noir. Si l'écran reste en portrait (verrouillage du paysage refusé, iPhone), la
  * vue est posée à plat : largeur et hauteur échangées, tournée d'un quart de tour. `--big-w` et `--big-h` donnent la

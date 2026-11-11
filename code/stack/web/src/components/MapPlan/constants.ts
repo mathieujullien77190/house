@@ -27,10 +27,8 @@ export const RASTER_TILE_SIZE = 256
 export const SATELLITE = { id: 'satellite', tiles: `${WMTS}&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg` }
 export const ATTRIBUTION = '© IGN — Géoplateforme'
 
-/** Le plan ne se modifie (déplacer, régler, redimensionner) que quand ce bouton est enfoncé ; il ne l'est pas au départ. */
+/** Les objets connectés ne se déplacent (et la caméra ne se règle) que quand ce bouton est enfoncé ; il ne l'est pas au départ. */
 export const EDIT_LABEL = 'Modifier'
-/** Case posée à côté du bouton en modification : les coins des carreaux et du chemin se calent sur les lignes droites. */
-export const SNAP_LABEL = 'Aligner'
 /** Le choix de la vraie caméra liée à la caméra du plan choisie (en mode modification). */
 export const LINK_LABEL = 'Caméra liée'
 export const LINK_NONE = 'Aucune'
@@ -52,10 +50,6 @@ export const BRIGHTNESS_FLOOR = 0.25
 /** Le rayon d'une ampoule sur la carte, en unités du plan (assez gros pour la toucher du doigt). */
 /** Le nombre de côtés du polygone d'un arbre : une carte ne sait dessiner que des segments, donc un « rond » est un polygone ; à 180 côtés l'écart au vrai cercle est sous 0,1 px même au zoom maximal avec le plus grand arbre (400 unités).  */
 export const TREE_STEPS = 180
-/** La marge autour des lampes quand la carte des lumières les cadre toutes, en pixels. */
-export const FIT_PADDING = 48
-/** Les crans de zoom ajoutés au cadrage exact des lampes. */
-export const FIT_EXTRA_ZOOM = 1
 /** Les pièces vues toit caché. */
 export const ROOM_FILL = '#f3f4f6'
 export const ROOM_LINE = '#374151'

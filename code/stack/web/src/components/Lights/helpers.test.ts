@@ -1,7 +1,7 @@
 import type { HueAutomation, HueLight, HueRoom, HueSensor } from '@/types'
 import { fromHousePlan } from '@/components/MapPlan/helpers'
 import { LAMP_POSITIONS, LEGACY_STORAGE_KEY, PLAN_LAMP_POSITION, SIDE_ZONE } from './constants'
-import { allLights, buildAutomationItems, buildZones, placedLampCount, planLamps, readLegacyPositions } from './helpers'
+import { allLights, buildAutomationItems, buildZones, planLamps, readLegacyPositions } from './helpers'
 
 const light = (id: string, over: Partial<HueLight> = {}): HueLight => ({ id, name: `L${id}`, on: true, bri: 100, reachable: true, ...over })
 const room = (lights: HueLight[]): HueRoom => ({ id: 'r', name: 'R', on: true, bri: null, lights })
@@ -76,12 +76,6 @@ describe('buildZones', () => {
   it('un détecteur absent du pont est ignoré', () => {
     const [zone] = buildZones([light('26')], [])
     expect(zone).not.toHaveProperty('sensors')
-  })
-})
-
-describe('placedLampCount', () => {
-  it('ne compte que les lampes d’une zone', () => {
-    expect(placedLampCount([room([light('15'), light('9'), light('999')])])).toBe(2)
   })
 })
 

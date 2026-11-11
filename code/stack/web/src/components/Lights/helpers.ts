@@ -72,10 +72,6 @@ export const buildZones = (lights: HueLight[], sensors: HueSensor[] = []): Light
   return zones
 }
 
-/** Le nombre de lampes qui sont dans une zone de la maison : celles du groupe « À placer » ne comptent pas. */
-export const placedLampCount = (rooms: HueRoom[]): number =>
-  allLights(rooms).filter((light) => ZONES.some((zone) => zone.lights.includes(light.id))).length
-
 /** Les règles du pont pour la liste : leur nom (et « désactivée »), puis ce qu'elles font en une ligne. */
 export const buildAutomationItems = (automations: HueAutomation[]): SpecItem[] =>
   automations.map((automation) => ({

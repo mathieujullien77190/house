@@ -122,12 +122,12 @@ describe('usePlan', () => {
     let ok: (p: PlanDocument | null) => void = () => undefined
     vi.mocked(api.fetchPlan).mockReturnValue(new Promise((resolve) => (ok = resolve)))
     const { result } = renderHook(() => usePlan('k'))
-    act(() => result.current.moveCage(5, 6))
+    act(() => result.current.moveItem('lamp', 5, 6))
     await act(async () => {
       ok(startPlan({ version: 1 }))
       await flush()
     })
-    expect(result.current.cage).toMatchObject({ x: 5, y: 6 })
+    expect(result.current.items.lamp).toEqual({ x: 5, y: 6 })
     // le plan est lu : l'envoi différé part
     await settle(500)
     expect(api.putPlan).toHaveBeenCalledTimes(1)
@@ -138,28 +138,13 @@ describe('usePlan', () => {
     const { result } = renderHook(() => usePlan('k'))
     await settle()
     vi.mocked(api.putPlan).mockClear()
-    const tree = result.current.trees[0]
-    const hedge = result.current.hedges[0]
     const camera = result.current.cameras[0]
     act(() => {
-      result.current.moveTree(tree.id, 1, 2)
-      result.current.resizeTree(tree.id, 9)
-      result.current.moveHedge(hedge.id, [[0, 0]])
-      result.current.moveCage(3, 4)
-      result.current.moveOffset('g', 5, 6)
       result.current.moveItem('lamp', 7, 8)
-      result.current.moveItems({ a: { x: 1, y: 2 }, b: { x: 3, y: 4 } })
       result.current.moveCamera(camera.id, 10, 11)
       result.current.adjustCamera(camera.id, { angle: 1, far: 2, fov: 3 })
     })
-    expect(result.current.trees.find((t) => t.id === tree.id)).toMatchObject({ x: 1, y: 2, r: 9 })
-    expect(result.current.trees.length).toBe(DEFAULT_TREES.length)
-    expect(result.current.hedges[0].points).toEqual([[0, 0]])
-    expect(result.current.cage).toMatchObject({ x: 3, y: 4 })
-    expect(result.current.offsets.g).toEqual({ dx: 5, dy: 6 })
     expect(result.current.items.lamp).toEqual({ x: 7, y: 8 })
-    expect(result.current.items.a).toEqual({ x: 1, y: 2 })
-    expect(result.current.items.b).toEqual({ x: 3, y: 4 })
     expect(result.current.cameras[0]).toMatchObject({ x: 10, y: 11, angle: 1, far: 2, fov: 3 })
     expect(api.putPlan).not.toHaveBeenCalled()
     await settle(499)
@@ -168,29 +153,22 @@ describe('usePlan', () => {
     expect(api.putPlan).toHaveBeenCalledTimes(1)
   })
 
-  it('les autres éléments restent intacts quand on en déplace un', async () => {
+  it('les autres caméras restent intactes quand on en déplace une', async () => {
     vi.mocked(api.fetchPlan).mockResolvedValue(null)
     const { result } = renderHook(() => usePlan('k'))
     await settle()
-    const [t0, t1] = result.current.trees
     const [c0, c1] = result.current.cameras
-    const [h0, h1] = result.current.hedges
     act(() => {
-      result.current.moveTree(t0.id, 1, 1)
-      result.current.resizeTree(t0.id, 2)
       result.current.moveCamera(c0.id, 1, 1)
       result.current.adjustCamera(c0.id, { angle: 1, far: 1, fov: 1 })
-      result.current.moveHedge(h0.id, [])
     })
-    expect(result.current.trees[1]).toEqual(t1)
     expect(result.current.cameras[1]).toEqual(c1)
-    if (h1) expect(result.current.hedges[1]).toEqual(h1)
   })
 
   it('un changement avant la lecture du plan n’envoie rien', async () => {
     vi.mocked(api.fetchPlan).mockReturnValue(new Promise(() => undefined))
     const { result } = renderHook(() => usePlan('k'))
-    act(() => result.current.moveCage(1, 1))
+    act(() => result.current.moveItem('lamp', 1, 1))
     await settle(1000)
     expect(api.putPlan).not.toHaveBeenCalled()
   })
@@ -212,7 +190,7 @@ describe('usePlan', () => {
     const { result, unmount } = renderHook(() => usePlan('k'))
     await settle()
     vi.mocked(api.putPlan).mockClear()
-    act(() => result.current.moveCage(1, 1))
+    act(() => result.current.moveItem('lamp', 1, 1))
     unmount()
     await settle(1000)
     expect(api.putPlan).not.toHaveBeenCalled()

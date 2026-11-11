@@ -5,20 +5,24 @@ import type { Point } from './projection'
 
 /**
  * Le plan de la maison sur la carte : tous les éléments sont des données de la carte (longitude, latitude), donc ils restent exactement à leur place
- * à tout zoom. Les éléments modifiables se prennent à la souris quand le parent donne le rappel correspondant.
+ * à tout zoom. Les éléments connectés se prennent à la souris quand le parent donne le rappel correspondant.
  */
-export interface MapPlanProps extends Omit<EditContext, 'cameras' | 'trees' | 'hedges'> {
+export interface MapPlanProps extends Omit<EditContext, 'cameras'> {
   /** La carte remplit l'espace qui reste à l'écran (téléphone) au lieu d'avoir sa hauteur fixe. */
   fill?: boolean
   cameras?: PlanCamera[]
   trees: PlanTree[]
   hedges: PlanHedge[]
   gates: PlanGate[]
-  /** Le contour des carreaux modifié à la main (ses coins) ; sans lui, le contour calculé. */
+  /** La cage à perruches (rectangle du plan), dessinée là où le plan la garde. */
+  cage: { x: number; y: number; w: number; h: number }
+  /** Les décalages du chemin du garage et des portes, par identifiant (lus pour les dessiner). */
+  offsets: Record<string, { dx: number; dy: number }>
+  /** Le contour des carreaux gardé dans le plan (ses coins) ; sans lui, le contour calculé. */
   tiles?: Point[] | null
-  /** Les rectangles des pièces modifiés à la main (les murs de la maison) ; sans eux, ceux de départ. */
+  /** Les rectangles des pièces gardés dans le plan (les murs de la maison) ; sans eux, ceux de départ. */
   rooms?: RoomRects | null
-  /** Le contour du chemin du garage modifié à la main (avant son décalage) ; sans lui, celui de départ. */
+  /** Le contour du chemin du garage gardé dans le plan (avant son décalage) ; sans lui, celui de départ. */
   garage?: Point[] | null
   lamps?: PlanLamp[]
   plugs?: PlanPlug[]
@@ -64,8 +68,6 @@ export interface MapPlanProps extends Omit<EditContext, 'cameras' | 'trees' | 'h
   cameraNames?: string[]
   links?: Record<string, string>
   onLink?: (planId: string, camera: string) => void
-  selectedTreeId?: string
-  selectedHedgeId?: string
 }
 
 /** Les props une fois complétées : rien n'y manque. */
@@ -84,8 +86,6 @@ export type ResolvedProps = Required<
     | 'hoveredCameraId'
     | 'cameraNames'
     | 'links'
-    | 'selectedTreeId'
-    | 'selectedHedgeId'
   >
 > &
   Omit<
@@ -102,7 +102,5 @@ export type ResolvedProps = Required<
     | 'hoveredCameraId'
     | 'cameraNames'
     | 'links'
-    | 'selectedTreeId'
-    | 'selectedHedgeId'
   > &
-  Pick<EditContext, 'cameras' | 'trees' | 'hedges'>
+  Pick<EditContext, 'cameras'>

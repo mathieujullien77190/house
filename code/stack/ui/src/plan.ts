@@ -34,8 +34,6 @@ export interface PlanWall {
   y1: number
   x2: number
   y2: number
-  /** Un claustra (une cloison ajourée) plutôt qu'un mur plein : tracé en pointillés. */
-  screen?: boolean
 }
 
 /** Une pièce du plan : un ou plusieurs rectangles (une pièce en L en a deux). */

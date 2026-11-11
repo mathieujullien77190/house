@@ -52,14 +52,7 @@ export interface PlanState {
   cameras: PlanCamera[]
   /** Le lien de chaque caméra du plan (identifiant) avec une vraie caméra (son nom). */
   links: Record<string, string>
-  moveTree: (id: string, x: number, y: number) => void
-  resizeTree: (id: string, r: number) => void
-  moveHedge: (id: string, points: [number, number][]) => void
-  moveCage: (x: number, y: number) => void
-  moveOffset: (id: string, dx: number, dy: number) => void
   moveItem: (id: string, x: number, y: number) => void
-  /** Pose d'un coup plusieurs éléments (les coins des carreaux). */
-  moveItems: (items: Record<string, { x: number; y: number }>) => void
   moveCamera: (id: string, x: number, y: number) => void
   adjustCamera: (id: string, setting: { angle: number; far: number; fov: number }) => void
   link: (planId: string, camera: string) => void
@@ -131,31 +124,8 @@ export const usePlan = (apiKey: string): PlanState => {
     [],
   )
 
-  const moveTree = useCallback(
-    (id: string, x: number, y: number) =>
-      change((p) => ({ ...p, trees: p.trees.map((tree) => (tree.id === id ? { ...tree, x, y } : tree)) })),
-    [change],
-  )
-  const resizeTree = useCallback(
-    (id: string, r: number) => change((p) => ({ ...p, trees: p.trees.map((tree) => (tree.id === id ? { ...tree, r } : tree)) })),
-    [change],
-  )
-  const moveHedge = useCallback(
-    (id: string, points: [number, number][]) =>
-      change((p) => ({ ...p, hedges: p.hedges.map((hedge) => (hedge.id === id ? { ...hedge, points } : hedge)) })),
-    [change],
-  )
-  const moveCage = useCallback((x: number, y: number) => change((p) => ({ ...p, cage: { x, y } })), [change])
-  const moveOffset = useCallback(
-    (id: string, dx: number, dy: number) => change((p) => ({ ...p, offsets: { ...p.offsets, [id]: { dx, dy } } })),
-    [change],
-  )
   const moveItem = useCallback(
     (id: string, x: number, y: number) => change((p) => ({ ...p, items: { ...p.items, [id]: { x, y } } })),
-    [change],
-  )
-  const moveItems = useCallback(
-    (items: Record<string, { x: number; y: number }>) => change((p) => ({ ...p, items: { ...p.items, ...items } })),
     [change],
   )
   const moveCamera = useCallback(
@@ -187,13 +157,7 @@ export const usePlan = (apiKey: string): PlanState => {
     items: plan.items,
     cameras: plan.cameras,
     links: plan.links,
-    moveTree,
-    resizeTree,
-    moveHedge,
-    moveCage,
-    moveOffset,
     moveItem,
-    moveItems,
     moveCamera,
     adjustCamera,
     link,

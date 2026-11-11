@@ -1,5 +1,5 @@
 // Le plan en données de carte (GeoJSON, longitude et latitude) : la partie fixe (maison, terrasse, cage, portails, chemins) et la partie vivante (haies, arbres, caméras,
-// lampe, prise, poignées), reconstruite quand elles changent. Chaque élément porte son genre (`kind`) et son identifiant pour qu'on puisse le saisir à la souris.
+// lampe, prise, poignée de caméra), reconstruite quand elles changent. Chaque élément porte son genre (`kind`) et son identifiant pour qu'on puisse le saisir à la souris.
 import type { Feature as GeoFeature, FeatureCollection, Geometry } from 'geojson'
 import polygonClipping from 'polygon-clipping'
 import type { PlanAc, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanLabel, PlanShutter, PlanTree, PlanEmoji } from '@house/ui'
@@ -186,7 +186,7 @@ const roomWalls = (room: RoomRect[]): Feature[] => {
           [x1, y1],
           [x2, y2],
         ],
-        { part: 'wall', screen: 0 },
+        { part: 'wall' },
       ),
     )
 }
@@ -202,7 +202,7 @@ const entranceWall = (rooms: RoomRects): Feature[] => {
         [fromHousePlan(PLAN_ENTRANCE_WALL.fromX, 0).x, y],
         [Math.min(rect.x1, rect.x2), y],
       ],
-      { part: 'wall', screen: 0 },
+      { part: 'wall' },
     ),
   ]
 }
@@ -236,7 +236,7 @@ export const staticFeatures = (rooms: RoomRects = defaultRoomRects()): Collectio
           [from.x, from.y],
           [to.x, to.y],
         ],
-        { part: 'wall', screen: wall.screen ? 1 : 0 },
+        { part: 'wall' },
       )
     }),
   ]
@@ -247,21 +247,13 @@ export const staticFeatures = (rooms: RoomRects = defaultRoomRects()): Collectio
 export interface LiveData {
   /** Les décalages (unités du plan) du chemin du garage et des portes, par identifiant. */
   offsets: Record<string, { dx: number; dy: number }>
-  /** Le contour des carreaux modifié à la main ; null : le contour calculé. */
+  /** Le contour des carreaux gardé dans le plan ; null : le contour calculé. */
   tiles: Point[] | null
-  /** Les coins des carreaux ont une poignée (modification). */
-  canEditTiles: boolean
-  /** Les rectangles des pièces modifiés à la main (les murs de la maison) ; null : ceux de départ. */
-  rooms: RoomRects | null
-  /** Les coins des pièces ont une poignée (modification). */
-  canEditRooms: boolean
-  /** Le contour du chemin du garage modifié à la main (avant le décalage) ; null : celui de départ. */
+  /** Le contour du chemin du garage gardé dans le plan (avant le décalage) ; null : celui de départ. */
   garage: Point[] | null
-  /** Les coins du chemin du garage ont une poignée (modification). */
-  canEditGarage: boolean
   /** Les portes (portail du garage, portillon) à leur dessin de départ ; le décalage s'ajoute. */
   gates: PlanGate[]
-  /** La cage à perruches (rectangle du plan), qu'on peut déplacer. */
+  /** La cage à perruches (rectangle du plan). */
   cage: { x: number; y: number; w: number; h: number }
   hedges: PlanHedge[]
   trees: PlanTree[]
@@ -273,14 +265,10 @@ export interface LiveData {
   labels: PlanLabel[]
   emojis: PlanEmoji[]
   decors: PlanDecor[]
-  selectedHedgeId: string
-  selectedTreeId: string
   selectedCameraId: string
   /** La caméra survolée : son champ de vision s'affiche aussi, sans poignée. */
   hoveredCameraId: string
-  /** Les poignées (taille d'un arbre, réglage d'une caméra, sommets d'une haie) existent seulement si l'élément est éditable. */
-  canEditHedges: boolean
-  canResizeTrees: boolean
+  /** La poignée de réglage d'une caméra choisie existe seulement en modification. */
   canAdjustCameras: boolean
 }
 
@@ -335,32 +323,6 @@ const mergedTiles = (cage: { x: number; y: number; w: number; h: number }) => {
   return polygonClipping.union(first, ...rest)
 }
 
-/** Sans les sommets qui sont sur la droite de leurs voisins (à `tolerance` unités près) : les arcs de la haie et les jonctions des morceaux n'ont pas de poignée. */
-const simplifyRing = (ring: Point[], tolerance = 0.5): Point[] => {
-  let kept = ring
-  for (let again = true; again;) {
-    again = false
-    kept = kept.filter((point, index) => {
-      const before = kept[(index + kept.length - 1) % kept.length]
-      const after = kept[(index + 1) % kept.length]
-      const length = Math.hypot(after[0] - before[0], after[1] - before[1])
-      // Deux voisins au même endroit (longueur nulle) : le produit est nul aussi, la distance est 0 (le plancher évite la division par zéro).
-      const distance = Math.abs((after[0] - before[0]) * (before[1] - point[1]) - (before[0] - point[0]) * (after[1] - before[1])) / Math.max(length, Number.EPSILON)
-      if (distance >= tolerance || kept.length <= 3) return true
-      again = true
-      kept = kept.filter((other) => other !== point)
-      return false
-    })
-  }
-  return kept
-}
-
-/** Le contour calculé des carreaux (les coins qu'on peut déplacer), en unités du plan. */
-export const tilesOutline = (cage: { x: number; y: number; w: number; h: number }): Point[] => {
-  const outer = mergedTiles(cage)[0][0]
-  return simplifyRing(outer.slice(0, -1).map(([x, y]): Point => [x, y]))
-}
-
 /** Les carreaux : l'union de leurs morceaux, ou le contour modifié à la main. */
 const tilesFeature = (cage: { x: number; y: number; w: number; h: number }, custom: Point[] | null): Feature => ({
   type: 'Feature',
@@ -395,55 +357,19 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
     }),
   ]
   const points: Feature[] = []
-  // Les coins d'un contour, et un rond au milieu de chaque côté : le glisser casse la ligne (un coin de plus).
-  const handles = (ring: Point[], kind: string, id: string, shiftX = 0, shiftY = 0) => {
-    ring.forEach(([x, y], index) => {
-      const [nextX, nextY] = ring[(index + 1) % ring.length]
-      points.push(dot([x + shiftX, y + shiftY], { kind: `${kind}-vertex`, id, index }))
-      points.push(dot([(x + nextX) / 2 + shiftX, (y + nextY) / 2 + shiftY], { kind: `${kind}-mid`, id, index }))
-    })
-  }
-  if (data.canEditRooms) {
-    // Les coins des pièces : un rond par endroit (un coin partagé par plusieurs pièces n'en a qu'un, qui les déplace toutes ensemble) ; `refs` dit lesquels (pièce.rectangle.coin).
-    const shared = new Map<string, { at: Point; refs: string[] }>()
-    ;(data.rooms ?? defaultRoomRects()).forEach((room, roomIndex) =>
-      room.forEach((rect, rectIndex) => {
-        const corners: Point[] = [
-          [rect.x1, rect.y1],
-          [rect.x2, rect.y1],
-          [rect.x2, rect.y2],
-          [rect.x1, rect.y2],
-        ]
-        corners.forEach((at, corner) => {
-          const key = `${Math.round(at[0] * 10)},${Math.round(at[1] * 10)}`
-          const found = shared.get(key) ?? { at, refs: [] }
-          found.refs.push(`${roomIndex}.${rectIndex}.${corner}`)
-          shared.set(key, found)
-        })
-      }),
-    )
-    for (const { at, refs } of shared.values()) points.push(dot(at, { kind: 'room-vertex', id: 'rooms', refs: refs.join(';') }))
-  }
-  if (data.canEditGarage) handles(data.garage ?? PLAN_GARAGE_CORNERS, 'garage', 'garage', garage.dx, garage.dy)
-  if (data.canEditTiles) handles(data.tiles ?? tilesOutline(data.cage), 'tiles', 'tiles')
   for (const hedge of data.hedges) {
-    shapes.push(line(hedge.points, { kind: 'hedge', id: hedge.id, selected: hedge.id === data.selectedHedgeId ? 1 : 0 }))
-    if (hedge.id === data.selectedHedgeId && data.canEditHedges) {
-      hedge.points.forEach((point, index) => points.push(dot(point, { kind: 'hedge-vertex', id: hedge.id, index })))
-    }
+    shapes.push(line(hedge.points, { kind: 'hedge', id: hedge.id }))
   }
   for (const tree of data.trees) {
-    const selected = tree.id === data.selectedTreeId
     shapes.push(
       polygon(bushRing(tree.x, tree.y, tree.r, seedOf(tree.id), TREE_STEPS), {
         kind: 'tree',
         id: tree.id,
         color: treeColor(tree.r),
-        stroke: selected ? palette.accent : palette.green,
-        strokeWidth: selected ? 3 : 1.5,
+        stroke: palette.green,
+        strokeWidth: 1.5,
       }),
     )
-    if (selected && data.canResizeTrees) points.push(dot([tree.x + tree.r, tree.y], { kind: 'tree-handle', id: tree.id }))
   }
   for (const camera of data.cameras) {
     const selected = camera.id === data.selectedCameraId

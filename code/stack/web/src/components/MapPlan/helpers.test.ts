@@ -6,14 +6,9 @@ import {
   fromHousePlan,
   garageRingFrom,
   metersPerPixel,
-  METERS_PER_DEGREE,
-  offsetBy,
-  snapCorner,
   temperatureText,
   roomCornerId,
-  roomItems,
   roomRectsFrom,
-  snapToLines,
   tilesRingFrom,
 } from './helpers'
 
@@ -22,13 +17,6 @@ describe('MapPlan/helpers', () => {
     expect(metersPerPixel(0, 0)).toBeCloseTo(156543.03392)
     expect(metersPerPixel(0, 1)).toBeCloseTo(metersPerPixel(0, 0) / 2)
     expect(metersPerPixel(60, 0)).toBeCloseTo(156543.03392 / 2)
-  })
-  it('offsetBy décale vers l’est et le sud', () => {
-    const [lat, lng] = offsetBy([48, 2], 0, METERS_PER_DEGREE)
-    expect(lat).toBeCloseTo(47)
-    expect(lng).toBeCloseTo(2)
-    const [, east] = offsetBy([0, 2], METERS_PER_DEGREE, 0)
-    expect(east).toBeCloseTo(3)
   })
 })
 
@@ -89,7 +77,7 @@ describe('temperatureText', () => {
   })
 })
 
-describe('contours gardés et alignement', () => {
+describe('contours gardés dans le plan', () => {
   it('rend le contour des éléments du plan, null s’il manque ou s’il est trop court', () => {
     expect(tilesRingFrom({})).toBeNull()
     expect(tilesRingFrom({ 'tiles-corner-0': { x: 1, y: 2 }, 'tiles-corner-1': { x: 3, y: 4 } })).toBeNull()
@@ -101,23 +89,14 @@ describe('contours gardés et alignement', () => {
       [5, 6],
     ])
   })
-  it('cale un coin sur x ou y de ses voisins, à 6 unités près', () => {
-    const ring: [number, number][] = [
-      [0, 0],
-      [50, 20],
-      [100, 100],
-    ]
-    expect(snapCorner([3, 96], ring, 1)).toEqual([0, 100])
-    expect(snapCorner([60, 40], ring, 1)).toEqual([60, 40])
-  })
-  it('snapToLines cale chaque axe sur la ligne la plus proche, sinon laisse la valeur', () => {
-    expect(snapToLines([103, 55], [0, 100, 300], [50, 200])).toEqual([100, 50])
-    expect(snapToLines([150, 120], [0, 300], [50, 200])).toEqual([150, 120])
-  })
-  it('les coins des pièces vont et viennent entre rectangles et éléments du plan', () => {
+  it('les rectangles des pièces se lisent dans les éléments du plan', () => {
     const rooms = [[{ x1: 1, y1: 2, x2: 3, y2: 4 }], [{ x1: 5, y1: 6, x2: 7, y2: 8 }]]
-    const items = roomItems(rooms)
-    expect(items[roomCornerId(1, 0, 'b')]).toEqual({ x: 7, y: 8 })
+    const items = {
+      [roomCornerId(0, 0, 'a')]: { x: 1, y: 2 },
+      [roomCornerId(0, 0, 'b')]: { x: 3, y: 4 },
+      [roomCornerId(1, 0, 'a')]: { x: 5, y: 6 },
+      [roomCornerId(1, 0, 'b')]: { x: 7, y: 8 },
+    }
     expect(roomRectsFrom(items, [1, 1])).toEqual(rooms)
     expect(roomRectsFrom({}, [1, 1])).toBeNull()
     expect(roomRectsFrom(items, [])).toBeNull()

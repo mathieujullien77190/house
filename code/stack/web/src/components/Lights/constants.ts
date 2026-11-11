@@ -14,8 +14,6 @@ export const DARK_TEXT = 'sombre'
 export const ALL_KEY = 'all'
 /** Le nom de l'étage, lu par les lecteurs d'écran (il n'est pas écrit dans le plan). */
 export const PLAN_TITLE = 'Rez-de-chaussée'
-/** Le titre de la section repliable du plan. */
-export const PLAN_SECTION_TITLE = 'Plan'
 /** Le nom du bouton retour de l'écran du plan (téléphone), lu par les lecteurs d'écran. */
 export const ERROR_TEXT = 'Le pont Hue n’a pas répondu.'
 export const NOT_CONFIGURED_TEXT = 'Le pont Hue n’est pas configuré (HUE_APP_KEY).'

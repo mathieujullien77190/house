@@ -13,8 +13,6 @@ const h = vi.hoisted(() => ({
   off: [] as string[],
   events: [] as EventRow[],
   moveItem: vi.fn(),
-  moveItems: vi.fn(),
-  moveCage: vi.fn(),
   height: 530,
   lamps: [] as { id: string; x: number; y: number }[],
   plug: null as { alias: string; on: boolean } | null,
@@ -83,16 +81,10 @@ vi.mock('@/lib/usePlan', () => ({
       { id: 'entree', name: 'c2', x: 0, y: 0, angle: 0, fov: 60, near: 1, far: 10 },
       { id: 'camera-5', name: 'c5', x: 0, y: 0, angle: 0, fov: 60, near: 1, far: 10 },
     ],
-    moveTree: vi.fn(),
-    resizeTree: vi.fn(),
-    moveHedge: vi.fn(),
-    moveOffset: vi.fn(),
     link: vi.fn(),
     moveCamera: vi.fn(),
     adjustCamera: vi.fn(),
     moveItem: h.moveItem,
-    moveItems: h.moveItems,
-    moveCage: h.moveCage,
   }),
 }))
 
@@ -132,7 +124,6 @@ beforeEach(() => {
   h.lamps = []
   h.plug = null
   h.height = 530
-  h.moveCage.mockClear()
   h.moveItem.mockClear()
   onOpenPlug.mockClear()
 })
@@ -534,21 +525,8 @@ describe('HouseMap : la sélection survit à un changement d’onglet', () => {
   })
 })
 
-describe('HouseMap : les déplacements et le choix des haies', () => {
+describe('HouseMap : les déplacements', () => {
   const call = (name: string, ...args: unknown[]) => act(() => (h.props[name] as (...a: unknown[]) => void)(...args))
-
-  it('une haie choisie le reste jusqu’à un second clic dessus ou un clic dans le vide', () => {
-    mount()
-    call('onSelectHedge', 'h1')
-    expect(h.props.selectedHedgeId).toBe('h1')
-    call('onSelectHedge', 'h1')
-    expect(h.props.selectedHedgeId).toBe('')
-    call('onSelectHedge', 'h1')
-    call('onSelectHedge', 'h2')
-    expect(h.props.selectedHedgeId).toBe('h2')
-    call('onSelectHedge', '')
-    expect(h.props.selectedHedgeId).toBe('')
-  })
 
   it('les étiquettes, les volets et les clims se déplacent sous leur clé du plan', () => {
     mount()
@@ -560,16 +538,10 @@ describe('HouseMap : les déplacements et le choix des haies', () => {
     expect(h.moveItem).toHaveBeenCalledWith('ac-salon', 5, 6)
   })
 
-  it('les icônes seules et les contours se déplacent sous leur clé du plan', () => {
+  it('les icônes seules se déplacent sous leur clé du plan', () => {
     mount()
     call('onMoveDecor', 'pac', 7, 8)
     expect(h.moveItem).toHaveBeenCalledWith('decor-pac', 7, 8)
-    call('onMoveGarage', [[1, 2], [3, 4]])
-    expect(h.moveItems).toHaveBeenLastCalledWith({ 'garage-corner-0': { x: 1, y: 2 }, 'garage-corner-1': { x: 3, y: 4 } })
-    call('onMoveTiles', [[5, 6]])
-    expect(h.moveItems).toHaveBeenLastCalledWith({ 'tiles-corner-0': { x: 5, y: 6 } })
-    call('onMoveRooms', [[{ x1: 1, y1: 2, x2: 3, y2: 4 }]])
-    expect(h.moveItems).toHaveBeenLastCalledWith({ 'room-0-0-a': { x: 1, y: 2 }, 'room-0-0-b': { x: 3, y: 4 } })
   })
 
   it('la prise connectée est posée sur sa place de départ puis relayée à la carte', () => {
@@ -578,22 +550,9 @@ describe('HouseMap : les déplacements et le choix des haies', () => {
     expect(h.props.plugs).toEqual([{ id: 'prise', name: 'Chauffage', x: 1, y: 2, on: true }])
   })
 
-  it('déplacer la cage sans bouger ne fait rien ; sinon la lampe et la prise qui sont dedans la suivent', () => {
-    h.lamps = [{ id: '26', x: 4, y: 5 }]
-    h.plug = { alias: 'Chauffage', on: false }
+  it('ni les arbres, ni les haies, ni la cage, ni les portes, ni les contours ne se modifient : pas de rappel donné à la carte', () => {
     mount()
-    call('onMoveCage', 0, 0)
-    expect(h.moveCage).not.toHaveBeenCalled()
-    call('onMoveCage', 10, 20)
-    expect(h.moveCage).toHaveBeenCalledWith(10, 20)
-    expect(h.moveItem).toHaveBeenCalledWith('26', 14, 25)
-    expect(h.moveItem).toHaveBeenCalledWith('prise', 11, 22)
-  })
-
-  it('déplacer la cage sans lampe ni prise ne déplace qu’elle', () => {
-    mount()
-    call('onMoveCage', 3, 0)
-    expect(h.moveCage).toHaveBeenCalledWith(3, 0)
-    expect(h.moveItem).not.toHaveBeenCalled()
+    for (const name of ['onMoveTree', 'onResizeTree', 'onSelectTree', 'onMoveHedge', 'onSelectHedge', 'onMoveCage', 'onMoveOffset', 'onMoveTiles', 'onMoveGarage', 'onMoveRooms'])
+      expect(h.props[name]).toBeUndefined()
   })
 })
