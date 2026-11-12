@@ -48,7 +48,7 @@ export const ZONE_RESET_LABEL = 'Toute l’image'
 export const ZONE_FAILED_TEXT = 'Zone non enregistrée'
 export const ZONE_FAILED_CLASS = 'text-[0.8rem] text-danger'
 /** Dans la vidéo d'une caméra tournée, en bas, droite : l'endroit où le lecteur pose ses commandes. */
-export const CONTROLS_OVERLAY_CLASS = 'absolute inset-x-0 bottom-0'
+export const CONTROLS_OVERLAY_CLASS = 'absolute inset-x-0 bottom-0 pr-24'
 /** Le cadre de la vidéo, sur lequel se pose le polygone. */
 export const MEDIA_HOST_CLASS = 'relative overflow-hidden rounded-md'
 

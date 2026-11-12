@@ -175,21 +175,22 @@ describe('CameraMarkers, places figées', () => {
   })
 })
 
-describe('CameraMarkers : les caméras inactives ne font rien', () => {
+describe('CameraMarkers : les caméras inactives restent cliquables', () => {
   const markers = [
     { target: 'a', x: 0.2, y: 0.3 },
     { target: 'b', x: 0.6, y: 0.5 },
   ]
 
-  it('le repère d’une caméra éteinte est grisé, désactivé, et un appui ne l’ouvre pas ; les autres agissent', () => {
+  it('le repère d’une caméra éteinte est grisé mais cliquable, comme les autres', () => {
     const onOpen = vi.fn()
     render(<CameraMarkers markers={markers} onMove={vi.fn()} onCommit={vi.fn()} onRemove={vi.fn()} onOpen={onOpen} inactive={['b']} />)
     const off = screen.getByRole('button', { name: 'Ouvrir la caméra b' })
-    expect(off).toBeDisabled()
+    expect(off).not.toBeDisabled()
     expect(off.className).toContain('opacity-40')
     fireEvent.pointerDown(off, { button: 0 })
     fireEvent.pointerUp(off)
-    expect(onOpen).not.toHaveBeenCalled()
+    expect(onOpen).toHaveBeenCalledWith('b')
+    onOpen.mockClear()
     const on = screen.getByRole('button', { name: 'Ouvrir la caméra a' })
     expect(on).not.toBeDisabled()
     fireEvent.pointerDown(on, { button: 0 })

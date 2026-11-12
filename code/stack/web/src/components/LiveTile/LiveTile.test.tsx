@@ -79,6 +79,16 @@ describe('LiveTile', () => {
     mount()
     expect(screen.getByText('Démarrage…')).toBeInTheDocument()
   })
+  it('la pastille d’état devant le nom : nommée quand la caméra est éteinte, muette sinon', () => {
+    h.power = { on: false, powered: false, streaming: false }
+    const first = mount()
+    expect(screen.getAllByRole('img', { name: 'Caméra éteinte' }).length).toBeGreaterThan(0)
+    first.unmount()
+    h.power = { on: true, powered: true, streaming: true }
+    mount()
+    expect(screen.queryByRole('img', { name: 'Caméra éteinte' })).toBeNull()
+  })
+
   it('allumée qui diffuse : le direct', () => {
     h.power = { on: true, powered: true, streaming: true }
     mount()

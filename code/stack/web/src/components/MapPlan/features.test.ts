@@ -328,7 +328,7 @@ describe('liveFeatures : clim, volet, étiquette, emoji, caméra absente, couleu
   it('chaque objet connecté donne son point avec son état', () => {
     const { points } = liveFeatures(
       data({
-        cameras: [camera({ id: 'm', missing: true })],
+        cameras: [camera({ id: 'm', missing: true }), camera({ id: 'o', off: true } as Partial<PlanCamera>)],
         lamps: [{ id: 'lc', x: 1, y: 1, on: true, reachable: true, color: '#112233' }] as PlanLamp[],
         acs: [
           { id: 'a1', name: 'a', x: 1, y: 1, on: true, reachable: true, label: '' },
@@ -345,7 +345,10 @@ describe('liveFeatures : clim, volet, étiquette, emoji, caméra absente, couleu
       palette,
     )
     const all = props(points)
-    expect(all.find((p) => p.kind === 'camera-hit')?.state).toBe('missing')
+    const cameraHits = all.filter((p) => p.kind === 'camera-hit')
+    expect(cameraHits.map((p) => p.state)).toEqual(['missing', 'off'])
+    // Une caméra éteinte reste cliquable ; seule une caméra sans vraie caméra est inactive.
+    expect(cameraHits.map((p) => p.inactive)).toEqual([1, 0])
     expect(all.find((p) => p.kind === 'lamp-hit')?.color).toBe('#112233')
     const acs = all.filter((p) => p.kind === 'ac-hit')
     expect(acs.map((p) => p.state)).toEqual(['on', 'off', 'lost'])

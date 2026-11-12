@@ -7,6 +7,7 @@ import { BsRouter } from 'react-icons/bs'
 import { MdOutlineHeatPump, MdOutlineSensorWindow, MdSensorWindow } from 'react-icons/md'
 import { TbAirConditioning } from 'react-icons/tb'
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import { STATUS_DOT_DIAMETER, STATUS_DOT_RING } from '@house/ui'
 import type { Palette } from './features'
 
 /** Les images des icônes du plan : la caméra (Heroicons `HiOutlineVideoCamera`, sur un rond), la caméra barrée en rouge quand la vraie caméra est éteinte ou que la caméra du plan n'est liée à aucune (`HiOutlineVideoCameraSlash`), l'ampoule (`RiLightbulbFill`, une image par couleur), et la climatisation (`TbAirConditioning`). */
@@ -14,6 +15,11 @@ export const CAMERA_IMAGE = 'camera-icon'
 export const CAMERA_DOT_ON_IMAGE = 'camera-dot-on'
 export const CAMERA_DOT_OFF_IMAGE = 'camera-dot-off'
 export const CAMERA_DOT_MISSING_IMAGE = 'camera-dot-missing'
+/** Pastilles du volet : bleue ouvert, violette baissé (un volet baissé n'est pas « éteint »). */
+export const SHUTTER_DOT_OPEN_IMAGE = 'shutter-dot-open'
+export const SHUTTER_DOT_CLOSED_IMAGE = 'shutter-dot-closed'
+export const SHUTTER_OPEN_COLOR = '#8fd0f7'
+export const SHUTTER_CLOSED_COLOR = '#8b5cf6'
 /** Le préfixe de l'image d'une ampoule (`lamp-#ffa85a`) : une image par couleur, dessinée au moment où la carte la demande. */
 export const LAMP_PREFIX = 'lamp-'
 export const PLUG_IMAGE = 'plug-icon'
@@ -275,8 +281,8 @@ export const watchDynamicImages = (map: MapLibreMap): void => {
   })
 }
 
-/** Le côté de l'image d'une pastille d'état (elle s'affiche à moitié). */
-const DOT_SIZE = 20
+/** Le côté de l'image d'une pastille d'état (elle s'affiche à moitié). Diamètre et liseré viennent de `StatusDot` de `@house/ui` : même pastille que dans la liste des caméras. */
+const DOT_SIZE = (STATUS_DOT_DIAMETER + 1) * PIXEL_RATIO
 
 /** Dessine une pastille d'état : un petit disque de la couleur donnée, cerné de noir comme le rond de la caméra. Rend null sans canvas. */
 const drawDot = (color: string): ImageData | null => {
@@ -287,21 +293,23 @@ const drawDot = (color: string): ImageData | null => {
   if (!context) return null
   context.scale(SCALE, SCALE)
   context.beginPath()
-  context.arc(DOT_SIZE / 2, DOT_SIZE / 2, DOT_SIZE / 2 - 2, 0, Math.PI * 2)
+  context.arc(DOT_SIZE / 2, DOT_SIZE / 2, (STATUS_DOT_DIAMETER * PIXEL_RATIO) / 2 - STATUS_DOT_RING / 2, 0, Math.PI * 2)
   context.fillStyle = color
   context.fill()
-  context.lineWidth = 3
+  context.lineWidth = STATUS_DOT_RING
   context.strokeStyle = '#000000'
   context.stroke()
   return context.getImageData(0, 0, DOT_SIZE * SCALE, DOT_SIZE * SCALE)
 }
 
 /** Ajoute à la carte les pastilles d'état d'une caméra : verte allumée, rouge éteinte, grise quand la caméra n'existe pas (liée à aucune vraie caméra). Posées par un calque à part : l'icône tourne avec la caméra, la pastille reste au coin. */
-export const addStatusDots = (map: MapLibreMap, colors: Pick<Palette, 'green' | 'danger' | 'muted'>): void => {
+export const addStatusDots = (map: MapLibreMap, colors: Pick<Palette, 'green' | 'danger' | 'muted' | 'accent'>): void => {
   for (const [id, color] of [
     [CAMERA_DOT_ON_IMAGE, colors.green],
     [CAMERA_DOT_OFF_IMAGE, colors.danger],
     [CAMERA_DOT_MISSING_IMAGE, colors.muted],
+    [SHUTTER_DOT_OPEN_IMAGE, SHUTTER_OPEN_COLOR],
+    [SHUTTER_DOT_CLOSED_IMAGE, SHUTTER_CLOSED_COLOR],
   ] as const) {
     const image = drawDot(color)
     if (image && !map.hasImage(id)) map.addImage(id, image, { pixelRatio: PIXEL_RATIO })

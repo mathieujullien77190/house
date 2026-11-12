@@ -381,7 +381,7 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
         id: camera.id,
         state: camera.missing ? 'missing' : camera.off ? 'off' : 'on',
         // Une caméra éteinte ou liée à aucune vraie caméra n'a pas de flux : hors modification, on ne peut ni la choisir ni cliquer dessus.
-        inactive: camera.missing || camera.off ? 1 : 0,
+        inactive: camera.missing ? 1 : 0,
         angle: camera.angle,
       }),
     )

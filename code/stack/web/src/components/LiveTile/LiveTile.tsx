@@ -1,4 +1,4 @@
-import { CameraTile, SnapshotImage as ImageBox } from '@house/ui'
+import { CameraTile, StatusDot, SnapshotImage as ImageBox } from '@house/ui'
 import RotatedMedia from '@/components/RotatedMedia'
 import { CAMERA_LAMP, CAMERA_SENSOR, CAMERA_WITH_PLUG } from '@/components/CameraCard/constants'
 import CameraIndicators from '@/components/CameraIndicators'
@@ -55,6 +55,7 @@ const LiveTile = ({ apiKey, camera, lastEvent, read, onOpenClip, onOpen }: LiveT
     <CameraTile
       name={`${NAME_PREFIX}${camera.name}`}
       caption={caption}
+      dot={<StatusDot state={off ? 'off' : 'on'} label={off ? OFF_TEXT : undefined} />}
       overlay={
         (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off' || camera.eyes === true) && !placeholder ? (
           <CameraIndicators temperatures={temperatures.map((item) => item.value)} lamp={lamp} plug={plug} rain={camera.rain} eyes={camera.eyes} />

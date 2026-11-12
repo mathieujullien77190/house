@@ -14,5 +14,5 @@ export const MARKER_CLASS =
 /** Le curseur d'un repère : la main qui attrape quand on peut le déplacer, la main qui clique sinon. */
 export const MARKER_MOVABLE_CLASS = 'cursor-grab active:cursor-grabbing'
 export const MARKER_FIXED_CLASS = 'cursor-pointer'
-/** Un repère de caméra inactive (éteinte) : grisé, la flèche normale, il ne fait rien. */
-export const MARKER_INACTIVE_CLASS = 'cursor-default opacity-40'
+/** Un repère de caméra inactive (éteinte) : grisé mais cliquable (on l'ouvre pour la rallumer). */
+export const MARKER_INACTIVE_CLASS = 'cursor-pointer opacity-40'

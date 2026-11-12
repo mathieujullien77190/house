@@ -37,14 +37,13 @@ const CameraMarkers = ({ markers, onMove, onCommit, onRemove, onOpen, inactive =
           <button
             key={marker.target}
             type="button"
-            disabled={off}
             className={`${MARKER_CLASS} ${off ? MARKER_INACTIVE_CLASS : MARKERS_EDITABLE ? MARKER_MOVABLE_CLASS : MARKER_FIXED_CLASS}`}
             style={{ '--x': `${marker.x * 100}%`, '--y': `${marker.y * 100}%` } as React.CSSProperties}
             title={marker.target}
             aria-label={`${OPEN_PREFIX}${marker.target}`}
             onPointerDown={(event) => {
               // Seulement le bouton principal (ou le doigt) : le clic droit retire le repère, il n'ouvre rien.
-              if (off || event.button !== 0) return
+              if (event.button !== 0) return
               event.stopPropagation()
               drag.current = { target: marker.target, startX: event.clientX, startY: event.clientY, moved: false }
               // Le doigt ou la souris reste attaché au repère même hors de lui ; sans capture possible, on glisse quand même tant qu'on reste dessus.

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { flush } from '@/test/fetch'
 import type { ShutterInfo } from '@/types'
 import ShutterPreview from './ShutterPreview'
-import { LOADING_TEXT, POLL_MS, POLL_RUNNING_MS, UNKNOWN_TEXT } from './constants'
+import { CLOSED_BORDER_CLASS, LOADING_TEXT, OPEN_BORDER_CLASS, POLL_MS, POLL_RUNNING_MS, UNKNOWN_TEXT } from './constants'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -39,6 +39,18 @@ describe('ShutterPreview', () => {
     expect(screen.getByText('Volet cuisine')).toBeInTheDocument()
     expect(screen.queryByText('Autre')).toBeNull()
     expect(screen.getByRole('button', { name: '▲ Monter' })).toBeInTheDocument()
+  })
+
+  it('la bordure du bloc : bleu pâle ouvert, violette baissé', async () => {
+    vi.mocked(api.fetchShutters).mockResolvedValue({ mock: false, shutters: [shutter({ lastCommand: 'down' })] })
+    const { container, unmount } = render(<ShutterPreview apiKey="k" shutterId="1" />)
+    await act(flush)
+    expect(container.firstElementChild).toHaveClass(CLOSED_BORDER_CLASS)
+    unmount()
+    vi.mocked(api.fetchShutters).mockResolvedValue({ mock: false, shutters: [shutter({ lastCommand: 'up' })] })
+    const open = render(<ShutterPreview apiKey="k" shutterId="1" />)
+    await act(flush)
+    expect(open.container.firstElementChild).toHaveClass(OPEN_BORDER_CLASS)
   })
 
   it('un volet absent de la liste, ou une lecture qui échoue, le dit', async () => {

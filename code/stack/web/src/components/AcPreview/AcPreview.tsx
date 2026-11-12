@@ -1,6 +1,6 @@
 import AcUnitCard from '@/components/AcPanel/AcUnitCard'
 import { useAcUnits } from '@/lib/useAcUnits'
-import { LOADING_TEXT, UNKNOWN_TEXT, WRAP_CLASS, NOTE_CLASS } from './constants'
+import { LOADING_TEXT, UNKNOWN_TEXT, WRAP_CLASS, NOTE_CLASS, ON_BORDER_CLASS, OFF_BORDER_CLASS, UNKNOWN_BORDER_CLASS } from './constants'
 import type { AcPreviewProps } from './types'
 
 /**
@@ -11,7 +11,7 @@ const AcPreview = ({ apiKey, unitId }: AcPreviewProps) => {
   const { units, busy, failed, change } = useAcUnits(apiKey)
   const unit = units?.find((candidate) => candidate.id === unitId)
   return (
-    <div className={WRAP_CLASS}>
+    <div className={`${WRAP_CLASS} ${unit ? (unit.power && unit.reachable ? ON_BORDER_CLASS : OFF_BORDER_CLASS) : UNKNOWN_BORDER_CLASS}`}>
       {unit ? (
         <AcUnitCard unit={unit} busy={busy === unitId} failed={failed === unitId} onChange={(patch) => change(unitId, patch)} />
       ) : (

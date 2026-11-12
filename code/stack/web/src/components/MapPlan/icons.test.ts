@@ -7,6 +7,8 @@ import {
   CAMERA_DOT_OFF_IMAGE,
   CAMERA_DOT_ON_IMAGE,
   CAMERA_IMAGE,
+  SHUTTER_DOT_CLOSED_IMAGE,
+  SHUTTER_DOT_OPEN_IMAGE,
   HEATPUMP_IMAGE,
   ROUTER_IMAGE,
   AC_HOVER_IMAGE,
@@ -190,10 +192,10 @@ describe('watchDynamicImages', () => {
 })
 
 describe('addStatusDots', () => {
-  it('ajoute les trois pastilles, une seule fois chacune', () => {
+  it('ajoute les cinq pastilles (caméra et volet), une seule fois chacune', () => {
     const { map, raw, images } = fakeMap()
     addStatusDots(map, colors)
-    expect([...images]).toEqual([CAMERA_DOT_ON_IMAGE, CAMERA_DOT_OFF_IMAGE, CAMERA_DOT_MISSING_IMAGE])
+    expect([...images]).toEqual([CAMERA_DOT_ON_IMAGE, CAMERA_DOT_OFF_IMAGE, CAMERA_DOT_MISSING_IMAGE, SHUTTER_DOT_OPEN_IMAGE, SHUTTER_DOT_CLOSED_IMAGE])
     raw.addImage.mockClear()
     addStatusDots(map, colors)
     expect(raw.addImage).not.toHaveBeenCalled()

@@ -12,6 +12,8 @@ import {
   CAMERA_DOT_MISSING_IMAGE,
   CAMERA_DOT_OFF_IMAGE,
   CAMERA_DOT_ON_IMAGE,
+  SHUTTER_DOT_CLOSED_IMAGE,
+  SHUTTER_DOT_OPEN_IMAGE,
   LAMP_PREFIX,
   AC_HOVER_IMAGE,
   CAMERA_HOVER_IMAGE,
@@ -305,14 +307,14 @@ export const addPlanLayers = (
       SHUTTER_OPEN_HOVER_IMAGE,
     ]),
   )
-  // La pastille d'état du volet, sur le contour de son rond comme celle d'une caméra : verte ouvert, rouge fermé.
+  // La pastille d'état du volet, sur le contour de son rond comme celle d'une caméra : bleue ouvert, violette fermé.
   map.addLayer({
     id: 'plan-volets-etat',
     type: 'symbol',
     source: POINTS_SOURCE,
     filter: ['==', ['get', 'kind'], 'shutter-hit'],
     layout: {
-      'icon-image': ['case', ['==', ['get', 'closed'], 1], CAMERA_DOT_OFF_IMAGE, CAMERA_DOT_ON_IMAGE],
+      'icon-image': ['case', ['==', ['get', 'closed'], 1], SHUTTER_DOT_CLOSED_IMAGE, SHUTTER_DOT_OPEN_IMAGE],
       'icon-size': CAMERA_SIZE,
       'icon-offset': [10.3, -10.3],
       'icon-allow-overlap': true,

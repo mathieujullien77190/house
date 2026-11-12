@@ -8,6 +8,10 @@ export const WRAPPER_CLASS = 'relative mt-4 min-w-0'
 export const PREVIEW_VIEW = { lat: 48.522001, lng: 2.650227, zoom: 19.85, bearing: 37.7 }
 /** La miniature de la caméra choisie : à côté de la limite de propriété à droite, en face de la caméra (sans position connue : à droite de la carte). */
 export const THUMBNAIL_CLASS = 'absolute z-20 top-2.5 right-2.5 max-h-[calc(100%-1.25rem)] overflow-y-auto rounded-md shadow-lg'
+/** Le bloc d une caméra : bordure verte quand elle est allumée, rouge quand elle est éteinte. */
+export const CAMERA_BLOCK_CLASS = 'rounded-lg border-2'
+export const CAMERA_ON_CLASS = 'border-green'
+export const CAMERA_OFF_CLASS = 'border-danger'
 /** La miniature se pose juste à droite de la limite de propriété (à `THUMBNAIL_GAP` pixels), centrée sur la hauteur de la caméra choisie, sans sortir de la carte. */
 export const THUMBNAIL_WIDTH = 320
 export const THUMBNAIL_GAP = 12

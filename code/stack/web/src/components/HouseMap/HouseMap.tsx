@@ -26,6 +26,9 @@ import {
   PLUG_ID,
   THUMBNAIL_CHROME,
   COMPACT_CLASS,
+  CAMERA_BLOCK_CLASS,
+  CAMERA_OFF_CLASS,
+  CAMERA_ON_CLASS,
   THUMBNAIL_CLASS,
   THUMBNAIL_GAP,
   THUMBNAIL_PORTRAIT_WIDTH,
@@ -230,7 +233,11 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
           .map((camera) => {
             const lastEvent = events.find((event) => event.camera === camera.name)
             return (
-              <div key={camera.name} hidden={!open || camera.name !== real?.name}>
+              <div
+                key={camera.name}
+                hidden={!open || camera.name !== real?.name}
+                className={`${CAMERA_BLOCK_CLASS} ${offNames.includes(camera.name) ? CAMERA_OFF_CLASS : CAMERA_ON_CLASS}`}
+              >
                 <LiveTile
                   apiKey={apiKey}
                   camera={camera}
