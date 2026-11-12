@@ -17,14 +17,17 @@ import type { CameraTileProps } from './types'
  * Une vignette de la mosaïque : le média (le direct), le nom de la caméra et, au besoin, une légende. Un bouton
  * transparent couvre la vignette (le média peut contenir ce qu'il veut) : un clic ouvre le détail de la caméra.
  */
-const CameraTile = ({ name, media, overlay, caption = '', footer, alert = false, onOpenFooter, onOpen }: CameraTileProps) => {
+const CameraTile = ({ name, media, overlay, caption = '', footer, alert = false, dot, onOpenFooter, onOpen }: CameraTileProps) => {
   return (
     <div className={alert ? TILE_ALERT_CLASS : TILE_CLASS}>
       <div className={MEDIA_CLASS}>
         <div className={MEDIA_INNER_CLASS}>{media}</div>
         {overlay ? <div className={OVERLAY_CLASS}>{overlay}</div> : null}
       </div>
-      <div className={NAME_CLASS}>{name}</div>
+      <div className={NAME_CLASS}>
+        {dot}
+        {name}
+      </div>
       {caption ? <div className={CAPTION_CLASS}>{caption}</div> : null}
       {footer ? (
         onOpenFooter ? (

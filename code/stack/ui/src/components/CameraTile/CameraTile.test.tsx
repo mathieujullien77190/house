@@ -21,6 +21,11 @@ describe('CameraTile', () => {
     expect(onOpen).toHaveBeenCalledTimes(1)
   })
 
+  it('la pastille d’état se pose devant le nom', () => {
+    renderTile({ dot: <i data-testid="dot" /> })
+    expect(screen.getByTestId('dot').nextSibling?.textContent).toBe('Volière extérieur')
+  })
+
   it('l alerte (caméra éteinte) change le cadre', () => {
     const { container, rerender } = renderTile()
     expect(container.firstElementChild?.className).toBe(TILE_CLASS)

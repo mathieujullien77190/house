@@ -6,6 +6,8 @@ export interface CameraTileProps {
   media: ReactNode
   /** Posé sur le média, en bas à gauche : par exemple la température. */
   overlay?: ReactNode
+  /** La pastille d'état posée devant le nom (verte allumée, rouge éteinte). */
+  dot?: ReactNode
   /** Une ligne sous le nom (état de la caméra), vide par défaut. */
   caption?: string
   /** La caméra est éteinte : la vignette a une bordure rouge. */

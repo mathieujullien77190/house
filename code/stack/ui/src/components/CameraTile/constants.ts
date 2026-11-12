@@ -7,7 +7,7 @@ export const BUTTON_CLASS =
 export const MEDIA_CLASS = 'relative'
 /** Au-dessus du bouton qui couvre la vignette : ce qui est posé sur la vidéo (les indicateurs et leur infobulle) reçoit les clics. */
 export const OVERLAY_CLASS = 'absolute bottom-2 left-2 z-10'
-export const NAME_CLASS = 'px-3 pb-1.5 pt-2 text-[0.95rem] font-semibold'
+export const NAME_CLASS = 'flex items-center gap-2 px-3 pb-1.5 pt-2 text-[0.95rem] font-semibold'
 export const CAPTION_CLASS = 'px-3 pb-2 text-[0.8rem] text-muted'
 export const FOOTER_CLASS = 'flex items-center gap-2 px-3 pb-2 text-[0.8rem] text-muted'
 /** Le média de la vignette : ni coin ni bordure à lui (même tourné d'un quart de tour en portrait) ; la vignette, qui rogne, arrondit seule les coins du haut. */
