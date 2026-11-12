@@ -1,6 +1,6 @@
 /** Le nombre de sommets au-delà duquel on n'en ajoute plus, et en dessous duquel on n'en retire plus. */
 export const MIN_POINTS = 3
-export const MAX_POINTS = 32
+export const MAX_POINTS = 1000
 
 export const VERTEX_LABEL = 'Sommet de la zone (glisser pour déplacer, double clic pour retirer)'
 export const EDGE_LABEL = 'Milieu d’un côté (glisser pour ajouter un sommet)'

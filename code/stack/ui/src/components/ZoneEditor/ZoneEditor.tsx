@@ -15,6 +15,8 @@ const ZoneEditor = ({ points, onChange, onCommit, quarterTurn = false }: ZoneEdi
 
   const grab = (event: PointerEvent<HTMLElement>, index: number) => {
     event.stopPropagation()
+    // Le clic droit ne tient rien : sinon la capture du pointeur envoie le menu contextuel au calque et le sommet ne reçoit jamais son clic droit (retrait).
+    if (event.button !== 0) return
     layer.current?.setPointerCapture(event.pointerId)
     dragging.current = index
   }
@@ -32,6 +34,7 @@ const ZoneEditor = ({ points, onChange, onCommit, quarterTurn = false }: ZoneEdi
   }
   // Le milieu d'un côté tenu devient un sommet, qu'on continue de glisser.
   const split = (event: PointerEvent<HTMLElement>, index: number) => {
+    if (event.button !== 0) return
     const next = insertAfter(points, index, edgeMiddle(points, index))
     if (next === points) return
     onChange(next)

@@ -212,6 +212,16 @@ describe('ZoneEditor retirer un sommet', () => {
     expect(onCommit).toHaveBeenCalledTimes(1)
   })
 
+  it('un appui du clic droit ne tient ni sommet ni milieu de côté, puis le clic droit retire le sommet', () => {
+    const { vertices, edges, onChange, onCommit } = setup()
+    fireEvent.pointerDown(vertices()[1], { button: 2, pointerId: 3 })
+    fireEvent.pointerDown(edges()[0], { button: 2, pointerId: 3 })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.contextMenu(vertices()[1])
+    expect(onChange).toHaveBeenCalledWith(removeAt(square, 1))
+    expect(onCommit).toHaveBeenCalledTimes(1)
+  })
+
   it('un triangle garde ses trois sommets', () => {
     const { vertices, onChange, onCommit } = setup(triangle)
     fireEvent.doubleClick(vertices()[0])
