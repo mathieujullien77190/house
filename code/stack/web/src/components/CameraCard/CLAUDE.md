@@ -1,62 +1,101 @@
 # CameraCard – le détail d'une caméra
 
-Le conteneur de la carte `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.md`) : le direct, la frise, les clips, la zone, l'alimentation. Depuis la mosaïque : `../CameraMosaic/CLAUDE.md`.
+Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.md`). Depuis la mosaïque : `../CameraMosaic/CLAUDE.md`. Frise : `../Timeline/CLAUDE.md`.
 
-## Le son du direct
+`App` donne une `key` par caméra : l'écran est recréé à chaque changement, rien de la précédente ne reste (lampe, prise, zone, clip, son).
 
-Le bouton du **son** (`components/LiveAudio` : juste une icône de haut-parleur posée **sur la vidéo, en bas à droite** — prop `sound` de `CameraCard` de `@house/ui` ; sur téléphone à gauche du bouton « Afficher en grand », en vue en grand au-dessus de l'heure ; caméra allumée, pas pendant un clip) ouvre **à la demande** le son de la caméra : `/audio?camera=` (House API relaie le flux AAC de go2rtc, la piste audio du flux léger), lu par un lecteur audio du navigateur ; un second clic le coupe, et quitter la caméra aussi. **Le son se garde** : d'une caméra à l'autre (le clic sur un repère l'ouvre sur la nouvelle caméra s'il l'était, `initialSound`, `openSound` de `App`) et **en vue en grand sans coupure** : le son qui joue est tenu hors du composant (`LiveAudio/session.ts`) ; le bouton qui change d'endroit est démonté puis remonté, le nouveau reprend le même lecteur et la coupure du premier n'a lieu qu'après 400 ms. `initialOn` / `onChange` de `LiveAudio` gardent le choix d'une caméra à l'autre (l'état est tenu par `CameraCard`). Rien n'est demandé avant le clic. Le micro des Reolink est très faible (−50 à −60 dB) : le son passe par un gain de ×32 et un limiteur (Web Audio) ; sans Web Audio, il est joué tel quel. Le micro de la caméra doit être activé dans l'appli Reolink (sinon le cadre de l'icône devient rouge et son info-bulle dit « Pas de son »).
+## Direct
 
-## Les repères (icône de caméra) des autres caméras
+- `<img src="/stream?camera=…">` : MJPEG relayé par l'API depuis go2rtc, session par cookie (`../../../../docs/securite.md`).
+- Sélecteur **L / 4K / Off** sur la vidéo, en haut à droite (`LiveChoice`). **4K par défaut** (`&quality=hd`, recodé par le mini PC : lourd).
+- Le 4K démarre par le flux léger affiché tout de suite ; le 4K le remplace à sa première image (`HD_PRELOAD_CLASS`, `hdReady`).
+- Sous 1024 px l'adresse ajoute `&screen=mobile` (`lib/live.ts`).
+- Caméra éteinte ou en démarrage : image noire avec le message, retour automatique du direct.
 
-**La boîte du média (`MEDIA_HOST_CLASS` : `relative overflow-hidden rounded-md`) arrondit et rogne ; les images et vidéos n’ont ni bordure ni arrondi à elles.** **Les icônes posées sur la vidéo (les repères de caméra, la lampe, le chauffage) ont le même rond que sur la carte de la maison** (`components/MapIcon` : fond blanc, bordure noire, l'icône dedans ; l'ampoule dans sa couleur, plus pâle quand la luminosité baisse ; le chauffage avec sa pastille verte allumé / rouge éteint).
+## Image passée et clips
 
-**Une caméra inactive (éteinte, PoE coupé : `lib/useOffCameras.ts`) ne fait rien** : son repère est grisé, désactivé, ni clic ni glisser (`inactive` de `CameraMarkers`).
+- `SnapshotImage` : image gardée à l'instant choisi. En bas à gauche, son code permanent (en-tête `X-Snapshot-Code` de `GET /snapshot`).
+- `ClipPlayer` : `<video>` lu en continu depuis `/clips/id` (morceaux demandés, cookie suffisant), en sourdine et `playsInline`.
+- **Pas de choix de version** : H.265 (original) sur PC, H.264 (copie légère) sur téléphone, original partout sans copie légère.
+- Appareil qui ne décode pas : un message le dit, avec « Fermer ».
+- Événement sans clip : cadre noir qui dit pourquoi.
+  - en cours (le clip arrive à la fin du mouvement) ;
+  - en copie par House Sync (fini depuis moins de 10 min, `CLIP_WAIT_SECONDS`) ;
+  - sans clip pour de bon (`NEVER_CLIP_TEXT` : mode pluie ou brouillard, ou réglage de la caméra).
+- **Son des clips** : `voliere-interieur` a un fichier à part (`clip_audio`, `/clips/<id>/audio`) joué avec la vidéo. Si le navigateur refuse (téléphone), bouton « Activer le son ».
+- **Contours du mouvement** (`/clips/<id>/shapes`, `clip_shapes`) : polygones rouges posés par-dessus la vidéo. `shapesAt` prend l'image notée la plus proche avant la lecture (0,5 s au plus). Rien sur le direct ni sur les clips d'avant.
 
-Sur le direct, **sur l'image d'un instant passé et pendant un clip**, **grand écran et téléphone** (pas pendant la modification de la zone ; **sous 1024 px, un repère placé hors de l'image est collé au bord** : `max-lg:` + `clamp` dans `CameraMarkers/constants.ts`, la place enregistrée ne change pas) ; **un clic sur le repère d'une caméra ouvre cette caméra, sur son image, à la même seconde** (depuis un clip : l'endroit où il en est) (`onOpenCamera(nom, instant, vitesse)`, `initialCursor` et `initialRate` de `CameraCard`, `openAt` et `openRate` de `App` : la frise s'ouvre sur l'image de cet instant, **avec la même vitesse de défilement des images**), un petit icône de caméra par **autre caméra** est posé sur la vidéo (`components/CameraMarkers`, prop `layer` de `CameraCard` de `@house/ui`) ; un clic ouvre cette caméra (`others` et `onOpenCamera`, donnés par `App`). Les places viennent de `lib/useMarkers.ts` : House API les garde par caméra (`GET /markers`, `PUT /markers/<caméra>`) ; sans liste enregistrée, les repères sont alignés en haut de l'image. **`MARKERS_EDITABLE` (`CameraMarkers/constants.ts`) est à `false` : les places sont figées**, ni glisser ni clic droit pour retirer, un clic ouvre seulement la caméra ; à `true`, on glisse un repère (au-delà de 5 px) et un clic droit le retire. Le bouton `components/MarkersToggle` (un appareil photo, barré quand les repères sont cachés), posé **à côté de l'icône du son** (dans le slot `sound`), les montre ou les cache ; le choix est gardé dans `localStorage` (`house-markers-hidden`, `lib/useMarkersVisible.ts`). `App` donne une `key` par caméra à `CameraCard` : l'écran est recréé à chaque changement de caméra, rien de la précédente ne reste (lampe, prise, zone, clip, son).
+## Clips : sauvegarde, partage, enregistrement
 
-## Le média
+- Interrupteur **Sauvegardé / Non sauvegardé** (`PUT /clips/<id>/saved`), grand écran seulement. Un clip sauvegardé n'est jamais effacé ; les autres le sont après la durée de garde de House Sync (15 jours par défaut). L'état s'affiche tout de suite (`savedChoice`) et revient en arrière si l'API refuse.
+- **Partager** (`ShareButton`, `lib/shareClip.ts`) : clips sauvegardés, seulement dans Home et SavedClips, pas ici.
+  - La vidéo légère est téléchargée, puis `navigator.share({ files })` ; sans partage de fichier (ordinateurs), elle est téléchargée.
+  - Demande HTTPS avec la CA de la maison. Un lien ne servirait à rien : le clip n'est lisible qu'avec la session.
+- **Enregistrer** (`lib/useRecording.ts`, `/record`, `components/RecordButton`) : rond en haut à gauche de la vidéo, aussi sur téléphone.
+  - Gris au repos, rouge qui pulse en cours ; un clic commence, un second termine ; arrêt automatique à 3 min.
+  - Le clip est copié par House Sync quel que soit le réglage « Clips vidéo », visible dans la frise en environ 1 min, **sauvegardé d'office**.
+  - Une page rouverte retrouve un enregistrement en cours.
 
-- En haut le **direct** (`<img src="/stream?camera=…">` : un flux MJPEG que l'API relaie depuis go2rtc, une seule requête, la session par cookie ouverte par `/auth`, `../../../../docs/securite.md`). Un bouton « Qualité du direct » **L / 4K / Off** (trois choix, `LiveChoice` ; **Off** éteint la caméra au niveau du PoE, voir « Alimentation » plus bas) (**« L / 4K » partout** : `LIVE_QUALITY_OPTIONS_SHORT`, un petit carré **posé sur la vidéo, en haut à droite** sur grand écran comme sur téléphone, `videoActions` de `CameraCard`) (`&quality=hd`, le 4K recodé en MJPEG par le mini PC : lourd) n'apparaît que tant que le direct est affiché : **4K par défaut** quand on ouvre une caméra, « Léger » au choix ; sous 1024 px l'adresse ajoute `&screen=mobile` (`lib/live.ts`, la cadence du téléphone se règle à part dans House Sync).
-- Remplacé par l'image gardée à l'instant choisi sur la frise (`SnapshotImage`, avec en bas à gauche le **code permanent de l'image** (lettres, ex. `da` ; lu dans l'en-tête `X-Snapshot-Code` de `GET /snapshot` par `fetchSnapshot` ; rien tant qu'il est inconnu) ou par le clip de l'événement choisi (`ClipPlayer`) : lu en continu depuis `/clips/id` par une simple balise `<video>` (le cookie de session suffit et l'API répond aux demandes de morceaux : on va n'importe où sans tout télécharger), démarré en sourdine et `playsInline` pour que les téléphones le lancent tout seul, invisible mais chargé tant que sa première image n'est pas prête.
-- **Pas de choix de version** : sur PC le clip se lit en **H.265 (l'original)**, sur téléphone en **H.264 (la copie légère**, le 4K ne s'y lit pas) ; sans copie légère, l'original partout. Si l'appareil ne sait pas décoder la vidéo, un message le dit (à la place de l'image, avec « Fermer »). Un événement sans clip montre un cadre noir avec ce qu'on attend : en cours (le clip arrive à la fin du mouvement), en cours de copie par House Sync (fini depuis moins de 10 minutes, `CLIP_WAIT_SECONDS` : la vidéo apparaît toute seule dès qu'elle est copiée), ou sans clip pour de bon passé 10 minutes (`NEVER_CLIP_TEXT` : clips coupés par le mode pluie ou brouillard, ou le réglage de la caméra).
-- « Direct » de la frise ramène au direct. Divers : la frise dit **« Direct »** (et non « Maintenant ») ; le bouton d'alimentation ne dit rien quand la caméra marche.
-- **Son des clips** : un clip d'une caméra à son (`voliere-interieur`) a un **fichier son à part** (`clip_audio`, `/clips/<id>/audio`) que `ClipPlayer` joue **avec la vidéo** (détail dans `ui`). Si le navigateur refuse de le lancer tout seul (téléphone), un bouton **« Activer le son »** apparaît sous la vidéo. Sans `clip_audio`, rien ne change (clips d'avant, autres caméras).
+## Son du direct
 
-## Les clips : sauvegarde, partage, enregistrement
+- `components/LiveAudio` : haut-parleur sur la vidéo, en bas à droite (slot `sound`) ; caméra allumée, pas pendant un clip.
+- Ouvre `/audio?camera=` (flux AAC relayé de go2rtc) à la demande ; rien avant le clic.
+- **Le son se garde** d'une caméra à l'autre (`initialSound`, `openSound` de `App`) et en vue en grand sans coupure : le lecteur est tenu hors du composant (`LiveAudio/session.ts`), le nouveau bouton le reprend, la coupure du premier a lieu après 400 ms.
+- Micro Reolink très faible (-50 à -60 dB) : gain ×32 et limiteur (Web Audio). Le micro doit être activé dans l'appli Reolink, sinon le cadre devient rouge ("Pas de son").
 
-- Un clip ouvert a un interrupteur **Sauvegardé / Non sauvegardé** (`PUT /clips/<id>/saved` ; **seulement sur grand écran**, avec les commandes du haut ; **plus de bouton Partager dans cette vue** : il reste dans Home et dans la liste des clips sauvegardés). Un clip sauvegardé n'est jamais effacé, les autres le sont après la durée de garde réglée dans House Sync (15 jours par défaut) ; l'état choisi s'affiche tout de suite (`savedChoice`) et revient en arrière si l'API refuse.
-- `ShareButton` + `lib/shareClip.ts` : le bouton **Partager** d'un clip **sauvegardé** (**plus dans le détail d'une caméra** : seulement dans `Home` quand un clip est ouvert et dans les clips sauvegardés) : la vidéo légère est téléchargée (le cookie suffit), puis `navigator.share({ files })` ouvre le menu de partage du système sur téléphone (messageries, mail…) ; sans partage de fichier sur l'appareil (la plupart des ordinateurs), le fichier est téléchargé. Le partage de fichier demande HTTPS avec la CA de la maison installée. Un lien ne servirait à rien : le clip n'est lisible qu'avec la session.
-- **Enregistrer un clip** (`lib/useRecording.ts`, API `/record`, `components/RecordButton`) : dans le détail d'une caméra en direct (**aussi sur téléphone**, à droite du bouton retour ; la zone de surveillance reste réservée au grand écran), **un petit rond posé en haut à gauche de la vidéo** (`topLeft` de `CameraCard`) : **gris** (contour) au repos, **rouge plein qui pulse** pendant l'enregistrement, **même carré que les autres boutons de la vidéo** ; un clic commence, un second termine (infobulle « Arrêter l'enregistrement (0:12) » ; arrêt automatique à 3 minutes) ; le clip se fabrique puis House Sync le copie (toujours, quel que soit le réglage « Clips vidéo » de la caméra) : la frise le montre dans environ une minute, il est **sauvegardé d'office**. Un message de deux lignes le dit pendant 10 s. Une page rouverte retrouve un enregistrement en cours.
+## Repères des autres caméras
 
-## Les mesures posées sur la vidéo
+- La boîte du média (`MEDIA_HOST_CLASS`) arrondit et rogne : images et vidéos n'ont ni bordure ni arrondi propres.
+- Les icônes posées sur la vidéo (repères, lampe, chauffage) ont le même rond que sur la carte (`components/MapIcon`).
+- `components/CameraMarkers` : une icône par **autre caméra**, sur le direct, l'image passée et les clips (pas pendant la modification de la zone).
+- Un clic ouvre cette caméra **à la même seconde et à la même vitesse** (`onOpenCamera(nom, instant, vitesse)`, `initialCursor`, `initialRate`).
+- **Une caméra éteinte (PoE coupé, `lib/useOffCameras.ts`) a un repère grisé mais cliquable** (`inactive`) : on l'ouvre pour la rallumer.
+- Sous 1024 px, un repère hors de l'image est collé au bord (`max-lg:` + `clamp`, `CameraMarkers/constants.ts`) ; la place enregistrée ne change pas.
+- Places : `lib/useMarkers.ts` (`GET /markers`, `PUT /markers/<caméra>`) ; sans liste, alignés en haut.
+- `MARKERS_EDITABLE` est à `false` : places figées. À `true` : glisser (au-delà de 5 px), clic droit pour retirer.
+- `components/MarkersToggle` (à côté du son) les cache ; choix dans `localStorage` `house-markers-hidden`.
 
-- La **température du détecteur de la caméra** (en bas à gauche, `overlay` de `CameraCard` sur bureau, `details` sur téléphone : un bloc avec la valeur seule ; en vue normale comme en vue en grand, mais seulement en direct : pas pendant un clip ni sur l'image d'un instant passé). Chaque caméra a le sien (`CAMERA_SENSOR` dans `constants.ts`, identifiants du pont) : `voliere-exterieur` → « motion exterieur » (57), `voliere-interieur` → « motion interieur » (54). Lu par `lib/useSensors.ts` dans `/hue/sensors` toutes les 30 s ; rien sans pont Hue ou sans réponse.
-- **À côté de la température de `voliere-interieur`** (mosaïque et détail, seulement en direct), `CameraIndicators` pose **le rond de la lampe « Perruche »** (`CAMERA_LAMP`, identifiant 26 du pont ; `LampDot`, lu par `lib/useLamp.ts` dans `/hue` toutes les 5 s ; le rond a l'opacité de sa luminosité) **et le carré de la prise connectée** (`PlugSquare` : **vert allumée, rouge éteinte**, `usePlug`, `CAMERA_WITH_PLUG`), avec le dessin de son ampoule sur le plan : **orange allumée, gris éteinte, contour rouge pâle injoignable** (alors montrée éteinte). **Chaque indicateur est cliquable** (`components/IndicatorHint`) : un clic ouvre au-dessus de lui une infobulle qui dit ce qu'il montre (« Température 9,5 °C », « Lampe Perruche allumée à 60 % », « Chauffage allumé ») ; un autre clic, un clic ailleurs, Échap ou 6 s la ferment, et le clic n'ouvre pas la caméra. **Le symbole de pluie** (🌧️ pluie, ☔ forte pluie) vient du champ `rain` de `GET /direct` (le mode pluie réglé dans House Sync et la météo) ; il n'est là que quand il pleut et que le mode est allumé, et son infobulle rappelle que la détection est coupée et qu'une image est gardée toutes les 5 s. **L'icône œil** (👁️ (un dessin dans le même bloc `ValueChips`, de la même taille que 🌧️), dans le même bloc que le symbole de pluie, à côté : même place, même taille, même infobulle au clic) vient du champ `eyes` de `GET /direct` : elle n'est là que quand la recherche des yeux qui brillent tourne sur cette caméra (option On de la caméra dans House Sync et nuit : `eyes_now`), et son infobulle dit « Détection des yeux qui brillent active (de 30 min après le coucher à 30 min avant le lever) ».
-- **Hors vue en grand, la frise a un bloc heure juste après « 10 min, 1 h, 6 h, 24 h »** (`controls` de `Timeline`, grand écran et téléphone, même `ValueChips` que ci-dessous). `lib/useClock.ts` : l'heure de la vue en grand, en bas à droite de la vidéo (`clock` de `CameraCard`, un bloc `ValueChips`, **heure seule avec les secondes, sans la date**, qui défile chaque seconde) : l'heure présente pour le direct, celle du curseur de la frise pour une image ou un clip. Elle ne tourne que tant que la vue en grand est ouverte ou qu'on est au direct (un curseur sur une image ou un clip fixe l'heure).
+## Mesures posées sur la vidéo
 
-## Alimentation (le sélecteur « L / 4K / Off » + `lib/usePower.ts`)
+- **Température du détecteur** en bas à gauche, en direct seulement. `CAMERA_SENSOR` (`constants.ts`) : `voliere-exterieur` donne « motion exterieur » (57), `voliere-interieur` donne « motion interieur » (54). Lue par `lib/useSensors.ts` (`/hue/sensors`, 30 s).
+- **À côté, pour `voliere-interieur`** (`CameraIndicators`) :
+  - le rond de la lampe « Perruche » (`CAMERA_LAMP` = 26, `lib/useLamp.ts`, 5 s) ;
+  - le carré de la prise (`PlugSquare`, vert allumée, rouge éteinte) ;
+  - 🌧️ / ☔ si le champ `rain` de `GET /direct` est vrai (mode pluie allumé et il pleut) ;
+  - 👁️ si `eyes` est vrai (recherche des yeux qui brillent active : option de la caméra et nuit).
+- Chaque indicateur est cliquable (`components/IndicatorHint`) : infobulle fermée par un autre clic, Échap ou 6 s ; le clic n'ouvre pas la caméra.
+- **Heure** (`lib/useClock.ts`, `clock`) : en vue en grand, en bas à droite, secondes sans date ; direct = maintenant, sinon l'heure du curseur. Hors vue en grand, la frise a un bloc heure après les durées.
 
-L'alimentation de la caméra se commande depuis le sélecteur du direct posé sur la vidéo : **« Off » coupe le PoE du port du switch** (API `/poe`), **« L » ou « 4K » le rend** (si la caméra était éteinte) et règlent la qualité du direct. L'onglet actif est « Off » tant que la caméra est éteinte. **Il n'y a plus de bouton « Éteindre / Allumer »** (`PowerButton` supprimé). « Off » n'existe que si le switch est configuré (sans état connu, seulement L et 4K) ; un ordre en route ignore les autres clics ; un switch qui ne répond pas affiche « Le switch n'a pas répondu. ». L'état se lit toutes les 10 s (3 s pendant un démarrage) : éteinte ou en démarrage, le direct laisse place à une image noire avec le message (« Caméra éteinte », « Caméra en démarrage… »), puis revient tout seul. Le sélecteur n'est là qu'en direct (pas pendant un clip ni sur une image passée).
+## Alimentation
 
-## Zone de surveillance du mouvement
+- **« Off » coupe le PoE du port du switch** (`/poe`, `lib/usePower.ts`) ; « L » ou « 4K » le rend. Plus de bouton Éteindre / Allumer.
+- « Off » n'existe que si le switch est configuré. Un ordre en route ignore les autres clics. Switch muet : « Le switch n'a pas répondu. »
+- État lu toutes les 10 s (3 s pendant un démarrage).
 
-`lib/useZone.ts`, `ZoneEditor` de `@house/ui`, API `/zones` : dans le détail d'une caméra en direct, le bouton **« Zone de surveillance »** montre un polygone (toute l'image au départ) à réduire en glissant ses coins ; un rond au milieu de chaque côté ajoute un sommet, un double clic ou un clic droit sur un sommet le retire, « Toute l'image » remet tout. La zone est enregistrée au relâchement (`PUT /zones/<caméra>`, `null` quand le polygone redevient toute l'image) et appliquée par l'enregistreur dans la minute (House Sync la lui envoie) : le mouvement ne se cherche plus que dedans. Pendant le dessin, le zoom au doigt est coupé.
+## Zone de surveillance
+
+- `lib/useZone.ts`, `ZoneEditor`, `/zones` : bouton « Zone de surveillance » en direct, grand écran seulement.
+- Polygone à réduire en glissant les coins ; rond au milieu d'un côté = nouveau sommet ; double clic ou clic droit sur un sommet = retrait ; « Toute l'image » remet tout.
+- Enregistrée au relâchement (`PUT /zones/<caméra>`, `null` = toute l'image), appliquée par l'enregistreur dans la minute. Zoom au doigt coupé pendant le dessin.
 
 ## Caméra posée de côté
 
-Orientation « portrait », réglée dans House Sync : `camera.orientation` pour le direct, `event.orientation` pour un clip ; une image gardée prend celle de l'événement le plus récent avant son instant (`orientationShown`). Son média (direct, image, clip, zone de surveillance) est tourné d'un quart de tour horaire et affiché en **portrait** (`components/RotatedMedia`, cadre 9/16 de 298 px de large au plus, toute la hauteur de l'écran en vue en grand ; le « Chargement… », les messages et l'identifiant d'image sont remis droits, `upright` de `SnapshotImage`). Les commandes du clip (lecture, barre de temps, durée) sont **droites sous la vidéo** (`controlsHost` de `ClipPlayer`) ; en vue en grand, celles du navigateur restent. Sur téléphone, la vue en grand de cette caméra **reste en portrait** (verrou d'orientation `portrait`, `useBigView(turned)`, `portraitMedia` de `CameraCard`). Le bouton « ⛶ » est un petit carré posé sur la vidéo en haut à droite. Les clips d'une caméra en portrait s'affichent **droits** aussi dans Home (`components/PortraitClip`, voir `../Home/CLAUDE.md`).
+- Orientation « portrait » réglée dans House Sync : `camera.orientation` (direct), `event.orientation` (clip) ; une image prend celle de l'événement le plus récent avant son instant (`orientationShown`).
+- Le média est tourné d'un quart de tour horaire (`components/RotatedMedia`, cadre 9/16, 298 px de large au plus). Textes remis droits (`upright`).
+- Commandes du clip droites sous la vidéo (`controlsHost`).
+- Sur téléphone, la vue en grand reste en portrait (`useBigView(turned)`, `portraitMedia`).
+- Dans Home : `components/PortraitClip` (`../Home/CLAUDE.md`).
 
 ## Vue en grand et zoom
 
-- `lib/useBigView.ts` : « ⛶ Afficher en grand » (le direct, l'image d'un instant ou le clip) : la carte se pose sur tout l'écran, fond noir, le bouton « Réduire » en haut à droite, **une icône seule** (✕ ; « Réduire » est son nom accessible et son info-bulle). C'est d'abord un état de la page (marche partout) ; le plein écran du navigateur (`requestFullscreen`) et le verrou du paysage (`screen.orientation.lock`) sont demandés en plus, et un refus ne gêne pas ; **verrou refusé et écran resté droit : le plein écran réel est quitté** (le navigateur impose `transform: none` à un élément en plein écran, la vue ne pourrait pas se tourner : cas du mode mobile de Chrome sur ordinateur), la vue en grand de la page reste ouverte. Écran resté en portrait (iPhone, verrou refusé) : la vue est tournée d'un quart de tour par CSS (`portrait:`), l'image reste en 16/9. Le bouton est ouvert par `CameraCard` (`@house/ui`), qui reçoit `figureRef`, `expanded`, `onExpand`, `onCollapse`.
-- **Zoom au doigt** (`lib/usePinchZoom.ts`) : en vue en grand **et sur la vidéo de l'écran du téléphone** (la vidéo de la moitié du haut, non tournée : ses gestes ne sont pas ramenés dans un repère tourné ; un autre média, direct, image ou autre clip, remet le zoom à zéro) : deux doigts pincent et déplacent (jusqu'à ×6), un doigt déplace une image zoomée, un double toucher zoome ou revient à la taille normale ; le zoom repart de zéro à la fermeture, et les gestes sont ramenés dans le repère tourné quand la vue l'est (portrait). Il passe à `CameraCard` par `mediaGesture`.
-- **Zoom à la molette** (bureau) : `usePinchZoom` zoome autour du pointeur (jusqu'à ×6) **seulement en vue en grand** ; en vue normale la molette fait défiler la page. En vue en grand, la souris déplace aussi l'image zoomée. Le zoom repart de zéro à l'entrée et à la sortie de la vue en grand.
+- `lib/useBigView.ts` : état de la page d'abord, puis `requestFullscreen` et verrou paysage ; un refus ne gêne pas.
+- Verrou refusé et écran droit : le plein écran réel est quitté (il imposerait `transform: none`, cas du mode mobile de Chrome). Écran resté en portrait : vue tournée par CSS (`portrait:`).
+- Zoom (`lib/usePinchZoom.ts`, jusqu'à ×6, `mediaGesture`) :
+  - doigts : pincer, déplacer, double toucher ; actif en vue en grand et sur la vidéo du téléphone ;
+  - molette : **seulement en vue en grand** (sinon la page défile) ;
+  - remis à zéro à l'entrée, à la sortie et au changement de média.
 
 ## Défilement des images
 
-Une fois une image choisie sur la frise (pas pendant un clip), sur grand écran comme sur téléphone (retour au direct : la vitesse repasse à ×1), `components/FastScroll` pose deux flèches **◀ ▶** à côté de « 10 min, 1 h… » : `▶` va plus vite, `◀` plus lentement puis en arrière, la vitesse (**×1 = normal**, jusqu'à ×600, `RATES`) s'écrit entre elles. `CameraCard` en fait le `rate` de la frise, qui déplace le curseur et donc l'image (`../Timeline/CLAUDE.md`). `SnapshotImage` garde l'image précédente pendant que la suivante arrive, puis la fond par-dessus : le fondu dure moins quand le défilement est plus rapide (`fadeFor`, au plus 400 ms, au moins 40).
-
-La frise de la carte : `../Timeline/CLAUDE.md`.
-
-- **Le direct d'une caméra ouverte en 4K démarre par le flux léger** : le flux 4K se charge caché derrière (`HD_PRELOAD_CLASS`), le flux léger s'affiche tout de suite (au lieu d'un « chargement »), et le 4K le remplace dès sa première image (`hdReady`). « Léger » / « 4K » repartent de là.
-- **Contours du mouvement sur les clips** (`components/ClipPlayer`, `components/MotionShape`, API `/clips/<id>/shapes`) : pendant la lecture d'un clip, un polygone rouge par mouvement distinct est posé **par-dessus** la vidéo, jamais dedans. L'enregistreur les note pendant la détection (découpés par la zone de surveillance) et les range dans un fichier du clip ; `ClipPlayer` le charge (`clip_shapes` de l'événement) et `shapesAt` choisit l'image notée la plus proche avant la position de lecture (0,5 s au plus). Rien sur le direct, rien sur les clips faits avant l'ajout (pas de `clip_shapes`).
+- `components/FastScroll` : flèches ◀ ▶ à côté des durées, une fois une image choisie (pas pendant un clip). Vitesse ×1 à ×600 (`RATES`), `rate` de la frise ; retour au direct = ×1.
+- `SnapshotImage` fond l'image suivante sur la précédente (`fadeFor`, 40 à 400 ms, plus court quand ça va vite).

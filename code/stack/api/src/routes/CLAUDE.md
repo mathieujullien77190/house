@@ -1,96 +1,172 @@
 # api/src/routes – les services de House API
 
-Vue d'ensemble, fichiers et tests : `../../CLAUDE.md`. Clé, session par cookie, certificat : `../../../docs/securite.md`. Ici, ce que chaque route rend et les équipements derrière.
+Vue d'ensemble : `../../CLAUDE.md`. Clé, session, certificat : `../../../docs/securite.md`.
 
-## Qui passe sans clé
+## Sans clé
 
-`GET /welcome`, `GET /rootCA.crt` (le certificat **public** de l'autorité de la maison, `CA_CERT`) et `/logout` (ferme la session). Tout le reste est derrière la clé ou la session (`SECURED_PATHS`, `routes/index.ts`). `/auth` vérifie la clé et ouvre la session par cookie (renouvelée à chaque appel).
+- `GET /welcome`, `GET /rootCA.crt` (certificat **public** de la CA, `CA_CERT`), `/logout`.
+- Le reste est derrière la clé ou la session (`SECURED_PATHS`).
+- `/auth` vérifie la clé et ouvre la session par cookie (renouvelée à chaque appel).
 
 ## Caméras, événements, images
 
-- `/direct`, `/image`. Chaque ligne de `GET /direct` porte l'orientation actuelle de la caméra (réglage de House Sync, paysage par défaut) et `rain` (`off`, `rain`, `heavy` ou `fog` : le niveau de pluie qui s'applique à la caméra, le mode pluie de House Sync et la météo ; la WebApp en tire le symbole) et `eyes` (booléen : vrai quand la recherche des yeux qui brillent tourne sur la caméra, `settings.eyes_now` de House Sync ; la WebApp en tire l'icône œil).
-- `/events` : sans paramètre, les 200 derniers ; `?last=1` ; `?saved=1` : les clips sauvegardés ; `?camera=&from=&to=` en secondes : les événements qui touchent cette fenêtre, 1000 au plus, `&limit=` pour moins.
-- Chaque événement porte `saved`, `clip` (`/clips/id`, l'original H.265 4K), `clip_h264` (`/clips/id/h264`, la copie légère H.264 720p lisible partout ; null si elle n'existe pas), `clip_audio` (`/clips/<id>/audio` ou null), `note` (le texte posé depuis la Home, vide sinon) et `orientation` (`landscape` ou `portrait`, celle qu'avait sa caméra à son début ; null d'une base d'avant = paysage). En portrait la vidéo se lit tournée d'un quart de tour horaire.
-- `PUT /clips/:id/emoji` avec `{"emoji": "🦊"}` (un seul pictogramme, 16 caractères au plus, ni lettre ni chiffre) ou `{"emoji": null}` : pose ou retire l'emoji du clip (404 sans clip). Gardé dans `clip-emojis.json` (`STATE_DIR`, `lib/clipEmojisStore.ts`) ; chaque événement porte `emoji` (vide s'il n'y en a pas). La carte de la maison l'affiche.
-- `GET /clips/:id` (l'original), `/clips/:id/h264`, `/clips/:id/audio` (AAC, à part de la vidéo ; chemin lu dans `events.clip_audio_path`, écrit par House Sync ; 404 sans son). `PUT /clips/:id/saved` avec `{"saved": true|false}` : sauvegarde le clip (House Sync ne l'efface jamais, les autres le sont après la durée de garde ; 404 s'il n'a pas de clip). Le fichier `saved-clips.json` est lu par House Sync avant le ménage. `PUT /clips/:id/note` avec `{"note": "renard"}` : pose la note du clip (200 caractères au plus, sans espaces autour ; vide : la supprime ; 404 sans clip), gardée dans `clip-notes.json` (à part de la liste des clips sauvegardés, que House Sync ne lit pas).
-- `/snapshots?camera=&from=&to=` ; `/snapshot?camera=&at=` (l'image la plus proche, tolérance 5 min ; l'en-tête `X-Snapshot-At` donne son instant exact, `X-Snapshot-Code` son code permanent en lettres (colonne `snapshots.code` posée par House Sync, ex. `da`, `bcb`) que la WebApp affiche sur l'image gardée ; l'API ne l'écrit pas).
-- `/stream?camera=` : le direct MJPEG, relayé de go2rtc tant que le client reste connecté. `&quality=hd` : le 4K recodé (flux `<nom>_main_mjpeg`) au lieu du léger ; `&screen=mobile` : les flux `…_mjpeg_m` des écrans de moins de 1024 px, dont la cadence se règle à part dans House Sync. `/frame?camera=` : l'image à l'instant.
-- `/audio?camera=`: le son de la caméra (AAC en flux continu, `audio/aac`), la piste audio de son flux léger relayée depuis go2rtc (`/api/stream.aac`), seulement tant que le client reste connecté ; la WebApp l'ouvre au clic sur l’icône du son posée sur le direct (jamais avant), avec un gain côté navigateur. Derrière la clé ou la session.
+- `GET /direct` : par caméra, orientation (réglage de House Sync, paysage par défaut), `rain` (`off`, `rain`, `heavy`, `fog`) et `eyes` (recherche des yeux en cours).
+- `/events` : les 200 derniers ; `?last=1` ; `?saved=1` ; `?camera=&from=&to=` (secondes, 1000 au plus, `&limit=`).
+- Un événement porte `saved`, `clip` (original H.265 4K), `clip_h264` (720p, null si absente), `clip_audio`, `clip_shapes`, `note`, `emoji`, `orientation`.
+- Orientation `portrait` : la vidéo se lit tournée d'un quart de tour horaire ; null (base ancienne) = paysage.
+- `GET /clips/:id`, `/h264`, `/audio` (AAC à part, lu dans `events.clip_audio_path`), `/shapes` (contours du mouvement, 404 pour un clip ancien).
+- `PUT /clips/:id/saved` `{"saved": bool}` : House Sync n'efface jamais un clip sauvegardé ; `saved-clips.json` est lu par lui avant le ménage.
+- `PUT /clips/:id/note` `{"note"}` : 200 caractères au plus, vide = supprime ; fichier `clip-notes.json` (à part, House Sync ne le lit pas).
+- `PUT /clips/:id/emoji` `{"emoji"}` : un seul pictogramme, 16 caractères au plus, `null` = retire ; `clip-emojis.json`.
+- 404 pour ces `PUT` si le clip n'existe pas.
+- `/snapshots?camera=&from=&to=` ; `/snapshot?camera=&at=` : image la plus proche (tolérance 5 min), en-têtes `X-Snapshot-At` et `X-Snapshot-Code` (code posé par House Sync, l'API ne l'écrit pas).
+- `/stream?camera=` : MJPEG relayé de go2rtc tant que le client reste connecté. `&quality=hd` : flux `<nom>_main_mjpeg` ; `&screen=mobile` : flux `…_mjpeg_m`.
+- `/frame?camera=` : image à l'instant.
+- `/audio?camera=` : AAC en flux continu (`/api/stream.aac` de go2rtc), seulement tant que le client reste connecté ; la WebApp l'ouvre au clic, jamais avant.
 
 ## Switch (PoE)
 
-`GET /poe` : l'alimentation de chaque caméra (PoE activé, alimentée, watts, et `streaming` : les octets reçus par go2rtc augmentent, donc elle a fini de démarrer). `POST /poe/:camera` avec `{"on": true|false}` rend ou coupe le PoE du port ; 503 sans switch configuré.
+- `GET /poe` : par caméra, PoE activé, alimentée, watts, `streaming` (octets go2rtc qui augmentent = démarrée).
+- `POST /poe/:camera` `{"on": bool}` ; 503 sans switch.
+- Variables : `SWITCH_URL`, `SWITCH_USER`, `SWITCH_PASSWORD` (absent = PoE désactivé), `SWITCH_PORTS` (`voliere-exterieur:3,voliere-interieur:4`).
+- Pas d'API officielle : le client imite la page web du firmware 1.0.1 (`logon.cgi`, `poe_port_config.cgi`, `logout.cgi`). Un autre firmware peut casser.
+- Après un refus de connexion, aucun nouvel essai pendant 1 min (le switch pourrait verrouiller le compte).
+- Couper le PoE éteint la caméra ; l'enregistreur réessaie jusqu'au retour du courant.
 
-Variables : `SWITCH_URL` (`http://192.168.1.33`), `SWITCH_USER`, `SWITCH_PASSWORD` (dans `.env`, absent = PoE désactivé), `SWITCH_PORTS` (`voliere-exterieur:3,voliere-interieur:4`, caméra:port). Aucune API officielle sans contrôleur : le client imite la page web du firmware 1.0.1 (`logon.cgi`, `poe_port_config.cgi?poe_status=…&selBit=…`, `logout.cgi`). Un autre firmware peut casser ces commandes. Après un refus de connexion, le client ne réessaie pas pendant une minute (il rend le même refus sans déranger le switch, qui pourrait verrouiller le compte). Couper le PoE éteint la caméra : l'enregistreur réessaie son flux jusqu'au retour du courant.
+## Pont Hue
 
-## Pont Hue (`routes/hue.ts`, `services/hueService.ts`, `lib/hueClient.ts`)
+Détail des automatisations et du journal : `../../../docs/hue.md` (le journal est tenu par House Sync).
 
-- `/hue` : les pièces et leurs lampes (chaque lampe : `id`, `name`, `on`, `bri`, `reachable` et **`color`**, sa couleur actuelle en `#rrggbb` à pleine luminosité, calculée par `lib/hueColor.ts` d'après `colormode` : `xy`, `ct` ou `hue` et `sat` ; null sans couleur — et **`watts`**, sa puissance **estimée** par `lib/hueWatts.ts` d'après son `modelid`, son état et sa luminosité : 0 W si elle est injoignable, 0,4 W en veille, sinon veille + (max − veille) × (bri/254)², max par modèle ; null pour un modèle inconnu. Une approximation, pas une mesure). `GET /hue/sensors` : les détecteurs de mouvement avec température et luminosité. `GET /hue/automations` : les règles d'automatisation du pont en phrases, lues par son API v2 en HTTPS sans vérifier son certificat (c'est un équipement du réseau de la maison).
-- `GET` et `PUT /hue/positions` : les positions des ampoules `{"<id de lampe>": {"x", "y"}}`, fusionnées avec celles déjà gardées (`lights-positions.json`).
-- `PUT /hue/rooms/:id` et `PUT /hue/lights/:id` avec `{"on": true|false}` et/ou `{"bri": 1..254}`.
-- 503 sans pont configuré : `HUE_BRIDGE_IP` et `HUE_APP_KEY` dans `.env`, la clé vient d'un appui sur le bouton du pont puis `POST http://<pont>/api` avec `{"devicetype":"house#mini"}`.
-- **Extinction en douceur d'une lampe.** `GET`, `POST` et `DELETE /hue/lights/<id>/fade` rendent `{fading, ends_at, started_at, duration_seconds, from_bri}` (début et durée de la descente et luminosité d'avant : la WebApp en tire la luminosité à chaque instant, car le pont annonce tout de suite la cible). `POST` (`{"minutes": N}`, de 1 à 60, 15 par défaut ; 409 si la lampe est éteinte ou injoignable) fait descendre sa luminosité au minimum par **une transition du pont** (`transitiontime`) et programme **un minuteur du pont** (`POST /schedules`, « house-fade-<id> », « PThh:mm:ss », `autodelete`) qui l'éteint juste après et lui rend sa luminosité d'avant (gardée dans la description du minuteur : `bri=<n>`) pour le prochain allumage ; le pont fait tout, l'API peut s'arrêter. `GET` dit si l'extinction est en cours et quand elle finit (`ends_at`, secondes depuis 1970, du début UTC du minuteur plus sa durée) ; `DELETE` supprime le minuteur et rend la luminosité d'avant en 2 s. Côté client : `schedules`, `createTimer`, `deleteSchedule`.
-- Le journal des changements de lampes est tenu par House Sync, pas par l'API : `../../../docs/hue.md`.
+- `GET /hue` : pièces et lampes `{id, name, on, bri, reachable, color, watts}`.
+- `color` : `#rrggbb` à pleine luminosité (`lib/hueColor.ts`), null sans couleur.
+- `watts` : puissance **estimée** par `lib/hueWatts.ts` (0 si injoignable, 0,4 en veille, sinon veille + (max − veille) × (bri/254)², max par modèle) ; null si modèle inconnu. Une approximation.
+- `GET /hue/sensors` : détecteurs avec température et luminosité.
+- `GET /hue/automations` : règles du pont en phrases (API v2, certificat non vérifié : équipement du réseau).
+- `GET`/`PUT /hue/positions` : positions fusionnées avec celles gardées (`lights-positions.json`).
+- `PUT /hue/rooms/:id`, `PUT /hue/lights/:id` : `{"on"}` et/ou `{"bri": 1..254}`.
+- 503 sans `HUE_BRIDGE_IP` et `HUE_APP_KEY` (clé : bouton du pont puis `POST http://<pont>/api` avec `{"devicetype":"house#mini"}`).
 
-## Prise connectée (Kasa HS100)
+**Extinction en douceur** : `GET`/`POST`/`DELETE /hue/lights/<id>/fade`.
 
-`PLUG_HOST` (l'adresse de la prise sur le réseau de la maison, dans `.env` ; absent = `/plug` répond 503), `PLUG_PORT` (9999). Protocole Kasa local (`lib/kasaClient.ts`, JSON chiffré par XOR en chaîne sur TCP), sans cloud.
+- Rend `{fading, ends_at, started_at, duration_seconds, from_bri}` (le pont annonce tout de suite la cible, la WebApp interpole).
+- `POST {"minutes": 1..60}` (15 par défaut ; 409 si éteinte ou injoignable) : transition du pont (`transitiontime`) plus **minuteur du pont** (`house-fade-<id>`) qui éteint puis rend la luminosité d'avant (gardée dans la description : `bri=<n>`). L'API peut s'arrêter.
+- `DELETE` supprime le minuteur et rend la luminosité d'avant en 2 s.
 
-- `GET /plug` rend `{alias, model, on, rssi, onTime, timerSeconds, offOnMotion}` (`timerSeconds` : ce qui reste, null sans minuteur).
-- `POST /plug` avec `{"on": false}` l'éteint (502 si elle ne répond pas). **Allumer sans durée est refusé (400) : la prise ne reste jamais allumée sans fin.** `{"on": true, "minutes": N}` (N entier de 1 à 120 ; la WebApp propose un curseur de 1 à 30) l'allume **pendant N minutes, puis la prise s'éteint toute seule** : c'est le **minuteur de la prise elle-même** (`count_down` du protocole Kasa, `startTimer`), pas un minuteur de l'API, donc l'extinction a lieu même si le mini PC ou l'API tombent pendant le chauffage. Allumer ou éteindre pour de bon annule un minuteur en cours ; si le minuteur ne se programme pas, la prise est rééteinte (jamais allumée sans fin par accident).
-- **Option « éteindre au mouvement »** : `POST /plug` avec `"offOnMotion": true` (en allumant, avec ou sans `minutes`) arme un garde (`services/plugService.ts`) qui lit toutes les 3 s le détecteur Hue `PLUG_MOTION_SENSOR` (défaut `motion interieur`, API v1 du pont) et **éteint la prise au premier front montant du mouvement** (un mouvement déjà en cours à l'armement ne compte pas) ; l'option s'efface alors, et dès que la prise est éteinte autrement ; gardée dans `plug-guard.json` (`STATE_DIR`) pour survivre à un redémarrage ; 503 sans pont Hue. Contrairement au minuteur, elle dépend de l'API et du pont. **Le chauffage automatique arme toujours cette option** : si un mouvement éteint un chauffage allumé par la règle, la règle est aussi **désactivée** (`enabled: false` dans `heating.json`, `onAutoCut`) ; il faut la réactiver à la main (case « Activer la règle »). Le garde garde l'origine de l'allumage (`origin` dans `plug-guard.json`) : un allumage manuel coupé par un mouvement ne touche pas à la règle.
-- `PLUG_MAC` (par défaut `D8:0D:17:1C:84:E3`, dans le compose) : si la prise ne répond pas à `PLUG_HOST` (la box a changé son adresse), l'API essaie le port 9999 de chaque adresse du réseau de `PLUG_HOST` (`/24`), reconnaît la prise à sa MAC dans `get_sysinfo` et garde la nouvelle adresse jusqu'au redémarrage (un scan par minute au plus) : pas de bail DHCP à réserver.
+## Prise Kasa HS100
 
-## Chauffage automatique de la volière (`services/heatingService.ts`, `lib/heatingSettings.ts`, `heatingLog.ts`, `heatingCost.ts`, `sun.ts`)
+- `PLUG_HOST` (absent = 503), `PLUG_PORT` (9999). Protocole local (`lib/kasaClient.ts`), sans cloud.
+- `GET /plug` : `{alias, model, on, rssi, onTime, timerSeconds, offOnMotion}`.
+- `POST /plug {"on": false}` éteint (502 si muette).
+- **Allumer sans durée est refusé (400)** : jamais allumée sans fin.
+- `{"on": true, "minutes": 1..120}` (curseur WebApp 1 à 30) : c'est le **minuteur de la prise** (`count_down` Kasa), pas de l'API ; l'extinction a lieu même si l'API tombe.
+- Si le minuteur ne se programme pas, la prise est rééteinte.
+- Allumer ou éteindre pour de bon annule le minuteur en cours.
 
-**La règle.** Toutes les 60 s (`setInterval(...).unref()`), si la règle est activée **et** la température de la volière < le seuil **et** c'est la nuit (après le coucher du soleil, avant son lever, pour `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`, 48,52 et 2,64 par défaut ; `lib/sun.ts`, **copie** de `sync/src/sun.ts`) **et** la prise est éteinte **et** au moins `cooldownMinutes` se sont écoulées depuis le **début** de la dernière activation du journal (de toute origine), l'API fait `plug.startTimer(minutes)` : **c'est le minuteur de la prise qui l'éteint ensuite**, jamais d'allumage sans fin. Par défaut : seuil 3 °C, 5 min, délai 20 min (5 min allumée, 15 min de repos), règle activée. Un geste sur la prise elle-même (bouton, appli Kasa) n'est ni observé ni noté.
+**Option « éteindre au mouvement »** (`"offOnMotion": true`, `services/plugService.ts`) :
 
-**La température** est celle du détecteur Hue `PLUG_TEMPERATURE_SENSOR` (par défaut le nom de `PLUG_MOTION_SENSOR`, « motion interieur »), lue comme `GET /hue/sensors` (`toSensors`). Inconnue ou pont injoignable : on ne chauffe pas, et les logs le disent une fois par panne. Sans pont Hue (`HUE_*` absents), la règle ne tourne pas.
+- Lit toutes les 3 s le détecteur `PLUG_MOTION_SENSOR` (défaut `motion interieur`) et éteint au premier front montant (un mouvement déjà en cours à l'armement ne compte pas).
+- Puis l'option s'efface ; état dans `plug-guard.json` (survit au redémarrage) ; 503 sans pont Hue. Dépend de l'API et du pont, contrairement au minuteur.
+- **Le chauffage automatique l'arme toujours** : un mouvement qui coupe un chauffage de la règle **désactive la règle** (`enabled: false`, `onAutoCut`) ; réactivation à la main. Un allumage manuel coupé ne touche pas à la règle (`origin` dans `plug-guard.json`).
 
-- `GET /plug/heating` : les réglages et l'état de la règle : `{enabled, thresholdC, minutes, cooldownMinutes, lastActivationAt, nextAllowedAt, temperature, night, cold}` (secondes depuis 1970 ; `night` : il fait nuit maintenant ; `cold` : température sous le seuil). 503 sans prise ou sans pont Hue.
-- `PUT /plug/heating` : change les réglages ; **une valeur absente du corps garde l'ancienne**. Validation stricte, 400 sinon : `enabled` booléen, `thresholdC` de -30 à 30, `minutes` entier de 1 à 120 (le plafond du minuteur), `cooldownMinutes` entier au moins égal à `minutes` et au plus 1440, Les prix du kWh, les heures creuses et la puissance ne sont **pas** des réglages (`priceKwh`, `peakPriceKwh`, `offPeakStart`, `offPeakEnd`, `heaterWatts` envoyés sont ignorés). Fichier `heating.json` de `STATE_DIR` (écrit dans un fichier temporaire puis renommé ; absent ou abîmé : les valeurs par défaut).
-- `GET /plug/log?limit=50` : le journal, la plus récente d'abord (`limit` de 1 à 500, 400 sinon ; 503 sans prise).
+**Retrouver la prise** : `PLUG_MAC` (défaut `D8:0D:17:1C:84:E3`). Si `PLUG_HOST` ne répond plus, scan du port 9999 du `/24`, reconnaissance par MAC dans `get_sysinfo`, nouvelle adresse gardée jusqu'au redémarrage (un scan par minute au plus).
 
-**Le journal** (`heating-log.jsonl`, `STATE_DIR`) : une ligne JSON par activation commandée par **notre système** : `{"at": <secondes>, "origin": "auto" | "manuel", "minutes": N, "temperature": <°C ou null>, "note": <texte ou null>, "cost": <euros ou null>}`. `auto` : la règle (avec la température qui l'a décidée) ; `manuel` : `POST /plug` avec une durée (WebApp, API). `plugService` l'écrit à chaque `startTimer` réussi (une seule ligne par activation). Les 5000 dernières lignes sont gardées, une ligne abîmée est ignorée à la lecture. **Seul House Sync écrit la base** : il importe ce fichier dans la table `heating_log` (`../../../sync/src/CLAUDE.md`).
+## Chauffage automatique
 
-**Le coût** (`cost`) est calculé **à l'activation** et écrit dans la ligne (le tarif d'aujourd'hui ne change pas le passé) : `HEATER_WATTS` / 1000 × heures × prix du kWh, arrondi à quatre décimales (5 min à 2000 W en heures creuses : 0,0265 €). Les minutes sont découpées entre heures creuses (`OFF_PEAK_PRICE_KWH`) et pleines (`PEAK_PRICE_KWH`, deux **constantes** de `lib/heatingSettings.ts`, recopiées dans `sync/src/cameraEnergy.ts` : à tenir d'accord) selon l'heure de **Paris** entre `OFF_PEAK_START` et `OFF_PEAK_END` (la plage passe minuit). Constantes de `lib/heatingSettings.ts` (recopiées dans `sync/src/cameraEnergy.ts` pour les prix et les heures : à tenir d'accord) : prix (donnés par l'utilisateur) : **0,1589 € TTC le kWh en heures creuses** (0,1018 € HT) et **0,2142 € TTC en heures pleines** (offre TotalEnergies, tarifs du 8 novembre 2026) , heures creuses **23:10 → 07:10** (Enedis, été comme hiver), chauffage de **2000 W** (`HEATER_WATTS`, la prise HS100 ne mesure rien). Les anciennes lignes du journal sans coût gardent `cost: null`.
+Fichiers : `services/heatingService.ts`, `lib/heatingSettings.ts`, `heatingLog.ts`, `heatingCost.ts`, `sun.ts`.
 
-## Zones de surveillance (`lib/zonesStore.ts`)
+**Règle** : un tour toutes les 60 s ; elle fait `plug.startTimer(minutes)` quand tout est vrai :
 
-`GET /zones` rend `{"<caméra>": [[x, y], ...]}` (polygones de 3 à 32 sommets en parts de l'image, de 0 à 1) ; `PUT /zones/<caméra>` avec `{"points": [[x, y], ...]}` ou `{"points": null}` (toute l'image) en fixe ou retire une. Fichier `zones.json` (écriture dans un fichier temporaire puis renommé) ; House Sync le lit en lecture seule et le donne à l'enregistreur.
+- règle activée ;
+- température de la volière sous le seuil ;
+- nuit (coucher à lever du soleil pour `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`, 48,52 et 2,64 par défaut) ;
+- prise éteinte ;
+- au moins `cooldownMinutes` depuis le **début** de la dernière activation du journal (toute origine).
 
-## Repères de caméras (`lib/markersStore.ts`)
+Défauts : seuil 3 °C, 5 min allumée, délai 20 min, règle activée. C'est le minuteur de la prise qui éteint. Un geste direct sur la prise (bouton, appli Kasa) n'est ni vu ni noté.
 
-`GET /markers` rend `{"<caméra>": [{"target": "<autre caméra>", "x", "y"}, ...]}` (8 repères au plus, `x` et `y` en parts de l'image, de -0,5 à 1,5 : un repère peut être posé hors de la vidéo, dans le bloc qui l'entoure) ; `PUT /markers/<caméra>` avec `{"markers": [...]}` ou `{"markers": null}` (les places de départ) en fixe ou retire. Sur l'image d'une caméra, la WebApp pose une icône de caméra par autre caméra, qu'on déplace où on veut ; un clic ouvre cette caméra. Fichier `markers.json` (écriture dans un fichier temporaire puis renommé).
+**Température** : détecteur Hue `PLUG_TEMPERATURE_SENSOR` (défaut : le nom de `PLUG_MOTION_SENSOR`). Inconnue ou pont injoignable : pas de chauffage, une ligne de log par panne. Sans `HUE_*`, la règle ne tourne pas.
 
-## Plan de la maison (`lib/planStore.ts`)
+**Routes** :
 
-`GET /plan` rend `{"plan": {...}}` (ou `{"plan": null}` s'il n'y en a pas encore) ; `PUT /plan` le remplace (128 ko au plus). Le document (`plan.json`) a les arbres, les haies, la place de la cage, les décalages du chemin du garage et des portes, les positions de la lampe et de la prise, les caméras du plan et le lien de chacune avec une vraie caméra ; seul ce qui est bien formé est gardé (arrondi à 7 décimales). **Les positions sont des longitudes et latitudes (`version`: 2), les tailles des mètres, les angles des caps** (degrés depuis le nord). House Sync l'importe dans la table `plan` de SQLite (onglet Base).
+- `GET /plug/heating` : `{enabled, thresholdC, minutes, cooldownMinutes, lastActivationAt, nextAllowedAt, temperature, night, cold}` ; 503 sans prise ou sans pont.
+- `PUT /plug/heating` : une valeur absente garde l'ancienne ; 400 sinon : `thresholdC` de -30 à 30, `minutes` entier 1 à 120, `cooldownMinutes` entier entre `minutes` et 1440.
+- Prix, heures creuses et puissance ne sont **pas** des réglages (ignorés). Fichier `heating.json` (écriture temporaire puis renommage ; absent ou abîmé = défauts).
+- `GET /plug/log?limit=50` : journal, récent d'abord (1 à 500, 400 sinon ; 503 sans prise).
 
-## Clip enregistré à la main (`routes/record.ts`)
+**Journal** `heating-log.jsonl` :
 
-`GET`, `POST` et `DELETE /record/<caméra>` relaient l'enregistreur (`RECORDER_URL`, `http://motion:8080`, réseau `sync_net` ; 503 sans lui, 502 s'il ne répond pas) : état (`{recording, id, started_at}`), début, arrêt (409 s'il n'y avait pas d'enregistrement ; arrêt automatique à 3 minutes). Au `POST`, **l'API ajoute le clip à la liste des clips sauvegardés** : un clip voulu n'est jamais effacé.
+- Une ligne par activation commandée par notre système : `{at, origin: "auto"|"manuel", minutes, temperature, note, cost}`.
+- Écrit par `plugService` à chaque `startTimer` réussi ; 5000 lignes gardées ; ligne abîmée ignorée.
+- Seul House Sync écrit la base : il importe ce fichier (`../../../sync/src/CLAUDE.md`).
 
-## Les climatisations Mitsubishi (`/ac`, `services/acService.ts`, `lib/mitsubishiClient.ts`)
+**Coût** (`cost`) : calculé **à l'activation** et figé (le tarif d'aujourd'hui ne change pas le passé).
 
-Les splits Mitsubishi Electric (MSZ-AY…) ont un module Wi-Fi intégré (MAC-577IF-E) dont l'API **locale**, sans cloud ni compte, est utilisée : `POST http://<ip>/smart`, un XML chiffré en AES-128-CBC avec la clé par défaut d'un module non enregistré sur MELCloud (`unregistered`), l'IV devant le chiffré, le tout en base64 dans `<ESV>`. La réponse porte l'état en trames hexadécimales (le protocole CN105 de la carte) : type `0x02` (alimentation, mode, consigne, ventilateur), type `0x03` (température de la pièce) ; l'octet de contrôle est `0xFC` moins la somme des octets. Une file par module (une requête à la fois).
+- `HEATER_WATTS` / 1000 × heures × prix du kWh, 4 décimales (5 min à 2000 W en heures creuses : 0,0265 €).
+- Constantes de `lib/heatingSettings.ts`, **recopiées dans `sync/src/cameraEnergy.ts` : à tenir d'accord**.
+- Prix TTC : 0,1589 €/kWh en heures creuses, 0,2142 € en heures pleines (TotalEnergies, tarifs du 8 nov. 2026).
+- Heures creuses 23:10 à 07:10, heure de Paris (Enedis). Chauffage 2000 W (`HEATER_WATTS` ; la HS100 ne mesure rien).
+- Anciennes lignes sans coût : `cost: null`.
 
-- `AC_UNITS="chambre-invite:Chambre invité:192.168.1.130"` (id, nom, adresse du module, séparés par des virgules) ; vide : `/ac` répond 503. Réserver l'adresse de chaque module dans la Freebox.
-- `GET /ac` : `{units: [{id, name, reachable, power, mode, targetTemp, roomTemp, fan, vane, wideVane}]}` ; `mode` : `heat`, `cool`, `dry`, `fan`, `auto` ; `fan` : `auto`, `quiet`, `1` à `4` ; `vane` (l'ailette haut / bas) : `auto`, `1` (haut) à `5` (bas), `swing` (balayage) ; `wideVane` (l'ailette gauche / droite, octets de drapeaux 2 et de données 13 de la trame, relue dans les 4 bits du bas de l'octet 10) : `left`, `left-center`, `center`, `right-center`, `right`, `swing` ; une unité qui ne répond pas : `reachable: false`, le reste vide. État gardé 3 s.
-- `POST /ac/<id>` change un ou plusieurs réglages, **les autres ne bougent pas** (une trame de type `0x41` dont l'octet de drapeaux dit quels champs comptent : 0x01 alimentation, 0x02 mode, 0x04 consigne, 0x08 ventilateur, 0x10 ailette) : `{"on": true|false}`, `{"mode": "heat"|"cool"|"dry"|"fan"|"auto"}`, `{"temperature": 16 à 31, par pas de 0,5}` (octet `0x80` + 2 × la consigne), `{"fan": "auto"|"quiet"|"1"|…|"4"}`, `{"vane": "auto"|"1"…"5"|"swing"}` (l'ailette haut / bas, 1 en haut, 5 en bas) et `{"wideVane": "left"|"left-center"|"center"|"right-center"|"right"|"swing"}` (l'ailette gauche / droite : second octet de drapeaux 0x01, valeur à l'octet 14 des données). Rend l'unité : **l'état d'avant avec le changement appliqué, sans relire** (le module met 2 à 3 s à refléter un ordre ; la lecture suivante le confirme). 404 unité inconnue, 400 corps vide ou faux, 502 module injoignable. Le module refuse (403) les requêtes de `fetch` : le client passe par `node:http`.
+## Zones de surveillance
 
-## Les volets roulants (`/shutters`)
+- `GET /zones` : `{"<caméra>": [[x, y], ...]}` (3 à 32 sommets, parts de l'image 0 à 1).
+- `PUT /zones/<caméra>` `{"points": [...]}` ou `null` (toute l'image).
+- `zones.json` (écriture temporaire puis renommage) ; House Sync le lit et le donne à l'enregistreur.
 
-Les volets Somfy RTS, commandés par une ESP32 + CC1101 qui fait tourner le firmware ESPSomfy-RTS (voir l'onglet Architecture du site, vue « Volet »). **Rien n'est encore branché : l'API est en simulation** tant que `SHUTTERS_ESP_URL` est absent.
+## Repères de caméras
 
-- `GET /shutters` : `{mock, shutters: [{id, name, lastCommand, lastAt}]}` (`mock` : simulation, aucun signal radio ; `lastCommand` : `up`, `down`, `stop` ou null ; `lastAt` en secondes). 503 si aucun volet n'est configuré.
-- `POST /shutters/<id>` avec `{"command": "up" | "down" | "stop"}` : envoie l'ordre et rend le volet à jour. 400 ordre inconnu, 404 volet inconnu, 502 l'ESP32 ne répond pas.
-- **« Fermer à moitié »** : `POST /shutters/<id>/half` (202 ; 404 volet inconnu, 409 si le volet n'a pas de temps de fermeture, 502 si l'ESP32 ne répond pas). Le Somfy RTS est à sens unique : c'est le **temps** qui fait le « à moitié ». L'API envoie `up`, attend le temps de fermeture du volet **plus 6 s** (le volet est sûrement tout en haut), envoie `down`, attend **la moitié du temps de fermeture**, puis envoie `stop` (par exemple 19 s : monter 25 s, descendre 9 s). Le premier ordre part avant la réponse ; la suite tourne en tâche de fond dans l'API (`closeHalf` de `services/shuttersService.ts`), chaque ordre est noté au journal (« à moitié : ouvrir à fond », « fermer », « arrêt »), et **tout autre ordre donné au même volet l'annule** (le Stop de l'utilisateur arrête la suite). `GET /shutters` rend `closeSeconds` (null : pas de bouton) et `halfRunning`. Si l'API redémarre en route, la suite est perdue et le volet finit sa course. Le temps de fermeture se donne dans `SHUTTERS` : `SHUTTERS="1:Volet cuisine:19"` (id, nom, secondes ; la 3ᵉ partie est facultative).
-- **Configuration** (`.env`, passée par le compose) : `SHUTTERS="1:Salon,2:Chambre"` (le numéro du volet dans le firmware, qui sert aussi d'identifiant, puis son nom ; par défaut les quatre volets de la maison, dans l'ordre : PC (1), salon (2), porte (3), cuisine (4) ; les numéros sont à faire correspondre à ceux créés dans le firmware de l'ESP32) et `SHUTTERS_ESP_URL` (l'adresse de l'ESP32, par exemple `http://192.168.1.60`).
-- **Action automatique** (`services/shuttersAutoService.ts`, réglages gardés dans `shutters-auto.json`) : pour les volets de `SHUTTERS_AUTO` (par défaut **tous**), **ouvrir au lever du soleil** et **fermer à son coucher**, deux options **séparées**, **activables volet par volet**. `GET /shutters` rend `auto` pour chaque volet (`null` : pas d'action automatique ; sinon `{open, close}`) et `PUT /shutters/<id>/auto` avec `{"open": true|false}` et/ou `{"close": true|false}` change l'une ou l'autre (une option absente garde sa valeur ; 404 si le volet n'en a pas, 400 si le corps est faux). Un ancien fichier `shutters-auto.json` (une seule case `enabled`) vaut pour les deux options. Un tour par minute (`crossedEvents`) : le lever et le coucher (`lib/sun.ts`, position de la maison `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`) passés depuis le dernier tour envoient `up` ou `down`, notés au journal (`note` : « auto : lever du soleil » ou « auto : coucher du soleil »). Un lever manqué (API arrêtée) est joué s'il date de moins de deux heures, pas au-delà ; **activer la règle après un lever ne l'ouvre pas** (elle attend le prochain). Désactivée par défaut.
-- **Le pilote** (`lib/shutterDriver.ts`) : `createMockDriver` (simulation, quand `SHUTTERS_ESP_URL` manque) et `createEspSomfyDriver` (HTTP vers l'ESP32, **vérifié sur le volet cuisine**) : `PUT /shadeCommand` avec `{"shadeId": 1, "command": "up"}`, sans authentification, `stop` envoyé comme `my`.
-- **Le dernier ordre** de chaque volet vient du journal au démarrage (`shutterLog.ts`) : le RTS ne dit pas où est le volet. Le journal `shutters-log.jsonl` (`STATE_DIR`, 5000 lignes) : `{at, shutter, name, command, ok, note}` ; House Sync l'importe dans la table `shutter_log` (`../../../sync/src/CLAUDE.md`).
+- `GET /markers` : `{"<caméra>": [{target, x, y}, ...]}`, 8 au plus, `x` et `y` de -0,5 à 1,5 (hors vidéo permis).
+- `PUT /markers/<caméra>` `{"markers": [...]}` ou `null` (places de départ). Fichier `markers.json`.
 
-## Contours du mouvement d'un clip
+## Plan de la maison
 
-`GET /clips/<id>/shapes` sert `<id>.shapes.json` (copié par House Sync, colonne `clip_shapes_path`) : `{frames: [[secondes depuis le début du clip, polygones], ...]}`, les polygones en parts de l'image. 404 pour un clip fait avant leur ajout. L'événement porte `clip_shapes` (le chemin, ou null).
+- `GET /plan` : `{"plan": {...}}` ou `{"plan": null}` ; `PUT /plan` remplace (128 ko au plus). Fichier `plan.json`, seul ce qui est bien formé est gardé (7 décimales).
+- **Positions en longitude/latitude** (`version`: 2), tailles en mètres, angles en caps (degrés depuis le nord).
+- House Sync l'importe dans la table `plan`.
+
+## Clip à la main (`routes/record.ts`)
+
+- `GET`/`POST`/`DELETE /record/<caméra>` relaient l'enregistreur (`RECORDER_URL`, `http://motion:8080`) : 503 sans lui, 502 s'il ne répond pas, 409 à l'arrêt sans enregistrement, arrêt auto à 3 min.
+- Au `POST`, l'API **ajoute le clip aux clips sauvegardés** : un clip voulu n'est jamais effacé.
+
+## Climatisations Mitsubishi (`/ac`)
+
+Fichiers : `services/acService.ts`, `lib/mitsubishiClient.ts`.
+
+- Module Wi-Fi MAC-577IF-E, API **locale** sans cloud : `POST http://<ip>/smart`, XML chiffré AES-128-CBC (clé par défaut d'un module non enregistré), IV devant le chiffré, base64 dans `<ESV>`.
+- Réponse en trames hexadécimales (CN105) : type `0x02` (alimentation, mode, consigne, ventilateur), `0x03` (température). Octet de contrôle : `0xFC` moins la somme des octets.
+- Le module refuse (403) `fetch` : le client passe par `node:http`. Une file par module.
+- `AC_UNITS="chambre-invite:Chambre invité:192.168.1.130"` (id, nom, adresse) ; vide = 503. Réserver l'adresse de chaque module dans la Freebox.
+- `GET /ac` : `{units: [{id, name, reachable, power, mode, targetTemp, roomTemp, fan, vane, wideVane}]}` ; injoignable : `reachable: false`. État en cache 3 s.
+- Valeurs : `mode` heat/cool/dry/fan/auto ; `fan` auto/quiet/1 à 4 ; `vane` auto/1 (haut) à 5 (bas)/swing ; `wideVane` left/left-center/center/right-center/right/swing.
+- `POST /ac/<id>` : un ou plusieurs de `on`, `mode`, `temperature` (16 à 31, pas de 0,5), `fan`, `vane`, `wideVane` ; les autres ne bougent pas (trame `0x41`, octets de drapeaux).
+- Rend l'état d'avant avec le changement appliqué, **sans relire** (le module met 2 à 3 s). 404 unité inconnue, 400 corps vide ou faux, 502 injoignable.
+
+## Volets roulants (`/shutters`)
+
+Somfy RTS via ESP32 + CC1101 (firmware ESPSomfy-RTS ; onglet Architecture, vue « Volet »). **Simulation tant que `SHUTTERS_ESP_URL` est absent.**
+
+- `GET /shutters` : `{mock, shutters: [{id, name, lastCommand, lastAt, closeSeconds, halfRunning, auto}]}` ; 503 sans volet.
+- `POST /shutters/<id>` `{"command": "up"|"down"|"stop"}` ; 400 ordre inconnu, 404 volet inconnu, 502 ESP32 muette.
+- Le RTS ne dit pas où est le volet : le dernier ordre vient du journal au démarrage.
+- Configuration : `SHUTTERS="1:Salon,2:Chambre"` (numéro dans le firmware = identifiant, puis nom ; défaut : PC 1, salon 2, porte 3, cuisine 4) et `SHUTTERS_ESP_URL` (ex. `http://192.168.1.60`).
+
+**Fermer à moitié** : `POST /shutters/<id>/half` (202 ; 404, 409 sans temps de fermeture, 502).
+
+- Le RTS est à sens unique : c'est le **temps** qui fait la moitié.
+- `up`, attente temps de fermeture **+ 6 s**, `down`, attente de la moitié du temps, `stop` (19 s : monter 25 s, descendre 9 s).
+- Le premier ordre part avant la réponse ; la suite tourne en tâche de fond (`closeHalf` de `services/shuttersService.ts`) et chaque ordre est journalisé.
+- **Tout autre ordre au même volet l'annule.** Un redémarrage de l'API perd la suite.
+- Temps de fermeture dans `SHUTTERS` : `SHUTTERS="1:Volet cuisine:19"` (3ᵉ partie facultative ; sans elle, pas de bouton).
+
+**Action automatique** (`services/shuttersAutoService.ts`, `shutters-auto.json`, désactivée par défaut) :
+
+- Pour les volets de `SHUTTERS_AUTO` (défaut tous) : **ouvrir au lever**, **fermer au coucher**, deux options séparées, volet par volet.
+- `auto` de `GET /shutters` : `null` (pas d'action) ou `{open, close}`. `PUT /shutters/<id>/auto` `{"open"?, "close"?}` ; 404 / 400.
+- Un tour par minute (`crossedEvents`, `lib/sun.ts`) ; notes de journal « auto : lever du soleil » / « coucher ».
+- Un lever manqué (API arrêtée) est joué s'il date de moins de 2 h. **Activer après un lever ne l'ouvre pas.**
+- Ancien fichier avec une seule case `enabled` : vaut pour les deux options.
+
+**Pilote** (`lib/shutterDriver.ts`) : `createMockDriver` (simulation) et `createEspSomfyDriver` (HTTP `PUT /shadeCommand` `{"shadeId": 1, "command": "up"}`, sans authentification, `stop` envoyé comme `my` ; vérifié sur le volet cuisine).
+
+**Journal** `shutters-log.jsonl` (5000 lignes) : `{at, shutter, name, command, ok, note}`, importé par House Sync dans `shutter_log`.

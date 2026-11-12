@@ -9,6 +9,7 @@ Depuis `code/stack` (Git Bash) :
 ```
 ./deploy.sh                 # les services changés depuis le dernier déploiement
 ./deploy.sh api sync        # ceux-là seulement
+./deploy.sh site            # le site de la racine du dépôt (port 8082)
 ./deploy.sh --all           # tout
 ./deploy.sh --dry-run       # montre le plan, n'envoie rien
 ./deploy.sh --skip-checks   # sans typecheck / lint / tests
@@ -17,12 +18,13 @@ Depuis `code/stack` (Git Bash) :
 
 Ce qu'il fait, dans l'ordre :
 
-1. Choisit les services : `web` et `ui` passent par `api` (la WebApp est compilée dans son image), `ui` aussi par `sync`. Sans argument, il compare le commit déployé (`.deployed-commit` sur le mini PC) au dépôt local, fichiers non suivis compris.
-2. Lance typecheck, lint, tests (la couverture à 100 % quand le paquet en a une) et build pour les apps, de chaque paquet concerné, `ui` compris ; un script absent est ignoré, un échec arrête tout.
-3. Envoie par `tar` les dossiers des services, **sans** `data/`, `.env`, `node_modules`, `dist`, `coverage`, `storybook-static`. `sync/web` part avec `sync`.
-4. Reconstruit dans l'ordre sync, motion, go2rtc, api, guest (`docker compose up -d --build --no-deps <service>` : `--no-deps` évite de redémarrer `motion` pour rien ; `go2rtc` est seulement relancé).
-5. Attend (90 s au plus) que chaque conteneur soit `healthy` (healthcheck du compose : port ouvert pour `api`, `sync`, `motion`, appel `/api` pour `go2rtc` ; pas pour `guest`, dont le port est fermé exprès quand sa page est coupée), lit les erreurs des 30 dernières secondes ; sort en erreur sinon.
-6. Écrit le commit déployé dans `.deployed-commit`.
+1. Choisit les services : `web` et `ui` passent par `api` (la WebApp est compilée dans son image), `ui` aussi par `sync`. `site` est le site de la racine du dépôt (`src/`, `public/`, `index.html`, `package.json`, `vite.config.ts`, ou `code/stack/site/`). Sans argument, il compare le commit déployé (`.deployed-commit` sur le mini PC) au dépôt local, fichiers non suivis compris.
+2. Lance typecheck, lint (et pour `site` ceux de la racine), tests (la couverture à 100 % quand le paquet en a une) et build pour les apps, de chaque paquet concerné, `ui` compris ; un script absent est ignoré, un échec arrête tout.
+3. Pour `site` : compile sur le PC le Storybook de `@house/ui` (`npm run build:storybook`) puis le site (`npm run build` à la racine), et copie `dist/` dans `site/www` (ignoré par git).
+4. Envoie par `tar` les dossiers des services, **sans** `data/`, `.env`, `node_modules`, `dist`, `coverage`, `storybook-static`. `sync/web` part avec `sync`.
+5. Reconstruit dans l'ordre sync, motion, go2rtc, api, site, guest (`docker compose up -d --build --no-deps <service>` : `--no-deps` évite de redémarrer `motion` pour rien ; `go2rtc` est seulement relancé).
+6. Attend (90 s au plus) que chaque conteneur soit `healthy` (healthcheck du compose : port ouvert pour `api`, `sync`, `motion`, appel `/api` pour `go2rtc`, requête HTTPS locale pour `site` ; pas pour `guest`, dont le port est fermé exprès quand sa page est coupée), lit les erreurs des 30 dernières secondes ; sort en erreur sinon.
+7. Écrit le commit déployé dans `.deployed-commit`.
 
 Variables : `DEPLOY_HOST` (`mathieu@192.168.1.139` par défaut), `DEPLOY_DIR` (`house/code/phase0`).
 

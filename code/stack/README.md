@@ -85,7 +85,7 @@ L'image Docker de l'API compile la WebApp (`npm ci`, `vite build`) et sert le do
 
 ## À savoir
 
-- Ports publiés : 8080 (API et WebApp), 8081 (page de House Sync). Les ports de go2rtc (1984, 8554) et l'API de
+- Ports publiés : 8080 (API et WebApp), 8081 (page de House Sync), 8082 (le site de la maison, fichiers statiques : `site/CLAUDE.md`). Les ports de go2rtc (1984, 8554) et l'API de
   l'enregistreur (8080 interne) ne sont jamais publiés.
 - Une seule clé : celle de l'API (en-tête `X-House-Key`, puis un cookie de session pour le direct, que
   l'API relaie depuis go2rtc).

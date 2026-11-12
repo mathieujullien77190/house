@@ -1,13 +1,26 @@
 # PlugPanel – l'onglet Prise
 
-La prise connectée (API `/plug`, relue toutes les 5 s ; ce que fait l'API et le minuteur de la prise elle-même : `../../../../api/src/routes/CLAUDE.md`).
+La prise connectée (`/plug`, 5 s). Ce que fait l'API et le minuteur de la prise : `../../../../api/src/routes/CLAUDE.md`.
 
-- **Tout en haut, sous le titre « Prise connectée »** : le tableau d'état (État, S'éteint dans, Allumée depuis, Éteinte au mouvement ; plus de Signal WiFi ni de Modèle). « Allumée depuis » est en minutes et secondes (« 3 min 25 s »), qui défilent chaque seconde. Dessous, le nom de la prise.
-- **Tout est dans un bloc comme celui d'une climatisation** (`AcPanel`) : le nom de la prise et son **interrupteur On / Off** (`role="switch"`) dans l'en-tête, puis le tableau d'état et les réglages. L'interrupteur sur On l'éteint ; sur Off, il l'allume pour la durée du curseur (jamais d'allumage sans fin).
-- Un **curseur de 1 à 30 minutes, par pas de 1** (5 au départ) et un bouton **« Allumer pendant N min »** (la prise s'éteint ensuite toute seule). « S'éteint dans 12 min 34 s » est un **décompte en minutes et secondes qui défile chaque seconde** entre deux lectures de la prise.
-- Le chauffage automatique éteint aussi la prise au premier mouvement du détecteur intérieur **et désactive la règle** (à réactiver avec « Activer la règle »).
-- Une case « Éteindre si le détecteur intérieur voit un mouvement » (**cochée au départ**, envoyée avec le minuteur : `offOnMotion`, ligne « Éteinte au mouvement » tant qu'elle est armée).
-- **Chauffage automatique** (`HeatingSection`, sous la commande manuelle, **sans titre** : la prise est branchée sur le chauffage ; rendu par `HeatingPanel` de `@house/ui`) : la règle de l'API (`GET` et `PUT /plug/heating`) : case « Activer la règle », champs **Température (°C)**, **Durée (min)**, **Délai avant réactivation (min)**, enregistrés par « Enregistrer » (l'erreur de l'API s'affiche telle quelle). **Ni titre, ni message d'état, ni journal ici** : le journal est dans l'onglet Base de House Sync (table `heating_log`). Relu à l'ouverture et après chaque commande de la prise ; les champs ne sont remplis qu'à la première lecture. Rien n'est affiché sans pont Hue (503). Valeurs par défaut : `../../../../api/src/routes/CLAUDE.md`. Le **tarif** (0,1589 € creux, 0,2142 € plein), les **heures creuses** (23:10 → 07:10) et la **puissance** (2000 W) sont des constantes de l'API, pas des champs.
-- Un message dit si `PLUG_HOST` manque (503) ou si la prise ne répond pas.
+## Bloc
 
-- **Tout est dans le même bloc, règle du chauffage automatique comprise** (`HeatingSection` : elle ne s'applique qu'à cette prise). Sur la carte de Home, un clic sur le chauffage montre **tout ce bloc** (`embedded` : sans titre ni marge du haut ; l'ancien aperçu réduit `PlugPreview` n'existe plus).
+- Même forme qu'une clim (`AcPanel`) : nom et **interrupteur On / Off** (`role="switch"`) dans l'en-tête, puis tableau d'état et réglages.
+- Tableau : État, S'éteint dans, Allumée depuis, Éteinte au mouvement. Les durées défilent chaque seconde entre deux lectures.
+- Interrupteur sur On : éteint. Sur Off : allume pour la durée du curseur (**jamais d'allumage sans fin**).
+- Curseur de 1 à 30 min (5 au départ) et bouton « Allumer pendant N min ».
+- Case « Éteindre si le détecteur intérieur voit un mouvement » : **cochée au départ**, envoyée avec le minuteur (`offOnMotion`).
+- Messages : `PLUG_HOST` manquant (503), prise muette.
+
+## Chauffage automatique
+
+`HeatingSection`, rendu par `HeatingPanel` de `@house/ui`, sous la commande manuelle, sans titre ni journal (le journal est dans l'onglet Base de House Sync, table `heating_log`).
+
+- Règle de l'API (`GET` et `PUT /plug/heating`) : case « Activer la règle », **Température (°C)**, **Durée (min)**, **Délai avant réactivation (min)**, « Enregistrer » (erreur de l'API affichée telle quelle).
+- Le premier mouvement du détecteur intérieur éteint la prise **et désactive la règle** (à réactiver avec « Activer la règle »).
+- Relu à l'ouverture et après chaque commande ; champs remplis à la première lecture seulement. Rien sans pont Hue (503).
+- Valeurs par défaut : `../../../../api/src/routes/CLAUDE.md`.
+- **Constantes de l'API, pas des champs** : tarif 0,1589 EUR creux / 0,2142 EUR plein, heures creuses 23:10 à 07:10, puissance 2000 W.
+
+## Sur la carte de Home
+
+Un clic sur le chauffage montre tout ce bloc (`embedded` : sans titre ni marge du haut).

@@ -1,7 +1,23 @@
 # TableSection – une table de la base
 
-Une table de `events.db`, **repliée par défaut, toutes les tables** (le titre déplie ; la page n'est chargée qu'une fois dépliée), paginée (20 lignes), avec ses filtres et une description par table dans `constants.ts` (`DESCRIPTIONS`).
+Une table de `events.db`, **repliée par défaut** (la page ne se charge qu'une fois dépliée), paginée (20 lignes). Descriptions dans `constants.ts` (`DESCRIPTIONS`).
 
-- **Filtres** (`TableFilters` de `@house/ui`, une requête refaite à chaque choix, `lib/filter.ts`) : caméra et date pour `events`, `snapshots`, `merges` ; nom du matériel et date pour `hue_events` ; clé (avec clé, sans clé, clé fausse) et date pour `guest_visits`. La table `heating_log` (le journal du chauffage : `started_at`, `origin` auto / manuel, `minutes`, `temperature`, `cost` en euros ; colonnes principales, date seule comme filtre) est visible sans autre filtre ; **son en-tête montre aussi les sommes** de ses lignes (`sumsText` de `helpers.ts` : « activé 2 h 05 · 0,53 € », le temps activé et le coût), celles du filtre une fois dépliée, celles de toute la table repliée (`sums` de `GET /api/tables` et de `GET /api/tables/:nom`, calculées par `sumsOf` de `sync/src/data.ts`). Les tables `heating_log`, `camera_energy` et `lamp_energy` n'ont pas de description (`DESCRIPTIONS`). La table `plan` (le plan de la maison : arbres, haies, cage, caméras du plan…, `longitude`, `latitude`, rayons et décalages en mètres, angles en degrés, dans `data`) est visible sans filtre.
-- Les horodatages sont sur deux lignes (`StackedDate`). Le rendu des cellules est dans `UI.tsx` : clip ou image → bouton « voir », adresse → lien, horodatage → date, étiquette → pastille, adresse IP → en une ligne, jamais coupée.
-- **`guest_visits` n'affiche que ses colonnes principales** (`MAIN_COLUMNS`, dans cet ordre : `id`, `started_at`, `ip`, `origin`, `cle` (avec clé / sans clé / clé fausse), `camera`, `status`, `path`) et **le reste au clic sur la ligne** (le détail sous la ligne : fin, type, navigateur, qualité, durée, octets, langue, hôte, User-Agent), grâce aux lignes dépliables du `DataTable` de `@house/ui`.
+## Filtres
+
+`TableFilters` de `@house/ui`, requête refaite à chaque choix (`lib/filter.ts`).
+
+- `events`, `snapshots`, `merges` : caméra et date.
+- `hue_events` : nom du matériel et date.
+- `guest_visits` : clé (avec, sans, fausse) et date.
+- `heating_log`, `plan` : pas de filtre (`heating_log` : date seule).
+
+## Cas particuliers
+
+- **`heating_log`** : l'en-tête montre les sommes (temps activé, coût : « activé 2 h 05 · 0,53 € », `sumsText` de `helpers.ts`). Dépliée : celles du filtre ; repliée : celles de toute la table (`sums` de `GET /api/tables`, calculé par `sumsOf` de `sync/src/data.ts`).
+- **`guest_visits`** : colonnes principales seulement (`MAIN_COLUMNS` : `id`, `started_at`, `ip`, `origin`, `cle`, `camera`, `status`, `path`) ; le reste au clic sur la ligne (lignes dépliables de `DataTable`).
+- `heating_log`, `camera_energy`, `lamp_energy` n'ont pas de description.
+
+## Rendu des cellules (`UI.tsx`)
+
+- Horodatage : deux lignes (`StackedDate`).
+- Clip ou image : bouton « voir » ; adresse : lien ; étiquette : pastille ; adresse IP : une ligne, jamais coupée.

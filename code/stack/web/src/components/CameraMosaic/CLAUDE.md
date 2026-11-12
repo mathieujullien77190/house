@@ -1,12 +1,30 @@
 # CameraMosaic – la vue de l'onglet Caméras
 
-Une grille du direct de toutes les caméras (`CameraMosaic` + `LiveTile`), une vignette `CameraTile` de `@house/ui` par caméra, dans l'ordre de `MOSAIC_ORDER` (la porte puis le fond). Chaque vignette porte, en direct, les indicateurs de `CameraIndicators` (températures, lampe, chauffage, symbole de pluie, et l'icône œil quand `camera.eyes` : la recherche des yeux qui brillent tourne ; détail dans `../CameraCard/CLAUDE.md`). Une caméra éteinte ou en démarrage montre un cadre noir avec le message. La page s'ouvre sur l'onglet **Home** (`DEFAULT_TAB`), pas sur les caméras.
+Grille du direct de toutes les caméras : `CameraMosaic` + `LiveTile`, une `CameraTile` de `@house/ui` par caméra. En direct, chaque vignette porte les indicateurs de `CameraIndicators` (détail : `../CameraCard/CLAUDE.md`).
 
-- **Température** du détecteur de la caméra en bas à gauche du direct (`overlay`, `CAMERA_SENSOR` : `CameraCard/CLAUDE.md`).
-- **Sous chaque vignette, le dernier événement** (`footer` de `CameraTile` : « Dernier : person · début du clip · durée du clip »). L'heure est `clip_started_at` (pas celle du mouvement) et la durée est lue dans la vidéo (`lib/useClipDuration.ts`). **Partout** (légende de la carte, frise, partage, Home) un événement est décrit par `describeEvent` avec le début et la durée **du clip**, pas ceux du mouvement : les durées lues dans les vidéos sont gardées par `lib/clipDurations.ts`, et sans durée connue elle n'est pas écrite.
-- **« Non lu » / « Lu ✓ »** : « lu » = le clip a déjà été ouvert **sur cet appareil** (`lib/useReadClips.ts`, `localStorage` `house-read-clips`, 500 identifiants au plus ; `CameraCard` appelle `onRead` dès qu'un clip est ouvert, quel que soit le chemin).
-- **Clics** : une vignette ouvre le détail de la caméra (`CameraCard`, avec sa frise) ; rien ne se lit tout seul. **La ligne du dernier événement** ouvre la caméra **sur ce clip** s'il en a un (`onOpenFooter` de `CameraTile`, `initialEventId` de `CameraCard` : le clip se lit, la frise se recale dessus). « ← Toutes les caméras » ramène à la mosaïque (la caméra ouverte est retenue par `App`).
-- **Mise en page** (`GRID_CLASS`, une colonne sous 1024 px, trois dès `lg:`, `PLACEMENT`) : **colonne 1 : `voliere-interieur` en haut et `voliere-toit` collé dessous (une colonne à part, `STACK_CAMERAS`, pour que le toit remonte sous l'intérieur quel que soit le reste) ; colonne 2 : `voliere-exterieur` ; colonne 3 : `salon-de-jardin`** ; une autre caméra se pose à la suite. Les vignettes ne s'étirent pas : chacune garde sa hauteur. **L'espace entre les caméras est le même (0,75 rem, `gap-3`) en horizontal et en vertical** : quand la caméra de la colonne 2 est en portrait, cette colonne fait exactement la largeur de sa vidéo (`GRID_PORTRAIT_MIDDLE_CLASS`, 298 px), sinon du vide s'ajouterait à sa droite. **Les deux vidéos en paysage empilées (colonne 1) ont, avec l'espace entre elles, exactement la hauteur de la vignette en portrait** : `lib/useStackWidth.ts` mesure la hauteur de la vignette portrait et ce que chaque vignette a autour de sa vidéo (nom, dernier événement, bordures) et pose la largeur de la colonne 1 en `--col1` sur la grille (remesurée quand une taille change) ; 399 px par défaut, avant la première mesure. **Une vignette en portrait (`orientation`) a une hauteur de vidéo fixe de 530 px** (`--big-h` posé sur la vignette, `TILE_PORTRAIT_CLASS` : 298 px de large). **La carte de la maison n'est plus ici** : elle est dans Home (`../HouseMap/CLAUDE.md`).
-- **Ordre des vignettes** : celui de l'arrivée des caméras (`MOSAIC_ORDER` : `voliere-interieur`, `voliere-toit`, `voliere-exterieur`, `salon-de-jardin` ; l'ordre de haut en bas sur téléphone), les autres après dans l'ordre de l'API.
+## Contenu d'une vignette
+
+- Température du détecteur en bas à gauche (`overlay`, `CAMERA_SENSOR`).
+- Caméra éteinte ou en démarrage : cadre noir avec le message.
+- **Sous la vignette, le dernier événement** (`footer`) : « Dernier : person · début du clip · durée du clip ».
+  - L'heure est `clip_started_at`, la durée est lue dans la vidéo (`lib/useClipDuration.ts`, gardée par `lib/clipDurations.ts`).
+  - Partout (carte, frise, partage, Home), `describeEvent` donne début et durée **du clip**, pas du mouvement ; sans durée connue, elle n'est pas écrite.
+- **Non lu / Lu ✓** : le clip a déjà été ouvert **sur cet appareil** (`lib/useReadClips.ts`, `localStorage` `house-read-clips`, 500 identifiants au plus). `CameraCard` appelle `onRead` à l'ouverture, par n'importe quel chemin.
+
+## Clics
+
+- Une vignette ouvre le détail (`CameraCard`) ; rien ne se lit tout seul.
+- La ligne du dernier événement ouvre la caméra **sur ce clip** (`onOpenFooter`, `initialEventId`).
+- « ← Toutes les caméras » ramène à la mosaïque (`App` retient la caméra ouverte).
 - Le direct n'est ouvert que pour ce qui est affiché : la mosaïque ferme ses flux quand on ouvre un détail.
-- **En bas de l'onglet**, sous la mosaïque : les **clips sauvegardés** (`../SavedClips/CLAUDE.md`).
+
+## Mise en page
+
+- Ordre (`MOSAIC_ORDER`) : `voliere-interieur`, `voliere-toit`, `voliere-exterieur`, `salon-de-jardin`, puis les autres dans l'ordre de l'API. Même ordre de haut en bas sur téléphone.
+- Grille (`GRID_CLASS`, `PLACEMENT`) : une colonne sous 1024 px, trois dès `lg:`.
+  - Colonne 1 : `voliere-interieur` et `voliere-toit` dessous (`STACK_CAMERAS`).
+  - Colonne 2 : `voliere-exterieur`. Colonne 3 : `salon-de-jardin`.
+- Vignettes sans étirement ; espace identique (`gap-3`) en horizontal et vertical.
+- **Portrait** : vidéo de 530 px de haut (`--big-h`, `TILE_PORTRAIT_CLASS`, 298 px de large). Si la colonne 2 est en portrait, elle fait exactement 298 px (`GRID_PORTRAIT_MIDDLE_CLASS`), sinon du vide s'ajouterait.
+- **Hauteurs égales** : les deux vidéos paysage empilées (colonne 1) doivent égaler la hauteur de la vignette portrait. `lib/useStackWidth.ts` mesure et pose `--col1` sur la grille (399 px avant la première mesure).
+- La carte de la maison est dans Home (`../HouseMap/CLAUDE.md`). Sous la mosaïque : les clips sauvegardés (`../SavedClips/CLAUDE.md`).

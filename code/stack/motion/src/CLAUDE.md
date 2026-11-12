@@ -1,17 +1,86 @@
-# motion/src – ce que fait l'enregistreur, étape par étape
+# motion/src – ce que fait l'enregistreur
 
-Vue d'ensemble, fichiers et réglages : `../CLAUDE.md`. Pour chaque caméra de `CAMERAS` :
+Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
 
-1. **Enregistre** le flux principal (`rtsp://go2rtc:8554/<caméra>_main`, 4K H.265) par segments de `SEGMENT_SECONDS` (10 s) en **copie sans transcodage** (ffmpeg `-c copy -f segment`), dans `data/recordings/<caméra>/<heure en secondes>.ts`. Il ne garde que `RETENTION_HOURS` (6 h) de segments (nettoyage chaque minute).
-2. **Détecte** le mouvement sur le flux léger (`<caméra>_sub`) : ffmpeg sort des images grises 160×90, 5 par seconde, on compare chaque image à la précédente (`detector.ts`). Un événement s'ouvre quand le mouvement **dure au moins `minSeconds` secondes** (1 par défaut, réglé par caméra depuis House Sync, de 0 à 30 : `PUT /api/cameras/<caméra>/min-seconds?seconds=N`, 0 = le premier mouvement compte) ; il commence à l'instant où le mouvement a commencé (le clip ne perd rien) ; un calme de plus de 1 s (`GAP_SECONDS`) avant d'arriver à `minSeconds` fait oublier ce début (une goutte, un insecte, un parasite n'ouvrent rien). Il se ferme après `END_SECONDS` de calme. Une part de pixels au-delà de `lightChangeThreshold` est un changement de lumière, ignoré. **Plus de filtre pluie** (retiré : c'est la durée minimale qui écarte les gouttes). Un ffmpeg sans image depuis 20 s est relancé, et un mouvement ouvert quand ffmpeg s'arrête (panne ou suspension) est fermé.
-3. **Fait le clip** d'un événement fini, quand ses segments sont tous écrits (`postSeconds` après la fin + un segment + 3 s) : les segments de `start − PRE_SECONDS` à `end + POST_SECONDS` mis bout à bout, sans transcodage, dans un MP4 (`-tag:v hvc1` pour du H.265, `VIDEO_TAG`), dans `<CLIPS_DIR>/<id>.mp4` (l'original ; sur le mini PC `data/clips/clips/<id>.mp4`, le volume monté est `data/clips`). **Chaque clip a une copie légère** `<id>.h264.mp4` : H.264, 720p, environ 300 kb/s à 1 Mb/s (`buildWebClip`, ffmpeg `libx264` `veryfast` `crf 28`, faite à partir du clip, un clip à la fois, écrite dans un `.part.mp4` puis renommée), que tous les navigateurs lisent (la 4K H.265 n'est lue que par Safari et quelques Chrome). Les clips déjà faits sans copie la reçoivent au démarrage ; un clip illisible n'est pas réessayé avant le prochain démarrage, et les segments vides (caméra qui redémarrait) sont sautés. Le clip commence au segment qui précède `start − PRE_SECONDS` : son début réel (`clip_start`) est gardé dans l'événement et envoyé à House Sync dans l'en-tête `X-Clip-Start` du clip.
-4. **Fusionne les clips qui se recouvrent** (`merge.ts`) : un mouvement qui reprend peu après la fin d'un autre donne deux clips qui se chevauchent (marges de 5 s et segments de 10 s : le clip du second commence, selon son `clip_start`, avant la fin possible de celui du premier, soit sa fin + `POST_SECONDS` + un segment). Quand le dernier d'une chaîne est fini depuis `MERGE_DELAY_MINUTES` (30 min, vérifié chaque minute), le plus ancien survit (même identifiant, fin repoussée, clip et copie légère effacés puis refaits avec la plage entière) et les autres sont **absorbés** (`merged_into`, retirés de la liste normale). `GET /api/events?merged_after=<s>` rend les événements fusionnés depuis cet instant, absorbés compris, pour House Sync.
-5. **Détection allumée ou éteinte par House Sync** : `PUT /api/cameras/<caméra>/detection?enabled=0|1`. Éteinte, ffmpeg du flux léger est arrêté (plus de décodage, plus d'événement ; l'événement ouvert est fermé) ; elle repart seule à l'allumage. Allumée par défaut : House Sync la coupe quand les clips de la caméra ne sont pas gardés, et répète son état chaque minute.
-6. **Sensibilité par caméra** (`sensitivity.ts`) : `PUT /api/cameras/<caméra>/sensitivity?level=1..5` (3 : les seuils de base, `PIXEL_THRESHOLD` et `AREA_THRESHOLD`). Plus le niveau monte, plus l'écart de gris minimal et la part de pixels minimale baissent (niveau 5 : environ 0,45 et 0,3 fois ceux de base), pour qu'un chat ou un oiseau, la nuit ou de loin, soit vu ; plus il baisse, plus on ignore les petits mouvements (niveau 1 : 1,6 et 3 fois). Chaque caméra a ses propres seuils, modifiés sur place sans relancer ffmpeg. House Sync répète le niveau chaque minute (en mémoire : il repart à 3 au redémarrage, le temps que House Sync le remette).
-7. **Zone de surveillance par caméra** (`zone.ts`) : `PUT /api/cameras/<caméra>/zone` avec `{"points": [[x, y], ...]}` (3 à 32 sommets, en parts de l'image de 0 à 1) ou `{"points": null}` (toute l'image, par défaut). Le polygone devient un masque de pixels de l'image 160 × 90 de la détection (le centre de chaque pixel est dedans ou non) et la part de pixels changés se calcule **sur les pixels de la zone seulement** (`changedShare` avec masque) : un mouvement hors zone ne déclenche rien. Dessinée dans le détail d'une caméra de la WebApp, gardée par House API, donnée par House Sync (tout de suite et chaque minute) ; en mémoire, elle repart de « toute l'image » au redémarrage jusqu'au prochain envoi. Un polygone qui couvre tout ou qui ne couvre aucun pixel ne met pas de masque.
-8. **Enregistrement lancé à la main** : `GET`, `POST` et `DELETE /api/cameras/<caméra>/record` (le bouton « Enregistrer un clip » de la WebApp, par House API). `POST` ouvre un mouvement fictif (un événement `manual: true`), `DELETE` le ferme (ou l'arrêt automatique au bout de **3 minutes**, `MAX_MANUAL_SECONDS`) ; son clip se fait ensuite comme celui d'un vrai mouvement (marge avant et après, segments). En mémoire : un redémarrage ferme l'événement resté ouvert comme les autres (`closeOrphans`).
-9. **Son des clips, à part de la vidéo** (`audio.ts`, `AUDIO_CAMERAS`, vide par défaut ; dans le compose : `voliere-interieur`) : ffmpeg copie la **piste audio** du flux léger (`<caméra>_sub`, AAC 16 kHz mono, sans transcodage ni image) en **petits fichiers ADTS `.aac` de `AUDIO_SEGMENT_SECONDS` (10 s)**, nommés par leur heure de début, dans `<RECORDINGS_DIR>/<caméra>/audio/` et gardés comme les segments vidéo (`RETENTION_HOURS`, 6 h) : **le son n'est conservé que pour les clips de détection de mouvement** (jamais en continu). Quand le clip d'une caméra à son est fait, `buildAudioClip` en tire le fichier **`<CLIPS_DIR>/<id>.aac`** : les petits fichiers qui le recouvrent mis bout à bout (concaténation d'octets, ADTS le permet sans décalage), coupés **au début de la vidéo du clip** (`clip_start`, à 64 ms près) et à sa fin, sans transcodage ; l'événement porte `has_audio`. Il est amplifié de `AUDIO_GAIN_DB` (24 dB par défaut, avec un limiteur : le micro des Reolink donne un son d'environ -55 dB en moyenne ; 0 = copié tel quel). Les segments, les clips et leurs copies restent sans son (`-an`). La fusion de clips l'efface avec le clip (il se refait avec lui). Le micro de la caméra doit être activé dans l'appli Reolink (sinon la piste est du silence pur, −91 dB).
-10. **Répond à House Sync** (`server.ts`, port 8080 interne), dans la forme de l'ancienne API de Frigate (gardée pour que House Sync n'ait pas changé) : `GET /api/config` (les caméras et leur flux de direct), `GET /api/events` (`after`, `before`, `has_clip`, `in_progress`, `limit`, `merged_after`), `GET /api/events/<id>`, `/clip.mp4` (l'original), `/clip.h264.mp4` (la copie légère, 404 tant qu'elle n'est pas faite), `/clip.aac` (le son, 404 sans son), `GET /api/<caméra>/latest.jpg?h=` (une image du flux principal prise par go2rtc).
-11. **Cherche les yeux qui brillent** (`eyes.ts`, `POST /api/eyes`) : la nuit, les caméras infrarouges sont monochromes, et l'œil d'un animal y est un tout petit point blanc **saturé** (pas vert) sur un fond sombre ; rien d'autre ne brille autant. House Sync envoie un JPEG (corps de la requête, 3 Mo au plus, 413 au-delà) ; ffmpeg le décode en image grise (PGM sur la sortie standard, 10 s au plus), `detectEyes` la regarde et la route rend `{found, pair, distance, eyes: [{x, y, size, peak, contrast}]}` (400 si l'image ne se décode pas). **La règle, volontairement simple** (constantes en tête de `eyes.ts`, réglées pour des images de 1280 × 720) : un amas de pixels à **255 ou presque (≥ 250, `PEAK_MIN`)** de **3 à 25 pixels** (`AREA_MIN`, `AREA_MAX`, côté de moins de 7 : un pixel seul est un défaut du capteur, un gros amas une tache) dont **l'anneau de 3 à 6 pixels tout autour est sombre** (moyenne du gris < 120, `RING_MAX`) est un œil ; un œil trop près du bord (anneau hors de l'image) est ignoré. **Une image chargée** (plus de 8 amas de 2 pixels et plus à ≥ 250, `BLOBS_MAX` : lampe allumée, feuillage éclairé par les infrarouges) ne donne rien : mesuré sur de vraies images de nuit, ces scènes (`salon-de-jardin`, `voliere-exterieur`, `voliere-interieur`) étaient pleines de points saturés à fond clair, seule `voliere-toit` est sombre. Deux yeux voisins (4 à 30 pixels) donnent `pair: true`, un indice et non une condition : un seul œil suffit. Prudent : un chat raté vaut mieux que des fausses alertes.
-12. **Déclenche un événement de mouvement de l'extérieur** (`trigger.ts`, `POST /api/cameras/<caméra>/trigger?reason=eyes`) : House Sync l'appelle quand il a vu un œil qui brille (point 11). La route ouvre **maintenant** un événement normal de la caméra, avec le champ `label` `eyes` au lieu de `motion` (la frise et la WebApp l'affichent comme les autres ; House Sync le range tel quel dans `events.label`), ou, si un appel précédent a déjà ouvert un événement de cette caméra, le **prolonge** (même identifiant, `extended: true`). Sans nouvel appel pendant `TRIGGER_HOLD_SECONDS` (10 s), un tour de 5 s le ferme à l'instant du dernier appel ; son clip se fait ensuite comme celui d'un mouvement (marge avant et après, fusion des clips voisins). Raison inconnue : 400 ; caméra inconnue : 404. C'est House Sync qui décide si le clip est copié (`keepsClip`, les règles des clips ne changent pas) et qui limite les appels (un par caméra toutes les 30 s). Indépendant du détecteur de mouvement : les deux événements peuvent se recouvrir, la fusion des clips les réunit.
-13. **Contours du mouvement des clips** (`changedShapes` dans `detector.ts`, `clipToZone` dans `zone.ts`, `shapes.ts`, `GET /api/events/<id>/shapes.json`) : à chaque image où il y a mouvement (assez de pixels, pas un changement de lumière), le watcher prend les pixels changés (sans les parasites isolés, masque de zone respecté), les **regroupe** quand ils sont à 3 pixels ou moins l'un de l'autre (`GROUP_DISTANCE`) et fait de chaque groupe son **enveloppe convexe** : un polygone par mouvement distinct (8 au plus, les plus grands). `index.ts` **découpe chaque polygone par la zone de surveillance** (Sutherland-Hodgman, la zone étant le sujet) puis le note dans un journal par caméra (`<RECORDINGS_DIR>/<caméra>/shapes/<tranche de 10 min>.jsonl`, gardé comme les segments). Quand le clip est fait, `buildShapesClip` en tire **`<id>.shapes.json`** : `{frames: [[secondes depuis le début du clip, [[[x, y], ...], ...]], ...]}` (parts de l'image) ; l'événement porte `has_shapes`. **Décalage** : les contours sont notés quand le flux léger livre l'image, environ 2,8 s après la vidéo 4K (mesuré en comparant le mouvement de 12 clips à leurs contours) ; `buildShapesClip` les avance de `SHAPES_DELAY_SECONDS` (2,77 par défaut : réglé à l’œil, un peu sous la mesure) ; **la même avance décale le début et la fin de l'événement** (`index.ts`, `store.open` et `store.close`) : la barre bleue de la frise commence à l'instant où le premier contour apparaît dans le clip. La fusion de clips l'efface avec le clip (il se refait avec lui). Les clips faits avant n'en ont pas (404) : rien n'est retraité. Jamais écrit dans la vidéo : House Sync copie le fichier, House API le sert (`GET /clips/<id>/shapes`) et la WebApp dessine les polygones par-dessus le clip.
+## 1. Segments
+
+- Flux `rtsp://go2rtc:8554/<caméra>_main` (4K H.265), `-c copy -f segment`, segments de `SEGMENT_SECONDS` (10 s).
+- Fichiers `data/recordings/<caméra>/<heure en secondes>.ts`, gardés `RETENTION_HOURS` (6 h), nettoyage chaque minute.
+
+## 2. Détection
+
+- Flux léger `<caméra>_sub` : images grises 160×90, 5 par seconde, comparées à la précédente (`detector.ts`).
+- Un événement s'ouvre quand le mouvement dure au moins `minSeconds` (1 par défaut, 0 à 30 par caméra : `PUT /api/cameras/<caméra>/min-seconds?seconds=N`, 0 = le premier mouvement compte). Il commence à l'instant où le mouvement a commencé.
+- Un calme de plus de `GAP_SECONDS` (1 s) avant `minSeconds` fait oublier le début (goutte, insecte, parasite). Pas de filtre pluie : la durée minimale s'en charge.
+- Fermeture après `END_SECONDS` de calme. Une part de pixels au-delà de `lightChangeThreshold` = changement de lumière, ignoré.
+- Un ffmpeg sans image depuis 20 s est relancé ; un mouvement ouvert quand ffmpeg s'arrête est fermé.
+
+## 3. Clips
+
+- Fait quand tous les segments sont écrits (`postSeconds` après la fin + un segment + 3 s).
+- Segments de `start − PRE_SECONDS` à `end + POST_SECONDS` mis bout à bout, MP4 sans transcodage (`-tag:v hvc1` pour H.265, `VIDEO_TAG`), dans `<CLIPS_DIR>/<id>.mp4` (sur le mini PC `data/clips/clips/`).
+- Début réel gardé dans `clip_start`, envoyé à House Sync dans l'en-tête `X-Clip-Start`.
+- **Copie légère** `<id>.h264.mp4` : H.264 720p, 300 kb/s à 1 Mb/s (`buildWebClip`, `libx264 veryfast crf 28`, écrite en `.part.mp4` puis renommée). Nécessaire : la 4K H.265 n'est lue que par Safari et quelques Chrome.
+- Les clips sans copie la reçoivent au démarrage ; un clip illisible n'est pas réessayé avant le prochain démarrage ; les segments vides sont sautés.
+
+## 4. Fusion (`merge.ts`)
+
+- Un mouvement qui reprend peu après un autre donne deux clips qui se chevauchent (marges 5 s, segments 10 s).
+- Quand le dernier d'une chaîne est fini depuis `MERGE_DELAY_MINUTES` (30, vérifié chaque minute), le plus ancien survit (même id, fin repoussée, clip et copie refaits) et les autres sont absorbés (`merged_into`).
+- `GET /api/events?merged_after=<s>` rend les fusionnés, absorbés compris.
+
+## 5. Commandes de House Sync
+
+- **Détection** : `PUT /api/cameras/<caméra>/detection?enabled=0|1`. Éteinte : ffmpeg du flux léger arrêté, événement ouvert fermé. Allumée par défaut ; House Sync la coupe si les clips de la caméra ne sont pas gardés et répète son état chaque minute.
+- **Sensibilité** (`sensitivity.ts`) : `PUT .../sensitivity?level=1..5` (3 = seuils de base). Niveau 5 : seuils à 0,45 et 0,3 fois la base ; niveau 1 : 1,6 et 3 fois. Appliqué sans relancer ffmpeg.
+- **Zone** (`zone.ts`) : `PUT .../zone` avec `{"points": [[x, y], ...]}` (3 à 32 sommets, parts de 0 à 1) ou `{"points": null}` (toute l'image).
+  - Polygone converti en masque sur l'image 160×90 ; la part de pixels changés ne se calcule que dans la zone.
+  - Un polygone qui couvre tout ou rien ne met pas de masque.
+- Sensibilité et zone sont en mémoire : House Sync les remet chaque minute, retour aux défauts (3, toute l'image) au redémarrage en attendant.
+
+## 6. Enregistrement manuel
+
+- `GET`, `POST`, `DELETE /api/cameras/<caméra>/record` (bouton « Enregistrer un clip »).
+- `POST` ouvre un événement `manual: true` ; `DELETE` le ferme, sinon arrêt à 3 minutes (`MAX_MANUAL_SECONDS`). Clip fait comme un vrai mouvement. Un redémarrage le ferme (`closeOrphans`).
+
+## 7. Son des clips (`audio.ts`)
+
+- `AUDIO_CAMERAS` (vide par défaut ; compose : `voliere-interieur`). Le micro doit être activé dans l'appli Reolink (sinon silence pur, −91 dB).
+- ffmpeg copie la piste audio du flux léger (AAC 16 kHz mono) en fichiers `.aac` de `AUDIO_SEGMENT_SECONDS` (10 s) dans `<RECORDINGS_DIR>/<caméra>/audio/`, gardés 6 h. **Le son n'est gardé que pour les clips de mouvement.**
+- `buildAudioClip` produit `<CLIPS_DIR>/<id>.aac` : fichiers concaténés, coupés au début de la vidéo (`clip_start`, à 64 ms près) et à sa fin. L'événement porte `has_audio`.
+- Amplifié de `AUDIO_GAIN_DB` (24 dB, avec limiteur ; 0 = tel quel). Segments, clips et copies restent sans son (`-an`). La fusion l'efface avec le clip.
+
+## 8. API pour House Sync (`server.ts`)
+
+Forme de l'ancienne API Frigate, gardée pour que House Sync n'ait pas changé.
+
+- `GET /api/config`, `GET /api/events` (`after`, `before`, `has_clip`, `in_progress`, `limit`, `merged_after`), `GET /api/events/<id>`.
+- `/clip.mp4` (original), `/clip.h264.mp4` (copie légère, 404 tant que non faite), `/clip.aac` (404 sans son).
+- `GET /api/<caméra>/latest.jpg?h=` : image du flux principal prise par go2rtc.
+
+## 9. Yeux qui brillent (`eyes.ts`, `POST /api/eyes`)
+
+- La nuit, l'œil d'un animal est un petit point blanc **saturé** sur fond sombre en infrarouge monochrome.
+- House Sync envoie un JPEG (corps, 3 Mo max, 413 au-delà) ; ffmpeg le décode en gris (10 s max). Réponse `{found, pair, distance, eyes: [{x, y, size, peak, contrast}]}`, 400 si illisible.
+- **Règle volontairement simple** (constantes en tête de `eyes.ts`, pour des images 1280×720) :
+  - amas de pixels ≥ 250 (`PEAK_MIN`) de 3 à 25 pixels (`AREA_MIN`, `AREA_MAX`) ;
+  - anneau de 3 à 6 pixels autour de gris moyen < 120 (`RING_MAX`) ;
+  - œil trop près du bord ignoré.
+- Image chargée (plus de 8 amas de 2 pixels et plus à ≥ 250, `BLOBS_MAX`) : rien. Mesuré de nuit, sauf `voliere-toit` toutes les scènes sont pleines de points saturés.
+- Deux yeux voisins (4 à 30 pixels) donnent `pair: true` : un indice, pas une condition.
+- Prudent : un chat raté vaut mieux que des fausses alertes.
+
+## 10. Événement de l'extérieur (`trigger.ts`)
+
+- `POST /api/cameras/<caméra>/trigger?reason=eyes`, appelé par House Sync après un œil trouvé.
+- Ouvre maintenant un événement de `label` `eyes`, ou prolonge celui d'un appel précédent (`extended: true`). Sans nouvel appel pendant `TRIGGER_HOLD_SECONDS` (10 s), il est fermé à l'instant du dernier appel.
+- Raison inconnue : 400 ; caméra inconnue : 404.
+- House Sync décide si le clip est copié (`keepsClip`) et limite les appels (un par caméra toutes les 30 s). Indépendant du détecteur : les deux événements peuvent se recouvrir, la fusion les réunit.
+
+## 11. Contours du mouvement (`shapes.ts`)
+
+- Par image avec mouvement (assez de pixels, pas un changement de lumière), `changedShapes` (`detector.ts`) regroupe les pixels changés à 3 pixels ou moins (`GROUP_DISTANCE`) et en fait l'enveloppe convexe : 8 polygones au plus, les plus grands.
+- `index.ts` découpe chaque polygone par la zone (`clipToZone`, Sutherland-Hodgman) et le note dans `<RECORDINGS_DIR>/<caméra>/shapes/<tranche de 10 min>.jsonl` (gardé comme les segments).
+- `buildShapesClip` produit `<id>.shapes.json` : `{frames: [[secondes depuis le début du clip, [[[x, y], ...], ...]], ...]}`. L'événement porte `has_shapes`.
+- **Décalage** : le flux léger livre ses images environ 2,8 s après la 4K. `SHAPES_DELAY_SECONDS` (2,77, réglé à l'œil) avance les contours **et** le début et la fin de l'événement (`store.open`, `store.close`) : la barre bleue de la frise commence au premier contour.
+- Clips antérieurs : pas de contours (404), rien n'est retraité. Jamais écrit dans la vidéo : House Sync copie le fichier, House API le sert (`/clips/<id>/shapes`), la WebApp dessine par-dessus. La fusion l'efface avec le clip.

@@ -1,8 +1,9 @@
-# SavedClips – les clips sauvegardés (bas de l'onglet Caméras)
+# SavedClips – les clips sauvegardés
 
-En bas de l'onglet **Caméras**, sous la mosaïque (`App/UI.tsx` ; pas dans le détail d'une caméra).
+En bas de l'onglet **Caméras**, sous la mosaïque (`App/UI.tsx`), pas dans le détail d'une caméra.
 
-- Les **clips sauvegardés** (`GET /events?saved=1`), une vignette par clip (la première image de la vidéo, `preload="metadata"`) ; **un clic sur une vignette ouvre le détail de sa caméra sur ce clip, qui se lance** (comme un clic sur l'emoji du clip sur la carte de Home : `onOpenCamera(caméra, id du clip)`, la frise recadrée sur le clip) ; sans `onOpenCamera`, il se lit sur place, avec un bouton retour.
-- Un clip ouvert a un carré « ⛶ » **plein écran** (`components/FullscreenBox`, plein écran du navigateur, fond noir, un clip en portrait prend toute la hauteur), l'interrupteur **Non sauvegardé / Sauvegardé** (« Non sauvegardé » libère le clip, `PUT /clips/<id>/saved` : il quitte la liste et on y revient) et le bouton Partager (`ShareButton`, voir `../CameraCard/CLAUDE.md`).
-- Un **emoji** par clip, **en haut à droite du clip** (vignette et lecteur ouvert ; `components/ClipEmoji`, ici seulement) : un rond avec l'emoji ou « ＋ », un clic ouvre un champ d'un symbole où l'on tape n'importe quel emoji, vide pour le retirer. `PUT /clips/<id>/emoji`, gardé par l'API dans `clip-emojis.json`. **L'emoji s'affiche sur la carte de Home** (`../HouseMap/CLAUDE.md`).
-- Les clips d'une caméra en portrait s'affichent **droits** : la vignette garde la taille des autres (la vidéo tourne et tient dans sa hauteur), le lecteur (`components/PortraitClip`) tourne la vidéo (`RotatedMedia`) et met ses commandes dedans, en bas, droites.
+- `GET /events?saved=1`, une vignette par clip (première image, `preload="metadata"`).
+- Un clic ouvre le détail de la caméra **sur ce clip lancé** (`onOpenCamera(caméra, id)`) ; sans `onOpenCamera`, lecture sur place avec bouton retour.
+- Un clip ouvert a : carré « ⛶ » plein écran (`components/FullscreenBox`), interrupteur Sauvegardé / Non sauvegardé (`PUT /clips/<id>/saved` : le clip quitte la liste), `ShareButton` (`../CameraCard/CLAUDE.md`).
+- **Emoji** en haut à droite du clip (vignette et lecteur) : `../ClipEmoji/CLAUDE.md`. Il s'affiche sur la carte de Home.
+- **Caméra en portrait** : vignette de la taille des autres ; lecteur `components/PortraitClip` (`RotatedMedia`, commandes droites en bas).

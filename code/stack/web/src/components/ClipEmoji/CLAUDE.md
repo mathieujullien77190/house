@@ -1,3 +1,8 @@
 # ClipEmoji – l'emoji d'un clip
 
-Un petit rond posé **en haut à droite du clip** (`../SavedClips/CLAUDE.md` : sur chaque vignette du bas de l'onglet Caméras et sur le lecteur d'un clip ouvert), qui montre l'emoji choisi (🦊) ou « ＋ ». Un clic ouvre un **champ d'un seul symbole** : on y tape ou colle **n'importe quel emoji** (le clavier emoji du système), plus de liste fixe ; un second symbole tapé remplace le premier (`lastSymbol`, `helpers.ts`, un emoji composé compte pour un). Entrée ou un clic ailleurs l'enregistre, Échap annule, un champ vide le retire. `PUT /clips/<id>/emoji`, gardé par l'API dans `clip-emojis.json` (elle refuse un texte qui n'est pas un emoji : une lettre tapée est ignorée) ; **l'emoji s'affiche alors sur la carte de la maison** (`../HouseMap/CLAUDE.md`).
+Rond en haut à droite du clip (vignette et lecteur, `../SavedClips/CLAUDE.md`) : l'emoji choisi ou « ＋ ».
+
+- Un clic ouvre un champ d'**un seul symbole** (n'importe quel emoji, clavier du système). Un second symbole remplace le premier (`lastSymbol`, `helpers.ts` ; un emoji composé compte pour un).
+- Entrée ou clic ailleurs enregistre, Échap annule, champ vide retire.
+- `PUT /clips/<id>/emoji`, gardé par l'API dans `clip-emojis.json` ; elle refuse un texte qui n'est pas un emoji.
+- L'emoji s'affiche ensuite sur la carte de Home (`../HouseMap/CLAUDE.md`).

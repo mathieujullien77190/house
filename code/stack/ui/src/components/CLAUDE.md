@@ -1,36 +1,49 @@
 # ui/src/components – les composants de @house/ui
 
-Règles du paquet (dumb, imports relatifs, Storybook, mobile, tests) : `../../CLAUDE.md`. Ici, ce que fait chaque composant et ses options. Un dossier par composant : `ls` pour la liste exacte.
+Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste exacte : `ls`.
 
-## Structure de page
+## Page
 
-- `Page` + `PageHeader` (`onTitle` rend le titre cliquable), `PageFrame`, `SectionTitle`, `Notice`, `Collapsible` (un bloc qui se replie).
-- `TopBar` : la barre du haut, collée en haut de l'écran : titre (`onTitle` le rend cliquable), onglets (`tabs`), état, boutons ; **sous 1024 px, le titre et un bouton « sandwich » en haut à droite qui ouvre un menu** : les pages, l'état, les boutons. Utilisée par les deux apps.
-- `Tabs` (`compact` : aussi haute qu’un `Button`, pour une barre posée parmi des boutons, comme « Léger / 4K » de la caméra ; `tiny` : de la taille du petit bouton du son (32 px), pour « L / 4K » sur téléphone), `Button`, `KeyForm`, `Pager`.
+- `Page`, `PageHeader` (`onTitle` rend le titre cliquable), `PageFrame`, `SectionTitle`, `Notice`, `Collapsible`.
+- `TopBar` : barre collée en haut (titre, onglets `tabs`, état, boutons). Sous 1024 px : titre + bouton « sandwich » qui ouvre un menu.
+- `Tabs` : `compact` (haut comme un `Button`), `tiny` (32 px, pour « L / 4K » sur téléphone). Aussi `Button`, `KeyForm`, `Pager`.
 
 ## Formulaires
 
-- `Checkbox` (une case à cocher et son texte), `Select` (une liste déroulante stylée, clavier compris, à la place du `<select>` natif).
-- `HeatingPanel` : la règle du chauffage automatique de la prise (onglet Prise de la WebApp) : une case, des champs `number` / `decimal` / `time` (texte tapé, le parent convertit), « Enregistrer » (envoi au parent, erreur à côté). Sans titre, sans message d'état, sans journal : le parent n'y met que les champs. `compact` : pour un bloc étroit (l'aperçu du chauffage de la carte, 320 px), deux colonnes quelle que soit la largeur de l'écran, libellés et champs plus petits.
+- `Checkbox`, `Select` (remplace le `<select>` natif, clavier compris).
+- `HeatingPanel` : règle de chauffage automatique de la prise. Champs `number` / `decimal` / `time` en texte, le parent convertit. Sans titre, état ni journal. `compact` : bloc étroit (320 px), deux colonnes, plus petit.
 
 ## Données
 
-- `SimpleTable` (un tableau quadrillé simple, une fiche par ligne sur téléphone).
-- `DataTable` : des lignes qui se déplient au clic avec `details`, `openKey`, `onRowClick` ; `TableFilters` (les filtres d'un tableau : une liste de valeurs, un jour, « Effacer les filtres » ; `DataTable` les montre par `filters`), `StackedDate` (une date et son heure sur deux lignes).
-- `CodeBlock`, `Totals`, `PieChart` (camembert en anneau et sa légende), `LineChart` (courbe en direct), `SpecList` (liste nom et valeur), `ValueChips` (des valeurs seules, un bloc chacune).
-- `ApiExplorer` : la liste des services rangée par type (`group` de chaque service, un titre par type dans l'ordre où ils apparaissent). Il montre aussi les **écritures** (`method`, `body` : un cadre en pointillés, pas un bouton, pour ne pas allumer une lampe d'un clic).
+- `SimpleTable` (une fiche par ligne sur téléphone), `DataTable` (`details`, `openKey`, `onRowClick`, `filters`), `TableFilters`, `StackedDate`.
+- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `SpecList`, `ValueChips`.
+- `ApiExplorer` : services rangés par `group`. Les **écritures** (`method`, `body`) sont un cadre en pointillés, pas un bouton, pour ne pas allumer une lampe d'un clic.
 
 ## Médias
 
-- `MediaPanel`, `SnapshotImage` : accepte `upright` (texte remis droit dans un cadre tourné) ; met son message à la ligne (`\n`) et le garde à la largeur d'un cadre tourné.
-- `SnapshotImage` coupe sa requête quand elle quitte la page (`src` remplacé par un GIF d'un pixel au démontage) : un flux du direct (MJPEG) ne se termine jamais, le navigateur ne l'abandonne pas tout seul et n'ouvre que 6 connexions par hôte.
-- `ClipPlayer` : le bouton lecture / pause est un carré de 32 px comme les autres boutons posés sur la vidéo ; `overlay` (ReactNode) est posé dans le cadre exact de la vidéo (les contours du mouvement du site). **Plus de commandes natives** : une barre maison (lecture ou pause, barre de temps ; le temps écrit est caché) est **posée dans l'image, en bas**, sur un dégradé, un clic sur la vidéo la lance ou l'arrête. `barInset` : la barre posée dans l'image s'arrête avant les boutons du bas à droite (`pr-24`) ; `controlsHost` : des commandes maison posées dans un élément du parent (droites même si la vidéo est tournée). Le son du clip (`audioSrc`, un fichier à part) est joué avec la vidéo par un `<audio>` caché qui la suit (lecture, pause, sauts, vitesse ; un écart de moins de 0,4 s n'est pas corrigé), avec un bouton « Activer le son » si le navigateur refuse de le lancer tout seul.
-- `ZoneEditor` : le polygone d'une zone dessinée sur la vidéo : l'extérieur assombri, des ronds aux sommets à glisser, un rond au milieu de chaque côté pour ajouter un sommet, double clic ou clic droit sur un sommet pour le retirer ; `quarterTurn` quand le parent est tourné d'un quart de tour ; aucune donnée.
+- `MediaPanel`.
+- `SnapshotImage` : `upright` remet le texte droit dans un cadre tourné. Au démontage, `src` devient un GIF d'un pixel : un flux MJPEG ne se termine jamais et le navigateur n'ouvre que 6 connexions par hôte.
+- **Le média n'a ni bordure ni arrondi propre** (`MEDIA_INNER_CLASS`, pour `SnapshotImage` et `ClipPlayer`) : la boîte qui l'héberge arrondit et rogne.
+- `ClipPlayer` : pas de commandes natives, barre maison (lecture, temps) posée en bas de l'image sur un dégradé ; un clic sur la vidéo lance ou arrête.
+  - `overlay` : posé dans le cadre exact de la vidéo (contours du mouvement).
+  - `barInset` : la barre s'arrête avant les boutons du bas à droite. `controlsHost` : commandes posées dans un élément du parent (droites même si la vidéo est tournée).
+  - `audioSrc` : `<audio>` caché qui suit la vidéo (écart de moins de 0,4 s non corrigé), bouton « Activer le son » si le navigateur refuse.
+- `ZoneEditor` : polygone sur la vidéo (extérieur assombri, sommets à glisser, rond au milieu d'un côté pour ajouter, double clic ou clic droit pour retirer). `quarterTurn` si le parent est tourné. Aucune donnée.
 
 ## Caméras et lumières
 
-- `CameraTile` : une vignette de la mosaïque : média avec un `overlay` en bas à gauche, nom, légende, `footer` sous le nom, `alert` (caméra éteinte : bordure rouge), un bouton transparent qui couvre tout. **Le média n’a ni bordure ni arrondi propre** (`MEDIA_INNER_CLASS`, idem `SnapshotImage` et `ClipPlayer`) : la boîte qui l’héberge arrondit et rogne.
-- `CameraCard` : la carte d'une caméra. **Tous les boutons posés sur une vidéo font la même taille : un carré de 32 px (`size-8`, coins `rounded-md`)** : retour, son, repères, « Afficher en grand », « Réduire » (✕), et « L / 4K » (`Tabs` `tiny`) ; **les blocs et les ronds posés sur la vidéo font la même hauteur** : `ValueChips` (température, pluie, œil, heure) en `h-8`, et le rond de la lampe, de la prise et des repères de caméra (`MapIcon`) en `size-8`. `screen` (téléphone) : un écran fixe, la vidéo en 16/9 sur toute la largeur (sans bande noire ; un média en portrait garde la moitié du haut) avec `actions`, `details` et « ⛶ » posés dessus, `timeline` sur le reste, `onBack` en bouton fixe en haut à gauche (un carré de 32 px comme le bouton du son, avec un petit triangle centré dessiné en SVG, `backLabel` en étiquette), sans titre ni légende. Une vue **« en grand »** : plein écran, paysage, tournée d'un quart de tour si l'écran reste droit ; `details` accueille des mesures sous le média (sur téléphone en vue en grand : en bas à gauche de la vidéo, comme `overlay` sur bureau) ; `mediaGesture` reçoit du parent les gestes et le style du zoom au doigt, appliqués en vue en grand et sur l'écran du téléphone ; `portraitMedia` : vue en grand qui garde l'écran tel quel pour un média en portrait ; bouton « ⛶ » posé sur la vidéo **en bas à droite** (grand écran comme téléphone) ; `topLeft` : une commande posée **en haut à gauche** de la vidéo sur grand écran (le rond d'enregistrement) ; `videoActions` : des commandes posées sur la vidéo **en haut à droite** sur grand écran (« L / 4K » ; sur téléphone elles sont dans `actions`) ; `sound` : un petit bouton posé en bas à droite de la vidéo (le son du direct), à gauche de « Afficher en grand » (grand écran comme téléphone), au-dessus de l’heure en vue en grand ; `layer` : une couche posée sur toute la vidéo en vue normale (téléphone et grand écran, pas en vue en grand), qui laisse passer les clics (`pointer-events-none`, ses enfants se déclarent cliquables) : les repères (icône de caméra) des caméras. En vue en grand, le bouton « Réduire » n’affiche que l’icône ✕ (`COLLAPSE_ICON`), `COLLAPSE_LABEL` est son nom accessible et son info-bulle.
-- `Timeline` : accepte `vertical` (téléphone : axe vertical, le plus récent en haut, et `fill` pour remplir la hauteur de son parent ; les positions restent en % du plus ancien au plus récent, `pointStyle` et `spanStyle` les retournent).
-- `LampDot` : le rond d'une lampe (orange allumée, gris éteinte, contour rouge pâle injoignable, comme son ampoule sur le plan) ; accepte `brightness` (la luminosité en opacité du rond allumé). `PlugSquare` : le carré d'une prise (vert allumée, rouge éteinte), posé à côté de `LampDot`.
-- `LightsPanel` : les lumières par zone : un rectangle repliable par zone (nom, compte, petits boutons ON / OFF de la zone), une grille de petites cases (3 colonnes sur téléphone, 4 dès `sm:`, 6 dès `lg:`), une case par lampe. **Le bloc d'une lampe a un fond neutre, mais sa bordure est jaune (la couleur de l'ampoule) quand elle est allumée, et pâlit avec la luminosité** : son bouton ON / OFF, **un rond en haut à droite, le même que sur la carte** (fond blanc, bordure noire, l'icône d'ampoule dedans) (orange ou la couleur du pont, **dont le jaune pâlit quand la luminosité baisse** ; grise éteinte, rouge injoignable) et **un curseur de luminosité dedans** (bleu), quand la lampe varie (`bri` non nul) ; `lampExtra` (un bouton d'action que le parent choisit) va sous le bloc. **ON = puissance max** (`{ on: true, bri: MAX_BRI }`, 254). Les zones gardent l'ordre donné par le parent (allumées ou non : plus de remontée des zones allumées), les lampes ne changent jamais de place dans leur zone. Les détecteurs de mouvement sont en lignes sous la grille.
+- `CameraTile` : `overlay` en bas à gauche, `footer` sous le nom, `alert` (bordure rouge si éteinte), bouton transparent couvrant tout.
+- `CameraCard` :
+  - **Taille unique** des boutons sur la vidéo : carré de 32 px (`size-8`, `rounded-md`), y compris « L / 4K » (`Tabs` `tiny`). Les blocs et ronds posés dessus font aussi 32 px (`ValueChips` en `h-8`, `MapIcon` en `size-8`).
+  - `screen` (téléphone) : vidéo 16/9 pleine largeur (un média portrait garde la moitié haute), `actions`, `details`, « ⛶ » dessus, `timeline` dessous, `onBack` en bouton fixe en haut à gauche (`backLabel`), sans titre ni légende.
+  - Vue « en grand » : plein écran paysage, tournée d'un quart de tour si l'écran reste droit. `details` : mesures sous le média (téléphone : en bas à gauche de la vidéo). `portraitMedia` garde l'écran droit pour un média portrait. « Réduire » n'affiche que ✕ (`COLLAPSE_ICON`), `COLLAPSE_LABEL` = nom accessible.
+  - `mediaGesture` : gestes et style du zoom au doigt venant du parent.
+  - Positions sur la vidéo : « ⛶ » en bas à droite ; `topLeft` en haut à gauche (rond d'enregistrement, grand écran) ; `videoActions` en haut à droite (grand écran, « L / 4K » ; sur téléphone dans `actions`) ; `sound` en bas à droite à gauche de « ⛶ ».
+  - `layer` : couche sur toute la vidéo en vue normale (pas en vue en grand), `pointer-events-none`, ses enfants se déclarent cliquables (repères de caméra).
+- `Timeline` : `vertical` (téléphone, récent en haut) et `fill` pour remplir la hauteur du parent ; positions en % (`pointStyle`, `spanStyle` les retournent).
+- `LampDot` : orange allumée, gris éteinte, contour rouge pâle injoignable ; `brightness` = opacité. `PlugSquare` : vert allumée, rouge éteinte.
+- `StatusDot` : pastille d'état de 9 px (verte `on`, rouge `off`, grise `missing`, liseré noir de 1 px). `CameraTile` la reçoit en prop `dot` devant le nom ; le plan (`MapPlan/icons.ts`) reprend `STATUS_DOT_DIAMETER` et `STATUS_DOT_RING` pour dessiner la même.
+- `LightsPanel` : lumières par zone.
+  - Un rectangle repliable par zone (nom, compte, ON / OFF de la zone), grille de cases (3 colonnes téléphone, 4 dès `sm:`, 6 dès `lg:`), une par lampe. Les zones gardent l'ordre du parent, les lampes ne bougent pas. Détecteurs de mouvement en lignes sous la grille.
+  - Case d'une lampe : fond neutre, bordure jaune quand allumée (pâlit avec la luminosité), rond ON / OFF en haut à droite (comme sur la carte), curseur de luminosité (bleu) si la lampe varie (`bri` non nul). `lampExtra` : bouton d'action sous la case.
+  - **ON = puissance max** (`{ on: true, bri: MAX_BRI }`, 254).

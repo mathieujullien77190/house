@@ -4,19 +4,19 @@ Pour tout ce qui touche à l'accès, au pare-feu, à la clé, aux certificats. L
 
 ## Accès distant
 
-Les applications ne sont **jamais ouvertes sur internet**, aucune redirection de ports. Hors de la maison, un téléphone ouvre un tunnel **WireGuard** vers la Freebox (serveur VPN intégré, un utilisateur WireGuard par appareil, un seul port UDP ouvert sur la box) : il reçoit une adresse du réseau `192.168.27.0/24` et voit le mini PC à **`192.168.27.139`** (`https://192.168.27.139:8080` pour la WebApp, `:8081` pour House Sync ; cette adresse est dans `CERT_HOSTS`). Alternative : Tailscale. Jamais de redirection de ports.
+Les applications ne sont **jamais ouvertes sur internet**, aucune redirection de ports. Hors de la maison, un téléphone ouvre un tunnel **WireGuard** vers la Freebox (serveur VPN intégré, un utilisateur WireGuard par appareil, un seul port UDP ouvert sur la box) : il reçoit une adresse du réseau `192.168.27.0/24` et voit le mini PC à **`192.168.27.139`** (`https://192.168.27.139:8080` pour la WebApp, `:8081` pour House Sync, `:8082` pour le site ; cette adresse est dans `CERT_HOSTS`). Alternative : Tailscale. Jamais de redirection de ports.
 
 La seule exception pensée pour l'extérieur est la page invité (`guest/CLAUDE.md`, port 8090), derrière un lien secret et, pour internet, Tailscale Funnel.
 
 ## Ce qui est publié
 
-Seulement l'API (8080), la page de House Sync (8081) et, si on la lance, la page invité (8090). go2rtc et l'API de l'enregistreur n'ont pas de mot de passe et ne sont joignables que par les autres conteneurs.
+Seulement l'API (8080), la page de House Sync (8081), le site de la maison (8082, fichiers statiques sans données) et, si on la lance, la page invité (8090). go2rtc et l'API de l'enregistreur n'ont pas de mot de passe et ne sont joignables que par les autres conteneurs.
 
 ## Pare-feu du mini PC
 
-`ufw`, entrant refusé par défaut. SSH (22), 8080 et 8081 ne sont ouverts qu'au réseau de la maison (`192.168.1.0/24`, et en IPv6 son préfixe local et les adresses `fe80::/10`) et au VPN WireGuard de la Freebox (`192.168.27.0/24`).
+`ufw`, entrant refusé par défaut. SSH (22), 8080, 8081 et 8082 ne sont ouverts qu'au réseau de la maison (`192.168.1.0/24`, et en IPv6 son préfixe local et les adresses `fe80::/10`) et au VPN WireGuard de la Freebox (`192.168.27.0/24`).
 
-Docker contourne `ufw` pour les ports qu'il publie en IPv4 : un bloc `DOCKER-USER` en fin de `/etc/ufw/after.rules` refuse 8080 et 8081 à tout ce qui n'est ni du réseau de la maison ni de son VPN. Il ne vise que ces deux ports : il laisse passer 8090 (page invité, voulue).
+Docker contourne `ufw` pour les ports qu'il publie en IPv4 : un bloc `DOCKER-USER` en fin de `/etc/ufw/after.rules` refuse 8080, 8081 et 8082 à tout ce qui n'est ni du réseau de la maison ni de son VPN. Il ne vise que ces trois ports : il laisse passer 8090 (page invité, voulue).
 
 ## SSH par clé seulement
 

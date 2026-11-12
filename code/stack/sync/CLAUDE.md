@@ -1,42 +1,41 @@
 # sync – House Sync
 
-Script TypeScript exécuté par Node 24 (`src/index.ts`, simple point d'entrée), sans dépendance, le **seul programme qui écrit** sur le disque backup (`/data`, soit `data/backup`) : `events.db` (SQLite), `clips/<caméra>/<id>.mp4`, `snapshots/<caméra>/<t>.jpg`. Les règles de la pile (qui écrit quoi, données irremplaçables) : `../CLAUDE.md`.
+Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépendance. Le **seul programme qui écrit** sur le disque backup (`/data` = `data/backup`) : `events.db` (SQLite), `clips/<caméra>/<id>.mp4`, `snapshots/<caméra>/<t>.jpg`. Règles de la pile : `../CLAUDE.md`.
 
-Il fait deux choses :
+## Deux rôles
 
-- **Un tour de polling** toutes les `POLL_INTERVAL_SECONDS` (30 s par défaut, 5 s dans le compose) : interroger les enregistreurs, copier clips et images, appliquer les réglages de la page, importer les fichiers des autres services, faire le ménage. Le détail de chaque étape et de chaque réglage : **`src/CLAUDE.md`**.
-- **Une page** (port 8081, HTTPS) : les services de données derrière la session et la page React `sync/web` (`web/dist`, voir `web/CLAUDE.md`).
+- **Tour de polling** toutes les `POLL_INTERVAL_SECONDS` (30 s par défaut, 5 s dans le compose) : étapes et réglages dans `src/CLAUDE.md`.
+- **Page** (port 8081, HTTPS) : services de données derrière la session, plus la page React `web/dist` (`web/CLAUDE.md`).
+- Journal des lampes Hue : en continu, hors polling (`../docs/hue.md` ; `hueStream.ts`, `hueLog.ts`, `hueOrigin.ts`).
 
-Le journal des lampes Hue (flux d'événements du pont, table `hue_events`) tourne en continu, hors du polling : `../docs/hue.md` (et `src/hueStream.ts`, `hueLog.ts`, `hueOrigin.ts`).
+## Services de la page
 
-## Sa page
+`web/dist` est public. Le reste exige la session (clé et cookie : `../docs/securite.md`).
 
-Sert `web/dist` en public. Derrière la session (clé et cookie : `../docs/securite.md`) : `POST /login` avec la clé `HOUSE_KEY` = `API_KEY` (une clé de moins de 8 caractères n'ouvre aucune session ; 10 essais ratés par adresse en 15 min puis 429, `src/attempts.ts` ; cookie signé, `src/session.ts`), puis :
-
-- `GET` et `PUT /api/settings`, `GET` et `PUT /api/retention`, `GET` et `PUT /api/guest` (réglages et lien de la page invité : `src/CLAUDE.md`) ;
-- `/api/overview` (`?part=database` : seulement la base, sans parcourir le disque backup, pour les onglets qui n'ont pas besoin de ses chiffres), `/api/system` (dont `cpu.perThread`), `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (la fiche publique du pont, sans clé : `src/hue.ts`), `/api/hue-log` (le journal des lampes : `../docs/hue.md`) ;
-- `/api/camera-energy` (l'énergie estimée des caméras depuis le début, par caméra et au total, avec la puissance actuelle `watts` : `src/cameraEnergy.ts`) ;
-- `/api/lamp-energy` (celle des lampes Hue, par lampe et au total, avec `watts` : `src/lampEnergy.ts`) ;
-- `/api/machine-energy` (celle du mini PC, processeur seul, au total, avec `watts` : `src/machineEnergy.ts`) ; les trois alimentent l'arbre de consommation de la page Machine ;
-- `/api/table?name=&page=&size=` (dont `hue_events`), `/api/clips?page=&size=` et `/files/…` (en-tête `Range` : réponse 206, `src/range.ts`).
-
-Les petits outils HTTP (corps JSON borné, réponse JSON, entier de réglage) sont dans `src/http.ts`. Les lectures sont dans `src/data.ts` (fonctions pures, pagination bornée à 100). Une erreur dans une requête répond 500 sans arrêter le service.
+- `POST /login` avec `HOUSE_KEY` = `API_KEY` : clé de moins de 8 caractères = aucune session ; 10 essais ratés par adresse en 15 min puis 429 (`attempts.ts`, `session.ts`).
+- `GET`/`PUT /api/settings`, `/api/retention`, `/api/guest` : réglages (`src/CLAUDE.md`).
+- `/api/overview` (`?part=database` : sans parcourir le disque), `/api/system`, `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (fiche publique du pont), `/api/hue-log`.
+- `/api/camera-energy`, `/api/lamp-energy`, `/api/machine-energy` : alimentent l'arbre de consommation de la page Machine.
+- `/api/table?name=&page=&size=`, `/api/clips?page=&size=`, `/files/…` (`Range` : 206, `range.ts`).
+- Une erreur de requête répond 500 sans arrêter le service. Pagination bornée à 100 (`data.ts`).
 
 ## Découpe du code
 
-`src/index.ts` ne fait qu'assembler : il donne à `startApp` (`app.ts`) le vrai environnement (`process.env`), le vrai `fetch`, la vraie horloge et `process.exit`, puis branche `unhandledRejection`, `SIGTERM` et `SIGINT`. Tout le reste est dans des modules à dépendances injectées (un **contexte** `Context`, `context.ts` : la base, la configuration, les réglages, `fetch`, `now` en millisecondes, `log`) :
-
-- `config.ts` : `loadConfig(env)`, toutes les variables d'environnement lues une fois (aucun autre module ne lit `process.env`, sauf `specs.ts`, `network.ts` et `hue.ts` pour leurs chemins de la machine). Les valeurs par défaut sont celles du compose.
-- `database.ts` : le schéma de `events.db`, les colonnes ajoutées après coup (`addColumn`), le déclencheur d'orientation et la migration unique des orientations (`initDatabase`).
-- `settings.ts` : réglages par caméra et globaux (`cameraSettings`, `keepsClip`, durée de garde, cadence de la page invité).
-- `snapshotCodes.ts` (le code permanent des images, son rattrapage au démarrage : `sync/src/CLAUDE.md`)
-- `recorder.ts` (requêtes vers les enregistreurs, `syncCameras`), `clips.ts` (copie des clips, copie légère, son, contours du mouvement (`.shapes.json`, colonne `clip_shapes_path`, un 404 n’est plus redemandé), reprises, ménage quotidien de la durée de garde : clips, images, journal Hue, événements, fusions), `events.ts` (événements terminés, en cours, fusions), `control.ts` (détection, sensibilité, zone, cadence des directs go2rtc), `snapshots.ts` (une image par caméra à son rythme, de 5 s à 5 min), `eyes.ts` (la recherche des yeux qui brillent sur ces images, la nuit : table `eye_detections`), `weather.ts` (la pluie lue sur Open-Meteo toutes les 10 min pour le mode pluie des caméras (pluie normale ou forte, ou **brouillard**, codes 45 et 48 : les gouttelettes éclairées par l’infrarouge déclenchent la détection ; symbole 🌫️) ; position `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`), `imports.ts` (plan de la maison, visites de la page invité, journal du chauffage, journal des volets), `poll.ts` (le tour de polling).
-- `page.ts` : la page (session, services de données, fichiers du disque backup, `createPageServer` HTTP ou HTTPS).
-- `app.ts` : `startApp(deps)` assemble tout et rend `stop`.
-- Petits modules : `data.ts`, `http.ts`, `hueLog.ts`, `hueStream.ts`, `hueOrigin.ts`, `guestVisits.ts`, `heatingLog.ts`, `shutterLog.ts`, `cameraEnergy.ts`, `lampEnergy.ts`, `machineEnergy.ts`, `cameraOrder.ts` (l’ordre d’arrivée des caméras dans toutes les listes), `guestState.ts`, `plan.ts`, `zones.ts`, `savedClips.ts`, `sun.ts` (**copié** dans `api/src/lib/sun.ts` : si l’un change, changer l’autre), `power.ts`, `docker.ts`, `network.ts`, `specs.ts`, `system.ts` ; `specs.ts` et `system.ts` prennent en option un préfixe de `/proc` et `/sys` (`root`) pour les essais.
+- `index.ts` ne fait qu'assembler : il passe à `startApp` (`app.ts`) `process.env`, `fetch`, l'horloge et `process.exit`, puis branche `unhandledRejection`, `SIGTERM`, `SIGINT`.
+- Modules à dépendances injectées via un `Context` (`context.ts` : base, config, réglages, `fetch`, `now`, `log`).
+- `config.ts` : toutes les variables, lues une fois (exceptions : `specs.ts`, `network.ts`, `hue.ts` pour leurs chemins). Défauts = ceux du compose.
+- `database.ts` : schéma, colonnes ajoutées après coup (`addColumn`), déclencheur et migration d'orientation.
+- `poll.ts` (le tour), `recorder.ts`, `clips.ts`, `events.ts`, `snapshots.ts`, `snapshotCodes.ts`, `control.ts`, `eyes.ts`, `weather.ts`, `settings.ts`, `imports.ts` : détail dans `src/CLAUDE.md`.
+- `page.ts` : session, services, fichiers du disque, `createPageServer`. `http.ts` : petits outils HTTP.
+- **Copies assumées** : `sun.ts` (avec `api/src/lib/sun.ts`) et `cameraOrder.ts` (avec `api/src/lib/cameraOrder.ts`) : changer les deux.
+- `specs.ts` et `system.ts` prennent un préfixe `root` pour `/proc` et `/sys` (essais).
 
 ## Tests
 
-`npm test` (`node --test "src/**/*.test.ts"`) ; `npm run test:coverage` mesure la couverture avec le moteur de Node et **échoue sous 100 %** (lignes, fonctions, branches). Les essais sont à côté du code (`nom.test.ts`), sans réseau ni vrai dossier hors de `mkdtempSync` : base `:memory:`, `fetch` et horloge injectés, `https.get` / `https.request` / `http.createServer` remplacés. `src/testing.ts` (contexte de test, fausses requêtes et réponses HTTP, faux pont Hue) n'est pas du code du service. Exclus de la couverture : `src/index.ts` (assemblage, sans logique : tout ce qu'il appelle est testé), `src/testing.ts` et les fichiers `*.test.ts`. Une seule ligne est marquée `node:coverage ignore` (`hueStream.ts`, garde `stopped` de `connect`, inatteignable aujourd'hui).
-
-Vérifications : `npm run typecheck && npm run lint && npm run test:coverage`. Déploiement : `../docs/deploiement.md` ; à la main, `docker compose up -d --build --no-deps sync` (voir `../CLAUDE.md`). Les logs disent à chaque tour le nombre de caméras, d'événements copiés, de clips récupérés et d'images gardées.
+- `npm test` ; `npm run test:coverage` **échoue sous 100 %** (lignes, fonctions, branches).
+- Essais à côté du code (`nom.test.ts`) : base `:memory:`, `fetch` et horloge injectés, rien hors `mkdtempSync`.
+- `src/testing.ts` n'est pas du code du service. Exclus de la couverture : `index.ts`, `testing.ts`, `*.test.ts`.
+- Une seule ligne `node:coverage ignore` : garde `stopped` de `connect` dans `hueStream.ts`.
+- Vérifications : `npm run typecheck && npm run lint && npm run test:coverage`.
+- Déploiement : `../docs/deploiement.md` ; à la main `docker compose up -d --build --no-deps sync`.
+- Le log de chaque tour dit les caméras, événements copiés, clips récupérés, images gardées.

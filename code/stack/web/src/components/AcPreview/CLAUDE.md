@@ -1,6 +1,7 @@
-# AcPreview – l'aperçu d'une climatisation sur la carte
+# AcPreview – l'aperçu d'une clim sur la carte
 
-Ce que montre la carte de Home (`../HouseMap/CLAUDE.md`) quand on **choisit un split** : sur grand écran, un clic sur son icône place la carte sur `PREVIEW_VIEW` et affiche cet aperçu **à droite, à côté de la limite de propriété et en face du split**, comme la miniature d'une caméra ou l'aperçu du chauffage. Un clic à côté le ferme ; un **double clic** sur l'icône ouvre l'onglet Clim ; sur téléphone, un clic ouvre directement l'onglet Clim.
+Affiché par la carte de Home (`../HouseMap/CLAUDE.md`, règle d'aperçu commune) quand on choisit un split. Le double clic sur l'icône ouvre l'onglet Clim : pas de bouton d'ouverture.
 
-- **Le même bloc que l'onglet Clim** (`../AcPanel/AcUnitCard.tsx`, partagé) : On / Off, état, mode, consigne (− / +), ventilateur, ailette. Les ordres partent par `setAc` ; la réponse de l'API s'affiche tout de suite.
-- **La lecture et les ordres sont ceux de l'onglet Clim** : le hook partagé `lib/useAcUnits.ts` (relue toutes les 10 s, `setAc`, la réponse de l'API remplace l'unité). Pas de bouton d'ouverture : le double clic sur l'icône ouvre l'onglet Clim.
+- Même bloc que l'onglet Clim : `../AcPanel/AcUnitCard.tsx`.
+- Bordure de 2 px : verte si allumée et joignable, rouge sinon, transparente tant que la clim est inconnue.
+- Lecture et ordres : hook partagé `lib/useAcUnits.ts` (10 s, `setAc`, la réponse de l'API remplace l'unité).

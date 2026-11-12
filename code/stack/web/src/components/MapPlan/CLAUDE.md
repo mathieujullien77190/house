@@ -1,100 +1,85 @@
 # MapPlan – la carte de la maison
 
-Le plan de la maison de la WebApp est une **carte MapLibre GL** (`maplibre-gl` dans `package.json`), affichée en haut de **Home** (`HouseMap/CLAUDE.md`, `Home/CLAUDE.md`). Les types du plan (`PlanTree`, `PlanCamera`…) sont dans `@house/ui` (`ui/src/plan.ts`).
+Carte **MapLibre GL** en haut de **Home** (`HouseMap/CLAUDE.md`, `Home/CLAUDE.md`). Types du plan (`PlanTree`, `PlanCamera`…) dans `@house/ui` (`ui/src/plan.ts`).
 
 ## Fond et vue
 
-- **Un seul fond : la photo aérienne IGN** (satellite, Géoplateforme, sans clé), sur un style MapLibre vide (`{version: 8, sources: {}, layers: []}`) : plus de fond vectoriel ni de choix du fond (le plan n'écrit aucun texte avec les polices de la carte).
-- La carte est **tournée de 37,7°** (`MAP_ROTATION_DEG`) pour que la maison soit droite à l'écran ; zoom de départ 19,7, jusqu'à 22. Hauteur 530 px (`MAP_CLASS`).
-- **Le plan de la maison est dessiné par la carte elle-même, en longitude et latitude** : `projection.ts` pose le plan en unités (43,5 par mètre : le bâti de la maison au cadastre, parcelle AO 0018, fait 12,4 m sur 7,65 m, `MAP_UNITS_PER_METER`, `MAP_HOUSE_HEIGHT`) sur le centre du bâti et le tourne comme lui, donc il ne glisse jamais pendant un zoom.
+- Un seul fond : la **photo aérienne IGN** (Géoplateforme, sans clé), sur un style MapLibre vide. Aucun texte écrit avec les polices de la carte.
+- Carte **tournée de 37,7°** (`MAP_ROTATION_DEG`), hauteur 530 px (`MAP_CLASS`), zoom jusqu'à 22.
+- Vue de départ : centre `MAP_VIEW_CENTER`, zoom `MAP_ZOOM` (19,85), choisis à la main.
+- `MAP_CENTER` est autre chose : l'**origine du plan**. Il ne doit pas bouger, tout le dessin en dépend.
+- Le plan est dessiné en longitude et latitude : `projection.ts` le pose sur le centre du bâti (43,5 unités par mètre, bâti au cadastre 12,4 m sur 7,65 m, parcelle AO 0018) et le tourne comme lui, donc il ne glisse pas au zoom.
+- Pas de boutons de zoom +/- (molette ou pincement). Pas d'anticrénelage WebGL ni de suréchantillonnage : essayés, moins nets (`SCALE` = 1 dans `icons.ts`).
 
-## Les couches
+## Couches
 
-`features.ts` fabrique les données (GeoJSON), `layers.ts` les couches (largeurs de trait en mètres, donc elles suivent le zoom) :
+`features.ts` fabrique les données (GeoJSON), `layers.ts` les couches (traits en mètres, ils suivent le zoom).
 
-- le toit, le béton (**le béton derrière la maison est dessiné au-dessus des carreaux**), **tous les carreaux en un seul polygone** (union de la terrasse de 1,5 m, du carrelage plus large au sud (+ 50 cm) qui va jusqu'à la limite de propriété, des sols à droite de la maison qui montent jusqu'au bas de la cage et du chemin du portillon ; `polygon-clipping`) ;
-- la cage (5,1 m sur 3,4 m, 6 × 85 cm sur 4 × 85 cm), le chemin du garage (béton, du portail au pavage, un peu plus large que le portail pour arriver pile à lui et aux carreaux), les deux portes (portail du garage, portillon), les haies, les arbres (**dessinés au-dessus des caméras** : les icônes de caméra (`plan-cameras`, `plan-cameras-etat`) sont sous eux, les arbres étant translucides on les voit à travers ; **en buisson ou en nuage** : un contour de 7 à 9 lobes arrondis, `bushRing` de `shapes.ts`, décalé par l'identifiant de l'arbre, `seedOf` ; le rayon reste celui de la poignée) ;
-- les caméras (une icône, champ de vision en cône au survol), les ampoules (une icône), les climatisations (une icône), le volet de la cuisine (une icône) et la prise : **voir « Les icônes du plan » plus bas**.
+- Toit, béton (derrière la maison, **au-dessus des carreaux**), carreaux en **un seul polygone** (`polygon-clipping`), cage, chemin du garage, portes, haies.
+- Arbres **au-dessus des caméras** (translucides, on voit les icônes à travers) : buisson de 7 à 9 lobes (`bushRing`, décalé par `seedOf`).
+- `parcel.ts` : contour du cadastre (API Carto IGN), il guide haies, portes et limite des carreaux.
+- Le champ de vision d'une caméra (`plan-vue`) est un cône (`coneRing`), affiché au survol ou à la sélection.
 
-La prise est une icône (voir « Les icônes du plan »).
+## Murs et toit caché
 
-**La parcelle** (`parcel.ts`, contour du cadastre par l'API Carto de l'IGN) guide les haies (au départ pile sur la limite, percées aux portes), les portes et la limite des carreaux.
-
-## Les cases Clim, Caméra, Lumière, Volet, Chauffage
-
-En bas à gauche de la carte, **alignées sur une ligne** (`FILTERS_BAR_CLASS`) : **six cases à cocher avec le nom du type** (`FILTERS`, `constants.ts`) qui **montrent ou cachent les icônes** de ce type : **Clim** (les splits et leur pastille), **Caméra** (les icônes, leur pastille et le cône de vision), **Lumière** (les ampoules), **Volet** (le volet de la cuisine), **Chauffage** (la prise du dehors et sa pastille), **Clip** (les emoji des clips sauvegardés). **Toutes cochées au départ, sauf Clip** (les emoji des clips ne se voient qu'une fois la case cochée). **Sur téléphone (`fill`), la carte prend toute la place qui reste** (sa hauteur est mesurée : bas de l'écran moins sa position moins 16 px, `fitHeight`, refaite au redimensionnement et quand la Home cachée redevient visible ; `MAP_FILL_CLASS` n'est que la valeur d'avant la mesure) **et les cases sont dans un petit menu** qui s'ouvre au-dessus d'un bouton « Filtres » (fermé au départ, `FILTERS_MENU_CLASS`). Une case décochée cache les calques du type et retire sa zone de saisie du filtre de `plan-saisie` : une icône cachée ne se prend plus à la souris. Les étiquettes de température, le toit et le reste du plan restent toujours visibles.
-
-## Anticrénelage
-
-**Pas d'anticrénelage WebGL ni de suréchantillonnage** : essayés, ils rendaient la carte moins nette, donc annulés (`SCALE` = 1 dans `icons.ts`, pas de `canvasContextAttributes` sur la carte).
+- Le toit (`plan-toit`) est **toujours caché** : la carte montre les pièces en **un seul polygone** (séparées, elles se chevauchaient à 60 % d'opacité), avec leurs traits de mur.
+- La maison n'est pas rectangulaire : le carré de l'entrée (1,5 m, même hauteur que la pièce Entrée) est un second rectangle de « Entrée » (`PLAN_ROOMS`, `Lights/constants.ts`).
+- Ouvertures dans les murs : `PLAN_OPENINGS` (ex. le mur cuisine / salon s'arrête à « Bar 2 »). Cloisons : `PLAN_WALLS`. Mur de l'entrée plein + claustra en pointillé (`entranceWall`, `PLAN_ENTRANCE_WALL`).
+- **Les murs ne se modifient pas** : ce sont les rectangles des pièces (`RoomRects`, `defaultRoomRects`). Ceux du plan gardé (`room-<pièce>-<rectangle>-a/b`, `roomRectsFrom`) remplacent ceux de départ, lus seulement.
 
 ## Les icônes du plan
 
-Les caméras, les ampoules, les climatisations, la prise et le volet sont des **icônes** (react-icons), pas des dessins : `icons.ts` rend chaque icône en SVG (`renderToStaticMarkup`), la pose dans un canvas (sur un rond : le fond de la page avec un anneau de la couleur de l'état) et l'ajoute à la carte en image (`addMapIcons`, au chargement du style) ; des calques de **symboles** (`plan-cameras`, `plan-lampes`, `plan-clims`, sur le point `camera-hit`, `lamp-hit` ou `ac-hit` de chaque élément) les affichent, de taille presque fixe (`icon-size` selon le zoom). Sans canvas (tests jsdom), pas d'icône.
+Caméras, ampoules, clims, prise, volet : **icônes react-icons** rendues en SVG puis en canvas (`icons.ts`, `addMapIcons`), sur un rond blanc à contour noir. Symboles de taille presque fixe. Sans canvas (jsdom), pas d'icône.
 
-| Élément                            | Icône                                                                                                                                                                                                                                                                                                                                         | États                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Caméra                             | Heroicons `HiOutlineVideoCamera` **noire sur un rond blanc**, tournée vers où regarde la caméra (`icon-rotate` = angle − 90°, l'icône regardant à droite)                                                                                                                                                                                     | **trois états** (propriété `state` du point), dits par une **petite pastille** posée **au centre du contour** du rond, en haut à droite, **cerclée de noir** comme lui (calque `plan-cameras-etat`, sans rotation : elle reste au coin quand l'icône tourne) : **verte** allumée (la vraie caméra est liée et alimentée), **rouge** éteinte (PoE coupé), **grise** quand la caméra n'existe pas (liée à aucune vraie caméra) |
-| Ampoule                            | Remix `RiLightbulbFill` **dans la couleur de l'ampoule** (sa vraie couleur quand elle est allumée : `color` de `GET /hue`, calculée par l'API d'après l'état du pont ; orange si inconnue), avec un fin contour noir, sur un rond blanc à contour noir comme la caméra, **sans pastille**                                                     | grise éteinte, rouge injoignable (propriété `color` du point), **la luminosité fait pâlir le jaune seulement** (la couleur se mêle de blanc, `bulbColor`, par 16 crans, jusqu'à un quart de la couleur) : le rond blanc et le contour noir restent à pleine opacité (pas d'`icon-opacity`) ; **une image par couleur, dessinée à la demande** (`watchDynamicImages`, `lamp-#rrggbb`)                                         |
-| Prise (celle du chauffage, dehors) | Lucide `LuHeater` (un radiateur) **noir sur un rond blanc** (contour noir)                                                                                                                                                                                                                                                                    | dit par la même **pastille cerclée de noir sur le contour** que la caméra (calque `plan-prises-etat`) : **verte** allumée, **rouge** éteinte (propriété `on` du point)                                                                                                                                                                                                                                                       |
-| Volet roulant (cuisine)            | Material **`MdOutlineSensorWindow` (ouvert)** / **`MdSensorWindow` (fermé, plein)**, **noires sur un rond blanc** (contour noir), **aussi gros que celui d'une caméra** (`CAMERA_SIZE`), avec **la même pastille cerclée de noir sur le contour** (calque `plan-volets-etat`) : **verte ouvert, rouge fermé**, en plus de la forme de l'icône | fermé seulement si le dernier ordre était « descendre » (propriété `closed` du point) ; **monter, stop et la position du milieu valent ouvert**                                                                                                                                                                                                                                                                              |
-| Climatisation                      | Tabler `TbAirConditioning` **noire sur un rond blanc** (contour noir), **orientée selon son mur** (`rotation` : le salon d'un quart de tour horaire, la chambre matou d'un quart de tour trigonométrique, `ROTATIONS` de `useAcPlan.ts`)                                                                                                      | dit par la même **pastille cerclée de noir sur le contour** que la caméra (calque `plan-clims-etat`) : **verte** allumée, **rouge** éteinte, **grise** si le module ne répond pas (propriété `state` du point)                                                                                                                                                                                                               |
+| Élément | Icône | Pastille sur le contour |
+|---|---|---|
+| Caméra | `HiOutlineVideoCamera`, tournée vers où elle regarde | verte allumée, rouge éteinte (PoE coupé), grise si liée à aucune vraie caméra (`plan-cameras-etat`) |
+| Ampoule | `RiLightbulbFill` dans sa vraie couleur (`color` de `GET /hue`, orange si inconnue) | aucune |
+| Prise (chauffage) | `LuHeater` | verte allumée, rouge éteinte (`plan-prises-etat`) |
+| Volet cuisine | `MdOutlineSensorWindow` (ouvert) / `MdSensorWindow` (fermé) | bleu pâle `#8fd0f7` ouvert, violet `#8b5cf6` baissé (`plan-volets-etat`) |
+| Clim | `TbAirConditioning`, orientée selon son mur (`ROTATIONS` de `useAcPlan.ts`) | verte allumée, rouge éteinte, grise injoignable (`plan-clims-etat`) |
 
-**Trois étiquettes de température (`labels`, kind `label-hit`, calque `plan-etiquettes`, **au-dessus de tous les objets connectés**) : celle de dehors (la météo) et deux dans la cage (les détecteurs Hue de la volière), **et la température de chaque pièce (celle que lit sa climatisation, sous son icône au départ)** : le même rectangle **blanc, sans bordure, à angles droits, texte noir**, déplaçable en modification (« 21° », « 21,5° »). Le texte est une **image dessinée à la demande** (`watchTemperatureImages` répond à `styleimagemissing`, une image par valeur, blanc, sans bordure), donc sans police de carte à charger. Le champ de vision d'une caméra (`plan-vue`, un cône) reste un polygone.
+- **Ampoule** : grise éteinte, rouge injoignable. La luminosité ne fait pâlir que la couleur (`bulbColor`, 16 crans), jamais l'opacité. Une image par couleur, dessinée à la demande (`watchDynamicImages`).
+- **Volet** : fermé seulement si le dernier ordre était « descendre » ; monter, stop et la position du milieu valent ouvert.
+- **Pompe à chaleur** (`decors`, `decor-pac`) et **routeur** (`BsRouter`, id `box`) : icône seule, sans rond (`drawBare`), toujours visibles, un clic ne fait rien.
+- **Étiquettes de température** (`labels`, `plan-etiquettes`, au-dessus de tous les objets) : dehors, deux dans la cage, une par pièce climatisée. Rectangle blanc sans bordure, texte noir, image dessinée à la demande (`watchTemperatureImages`).
+- **Emoji des clips** (`emojis`, `plan-emojis`) : pictogramme seul (`drawEmoji`).
+- Une lampe sans place sur le plan n'est pas sur la carte (`planLamps`).
 
-## Le toit caché
+## Cases à cocher
 
-**La maison n'est pas un rectangle parfait** : devant la porte, dehors, **le carré de l'entrée** (1,5 m de large, **de la même hauteur que la pièce Entrée** : ses murs nord et sud sont dans l'alignement des siens) est un second rectangle de la pièce « Entrée » (`PLAN_ROOMS`, `Lights/constants.ts`), fondu à elle dans le même contour et entouré de ses traits de mur.
+- En bas à gauche, sur une ligne (`FILTERS_BAR_CLASS`) : **Clim, Caméra, Lumière, Volet, Chauffage, Clip** (`FILTERS`).
+- Toutes cochées au départ, **sauf Clip**.
+- Une case décochée cache les calques et retire la zone de saisie de `plan-saisie`.
+- Étiquettes, toit et reste du plan restent visibles.
+- **Téléphone (`fill`)** : la carte prend la place restante (`fitHeight`, mesurée au redimensionnement et quand la Home redevient visible) et les cases passent dans un menu « Filtres » fermé au départ.
+- Bouton « Modifier » : tout en bas à gauche (`ACTIONS_CLASS`), absent sur téléphone. Rien ne doit s'ajouter sous la carte dans `WRAPPER_CLASS`.
 
-**Le toit (`plan-toit`) est toujours caché** : la carte montre les pièces (**toutes en un seul polygone** : séparées, elles se chevauchaient à 60 % d'opacité et laissaient un fin trait clair entre deux pièces ; le contour de chaque pièce est dessiné en **traits de mur**, moins **les ouvertures** : `PLAN_OPENINGS` de `Lights/constants.ts`, par exemple le mur entre la cuisine et le salon porte les ampoules « Bar 1 » et « Bar 2 » et s'arrête à « Bar 2 » : d'elle au mur de droite, il n'existe pas), les cloisons (trait plein ; le mur de l'entrée est un mur plein, plus un claustra en pointillé : il part de la lampe « Entrée » et s'arrête au bord gauche de la pièce Entrée, **à la hauteur de son mur sud** (`entranceWall` de `features.ts`, `PLAN_ENTRANCE_WALL`) : il suit la pièce quand on la déplace ), les caméras, **toutes les lampes** du pont Hue, **les climatisations (une icône chacune : `ac-hit`, calque de symboles `plan-clims` ; un clic ouvre l'onglet Clim (`onOpenAc`, hors modification), le survol écrit son état)** la prise connectée et **le volet roulant de la cuisine (une icône : `shutter-hit`, calques de symboles `plan-volets` et `plan-volets-etat` (la pastille verte ouvert / rouge fermé) ; un clic le choisit, le survol écrit son dernier ordre)**. La lampe « Perruche » et la prise gardent leur état (orange / gris / contour rouge pâle ; vert / rouge). **Une lampe sans place sur le plan n'est pas sur la carte** (elle n'attend plus sur le carrelage au sud : `planLamps` l'écarte). Toucher une lampe **éteinte ou à 0 % l'allume à 100 %, et l'éteint si elle est allumée** ; « Nom · 60 % » s'écrit en bas de la carte au survol ou au toucher (`bulbLabel`), la couleur de l'ampoule pâlit avec sa luminosité (`bulbColor`), jamais son opacité.
+## Interactions
 
-## La vue de départ
-
-**Vue de départ** : centre `MAP_VIEW_CENTER` (48,522045 ; 2,650143), zoom `MAP_ZOOM` (19,85), cap `MAP_ROTATION_DEG` (37,7°), choisis à la main. `MAP_CENTER` est autre chose : l'origine du plan (il ne doit pas bouger, tout le dessin en dépend).
-
-**Les murs de la maison ne se modifient pas** : ce sont le contour des rectangles des pièces (`RoomRects`, `defaultRoomRects` de `features.ts` : `PLAN_ROOMS` dans le repère de la carte) ; la partie fixe est refaite quand ils changent (`staticFeatures(rooms)`). Si le plan gardé par l'API porte des rectangles (éléments `room-<pièce>-<rectangle>-a/b`, deux coins chacun, lus par `roomRectsFrom` de `helpers.ts`), ils remplacent ceux de départ : **ils sont lus pour dessiner, plus écrits** (plus de poignée de coin). Les ouvertures (`PLAN_OPENINGS`) et les cloisons (`PLAN_WALLS`) sont fixes.
-
-**Au survol d'une icône** (caméra, lampe, clim, volet, prise, emoji de clip, pompe à chaleur) : un **rond bleu pâle** sous elle (calque `plan-survol`, dont `edit.ts` règle le filtre sur l'objet touché, `showHalo`) et le curseur de la souris suit `cursorFor` : la main qui attrape quand on peut déplacer l'objet (modification), **le doigt qui pointe quand un clic fait quelque chose** (hors modification : caméra, lampe, clim, volet, prise, emoji), rien pour la pompe à chaleur. **Le routeur** (`BsRouter`, id `box`) est une seconde icône seule, comme la pompe à chaleur.
-
-**Une lampe injoignable et une caméra sans flux** (éteinte, ou liée à aucune vraie caméra) **ne se choisissent pas et ne réagissent pas** hors modification : propriété `inactive` de leur point, ignorée par la saisie (`disabled` de `edit.ts` : ni clic, ni double clic, ni survol, ni curseur). En modification elles se déplacent comme les autres (il faut pouvoir les placer).
-
-**La pompe à chaleur** (`decors`, kind `decor-hit`, calque `plan-decors`) : l'icône Material `MdOutlineHeatPump`, **seule, sans rond autour** (noire, avec un fin liseré blanc pour rester lisible sur la photo ; `drawBare` de `icons.ts`), toujours visible. On la déplace en modification (`onMoveDecor`) ; sa place est gardée comme élément du plan (`decor-pac`, `decorItemId` de `helpers.ts`), la place de départ (`DEFAULT_DECORS`) sans elle. Un clic dessus ne fait rien.
-
-**Les emoji des clips** (`emojis`, kind `emoji-hit`, calque `plan-emojis`, case **Clip**) : un pictogramme seul, sans fond blanc ni bordure (image `emoji-<emoji>` dessinée à la demande, `drawEmoji` de `icons.ts`) ; un clic le choisit (`onToggleEmoji`), son double clic l'ouvre (`onOpenEmoji`), on le déplace en modification (`onMoveEmoji`).
-
-**Clic sur la prise, une climatisation ou le volet** : hors modification, un clic sur la **prise la choisit** (`onSelectPlug`, comme une caméra : le parent affiche son aperçu) et son **double clic ouvre l'onglet Prise** (`onOpenPlug`) ; un clic sur une **climatisation la choisit** (`onSelectAc`, `selectedAcId` pour l'ancre de l'aperçu) et son **double clic ouvre l'onglet Clim** (`onOpenAc`) ; sans `onSelectAc`, un clic ouvre l'onglet ; **un clic sur le volet le choisit** (`onSelectShutter`, le parent affiche son bloc), son **double clic ouvre l'onglet Volet** (`onOpenShutter`) ; sans `onSelectShutter`, un clic donne l'ordre (`onToggleShutter`, descendre s'il est ouvert, monter s'il est fermé). En modification, on les déplace et le clic ne fait rien.
-
-**La ligne de l'objet choisi à son bloc** : `linkBox` (la place du bloc du parent, en pixels de la carte) → un calque de la carte (`plan-lien`, source `plan-lien`, **posé sous les icônes**), recalculé à chaque mouvement.
-
-**Le nom au survol** : une caméra (le nom de la vraie caméra liée, sinon celui de l'icône) et le chauffage s'écrivent en bas de la carte au survol (`onHoverCamera`, `onHoverPlug`), comme une lampe.
-
-**Survol d'une caméra** : son **champ de vision** (un **cône** dont la pointe est la caméra, `plan-vue`, `coneRing`) s'affiche tant que la souris est dessus (`onHoverCamera`, `hoveredCameraId`), comme quand on la choisit mais sans poignée ; elle est tournée vers où elle regarde.
-
-**Le clic qui suit un geste sur un élément est ignoré** (`justDragged`, remis à zéro au geste suivant) : sinon, quand la carte bouge entre le choix d'une caméra et le clic (la vue imposée par `focusView`), la caméra n'est plus sous la souris, le clic passe pour un clic dans le vide et referme la miniature aussitôt (le premier clic ne marchait pas, le second oui).
-
-**Zones de saisie superposées** (une caméra, une ampoule et une étiquette de température dans la cage) : la plus utile passe avant (`HIT_PRIORITY` de `edit.ts`) : la caméra d'abord, puis la climatisation, le volet, la prise, l'ampoule, et **l'étiquette de température en dernier** (elle ne sert qu'en modification : sans cela elle cachait le clic sur une caméra).
-
-**Clic sur une caméra** : un clic la **choisit** (`onSelectCamera`) ; un **double clic ouvre sa page** (`onOpenCamera`, hors modification : le zoom au double clic est coupé sur cette carte, `doubleClickZoom: false`). En modification, un clic la choisit (son lien) et le double clic ne fait rien. La carte donne au parent (`onAnchor`) la position à l'écran de l'icône de l'objet choisi (caméra, prise, clim, volet ou emoji de clip), relue à chaque mouvement : le parent y tire la ligne jusqu'à son bloc. Le parent peut imposer une vue (`focusView` : centre, zoom, cap) : la carte s'y place d'un coup quand elle change.
-
-**Le bouton** « Modifier » (absent sur téléphone : on n'y modifie pas le plan) est posé **dans la carte, tout en bas à gauche** (`ACTIONS_CLASS`, suivi des cases à cocher sur la même ligne ; ancré au bas du cadre de la carte : rien ne doit s'ajouter sous elle dans `WRAPPER_CLASS`). Pas de boutons de zoom +/− (le zoom se fait à la molette ou au pincement).
+- **Caméra** : clic = choisir (`onSelectCamera`) ; double clic = ouvrir sa page (`onOpenCamera`). `doubleClickZoom: false`.
+- **Prise** : clic = choisir (`onSelectPlug`), double clic = onglet Prise (`onOpenPlug`).
+- **Clim** : clic = choisir (`onSelectAc`, `selectedAcId`), double clic = onglet Clim (`onOpenAc`). Sans `onSelectAc`, un clic ouvre l'onglet.
+- **Volet** : clic = choisir (`onSelectShutter`), double clic = onglet Volet (`onOpenShutter`). Sans `onSelectShutter`, un clic donne l'ordre (`onToggleShutter`).
+- **Emoji** : clic = choisir (`onToggleEmoji`), double clic = ouvrir (`onOpenEmoji`).
+- **Lampe** : toucher une lampe éteinte ou à 0 % l'allume à 100 %, sinon l'éteint. « Nom · 60 % » s'écrit en bas au survol (`bulbLabel`).
+- **Survol** : rond bleu pâle (`plan-survol`, `showHalo`). Curseur (`cursorFor`) : main pour déplacer (modification), doigt pour un clic utile, rien pour la pompe à chaleur. Les noms de caméra et du chauffage s'écrivent en bas (`onHoverCamera`, `onHoverPlug`).
+- **Inactifs** : une lampe injoignable et une caméra liée à aucune vraie caméra ne réagissent pas hors modification (`inactive`, `disabled` de `edit.ts`). **Une caméra éteinte reste cliquable.** En modification, tous se déplacent.
+- **Zones de saisie superposées** : priorité `HIT_PRIORITY` (`edit.ts`) : caméra, clim, volet, prise, ampoule, étiquette en dernier (sinon elle cachait la caméra).
+- **Clic après un geste ignoré** (`justDragged`) : sinon, quand la carte bouge entre le choix et le clic (`focusView`), le clic passerait pour un clic dans le vide et fermerait la miniature.
+- **Lien vers le bloc** : `linkBox` (place du bloc, en pixels) donne le calque `plan-lien`, sous les icônes. `onAnchor` rend au parent la position écran de l'objet choisi. `focusView` impose une vue (centre, zoom, cap).
 
 ## Modifier
 
-Le plan ne se modifie que quand le bouton **« Modifier » (tout en bas à gauche) est enfoncé** (éteint au départ ; sinon seul un clic sur une caméra, qui montre son champ de vision, reste). **On ne déplace que les objets connectés** ; `edit.ts` prend à la souris ou au doigt :
-
-- une caméra (la déplacer ; sa poignée `camera-handle` tourne et allonge sa vue) ;
-- une lampe, la prise (le chauffage), une climatisation, un volet roulant, une étiquette de température, l'emoji d'un clip et l'icône seule de la pompe à chaleur / du routeur (`decors`) : on les déplace, leur place est gardée dans les éléments du plan.
-
-**Plus rien de fixe ne se modifie** : ni les arbres (déplacement, rayon, choix), ni les haies (déplacement, sommets, choix), ni la cage, ni le chemin du garage et les portes (leurs décalages), ni les coins des carreaux, du chemin du garage et des murs des pièces (plus de ronds de coin ni de milieu de côté, plus de case « Aligner »). **Ils restent dessinés d'après le plan gardé** (aucune donnée n'est changée ni supprimée) : arbres, haies, cage et décalages (`offsets`) lus par `liveFeatures` ; contour des carreaux et du chemin du garage gardés comme éléments du plan (`tiles-corner-<n>`, `garage-corner-<n>`, `tilesRingFrom` / `garageRingFrom` de `helpers.ts`), qui remplacent le calcul de départ (`tilesOutline` n'existe plus : sans contour gardé, les carreaux sont l'union calculée) ; rectangles des pièces (voir plus haut). Seules les couches de saisie `plan-saisie` (zones transparentes des icônes) et `plan-poignees` (la poignée de la caméra choisie) se prennent à la souris.
-
-La carte ne bouge pas pendant un geste.
-
-**Le lien avec les vraies caméras** : en mode modification, une caméra du plan choisie montre la liste « Caméra liée » (`lib/usePlanLinks.ts`, au départ les deux caméras de la cage sont liées à `voliere-interieur` et `voliere-exterieur`) ; le lien sert à mettre la caméra du plan en surbrillance quand on survole la vignette (et l'inverse) et à son contour rouge quand la vraie caméra est éteinte.
+- Le plan ne se modifie que bouton **« Modifier »** enfoncé (éteint au départ). La carte ne bouge pas pendant un geste.
+- **On ne déplace que les objets connectés** (`edit.ts`) : caméras (poignée `camera-handle` qui tourne et allonge la vue), lampes, prise, clims, volet, étiquettes, emoji, pompe à chaleur et routeur.
+- **Plus rien de fixe ne se modifie** (arbres, haies, cage, chemin du garage, portes, coins des carreaux et des murs). Ils restent dessinés d'après le plan gardé, sans rien supprimer :
+  - arbres, haies, cage, décalages : `liveFeatures` ;
+  - contours des carreaux et du garage : `tiles-corner-<n>`, `garage-corner-<n>` (`tilesRingFrom`, `garageRingFrom`), sinon l'union calculée.
+- Seules `plan-saisie` et `plan-poignees` se prennent à la souris.
+- **Lien avec les vraies caméras** : une caméra choisie montre « Caméra liée » (`lib/usePlanLinks.ts` ; par défaut les deux de la cage vers `voliere-interieur` et `voliere-exterieur`). Il sert au survol croisé avec la vignette et au contour rouge si la vraie caméra est éteinte.
 
 ## Où le plan est gardé
 
-**Par House API seule, rien dans le navigateur** (`lib/usePlan.ts`) : lu une fois au chargement (`GET /plan`) ; chaque changement s'applique tout de suite et part en `PUT /plan` 500 ms plus tard, ce qui met à jour la base (House Sync l'importe dans la table `plan` de SQLite) ; un autre appareil le retrouve en rechargeant la page (pas de relecture à intervalle). Tant que le plan de l'API n'est pas lu, rien n'est envoyé ; sans plan gardé, le dessin de départ est enregistré. Le dernier qui envoie gagne.
-
-**Le plan est enregistré en vraies coordonnées** (`lib/planCoords.ts`) : positions en longitude et latitude, tailles en mètres, angles en caps (version 2 du document, `../../../../api/src/routes/CLAUDE.md`). Il se dessine en unités du plan et la conversion se fait à la lecture et à l'envoi (un plan enregistré avant, en unités, est converti puis renvoyé en version 2).
-
-Le direct n'est ouvert que pour ce qui est affiché : la mosaïque ferme ses flux quand on ouvre un détail.
+- **Par House API seule** (`lib/usePlan.ts`) : lu une fois (`GET /plan`), chaque changement part en `PUT /plan` 500 ms plus tard (House Sync l'importe dans la table `plan`). Rien n'est envoyé tant que le plan n'est pas lu. Le dernier qui envoie gagne ; un autre appareil le voit en rechargeant.
+- **Vraies coordonnées** (`lib/planCoords.ts`) : longitude / latitude, mètres, caps (version 2 : `../../../../api/src/routes/CLAUDE.md`). Un plan en unités est converti puis renvoyé en version 2.

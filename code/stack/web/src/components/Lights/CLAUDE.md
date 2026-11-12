@@ -1,21 +1,29 @@
 # Lights – l'onglet Lumière
 
-Les lampes du pont Philips Hue (API `/hue`, relues toutes les 5 s), rendues par `LightsPanel` de `@house/ui` ; allumer (à puissance max) ou éteindre une zone entière ou une lampe ; **seule la lampe « Perruche » (`dimmable`) garde un curseur de luminosité**, qui envoie sa valeur au relâchement. Côté pont et règles : `../../../../docs/hue.md`. Sans pont configuré (503), un message le dit ; une erreur passagère pendant l'usage laisse l'écran en place (un bandeau), et une lampe qui échoue dans « Tout allumer » ne bloque pas les autres.
+Lampes du pont Hue (`/hue`, 5 s), rendues par `LightsPanel` de `@house/ui`. Pont et règles : `../../../../docs/hue.md`.
+
+- **Allumer = puissance max** : `{ on: true, bri: 254 }` (`MAX_BRI`) pour une case, une zone, « Tout allumer » et une ampoule de la carte. Éteindre : `{ on: false }`.
+- **Seule la lampe « Perruche » (`dimmable`) a un curseur de luminosité**, envoyé au relâchement.
+- Sans pont (503) : un message. Erreur passagère : un bandeau. Une lampe qui échoue dans « Tout allumer » ne bloque pas les autres.
+- « Tout allumer / éteindre » ne touchent pas la volière.
+- Il n'y a **plus de carte dans cet onglet** : elle est dans Home (`../HouseMap/CLAUDE.md`).
 
 ## La liste
 
-Rangée par **zone de la maison** (`ZONES` dans `constants.ts`, par identifiant de lampe), **dans cet ordre fixe : Volière (la perruche), Salon, Cuisine, Entrée, puis Chambre 1, SdB, WC, Couloir** ; les zones allumées ne remontent plus. **Une lampe d'aucune zone n'est pas dans l'application** (plus de groupe « À placer » : ni dans la liste, ni sur la carte, ni dans la consommation de House Sync) ; une zone se commande lampe par lampe, seules celles qui répondent.
+- Rangée par **zone** (`ZONES`, `constants.ts`, par identifiant de lampe), ordre fixe : Volière, Salon, Cuisine, Entrée, Chambre 1, SdB, WC, Couloir.
+- **Une lampe d'aucune zone n'existe pas dans l'application** (ni liste, ni carte, ni consommation de House Sync).
+- Zone repliable, ouverte au départ : compte et boutons ON / OFF pour toute la zone (pas de curseur de zone), grille de cases (3, 4 dès `sm:`, 6 dès `lg:`).
+- Le groupe « Volière » contient aussi les détecteurs de la cage (mouvement, température, luminosité, pile).
+- Section « Automatisations » en bas : les règles du pont.
+- Chaque lampe a le même bloc : ON / OFF, bordure jaune allumée qui pâlit avec la luminosité, rond de la carte en haut à droite, curseur dedans.
 
-- Les détecteurs de mouvement de la cage sont dans le groupe « Volière » avec mouvement, température, luminosité et pile.
-- Une section « Automatisations » en bas montre les règles du pont ; « Tout allumer » et « Tout éteindre » en haut ne touchent pas la volière.
-- Chaque zone est un rectangle repliable : sur la ligne de son nom, le compte et deux petits boutons **ON / OFF** pour toute la zone (pas de curseur de zone) ; dedans, une **grille de petites cases** (3 par ligne sur téléphone, 4 dès `sm:`, 6 dès `lg:`), une par lampe, qui bascule ON / OFF. **ON = puissance max** : allumer envoie `{ on: true, bri: 254 }` (`MAX_BRI`, `constants.ts`) pour une case, une zone, « Tout allumer » et une ampoule de la carte ; éteindre envoie `{ on: false }`. Tous les groupes sont ouverts au départ sauf « À placer ».
-- **Extinction de la lumière de la perruche** (`components/FadeButton`, `lib/useFade.ts`, API `/hue/lights/26/fade`) : dans la ligne à curseur de la lampe « Perruche » sous la grille de sa zone (liste de bureau, pas dans le détail d'une caméra), le bouton **« Éteindre la lumière en 15 min »** lance une descente de la luminosité au minimum par le pont, puis l'extinction ; il devient **« Annuler l'extinction (14:32) »** avec le temps restant (relu du pont toutes les 10 s). **Le curseur de la lampe descend de sa luminosité d'avant au minimum en ligne droite sur les 15 minutes** (`fadeLevel` de `lib/useFade.ts`, d'après `started_at`, `duration_seconds` et `from_bri` que donne `GET /hue/lights/<id>/fade`) : le pont annonce tout de suite la luminosité cible, il ne dit pas le trajet, donc sans ce calcul le curseur tombait d'un coup à 0. `Lights` tient le hook `useFade` et le passe au bouton.
+## Extinction de la perruche
 
-## La carte
-
-**Il n'y a plus de carte dans cet onglet** : la carte des lampes est dans **Home** (`../HouseMap/CLAUDE.md`).
+- `components/FadeButton`, `lib/useFade.ts`, `/hue/lights/26/fade` : « Éteindre la lumière en 15 min » devient « Annuler l'extinction (14:32) » (relu toutes les 10 s). Liste de bureau seulement.
+- Le curseur descend en ligne droite sur les 15 min (`fadeLevel`, d'après `started_at`, `duration_seconds`, `from_bri`) : le pont annonce tout de suite la cible, sans ce calcul le curseur tombait d'un coup à 0.
 
 ## Positions des lampes
 
-Gardées dans le **plan de l'API** (lues et déplacées depuis la carte de Home) (`items`, par identifiant de lampe, en longitude et latitude comme le reste du plan : `usePlan.moveItem`, `PUT /plan`). **Migration sans perte** (`planLamps`, `helpers.ts`) : une lampe sans place dans le plan prend, dans l'ordre, la place de départ de la carte (lampe de la cage), sa position de l'ancien plan lue dans `/hue/positions` (puis l'ancienne copie `localStorage` `house-lights-positions-v1`, `lib/useLegacyPositions.ts`) **convertie à la lecture**, puis celle de `LAMP_POSITIONS` convertie ; une ancienne position dans l'ancienne zone « À placer » (x ≥ `SIDE_ZONE.x`) compte pour « pas placée ». `/hue/positions` n'est plus écrit ni effacé (la lecture reste) ; une lampe n'entre dans le plan qu'une fois déplacée à la main.
-- **Chaque lampe a son bloc, le même pour toutes (celle de la perruche comprise)** : son bouton ON / OFF, **une bordure jaune quand elle est allumée (qui pâlit avec la luminosité, comme l'ampoule)**, un rond en haut à droite, **le même que sur la carte** (fond blanc, bordure noire, icône d'ampoule dont le jaune pâlit avec la luminosité), et son curseur de luminosité dedans (envoyé au relâchement) ; le bouton d'extinction en douceur de la lampe de la perruche est dessous. Les zones gardent leur ordre (allumées ou non), les lampes leur place dans leur zone.
+- Gardées dans le **plan de l'API** (`items` par identifiant, `usePlan.moveItem`, `PUT /plan`).
+- **Migration sans perte** (`planLamps`, `helpers.ts`) : sans place dans le plan, la lampe prend dans l'ordre la place de départ de la cage, `/hue/positions` (puis `localStorage` `house-lights-positions-v1`, `lib/useLegacyPositions.ts`), puis `LAMP_POSITIONS`, le tout converti à la lecture. Une ancienne position dans « À placer » (x >= `SIDE_ZONE.x`) compte pour non placée.
+- `/hue/positions` n'est plus écrit. Une lampe n'entre dans le plan qu'une fois déplacée à la main.

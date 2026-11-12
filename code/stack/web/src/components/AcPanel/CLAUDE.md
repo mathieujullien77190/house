@@ -1,10 +1,25 @@
 # AcPanel – l'onglet Clim
 
-Les climatisations Mitsubishi (API `/ac`, relue toutes les 10 s). Un bloc par unité : son nom, son état en une phrase (allumée ou éteinte, mode, température de la pièce), puis les commandes.
+Climatisations Mitsubishi (`/ac`, 10 s). Un bloc par unité : nom, état en une phrase, commandes.
 
-- **Quatre commandes**, toutes par `POST /ac/<id>` (un seul champ à la fois, les autres réglages ne bougent pas) : **On / Off** (un interrupteur à glissière à droite du nom, `role="switch"`, avec « On » ou « Off » à côté), les **cinq modes** (Chaud, Froid, Sec, Ventilation, Auto : le mode courant est en surbrillance), la **consigne** (− / + : un pas de 0,5 °C, entre 16 et 31 °C, `stepTarget`) le **ventilateur** (Auto, Silence, 1 à 4) et **l'ailette, qui dépend de la pièce** : **le salon** règle l'ailette **haut / bas** (Va-et-vient, Auto, 1 haut à 5 bas, `vane`) ; **les chambres** (`HORIZONTAL_VANE_UNITS`) règlent l'ailette **gauche / droite** (Va-et-vient, Gauche, Milieu gauche, Milieu, Milieu droite, Droite, `wideVane`). L'API rend l'unité avec le changement appliqué (sans relire le module) ; les boutons de l'unité sont grisés le temps de la requête. Un échec (module injoignable) affiche « L'ordre n'est pas parti ».
-- Le bloc d'une unité est `AcUnitCard.tsx`, **partagé** avec l'aperçu de la carte (`../AcPreview/CLAUDE.md`), et **la lecture et les ordres sont le hook partagé `lib/useAcUnits.ts`** (une lecture qui échoue garde la dernière liste et dit pourquoi : l'onglet n'affiche alors que le message).
-- Une unité dont le module ne répond pas (`reachable: false`) montre seulement « Le module Wi-Fi de cette unité ne répond pas ». Aucune unité configurée (`AC_UNITS` absent) : l'API répond 503 et l'onglet le dit.
-- Pas de retour instantané du module après une commande à la télécommande : l'état se met à jour à la prochaine lecture (10 s).
+- `AcUnitCard.tsx` et `lib/useAcUnits.ts` sont **partagés** avec l'aperçu de la carte (`../AcPreview/CLAUDE.md`). Une lecture qui échoue garde la dernière liste et dit pourquoi.
+- **Le salon est toujours en premier** (`salonFirst`, tri stable), onglet et carte.
 
-**Le salon est toujours en premier** (`salonFirst` de `lib/useAcUnits.ts`, tri stable : les autres gardent l'ordre de l'API), dans l'onglet Clim comme dans la carte.
+## Commandes
+
+Toutes par `POST /ac/<id>`, **un seul champ à la fois**.
+
+- On / Off : interrupteur (`role="switch"`) à droite du nom.
+- Cinq modes : Chaud, Froid, Sec, Ventilation, Auto.
+- Consigne : - / + par 0,5 °C, de 16 à 31 °C (`stepTarget`).
+- Ventilateur : Auto, Silence, 1 à 4.
+- **Ailette selon la pièce** :
+  - salon : haut / bas (`vane`) ;
+  - chambres (`HORIZONTAL_VANE_UNITS`) : gauche / droite (`wideVane`).
+- L'API rend l'unité avec le changement appliqué (sans relire le module) ; boutons grisés pendant la requête ; échec : « L'ordre n'est pas parti ».
+
+## Cas particuliers
+
+- Module muet (`reachable: false`) : seulement « Le module Wi-Fi de cette unité ne répond pas ».
+- `AC_UNITS` absent : 503, l'onglet le dit.
+- Pas de retour du module après une commande à la télécommande : mise à jour à la lecture suivante (10 s).

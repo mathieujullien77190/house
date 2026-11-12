@@ -1,24 +1,39 @@
 # sync/web – la page de House Sync
 
-Projet Vite + React + TypeScript à part (mêmes conventions que le site : un dossier par composant, Tailwind, alias `@/`, TypeScript strict, ESLint ; `../../CLAUDE.md` pour le style commun aux deux apps). Compilé dans l'image de House Sync, servi par lui sur le port 8081 (clé et session : `../../docs/securite.md`). Le rendu vient du paquet **`@house/ui`** (`../../ui`) : ici ne restent que les conteneurs.
+Projet Vite + React + TypeScript à part, mêmes conventions que le site (`../../CLAUDE.md`). Compilé dans l'image de House Sync, servi sur le port 8081 (clé et session : `../../docs/securite.md`). Le rendu vient de **`@house/ui`** (`../../ui`) : ici, seulement les conteneurs.
 
-- `lib/api.ts` : les services de House Sync (connexion, vue d'ensemble, tables, clips, réglages, machine, Docker, réseau, Hue), session par cookie.
-- `components/App` : **une barre du haut toujours visible** (`TopBar` de `@house/ui` : le titre, les onglets, l'heure de mise à jour et « Quitter » ; **sur téléphone, un bouton « sandwich » en haut à droite ouvre un menu** avec les onglets, l'heure et « Quitter »), la clé, puis six onglets :
-  - **Base** : les tables de la base (`TableSection`).
-  - **Disque** : la liste des clips du disque backup, rien d'autre (`ClipsSection`).
-  - **Machine** : caractéristiques (`SpecList`), réseau (le câble RJ45 et le WiFi : connecté ou non, débit, signal, trafic), pont Hue (joignable ou non, au même niveau que le réseau, seulement si une adresse de pont est réglée), **Adresses IP de la maison** (un tableau à trois colonnes **Adresse / Matériel / Port**, écrit à la main dans `App/constants.ts`, `ADDRESS_ROWS`, avec `SimpleTable` de `@house/ui` : la box, le mini PC, le switch, les deux caméras, le pont Hue, la prise Kasa, les réseaux de la maison, du VPN et de Docker, l'IP publique et son nom Free ; **à tenir à jour quand une adresse change**), courbes en direct `LineChart` relues toutes les 2 s, camemberts mémoire, processeur et disque, puis **un seul arbre** « Consommation électrique (estimation) » (`components/EnergyTree`, données de `lib/energyTree.ts` : `buildEnergyTree`) : la racine est la somme de tout, puis les branches Caméras (`GET /api/camera-energy`), Lampes Hue (`GET /api/lamp-energy`) et Mini PC (processeur seul, `GET /api/machine-energy`), puis une feuille par caméra et par lampe ; chaque nœud montre la **puissance actuelle (W)**, l'**énergie depuis le début du suivi (kWh)** et le **coût (€)**, un groupe étant la somme de ses enfants (une puissance inconnue compte pour 0) ; les groupes se replient. Une source qui manque n'a pas de branche ; sans aucune source, un message. **Tous les groupes sont fermés au départ**, l'arbre est dans un bloc de la grille comme les caractéristiques et le disque, et il n'y a plus de note dessous ni de bloc « Consommation électrique » à part (le bloc des watts du processeur et des caméras est supprimé : l'arbre le remplace). « Processeur par thread » : repliée par défaut, une petite courbe en direct par thread (`cpu.perThread`, relu toutes les 2 s, 2 minutes d'historique), sous les courbes du processeur et de la mémoire.
-  - **Docker** : une fiche par conteneur.
-  - **Schéma** : l'architecture **matérielle** (caméras, switch PoE, mini PC, box, pont Hue, prise, téléphone et invités), puis l'architecture **logicielle** (go2rtc, motion, sync, api, guest, disque backup, équipements, services de l'hôte), à la suite, chacune dans un bloc repliable : les deux **schémas SVG du site** (onglet Architecture, vues Matériel et Logiciel) repris à l'identique : cadres, boîtes, disques et flèches (pleines, en tirets, violettes pour le direct, bleues pour le VPN) qui disent ce qui passe. `SchemaSection` ne charge rien ; le dessin est celui de `components/SchemaSection/ArchDiagram` (SVG, couleurs `vpn` et `switch` dans `ui/src/tokens.css`) et le contenu est écrit à la main dans `components/SchemaSection/constants.ts` (`HARDWARE`, `SOFTWARE`) : **à tenir à jour quand l'architecture change, avec le site**.
-  - **Réglages** : tous les réglages de House Sync (`SettingsSection`).
-- Tous les blocs se replient (`Collapsible` de `@house/ui`), les « Caractéristiques » le sont au départ.
-- **Seule la page affichée est chargée** (`loadTab` dans `App.tsx`) : Base et Disque lisent la vue d'ensemble **sans parcourir le disque backup** (`GET /api/overview?part=database`), Machine lit aussi le disque, le processeur, les caractéristiques, le réseau et le pont Hue, Docker ne lit que Docker, Réglages se lisent eux-mêmes. Les autres pages se chargent par leurs propres requêtes quand on les ouvre, et toutes les 15 s seule la page affichée est relue (sauf média ouvert) ; un compteur `refreshTick` fait recharger leur page aux tableaux.
-- `TableSection` : une table de la base, avec ses filtres, paginée et repliée par défaut : `components/TableSection/CLAUDE.md`.
-- `SettingsSection` : l'onglet Réglages, rangé par sujet : `components/SettingsSection/CLAUDE.md`.
-- `ClipsSection` : les clips du disque backup en **une seule table, deux vues** (onglets « Sauvegardés » / « Les autres », filtres caméra et date), paginés, **une ligne par événement** avec ses deux versions (copie légère H.264 720p et original H.265 4K, un bouton « voir » et la taille de chacune ; `/api/clips` réunit les fichiers `<id>.h264.mp4` et `<id>.mp4` avec `groupClips`).
-- `MediaPanel` : le clip ou l'image ouvert, dans le panneau collant de `@house/ui` au-dessus des tableaux ; la vidéo démarre à l'ouverture, Fermer l'arrête, les tableaux ne changent pas de taille.
+## Structure
+
+- `lib/api.ts` : services de House Sync, session par cookie.
+- `components/App` : `TopBar` toujours visible (titre, onglets, heure de mise à jour, « Quitter » ; sur téléphone, un menu « sandwich »), la clé, puis cinq onglets.
+- Tous les blocs se replient (`Collapsible`) ; « Caractéristiques » l'est au départ.
+
+## Onglets
+
+- **Base** : tables de la base (`TableSection` : `components/TableSection/CLAUDE.md`).
+- **Disque** : clips du disque backup (`ClipsSection`).
+  - Une table, deux vues (« Sauvegardés » / « Les autres », filtres caméra et date), une ligne par événement.
+  - Deux versions par ligne (légère H.264 720p, original H.265 4K), regroupées par `groupClips`.
+- **Machine** : caractéristiques, réseau, pont Hue (si adresse réglée), adresses IP, courbes, camemberts, arbre de consommation.
+  - Courbes en direct relues toutes les 2 s ; « Processeur par thread » repliée par défaut (`cpu.perThread`, 2 min d'historique).
+  - **Adresses IP de la maison** : tableau écrit à la main (`ADDRESS_ROWS` dans `App/constants.ts`) : **à tenir à jour quand une adresse change**.
+  - **Arbre unique** « Consommation électrique (estimation) » (`components/EnergyTree`, `lib/energyTree.ts` : `buildEnergyTree`) :
+    - racine = somme ; branches Caméras, Lampes Hue, Mini PC (processeur seul) ; une feuille par caméra et par lampe ;
+    - chaque nœud : puissance (W), énergie (kWh) et coût (€) depuis le début du suivi ; un groupe somme ses enfants (puissance inconnue = 0) ;
+    - **groupes fermés au départ** ; source absente = pas de branche ; aucune source = un message.
+- **Docker** : une fiche par conteneur.
+- **Réglages** : `SettingsSection` (`components/SettingsSection/CLAUDE.md`).
+
+## Chargement
+
+- **Seule la page affichée est chargée** (`loadTab` dans `App.tsx`), puis relue toutes les 15 s (sauf média ouvert) ; `refreshTick` fait recharger les tableaux.
+- Base et Disque : `GET /api/overview?part=database` (sans parcourir le disque). Machine : disque, processeur, caractéristiques, réseau, Hue en plus. Docker : Docker seul. Réglages : se lisent eux-mêmes.
+- `MediaPanel` : clip ou image ouvert dans le panneau collant de `@house/ui` ; la vidéo démarre à l'ouverture, Fermer l'arrête.
 
 ## Tests et développement
 
-`npm test` (Vitest, jsdom, Testing Library) ; `npm run test:coverage` mesure la couverture de `src/**` seulement (pas `@house/ui`, qui a ses propres essais) et **échoue sous 100 %** (lignes, fonctions, branches, instructions). La configuration est dans `vite.config.ts` (clé `test`). Les essais sont à côté du code (`nom.test.ts` ou `nom.test.tsx`) ; `lib/api.ts` se teste avec un `fetch` simulé, les conteneurs avec `vi.mock('@/lib/api')`. `src/lib/fixtures.ts` (données types) et `src/test-setup.ts` ne sont pas du code de la page. Exclus de la couverture : `src/main.tsx` (monte l'application, aucune logique) et les fichiers `types.ts` (seulement des types).
-
-Développement : `npm install`, `npm run dev` (HTTPS sur 5181 avec le certificat de `data/certs`, services relayés vers House Sync). Vérifications : `npm run typecheck && npm run lint && npm run test:coverage && npm run build`.
+- `npm test` (Vitest, jsdom, Testing Library) ; `npm run test:coverage` **échoue sous 100 %** sur `src/**` (pas `@house/ui`, qui a ses essais). Config dans `vite.config.ts` (clé `test`).
+- `lib/api.ts` se teste avec un `fetch` simulé, les conteneurs avec `vi.mock('@/lib/api')`.
+- Hors couverture : `main.tsx`, `types.ts`, `lib/fixtures.ts`, `test-setup.ts`.
+- Dev : `npm run dev` (HTTPS sur 5181 avec le certificat de `data/certs`, services relayés vers House Sync).
+- Vérifications : `npm run typecheck && npm run lint && npm run test:coverage && npm run build`.

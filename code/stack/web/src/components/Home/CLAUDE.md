@@ -1,7 +1,9 @@
-# Home – la carte de la maison
+# Home – l'onglet de départ
 
-L'onglet **Home** (le premier ; un clic sur le titre « House » (`onTitle` de `TopBar`) rafraîchit la page, qui se rouvre sur Home). C'est **l'onglet de départ** (`DEFAULT_TAB`, au rechargement aussi).
+Premier onglet et onglet d'ouverture (`DEFAULT_TAB`, y compris au rechargement). Un clic sur le titre « House » (`onTitle` de `TopBar`) rafraîchit la page, qui se rouvre sur Home.
 
-- **La carte de la maison** (`components/HouseMap`, `../MapPlan/CLAUDE.md`) : toit caché ; **un clic ouvre la bonne page** : une caméra du plan → l'onglet Caméras sur cette caméra, le rectangle d'une climatisation → l'onglet Clim, la prise connectée → l'onglet Prise, le volet de la cuisine : **pas de changement de page, un clic le descend ou le monte** (en modification, un clic ne fait rien : on déplace). **Toutes les lampes** du pont Hue y sont aussi (un clic les allume ou les éteint). **Sur téléphone (sous 1024 px) elle est montrée aussi, en paysage, et remplit l'espace qui reste sous la barre du haut** (`fill` de `MapPlan` : hauteur mesurée, `fitHeight`, 15 rem au moins) ; un clic sur un objet y ouvre directement sa page (pas de bloc à côté). `App` donne les vraies caméras (`cameras`) à `Home`.
-- **La Home reste montée quand on change d'onglet** (`App/UI.tsx` : elle est seulement cachée, `hidden`) : le bloc ou le clip choisi, les flux des miniatures de caméras (chargés dès l'ouverture) et la vue de la carte **restent pendant toute la session** ; la carte se redimensionne quand elle redevient visible (`ResizeObserver`). La sélection est aussi gardée dans un état global (`lib/homeSelection.ts`).
-- Les **clips sauvegardés** ne sont plus ici : ils sont en bas de l'onglet Caméras (`../SavedClips/CLAUDE.md`).
+- **La carte** (`components/HouseMap`, `../HouseMap/CLAUDE.md`, `../MapPlan/CLAUDE.md`) : toit caché. `App` lui donne les vraies caméras.
+- Clics : voir `../HouseMap/CLAUDE.md` (aperçus et double clics).
+- **Téléphone (sous 1024 px)** : carte en paysage qui remplit la place sous la barre (`fill`, `fitHeight`, 15 rem au moins) ; un clic ouvre directement la page de l'objet.
+- **Home reste montée quand on change d'onglet** (`App/UI.tsx` : seulement `hidden`). Bloc ou clip choisi, flux des miniatures et vue de la carte restent toute la session ; la carte se redimensionne au retour (`ResizeObserver`). Sélection : `lib/homeSelection.ts`.
+- Les clips sauvegardés sont en bas de l'onglet Caméras (`../SavedClips/CLAUDE.md`).
