@@ -1,6 +1,6 @@
 # stack – la pile en service sur le mini PC
 
-Des conteneurs Docker (`docker-compose.yml`) sur le mini PC de la maison (ACEMAGIC K1, Ubuntu Server), avec deux Reolink RLC-810A branchées au switch PoE ES208GP :
+Des conteneurs Docker (`docker-compose.yml`) sur le mini PC de la maison (ACEMAGIC K1, Ubuntu Server), avec quatre Reolink RLC-810A branchées au switch PoE ES208GP :
 
 | Conteneur | Rôle | Port |
 |---|---|---|

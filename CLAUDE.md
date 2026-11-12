@@ -5,10 +5,10 @@ Site React + TypeScript (Vite, Tailwind) pour **suivre le système domotique de 
 Le dossier `code/stack/` contient la **vraie pile** (Docker, en service sur le mini PC). Le site décrit l'**état actuel** du système.
 
 ```
-Caméras : 2 Reolink RLC-810A, PoE, au portail
+Caméras : 4 Reolink RLC-810A, PoE (volière, salon de jardin, toit de la volière)
    │  un câble RJ45 par caméra (données + alimentation)
    ▼
-1 switch PoE TP-Link ES208GP (ports 3 et 4 pour les caméras), relié à la box
+1 switch PoE TP-Link ES208GP (ports 3, 4, 7 et 8 pour les caméras), relié à la box
    ▼
 Mini PC ACEMAGIC K1 (Ubuntu Server, SSD de 1 To) : Docker Compose, tout en conteneurs
    ▼
