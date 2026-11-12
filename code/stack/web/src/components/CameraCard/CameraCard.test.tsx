@@ -528,9 +528,17 @@ describe('CameraCard : le clip', () => {
     pick(event('a', { clip: null, ended_at: null }))
     expect(screen.getByText(/Événement en cours/)).toBeInTheDocument()
     first.unmount()
-    mount({ events: [event('b', { clip: null })] })
-    pick(event('b', { clip: null }))
+    const recent = event('b', { clip: null, ended_at: h.s.now - 60 })
+    mount({ events: [recent] })
+    pick(recent)
     expect(screen.getByText(/en cours de copie/)).toBeInTheDocument()
+  })
+  it('un événement fini depuis plus de 10 minutes et sans clip : il n’y en aura pas', () => {
+    const old = event('c', { clip: null, ended_at: h.s.now - 601 })
+    mount({ events: [old] })
+    pick(old)
+    expect(screen.getByText(/Pas de clip pour cet événement/)).toBeInTheDocument()
+    expect(screen.queryByText(/en cours de copie/)).toBeNull()
   })
 
   it('une image d’un instant passé', () => {

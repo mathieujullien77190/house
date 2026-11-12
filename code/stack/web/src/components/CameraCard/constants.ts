@@ -32,6 +32,9 @@ export const NO_IMAGE_TEXT = 'Direct indisponible : go2rtc ne répond pas.'
 export const CAMERA_OFF_TEXT = 'Caméra éteinte'
 export const CAMERA_STARTING_TEXT = 'Caméra en démarrage…'
 export const NO_CLIP_TEXT = 'Clip en cours de copie par House Sync…\nIl apparaîtra dès qu’il est prêt.'
+/** Un événement fini depuis plus longtemps que ça (secondes) et sans clip n'en aura pas : House Sync copie un clip en une ou deux minutes. */
+export const CLIP_WAIT_SECONDS = 600
+export const NEVER_CLIP_TEXT = 'Pas de clip pour cet événement.\nLes clips étaient coupés : mode pluie ou brouillard, ou réglage de la caméra.'
 export const ONGOING_CLIP_TEXT = 'Événement en cours : le clip arrivera à la fin du mouvement.'
 
 /** Le lecteur du clip se charge sans se voir (sr-only le garde dans la page : un `display: none` empêcherait le téléphone de charger la vidéo). */

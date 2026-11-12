@@ -39,6 +39,8 @@ import {
   POWER_ERROR_TEXT,
   LIVE_QUALITY_LABEL,
   LIVE_QUALITY_OPTIONS_SHORT,
+  CLIP_WAIT_SECONDS,
+  NEVER_CLIP_TEXT,
   NO_CLIP_TEXT,
   NO_IMAGE_TEXT,
   ONGOING_CLIP_TEXT,
@@ -259,7 +261,8 @@ const CameraCard = ({
   const clipReady = clipPath !== null && clipPath === readyClip
   const clipFailed = clipPath !== null && clipPath === failedClip
   // Un événement choisi dont la vidéo n'est pas encore là (en cours, ou fini mais pas encore copié) : un cadre noir et ce qu'on attend.
-  const pendingText = selected && !selected.clip ? (ongoing ? ONGOING_CLIP_TEXT : NO_CLIP_TEXT) : ''
+  const neverClip = selected !== null && selected.ended_at !== null && now - selected.ended_at > CLIP_WAIT_SECONDS
+  const pendingText = selected && !selected.clip ? (ongoing ? ONGOING_CLIP_TEXT : neverClip ? NEVER_CLIP_TEXT : NO_CLIP_TEXT) : ''
   // Le direct. En 4K : le flux 4K, chargé caché (`HD_PRELOAD_CLASS`) tant que sa première image n'est pas arrivée, avec le flux léger par-dessus ; en léger : le flux léger seul.
   const lightImage = () => <ImageBox src={placeholder ? '' : liveSrc(camera.name, false, mobile)} message={placeholder || NO_IMAGE_TEXT} upright={turned} />
   const liveImage =
