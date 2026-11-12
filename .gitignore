@@ -10,3 +10,4 @@ code/stack/**/node_modules/
 code/stack/**/dist/
 
 .claude/worktrees/
+code/stack/site/www/

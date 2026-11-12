@@ -231,6 +231,37 @@ services:
       # Pour joindre go2rtc (go2rtc:1984), qui n'est jamais publié.
       - sync_net
 
+  # Le site de la maison (voir site/CLAUDE.md) : schémas, Architecture, explications, vue Code, Storybook. Des fichiers compilés par
+  # deploy.sh, servis par nginx en HTTPS sur le port 8082. Aucune donnée, aucun réseau : il ne parle à personne.
+  site:
+    build: ./site
+    restart: unless-stopped
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+    ports:
+      - "8082:8082"
+    volumes:
+      # Seulement le certificat et sa clé (pas la clé de la CA), en lecture seule.
+      - ./data/certs/cert.pem:/certs/cert.pem:ro
+      - ./data/certs/key.pem:/certs/key.pem:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://127.0.0.1:8082/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    networks:
+      - web_net
+
   # La page invité (voir guest/CLAUDE.md) : le direct léger des caméras, pour quelqu'un à qui on donne un lien. Éteinte par défaut (profil
   # « guest » : un « docker compose up -d » ne la lance pas). Allumer : docker compose up -d --build guest. Éteindre complètement :
   # docker compose stop guest (elle reste éteinte après un redémarrage de la machine). Un conteneur à part : pas de disque, pas de base,
