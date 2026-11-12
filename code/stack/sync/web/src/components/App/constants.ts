@@ -13,7 +13,6 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'system', label: 'Machine' },
   { id: 'docker', label: 'Docker' },
   { id: 'settings', label: 'Réglages' },
-  { id: 'schema', label: 'Schéma' },
 ]
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification…'
@@ -68,14 +67,14 @@ export const ADDRESS_COLUMNS = ['Adresse', 'Matériel', 'Port']
 /** Une ligne par adresse : l’adresse, le matériel, le port utilisé. */
 export const ADDRESS_ROWS: string[][] = [
   ['192.168.1.254', 'Freebox (la box)', ''],
-  ['192.168.1.139 (mini.local)', 'Mini PC ACEMAGIC K1', '22, 8080, 8081, 8090'],
+  ['192.168.1.139 (mini.local)', 'Mini PC ACEMAGIC K1', '22, 8080, 8081, 8082, 8090'],
   ['192.168.1.33', 'Switch TP-Link ES208GP', '80'],
   ['192.168.1.141', 'Caméra Reolink voliere-exterieur', '554'],
   ['192.168.1.52', 'Caméra Reolink voliere-interieur', '554'],
   ['192.168.1.81', 'Pont Philips Hue', '80, 443'],
   ['192.168.1.200', 'Prise TP-Link Kasa HS100', '9999'],
   ['192.168.1.0/24', 'Réseau de la maison (Freebox)', ''],
-  ['192.168.27.139', 'Mini PC vu du VPN WireGuard', '8080, 8081'],
+  ['192.168.27.139', 'Mini PC vu du VPN WireGuard', '8080, 8081, 8082'],
   ['192.168.27.0/24', 'Réseau du VPN WireGuard (Freebox)', ''],
   ['100.x.y.z (<machine>.<réseau>.ts.net)', 'Mini PC vu de Tailscale : la page invité publique (Funnel)', '443 vers 8090'],
   ['IP publique (voir Freebox OS)', 'IP publique de la Freebox', 'aucun port ouvert'],

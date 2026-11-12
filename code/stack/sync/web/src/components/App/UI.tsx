@@ -1,6 +1,5 @@
 import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PieChart, SimpleTable, SpecList, TopBar } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
-import SchemaSection from '@/components/SchemaSection'
 import SettingsSection from '@/components/SettingsSection'
 import KeyForm from '@/components/KeyForm'
 import EnergyTree from '@/components/EnergyTree'
@@ -246,8 +245,6 @@ const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEne
               ) : null}
               <Notice text={DOCKER_NOTE} />
             </>
-          ) : tab === 'schema' ? (
-            <SchemaSection />
           ) : tab === 'settings' ? (
             <SettingsSection />
           ) : (
