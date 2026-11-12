@@ -19,7 +19,7 @@ export interface DiagramNode {
   price?: number
   /** Puissance maximale au secteur, en watts, d'un composant libre branché sur une prise 230 V (le mini PC). */
   watts?: number
-  /** Zone surveillée (caméras seulement), ex. « Portail ». */
+  /** Zone surveillée (caméras seulement), ex. « Volière ». */
   zone?: string
 }
 
@@ -74,13 +74,17 @@ const node = (id: string, kind: NodeKind, x: number, y: number, extra: Partial<D
 
 /**
  * Schéma de départ, posé sur le plan de la maison (voir plan.ts) : l'état actuel du système.
- * Rez-de-chaussée : 2 Reolink au portail, le switch PoE, le mini PC (ACEMAGIC K1, SSD de 1 To, toute la pile Docker),
+ * Rez-de-chaussée : 4 Reolink dans le jardin, le switch PoE, le mini PC (ACEMAGIC K1, SSD de 1 To, toute la pile Docker),
  * la box (internet et serveur VPN WireGuard), le PC de la maison qui ouvre les applications par le WiFi de la box et, hors
  * de la maison (en haut à droite du jardin), le téléphone en 4G qui arrive par le tunnel WireGuard.
  */
 export const defaultNodes: DiagramNode[] = [
-  node('cam1', 'camera', 40, 205, { title: 'Reolink 1', zone: 'Portail' }),
-  node('cam2', 'camera', 40, 300, { title: 'Reolink 2', zone: 'Portail' }),
+  // Les quatre Reolink (dans l'ordre du compose : ports PoE 3, 4, 7 et 8 du switch). Leur emplacement réel n'est pas connu :
+  // les positions sont schématiques (une colonne à l'ouest du jardin, hors du chemin du portail), à ajuster au besoin.
+  node('cam1', 'camera', 40, 195, { title: 'Volière ext.', zone: 'Volière' }),
+  node('cam2', 'camera', 40, 305, { title: 'Volière int.', zone: 'Volière' }),
+  node('cam3', 'camera', 40, 350, { title: 'Salon jardin', zone: 'Salon de jardin' }),
+  node('cam4', 'camera', 40, 395, { title: 'Volière toit', zone: 'Toit de la volière' }),
 
   node('swA', 'switch', 440, 335, { title: 'Switch PoE', floor: 'rdc' }),
   // Le mini PC (479 €) fait tourner toute la pile ; son SSD de 1 To garde les clips et la base.
@@ -106,6 +110,8 @@ const link = (from: string, to: string, type: LinkType): DiagramLink => ({ id: `
 export const defaultLinks: DiagramLink[] = [
   link('cam1', 'swA', 'poe'),
   link('cam2', 'swA', 'poe'),
+  link('cam3', 'swA', 'poe'),
+  link('cam4', 'swA', 'poe'),
   // Tout sur l'unique switch, relié à la box ; les clips sont sur le SSD interne du mini PC.
   link('swA', 'mini', 'eth'),
   link('swA', 'box', 'eth'),

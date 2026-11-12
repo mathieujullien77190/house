@@ -1,5 +1,5 @@
 // Les quatre domaines de la maison connectée : ce qui est en place, ce qui est en préparation (avec son prix s'il est connu).
-// Les prix sont ceux relevés le 3 novembre 2026 (Amazon et shelly.com), à revérifier avant de commander.
+// Les prix sont ceux relevés le 3 novembre 2026 (Amazon et shelly.com), à revérifier avant de commander ; ceux de la boîte à servos des volets Nice ont été relevés le 12 novembre 2026 (Amazon).
 
 export type DomainId = 'cameras' | 'lights' | 'shutters' | 'plugs'
 
@@ -24,17 +24,17 @@ export const domains: Record<DomainId, DomainInfo> = {
   cameras: {
     id: 'cameras',
     label: 'Caméra',
-    intro: 'Deux caméras au portail, enregistrées en continu par le mini PC.',
+    intro: 'Quatre caméras, enregistrées en continu par le mini PC.',
     inPlace: [
       {
         id: 'reolink',
-        title: '2 caméras Reolink RLC-810A',
-        text: '4K, alimentées par le câble réseau (PoE) depuis le switch TP-Link ES208GP, ports 3 et 4. Un enregistrement continu de 6 h, des clips sur mouvement copiés sur le disque de sauvegarde.',
+        title: '4 caméras Reolink RLC-810A',
+        text: 'voliere-exterieur, voliere-interieur, salon-de-jardin et voliere-toit. 4K, alimentées par le câble réseau (PoE) depuis le switch TP-Link ES208GP, ports 3, 4, 7 et 8 : 4 × 12 W = 48 W au plus pour 64 W de budget. Un enregistrement continu de 6 h, des clips sur mouvement copiés sur le disque de sauvegarde, le son du clip seulement pour voliere-interieur. La page invité ne montre que voliere-exterieur et voliere-interieur.',
       },
       {
         id: 'mini-pc',
         title: 'Mini PC ACEMAGIC K1',
-        text: 'Fait tourner la pile Docker : go2rtc (le direct), motion (l’enregistreur), House Sync, House API et la WebApp. Accessible hors de la maison par le VPN WireGuard de la Freebox.',
+        text: 'Fait tourner la pile Docker : go2rtc (le direct) et motion (l’enregistreur), une seule unité pour les quatre caméras, puis House Sync, House API et la WebApp (et la page invité, éteinte par défaut). Accessible hors de la maison par le VPN WireGuard de la Freebox.',
       },
     ],
     planned: [
@@ -63,7 +63,7 @@ export const domains: Record<DomainId, DomainInfo> = {
       {
         id: 'hue-rules',
         title: 'Automatisations du pont',
-        text: 'Une règle éteint toutes les pièces à 10:00. Deux règles de capteurs allument et éteignent la cage selon le jour et la nuit.',
+        text: 'Quatre règles, dans le pont. « Eteind tout » éteint toutes les pièces à 10:00, cage comprise. Le détecteur « motion interieur » (cage) allume la scène « Lumineux » en cas de mouvement la nuit et éteint la lumière après 40 min sans mouvement le jour, 20 min la nuit. Depuis le 11 novembre 2026, la lampe de la volière a en plus « Allume perruche 16h » (scène « Lumineux » tous les jours à 16:00) et « Eteind perruche 18h » (tous les jours à 18:00, extinction progressive sur 15 minutes). « motion exterieur » est lu et journalisé, mais ne commande plus rien depuis le 7 novembre.',
       },
     ],
     planned: [
@@ -77,52 +77,30 @@ export const domains: Record<DomainId, DomainInfo> = {
   shutters: {
     id: 'shutters',
     label: 'Volet',
-    intro: 'Les volets roulants, commandés par radio en 433 MHz.',
+    intro: 'Les volets roulants, commandés par radio en 433 MHz : le volet de la cuisine depuis la WebApp, les autres par leur télécommande murale en attendant la boîte à servos.',
     inPlace: [
       {
-        id: 'somfy-remote',
-        title: 'Télécommande Somfy RTS',
-        text: 'La seule façon de commander les volets aujourd’hui : monter, descendre, stop, sans retour d’état.',
+        id: 'kitchen-shutter',
+        title: 'Volet de la cuisine, piloté depuis la WebApp (depuis le 9 novembre 2026)',
+        text: 'Une ESP32 avec un module radio CC1101 (433 MHz) sous le firmware ESPSomfy-RTS se fait passer pour une télécommande Somfy RTS. House API lui envoie les ordres (monter, stop, descendre) par le réseau de la maison (SHUTTERS, SHUTTERS_ESP_URL, shutterDriver.ts) ; l’onglet Volet de la WebApp les commande, avec une action automatique au lever et au coucher du soleil. Le schéma 3D du montage est sous les schémas matériel et logiciel de cet onglet.',
       },
       {
-        id: 'ww001c-remote',
-        title: 'Télécommande WW001C',
-        text: '433,92 MHz, pile CR2032, moteur peut-être de marque Nice. On ne sait pas encore si son code est fixe ou tournant.',
+        id: 'nice-remotes',
+        title: 'Télécommandes murales Nice (volets PC, SALON et PORTE)',
+        text: 'Trois NiceWay WM001G, 433,92 MHz, à code tournant : elles ne peuvent pas être copiées par radio. Ce sont aujourd’hui la seule façon de commander ces trois volets, sans retour d’état.',
       },
     ],
     planned: [
       {
-        id: 'cc1101',
-        title: 'Module radio CC1101 433 MHz (Binghe, antenne SMA)',
-        text: 'Émet et reçoit en 433 MHz. Alimenté en 3,3 V par l’ESP32. Prendre la version 433 MHz, pas 868.',
-        price: 8.99,
+        id: 'servo-box',
+        title: 'Boîte à 9 servos pour les télécommandes Nice (achats faits le 12 novembre 2026, pas encore reçus)',
+        text: 'Un servo Miuzei MF90 par touche (monter, stop, descendre) des trois télécommandes, soit 9 servos, commandés par une seconde ESP32 et une carte PCA9685 (I2C), alimentés par un bloc 5 V 3 A. Budget total : 83,93 €. La liste d’achats détaillée et le schéma 3D du montage sont sous le schéma 3D des volets, dans cet onglet.',
+        price: 83.93,
       },
       {
-        id: 'esp32',
-        title: 'Carte ESP32 WROOM-32 USB-C (Heemol)',
-        text: 'Le cerveau du montage, sur le Wi-Fi 2,4 GHz. Posée près des volets, alimentée par un chargeur USB. Firmware ESPSomfy-RTS, qui apprend les volets Somfy comme une télécommande de plus.',
-        price: 12.98,
-      },
-      {
-        id: 'dupont',
-        title: 'Câbles Dupont femelle-femelle (Elegoo, lot de 120)',
-        text: '8 fils pour relier le CC1101 à l’ESP32, sans soudure : 3V3, GND, SCK, MISO, MOSI, CSN, GDO0, GDO2.',
-        price: 8.99,
-      },
-      {
-        id: 'usb-power',
-        title: 'Chargeur USB et câble USB-C de données',
-        text: 'N’importe quel chargeur de téléphone (5 V, 1 A) sur une prise de 230 V près des volets, et un câble USB-C qui transmet les données. L’ESP32 consomme moins d’un watt et donne le 3,3 V au CC1101.',
-      },
-      {
-        id: 'service-shutters',
-        title: 'Service « volets » dans House API',
-        text: 'Boutons monter, descendre et stop dans la WebApp, sur le modèle de /hue : House API enverrait les ordres à l’ESP32 par le réseau de la maison. À écrire quand le matériel est là.',
-      },
-      {
-        id: 'ww001c-test',
-        title: 'Identifier le code de la WW001C',
-        text: 'Le CC1101 peut écouter la télécommande : un code fixe se rejoue, un code tournant se traite comme un Somfy.',
+        id: 'service-servos',
+        title: 'Firmware de la seconde ESP32 et commande dans House API',
+        text: 'Le firmware qui pose les servos sur les touches, puis les boutons des volets PC, salon et porte dans la WebApp, sur le modèle de celui de la cuisine. À écrire quand le matériel est là ; rien n’est encore écrit.',
       },
     ],
   },

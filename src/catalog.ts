@@ -54,7 +54,7 @@ export const buildLines = (c: Counts, customs: DiagramNode[] = []): Line[] => {
 
     { id: 'switch', group: 'Réseau', label: 'Switch PoE Gigabit 8 ports TP-Link Omada ES208GP', unit: SWITCH_PRICE, qty: c.switches, source: 'perso', note: '8 ports PoE+, budget PoE 64 W, administrable (Omada) : PoE coupable port par port' },
     // Un rouleau de 100 m d'Ethernet d'extérieur pour les caméras.
-    { id: 'rj45-100m', group: 'Réseau', label: 'deleyCON câble d’installation extérieur Cat6, 100 m (cuivre rigide, étanche)', unit: 84.26, qty: 1, source: 'perso', note: 'Amazon : le rouleau pour les caméras du portail, jardin et extérieur, 1000 Mbit/s', url: 'https://www.amazon.fr/dp/B0GX68JQNN' },
+    { id: 'rj45-100m', group: 'Réseau', label: 'deleyCON câble d’installation extérieur Cat6, 100 m (cuivre rigide, étanche)', unit: 84.26, qty: 1, source: 'perso', note: 'Amazon : le rouleau pour les câbles des caméras, jardin et extérieur, 1000 Mbit/s', url: 'https://www.amazon.fr/dp/B0GX68JQNN' },
 
     // Le mini PC (479 €, SSD M.2 de 1 To pour les clips et la base). Un disque externe reste ajoutable à la main.
     ...customs.filter((n) => (n.price ?? 0) > 0).map((n): Line => ({
