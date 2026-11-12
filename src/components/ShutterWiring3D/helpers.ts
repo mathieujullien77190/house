@@ -1,14 +1,10 @@
 import * as THREE from 'three'
-import { CC_NUMBERS, CC_ORIGIN, CC_PINS, COLORS, ESP_LEFT, ESP_RIGHT, PIN_TOP, PIN_X, PIN_Z0, PITCH, POWER, WIRES } from './constants'
-import type { CcPin, SceneParts, Side, WireLegendItem, WireSpec } from './types'
+import { box, cylinder, drawEspBoard, drawEspPins, espName, espPin, material, pinKey, PIN_TOP, PITCH, textPlane } from '@/lib/esp32Board'
+import { CC_NUMBERS, CC_ORIGIN, CC_PINS, COLORS, POWER, WIRES } from './constants'
+import type { CcPin, SceneParts, WireLegendItem, WireSpec } from './types'
 
 /** Couleur CSS d'une couleur three.js. */
 export const cssColor = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`
-
-/** Nom de la broche de l'ESP32 à ce rang de cette colonne. */
-export const espName = (side: Side, index: number): string => (side === 'L' ? ESP_LEFT : ESP_RIGHT)[index]
-
-const espPin = (side: Side, index: number) => new THREE.Vector3(side === 'L' ? -PIN_X : PIN_X, PIN_TOP, PIN_Z0 + index * PITCH)
 
 const ccPin = (name: CcPin) => {
   const [col, row] = CC_PINS[name]
@@ -26,54 +22,8 @@ export const legendOf = (): WireLegendItem[] =>
     where: wire.where,
   }))
 
-const material = (color: number, options: THREE.MeshStandardMaterialParameters = {}) =>
-  new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.1, ...options })
-
-const box = (w: number, h: number, d: number, color: number, x: number, y: number, z: number) => {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material(color))
-  mesh.position.set(x, y, z)
-  return mesh
-}
-
-const cylinder = (radius: number, height: number, mat: THREE.Material, x: number, y: number, z: number, rotationZ = 0) => {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 16), mat)
-  mesh.position.set(x, y, z)
-  mesh.rotation.z = rotationZ
-  return mesh
-}
-
-/** Un texte posé à plat au-dessus de la carte (il grossit et rapetisse avec le zoom, sans se chevaucher). */
-const textPlane = (text: string, color: string, align: CanvasTextAlign, x: number, z: number, w = 8, h = 2, bold = false): THREE.Object3D => {
-  const canvas = document.createElement('canvas')
-  canvas.width = 64 * w
-  canvas.height = 64 * h
-  const g = canvas.getContext('2d')
-  if (!g) return new THREE.Group()
-  g.font = `${bold ? 700 : 500} ${Math.round(canvas.height * 0.62)}px system-ui, sans-serif`
-  g.textBaseline = 'middle'
-  g.textAlign = align
-  g.fillStyle = color
-  g.fillText(text, align === 'left' ? 6 : align === 'right' ? canvas.width - 6 : canvas.width / 2, canvas.height / 2 + 2)
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.anisotropy = 4
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }))
-  mesh.rotation.x = -Math.PI / 2
-  mesh.position.set(x, 0.95, z)
-  return mesh
-}
-
 const buildFrame = (root: THREE.Group) => {
-  // La carte ESP32 : module Wi-Fi, zone d'antenne, USB-C et deux boutons.
-  root.add(box(28, 1.6, 52, COLORS.board, 0, 0, 0))
-  root.add(box(18, 3.2, 25.5, COLORS.chip, 0, 2.4, -13.5))
-  root.add(box(16, 0.2, 6, COLORS.antennaZone, 0, 4.1, -23.2))
-  root.add(box(9, 3.2, 7.5, COLORS.usb, 0, 2.4, 24.5))
-  root.add(box(3.6, 2, 3.6, COLORS.button, -7, 1.8, 20.5))
-  root.add(box(3.6, 2, 3.6, COLORS.button, 7, 1.8, 20.5))
-  root.add(box(2.5, 2.5, 48.3, COLORS.header, -PIN_X, 2.05, 0))
-  root.add(box(2.5, 2.5, 48.3, COLORS.header, PIN_X, 2.05, 0))
-  root.add(textPlane('ESP32', COLORS.titleText, 'center', 0, -31, 16, 3.5, true))
-  root.add(textPlane('USB-C', COLORS.mutedText, 'center', 0, 31.5, 12, 2.5))
+  drawEspBoard(root)
 
   // Le module CC1101 : carte bleue, connecteur SMA et antenne.
   root.add(box(24, 1.6, 38, COLORS.ccBoard, 48, 0, -2))
@@ -87,20 +37,7 @@ const buildFrame = (root: THREE.Group) => {
 
 const buildPins = (root: THREE.Group, pinNames: THREE.Group) => {
   const pinMaterial = material(COLORS.pin, { metalness: 0.7, roughness: 0.35 })
-  const used = new Map(WIRES.map((wire) => [`${wire.side}${wire.index}`, wire]))
-
-  // Les broches de l'ESP32 : le nom des broches utilisées est en couleur et toujours là, les autres se cachent.
-  for (const side of ['L', 'R'] as const) {
-    const names = side === 'L' ? ESP_LEFT : ESP_RIGHT
-    names.forEach((name, index) => {
-      const p = espPin(side, index)
-      root.add(cylinder(0.32, 8, pinMaterial, p.x, 4.5, p.z))
-      const wire = used.get(`${side}${index}`)
-      const label = textPlane(name, wire ? wireText(wire) : COLORS.mutedText, side === 'L' ? 'right' : 'left', side === 'L' ? -19.6 : 19.6, p.z, 8, 2, Boolean(wire))
-      if (wire) root.add(label)
-      else pinNames.add(label)
-    })
-  }
+  drawEspPins(root, pinNames, new Map(WIRES.map((wire) => [pinKey(wire.side, wire.index), wireText(wire)])))
 
   // Les broches du CC1101 : ses 8 noms sont des fils, donc toujours là.
   for (const wire of WIRES) {

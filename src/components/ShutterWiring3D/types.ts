@@ -1,10 +1,9 @@
 import type { RefObject } from 'react'
+import type { Side } from '@/lib/esp32Board'
 import type * as THREE from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 export type CcPin = 'VCC' | 'GND' | 'GDO0' | 'CSN' | 'SCK' | 'MOSI' | 'MISO' | 'GDO2'
-/** Colonne de l'ESP32 : à gauche ou à droite, l'USB-C étant vers le spectateur. */
-export type Side = 'L' | 'R'
 
 export interface Vec3 {
   x: number

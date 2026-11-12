@@ -1,15 +1,10 @@
+import { ESP_COLORS } from '@/lib/esp32Board'
 import type { CcPin, Vec3, WireSpec } from './types'
 
 // Dimensions en millimètres (1 unité three.js = 1 mm). L'ESP32 est à plat, USB-C vers +z (vers le spectateur),
 // le module CC1101 à sa droite.
 export const VIEW_HEIGHT = 460
-export const PITCH = 2.54
-/** Hauteur du bout des broches au-dessus de la carte. */
-export const PIN_TOP = 8.5
-/** Les deux colonnes de broches sont à ± cette distance de l'axe de la carte. */
-export const PIN_X = 12.7
-/** Position de la première broche d'une colonne, puis le pas, sur l'axe z. */
-export const PIN_Z0 = -22.86
+export { PITCH, PIN_TOP, PIN_X, PIN_Z0, ESP_LEFT, ESP_RIGHT } from '@/lib/esp32Board'
 
 export const TITLE = 'Schéma 3D du montage'
 export const INTRO = 'Les 8 fils entre le module radio CC1101 (433 MHz) et la carte ESP32, et le courant qui les alimente, pour piloter les volets Somfy.'
@@ -35,13 +30,7 @@ export const WIRES_TITLE = 'Les 8 fils'
 export const NO_WEBGL_TEXT = 'La vue 3D demande WebGL, que ce navigateur ne propose pas.'
 
 export const COLORS = {
-  board: 0x1a1e23,
-  chip: 0xbac1c8,
-  antennaZone: 0x15181c,
-  usb: 0xcfd5da,
-  button: 0xd8dde1,
-  header: 0x0d0f12,
-  pin: 0xc9b25a,
+  ...ESP_COLORS,
   ccBoard: 0x1f5fa8,
   sma: 0xd4af37,
   rod: 0x20262c,
@@ -50,13 +39,7 @@ export const COLORS = {
   usbCable: 0x5a6672,
   wall: 0x9aa3b2,
   grid: 0x9aa3b2,
-  titleText: '#6b7684',
-  mutedText: '#8b95a1',
 } as const
-
-/** Noms des broches de l'ESP32 38 broches, du haut (antenne) vers le bas (USB-C). */
-export const ESP_LEFT = ['3V3', 'EN', 'VP', 'VN', 'G34', 'G35', 'G32', 'G33', 'G25', 'G26', 'G27', 'G14', 'G12', 'GND', 'G13', 'SD2', 'SD3', 'CMD', '5V']
-export const ESP_RIGHT = ['GND', 'G23', 'G22', 'TX', 'RX', 'G21', 'GND', 'G19', 'G18', 'G5', 'G17', 'G16', 'G4', 'G0', 'G2', 'G15', 'SD1', 'SD0', 'CLK']
 
 /** Le support 2 × 4 du CC1101 : première broche (x, z), puis place de chaque nom (colonne, rang). */
 export const CC_ORIGIN = { x: 38.5, z: -14 }

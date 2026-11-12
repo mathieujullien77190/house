@@ -19,6 +19,7 @@ import type { TabId } from './types'
 
 // Three.js est lourd : on ne le charge que lorsqu'on ouvre l'onglet qui montre une vue 3D.
 const ShutterWiring3D = lazy(() => import('@/components/ShutterWiring3D'))
+const ServoWiring3D = lazy(() => import('@/components/ServoWiring3D'))
 
 const App = () => {
   const d = useDiagram()
@@ -92,6 +93,9 @@ const App = () => {
               <ShutterSystem />
               <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
                 <ShutterWiring3D />
+              </Suspense>
+              <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
+                <ServoWiring3D />
               </Suspense>
             </div>
           ) : null
