@@ -1,5 +1,7 @@
 // Tests de la recherche des yeux qui brillent : node --test.
 import assert from 'node:assert/strict'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { createEyes } from './eyes.ts'
 import { createRecorder } from './recorder.ts'
@@ -29,6 +31,37 @@ test('une image où l’enregistreur trouve un œil : une ligne et une ligne de 
   // un œil lance un événement de mouvement de la caméra
   assert.deepEqual([ctx.calls[1]?.url, ctx.calls[1]?.method], ['http://rec1:8080/api/cameras/cam/trigger?reason=eyes', 'POST'])
   assert.match(ctx.logs.at(-1) ?? '', /Yeux qui brillent sur cam en \(100, 50\), une paire : snapshots\/cam\/1\.jpg/)
+})
+
+test('un reflet fondu est dit au journal, et l’image gardée est réécrite avec le carré rouge de l’enregistreur', async () => {
+  const marked = Buffer.from('MARKED')
+  const { ctx, eyes } = setup((path) =>
+    path === '/api/eyes/mark' ? new Response(new Uint8Array(marked), { status: 200 }) : Response.json({ ...found, eyes: [{ ...found.eyes[0], width: 14, height: 14, glow: true }] }),
+  )
+  const file = join(ctx.config.dataDir, 'snapshots/cam/1.jpg')
+  mkdirSync(dirname(file), { recursive: true })
+  await eyes.look('cam', sec(ctx), 'snapshots/cam/1.jpg', Buffer.from('JPEG'))
+  assert.match(ctx.logs.at(-1) ?? '', /, reflet fondu : snapshots/)
+  assert.deepEqual(ctx.calls.map((call) => call.url).filter((url) => url.endsWith('/mark')), ['http://rec1:8080/api/eyes/mark'])
+  assert.equal(readFileSync(file).toString(), 'MARKED')
+})
+
+test('sans carré possible (204, erreur, coupure), l’image reste telle quelle et la détection est gardée', async () => {
+  const failures: (() => Response)[] = [
+    () => new Response(null, { status: 204 }),
+    () => new Response('', { status: 500 }),
+    () => {
+      throw new Error('coupé')
+    },
+  ]
+  for (const mark of failures) {
+    const { ctx, eyes } = setup((path) => (path === '/api/eyes/mark' ? mark() : Response.json(found)))
+    const file = join(ctx.config.dataDir, 'snapshots/cam/1.jpg')
+    mkdirSync(dirname(file), { recursive: true })
+    await eyes.look('cam', sec(ctx), 'snapshots/cam/1.jpg', Buffer.from('JPEG'))
+    assert.equal(existsSync(file), false)
+    assert.equal(rows(ctx).length, 1)
+  }
 })
 
 test('au plus une détection par caméra et par minute', async () => {

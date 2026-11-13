@@ -4,6 +4,7 @@ import { messageOf, type Context } from './context.ts'
 import { importGuestVisits, purgeGuestVisits } from './guestVisits.ts'
 import { importHeatingLog } from './heatingLog.ts'
 import { importShutterLog } from './shutterLog.ts'
+import { importBoxConnections } from './boxConnections.ts'
 import { importPlan, readPlan } from './plan.ts'
 
 export const createImports = (ctx: Context) => {
@@ -51,5 +52,14 @@ export const createImports = (ctx: Context) => {
     }
   }
 
-  return { syncPlan, syncGuestVisits, syncHeatingLog, syncShutterLog }
+  const syncBoxConnections = async (): Promise<void> => {
+    try {
+      const imported = await importBoxConnections(db, config.boxLogFile)
+      if (imported > 0) ctx.log(`Box : ${imported} connexion(s) notée(s)`)
+    } catch (error) {
+      ctx.log(`Journal de la box : ${messageOf(error)}`)
+    }
+  }
+
+  return { syncPlan, syncGuestVisits, syncHeatingLog, syncShutterLog, syncBoxConnections }
 }

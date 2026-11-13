@@ -6,11 +6,11 @@ import { dirname } from 'node:path'
 export type ZonePoint = [number, number]
 export type Zones = Record<string, ZonePoint[]>
 
-/** Un polygone valable : de 3 à 32 sommets, deux nombres entre 0 et 1 chacun. */
+/** Un polygone valable : de 3 à 1000 sommets, deux nombres entre 0 et 1 chacun. */
 export const validPolygon = (value: unknown): value is ZonePoint[] =>
   Array.isArray(value) &&
   value.length >= 3 &&
-  value.length <= 32 &&
+  value.length <= 1000 &&
   value.every(
     (point) =>
       Array.isArray(point) && point.length === 2 && point.every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1),

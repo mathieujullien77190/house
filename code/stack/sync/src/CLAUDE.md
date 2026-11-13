@@ -63,6 +63,7 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
 - Si un œil (ou deux : `pair`) est trouvé :
   - une ligne dans `eye_detections` (`camera`, `taken_at`, `path`, `x`, `y`, `size`, `peak`, `contrast`, `pair`, `distance`), une par caméra et par minute au plus ;
   - **un événement de mouvement** : `POST …/trigger?reason=eyes` (point 12 de `../../motion/src/CLAUDE.md`), un appel par caméra toutes les 30 s au plus.
+- L'image de la détection est **réécrite avec un carré rouge** autour de l'œil (`POST /api/eyes/mark` de l'enregistreur, `mark` dans `eyes.ts`) ; si le dessin échoue, l'image reste telle quelle.
 - Le clip n'est copié que si `keepsClip` le veut. Une panne de l'enregistreur est loguée une fois et ne bloque pas la prise d'image.
 - Lignes et images suivent la durée de garde (`purgeSnapshots`).
 - `settings.eyes_now` (0/1) : recherche en cours ; rangé chaque minute par `settings.refreshEyes` (minuteur de `app.ts`) et après un changement ; l'API le rend dans `GET /direct` (`eyes`).
@@ -104,6 +105,7 @@ Tous idempotents, fichiers lus en lecture seule. Un fichier absent ou abîmé ne
   - Unicité (`started_at`, `origin`). `cost` est **calculé par l'API** à l'activation et recopié tel quel : aucune logique de tarif ici.
   - Le fichier garde 5000 lignes, la table tout. L'en-tête de la table affiche les sommes (`sumsOf` de `data.ts`, `heating_log` seulement). Règles : `../../api/src/routes/CLAUDE.md`.
 - **Volets** : toutes les 30 s, `shutters-log.jsonl` (`SHUTTER_LOG_FILE`, `shutterLog.ts`) vers `shutter_log` (`happened_at`, `shutter`, `name`, `command`, `ok`, `note`). Unicité (`happened_at`, `shutter`, `command`). `ok` à 0 : ESP32 muette ; `note` `simulation` sans radio.
+- **Invités de la box** : toutes les 30 s, `box-connections.jsonl` (`BOX_LOG_FILE`, `boxConnections.ts`) vers `box_connections` (`happened_at`, `event` `connect`/`disconnect`, `mac`, `name`, `ip`, `type`, `vendor`). Unicité (`happened_at`, `mac`, `event`). Table créée par `CREATE TABLE IF NOT EXISTS` : les bases existantes ne sont pas touchées. Les noms viennent d'avant le mot « invité » et ont été gardés. Règles côté API : `../../api/src/routes/CLAUDE.md` (« Invités de la box »).
 
 ## Énergie (estimations)
 

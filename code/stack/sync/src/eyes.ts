@@ -4,6 +4,7 @@
 // une ligne va dans la table `eye_detections` (le journal de l'onglet Base), au plus une par caméra et par minute, et la caméra déclenche un événement de mouvement
 // (`POST /api/cameras/<caméra>/trigger?reason=eyes` : clip et frise comme les autres, prolongé par les appels suivants), au plus un appel par caméra toutes les 30 s.
 // Une panne de l'enregistreur n'arrête jamais la prise d'image : elle est écrite une fois au journal.
+import { writeFile } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 import { messageOf, type Context } from './context.ts'
 import type { Recorder } from './recorder.ts'
@@ -38,7 +39,7 @@ interface EyesAnswer {
   found?: boolean
   pair?: boolean
   distance?: number
-  eyes?: { x: number; y: number; size: number; peak: number; contrast: number }[]
+  eyes?: { x: number; y: number; size: number; peak: number; contrast: number; width?: number; height?: number; glow?: boolean }[]
 }
 
 export const createEyes = (ctx: Context, rec: Recorder) => {
@@ -65,6 +66,17 @@ export const createEyes = (ctx: Context, rec: Recorder) => {
     }
   }
 
+  /** Dessine un carré rouge autour de l'œil dans l'image gardée (l'enregistreur le dessine) ; un échec est toléré, l'image reste telle quelle. */
+  const mark = async (base: string, path: string, image: Buffer): Promise<void> => {
+    try {
+      const res = await ctx.fetch(`${base}/api/eyes/mark`, { method: 'POST', body: new Uint8Array(image), signal: AbortSignal.timeout(EYES_TIMEOUT_MS) })
+      if (res.status !== 200) return
+      await writeFile(`${ctx.config.dataDir}/${path}`, Buffer.from(await res.arrayBuffer()))
+    } catch {
+      // l'image sans carré reste valable
+    }
+  }
+
   return {
     /** Regarde l'image qui vient d'être prise (déjà rangée dans `path`) ; ne lève jamais. */
     look: async (camera: string, takenAt: number, path: string, image: Buffer): Promise<void> => {
@@ -82,7 +94,8 @@ export const createEyes = (ctx: Context, rec: Recorder) => {
         const previous = (lastOne.get(camera) as { at: number | null }).at
         if (previous !== null && takenAt - previous < EYES_MIN_GAP_SECONDS) return
         insert.run(camera, takenAt, path, eye.x, eye.y, eye.size, eye.peak, eye.contrast, answer.pair ? 1 : 0, answer.distance ?? 0)
-        ctx.log(`Yeux qui brillent sur ${camera} en (${eye.x}, ${eye.y})${answer.pair ? ', une paire' : ''} : ${path}`)
+        ctx.log(`Yeux qui brillent sur ${camera} en (${eye.x}, ${eye.y})${answer.pair ? ', une paire' : ''}${eye.glow ? ', reflet fondu' : ''} : ${path}`)
+        await mark(base, path, image)
       } catch (error) {
         if (!failing) ctx.log(`Yeux qui brillent sur ${camera} : recherche impossible (${messageOf(error)})`)
         failing = true

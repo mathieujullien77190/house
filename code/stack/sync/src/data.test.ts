@@ -37,6 +37,7 @@ const database = () => {
     CREATE TABLE guest_visits (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, camera TEXT, cle TEXT);
     CREATE TABLE heating_log (id INTEGER PRIMARY KEY, started_at INTEGER NOT NULL, origin TEXT, minutes INTEGER, cost REAL);
     CREATE TABLE shutter_log (id INTEGER PRIMARY KEY, happened_at INTEGER NOT NULL, shutter TEXT, command TEXT);
+    CREATE TABLE box_connections (id INTEGER PRIMARY KEY, happened_at INTEGER NOT NULL, event TEXT, mac TEXT, name TEXT);
     CREATE TABLE camera_energy (camera TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (camera, hour));
     CREATE TABLE lamp_energy (lamp TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (lamp, hour));
     CREATE TABLE machine_energy (device TEXT NOT NULL, hour TEXT NOT NULL, wh_offpeak REAL, wh_peak REAL, cost REAL, PRIMARY KEY (device, hour));
@@ -185,6 +186,9 @@ test('une table inconnue ne se lit pas ; chaque table a son ordre naturel', () =
   // Les caméras connues passent avant, dans leur ordre d'arrivée.
   db.exec("INSERT INTO last_images VALUES ('voliere-toit', 'u'), ('voliere-interieur', 'u')")
   assert.deepEqual(readTable(db, 'last_images', 0, 20)?.items.map((row) => row.camera), ['voliere-interieur', 'voliere-toit', 'a', 'b'])
+  // Les journaux à happened_at (sans happened_ms) : le plus récent d’abord, à égalité le dernier écrit.
+  db.exec("INSERT INTO box_connections (happened_at, event, mac, name) VALUES (5, 'connect', 'm', 'a'), (9, 'connect', 'm', 'b'), (9, 'disconnect', 'm', 'c')")
+  assert.deepEqual(readTable(db, 'box_connections', 0, 20)?.items.map((row) => row.name), ['c', 'b', 'a'])
   // Le journal Hue cache happened_ms et trie par lui.
   assert.deepEqual(readTable(db, 'hue_events', 0, 1)?.items[0]?.happened_at, 4000)
   assert.equal('happened_ms' in (readTable(db, 'hue_events', 0, 1)?.items[0] ?? {}), false)

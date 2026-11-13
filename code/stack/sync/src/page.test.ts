@@ -126,7 +126,7 @@ test('les services de données', async () => {
   const settings = json(await get('/api/settings')) as { camera: string }[]
   assert.deepEqual(settings.map((s) => s.camera), ['cam'])
   const full = json(await get('/api/overview')) as { database: { tables: unknown[]; size: number }; backup: { disk: { total: number } } }
-  assert.equal(full.database.tables.length, 15)
+  assert.equal(full.database.tables.length, 16)
   assert.ok(full.backup.disk.total > 0)
   const light = json(await get('/api/overview?part=database')) as typeof full
   assert.equal(light.backup.disk.total, 0)

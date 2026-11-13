@@ -36,6 +36,8 @@ export interface Config {
   heatingLogFile: string
   /** Le journal des ordres aux volets roulants, écrit par House API (SHUTTER_LOG_FILE). */
   shutterLogFile: string
+  /** Le journal des connexions des invités de la Freebox, écrit par House API (BOX_LOG_FILE). */
+  boxLogFile: string
   planFile: string
   hueAddress: string
   hueKey: string
@@ -76,6 +78,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,
   heatingLogFile: env.HEATING_LOG_FILE ?? '/house/heating-log.jsonl',
   shutterLogFile: env.SHUTTER_LOG_FILE ?? '/house/shutters-log.jsonl',
+  boxLogFile: env.BOX_LOG_FILE ?? '/house/box-connections.jsonl',
   planFile: env.PLAN_FILE ?? '/house/plan.json',
   hueAddress: env.HUE_BRIDGE_IP ?? '',
   hueKey: env.HUE_APP_KEY ?? '',

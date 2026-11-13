@@ -20,6 +20,7 @@ test('sans variable : les valeurs par défaut du compose', () => {
   assert.equal(config.guest, null)
   assert.equal(config.heatingLogFile, '/house/heating-log.jsonl')
   assert.equal(config.shutterLogFile, '/house/shutters-log.jsonl')
+  assert.equal(config.boxLogFile, '/house/box-connections.jsonl')
   assert.equal(config.apiServername, 'localhost')
   assert.equal(config.zonesFile, '/house/zones.json')
 })
@@ -47,6 +48,7 @@ test('les réglages de l\'environnement sont repris', () => {
     GUEST_VISITS_DAYS: '5',
     HEATING_LOG_FILE: '/h/log.jsonl',
     SHUTTER_LOG_FILE: '/h/volets.jsonl',
+    BOX_LOG_FILE: '/h/box.jsonl',
     DATA_DIR: '/d',
     GUEST_KEY: 'g',
     GUEST_PORT: '8091',
@@ -56,6 +58,7 @@ test('les réglages de l\'environnement sont repris', () => {
   assert.deepEqual(config.housePosition, { latitude: 10, longitude: 20 })
   assert.equal(config.heatingLogFile, '/h/log.jsonl')
   assert.equal(config.shutterLogFile, '/h/volets.jsonl')
+  assert.equal(config.boxLogFile, '/h/box.jsonl')
   assert.equal(config.go2rtcUrl, 'http://g:1')
   assert.deepEqual([config.retentionDaysEnv, config.hueAddress, config.hueKey, config.guestVisitsDays, config.dataDir], ['30', '1.2.3.4', 'app', 5, '/d'])
   assert.deepEqual(config.guest, { key: 'g', port: 8091, url: 'https://x' })

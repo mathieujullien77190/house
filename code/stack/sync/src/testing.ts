@@ -18,6 +18,7 @@ import { createMachineEnergyTable } from './machineEnergy.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
 import { createShutterLogTable } from './shutterLog.ts'
+import { createBoxConnectionsTable } from './boxConnections.ts'
 import { createHueLog } from './hueLog.ts'
 import { createPlanTable } from './plan.ts'
 import { createSettings } from './settings.ts'
@@ -49,7 +50,7 @@ type Handler = (url: string, init?: RequestInit) => Response | Promise<Response>
 export const testContext = (handler: Handler = () => new Response('', { status: 404 }), env: Record<string, string> = {}): TestContext => {
   const dir = tempDir()
   const time = clock()
-  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), SHUTTER_LOG_FILE: join(dir, 'shutters-log.jsonl'), ...env })
+  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), SHUTTER_LOG_FILE: join(dir, 'shutters-log.jsonl'), BOX_LOG_FILE: join(dir, 'box-connections.jsonl'), ...env })
   const db = new DatabaseSync(':memory:')
   const log = console.log
   console.log = () => undefined
@@ -60,6 +61,7 @@ export const testContext = (handler: Handler = () => new Response('', { status: 
     createGuestVisitsTable(db)
     createHeatingLogTable(db)
     createShutterLogTable(db)
+    createBoxConnectionsTable(db)
     createCameraEnergyTable(db)
     createLampEnergyTable(db)
     createEyesTable(db)
