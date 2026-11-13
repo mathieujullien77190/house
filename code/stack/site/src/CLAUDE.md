@@ -1,6 +1,6 @@
 # Le site (`src/`) – modèle, schéma, règles métier, prix
 
-Commandes et conventions de code : `../CLAUDE.md`. Vues Architecture : `components/Architecture/CLAUDE.md`. Vue Code : `components/CodeBrowser/CLAUDE.md`.
+Commandes : `../CLAUDE.md` (ce dossier). Conventions de code : `../../../../CLAUDE.md`. Vues Architecture : `components/Architecture/CLAUDE.md`. Vue Code : `components/CodeBrowser/CLAUDE.md`.
 
 ## Onglets
 
@@ -44,7 +44,7 @@ lib/           classes Tailwind, GlossaryContext, three.ts, esp32Board.ts
 ## Règles métier
 
 - **Zones.** Une caméra a une zone (`ZONES`, `components/InfoPanel/constants.ts`). `autoWire` la branche sur un switch qui ne couvre pas encore cette zone, sinon sur le moins chargé (avec un seul switch, toujours lui).
-- **Accès distant.** Le lien `vpn` = VPN WireGuard de la Freebox. Adresses et pare-feu : `../code/stack/docs/securite.md`.
+- **Accès distant.** Le lien `vpn` = VPN WireGuard de la Freebox. Adresses et pare-feu : `../../docs/securite.md`.
 - **Glossaire.** `components/UI/RichText` rend les termes cliquables (`GlossarySheet`, `GlossaryContext`). Jamais de `RichText` dans un `<button>`.
 - **Étages.** `floor` (`rdc` ou `basement`) par composant ; un étage affiché, l'autre en filigrane.
 - **Ajout de composants.** Plus aucun ajout par le tableau (Reolink, switch, mini PC sont fixes, sans +/−). Le type d'une liaison est déduit (`linkTypeFor`) ; une liaison se supprime seulement.

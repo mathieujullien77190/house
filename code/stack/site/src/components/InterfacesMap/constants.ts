@@ -102,7 +102,7 @@ export const COLUMNS: Column[] = [
     maxW: 490,
     role: 'app',
     groups: [
-      { label: 'Conteneurs', items: ['App', 'CameraMosaic', 'LiveTile', 'CameraCard', 'Timeline', 'ClipPlayer', 'SnapshotImage', 'KeyForm', 'ApiExplorer'] },
+      { label: 'Conteneurs', items: ['App', 'CameraMosaic', 'LiveTile', 'CameraCard', 'Timeline', 'ClipPlayer', 'SnapshotImage', 'KeyForm'] },
       { label: 'Lib', items: ['api.ts', 'useHouse.ts', 'usePower.ts', 'live.ts', 'format.ts'] },
     ],
   },
@@ -138,7 +138,7 @@ export const COLUMNS: Column[] = [
     groups: [
       { label: 'Médias', items: ['SnapshotImage', 'ClipPlayer', 'MediaPanel'] },
       { label: 'Caméras', items: ['CameraCard', 'CameraTile', 'Timeline'] },
-      { label: 'Pages', items: ['ApiExplorer', 'PageFrame'] },
+      { label: 'Pages', items: ['PageFrame'] },
     ],
     note: 'tokens.css : les couleurs de la maison (thème Tailwind)',
   },

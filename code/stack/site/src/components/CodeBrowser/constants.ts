@@ -1,27 +1,33 @@
 import type { Language, Rule, TokenKind } from './types'
 
-const PREFIX = '/code/stack/'
+/** Le site est dans code/stack/site : les fichiers de la pile sont un dossier plus haut (racine Vite = code/stack/site). */
+const PREFIX = '../'
+/** Vite donne une clé relative à la racine pour les fichiers du site lui-même (`/Dockerfile`) et `../…` pour le reste. */
+const keyOf = (path: string) => (path.startsWith(PREFIX) ? path.slice(PREFIX.length) : `site${path}`)
 
-/** Les fichiers du dossier code/stack, lus tels quels à la compilation (le site n'exécute rien de ce code). */
+/** Les fichiers du dossier code/stack, lus tels quels à la compilation (le site n'exécute rien de ce code, et ne s'affiche pas lui-même sauf son Dockerfile, nginx.conf et CLAUDE.md). */
 const modules = import.meta.glob<string>(
   [
-    '/code/stack/**/*.{yml,ts,tsx,js,json,html,css,md,sh,conf}',
-    '/code/stack/**/Dockerfile',
-    '/code/stack/.env.example',
-    '/code/stack/.dockerignore',
-    '!/code/stack/data/**',
-    '!/code/stack/**/node_modules/**',
-    '!/code/stack/**/dist/**',
-    '!/code/stack/site/www/**',
-    '!/code/stack/ui/storybook-static/**',
-    '!/code/stack/**/package-lock.json',
+    '/../**/*.{yml,ts,tsx,js,json,html,css,md,sh,conf}',
+    '/../**/Dockerfile',
+    '/../.env.example',
+    '/../.dockerignore',
+    '!/../data/**',
+    '!/../**/node_modules/**',
+    '!/../**/dist/**',
+    '!/../site/www/**',
+    '!/../site/public/**',
+    '!/../site/src/**',
+    '!/../site/*.{ts,json,html}',
+    '!/../ui/storybook-static/**',
+    '!/../**/package-lock.json',
   ],
   { query: '?raw', import: 'default', eager: true },
 )
 
 /** Contenu de chaque fichier, par chemin relatif à code/stack. */
 export const FILES: Record<string, string> = Object.fromEntries(
-  Object.entries(modules).map(([path, content]) => [path.slice(PREFIX.length), content]),
+  Object.entries(modules).map(([path, content]) => [keyOf(path), content]),
 )
 
 export const DEFAULT_FILE = 'docker-compose.yml'
@@ -145,6 +151,34 @@ export const EXPLANATIONS: Record<string, string> = {
   'api/src/services/shuttersAutoService.ts': 'L’action automatique des volets : chaque minute, cherche le lever et le coucher du soleil passés depuis le dernier tour et envoie l’ordre (monter ou descendre) aux volets qui ont l’option. Un ordre de plus de deux heures est sauté, un échec est retenté au tour suivant.',
   'api/src/routes/shutters.ts': 'GET /shutters (la liste, le dernier ordre et l’action automatique), POST /shutters/<id> avec {"command": "up" | "down" | "stop"} et PUT /shutters/<id>/auto avec {"open"} et/ou {"close"} ; 503 sans volets, 404, 400 et 502 selon l’erreur.',
   'web/src/components/ShuttersPanel/ShuttersPanel.tsx': 'L’onglet Volet de la WebApp : un bloc par volet avec Monter, Stop, Descendre, le dernier ordre et les deux cases de l’action automatique (lever et coucher du soleil), relu toutes les 10 secondes ; une note dit quand l’API est en simulation.',
+  'api/src/services/boxWatcher.ts': 'Le surveillant de la Freebox : toutes les 15 secondes il lit les appareils de la box (GET) ; la maison, ce sont les appareils de box-known.json (la photo des appareils actifs au premier démarrage), tout autre appareil vu connecté entre dans la liste des invités, et chaque connexion ou déconnexion d’un invité est écrite dans le journal. L’état précédent reste en mémoire : une lecture qui échoue ne change rien et au redémarrage un appareil déjà présent n’est pas re-loggé.',
+  'api/src/lib/boxGuestsStore.ts': 'La liste des invités de la box (box-guests.json) : tout appareil hors de la maison vu connecté, avec sa première et sa dernière vue. Il y reste même hors ligne jusqu’à son ajout à la maison ; la dernière vue n’est écrite qu’une fois par minute.',
+  'api/src/lib/boxConnectionLog.ts': 'Le journal des connexions des invités de la box (box-connections.jsonl) : une ligne JSON par connexion ou déconnexion (date, événement, MAC, nom, IP, type, fabricant), les 5000 dernières gardées. House Sync l’importe dans la table box_connections.',
+  'api/src/lib/tvRemote.ts': 'Le client de la télécommande du Freebox Player POP (Android TV Remote v2) : appairage sur le port 6467 (le Player affiche un code de 6 caractères, le client répond par un hash des deux certificats et du code), puis connexion TLS sur le port 6466 pour envoyer les touches. Les connexions sont injectées (tests sans réseau) ; le certificat et la clé ne sortent jamais dans une réponse ni un log.',
+  'api/src/lib/tvKeys.ts': 'La liste blanche des touches de la télécommande (noms de toujours : power, vol_inc, ok…) et le KeyCode Android de chacune.',
+  'api/src/lib/tvMessages.ts': 'Les messages protobuf du protocole Android TV Remote v2, écrits à la main : appairage (polo) et télécommande (configuration, ping, touche).',
+  'api/src/lib/tvWire.ts': 'Le minimum de protobuf pour ce protocole : varints, champs, lecture d’un message et trames précédées de leur longueur.',
+  'api/src/lib/tvCert.ts': 'Fabrique l’identité du client Android TV Remote : une clé RSA 2048 et un certificat X.509 auto-signé écrits en DER, sans bibliothèque.',
+  'api/src/lib/freebox.ts': 'Le client de l’API locale de la Freebox (v16) : ouvre une session avec le jeton de l’application (défi HMAC-SHA1), la garde en mémoire, la renouvelle une fois quand la box la refuse. Le jeton ne sort jamais de ce fichier.',
+  'api/src/services/boxService.ts': 'Ce que la Freebox sait de la maison : l’état (ligne, WiFi, appareils lus en parallèle, une lecture muette laisse son champ à null), le WiFi invité et son mot de passe, le filtrage MAC du WiFi pour exclure ou réadmettre un invité, et l’interrupteur du WiFi.',
+  'api/src/routes/box.ts': 'Les routes de la Freebox : GET /box, PUT /box/wifi, GET /box/guest-wifi, les invités (GET /box/guests, exclusion par MAC) et la liste des appareils de la maison (GET, PUT, DELETE /box/known).',
+  'web/src/lib/useBox.ts': 'Lit la Freebox toutes les 12 secondes et envoie l’ordre du WiFi ; partagé par l’onglet Box et l’aperçu de la carte. Une lecture qui échoue garde le dernier état et le dit.',
+  'web/src/components/BoxPanel/BoxPanel.tsx': 'L’onglet Box de la WebApp : le bloc de la Freebox, le WiFi invité et le tableau des appareils invités, relus à leur rythme.',
+  'web/src/components/BoxPanel/BoxBlock.tsx': 'Le bloc de la Freebox, partagé par l’onglet et l’aperçu de la carte : état de la ligne, interrupteur du WiFi (couper demande une confirmation) et appareils du réseau avec leur pastille d’état.',
+  'web/src/components/BoxPreview/BoxPreview.tsx': 'L’aperçu de la box sur la carte de Home : le même bloc que l’onglet Box, en version compacte, ou une note tant que la box n’est pas lue.',
+  'web/src/components/GuestWifi/GuestWifi.tsx': 'Le WiFi invité de la box : son nom et son mot de passe, lus seulement à la demande (Afficher), qu’on peut copier ; le mot de passe n’est pas gardé une fois masqué.',
+  'web/src/components/DeviceIcon/DeviceIcon.tsx': 'L’icône d’un appareil de la box, choisie d’après son nom ou son fabricant (pont Hue, ESP32, clim…), sinon d’après son type : les mêmes icônes que sur le plan.',
+  'ui/src/components/StatusFrame/StatusFrame.tsx': 'Le liseré d’état d’un équipement dans un aperçu (caméra, clim, volet, prise, box) : rouge éteint, bleu pâle ou violet pour un volet, rien quand il marche.',
+  'api/src/lib/tvStore.ts': 'Garde le certificat client et sa clé privée du Player appairé dans data/house/tv (dossier en 0700, clé en 0600) ; seul « appairé ou non » est montré.',
+  'api/src/routes/tv.ts': 'Les routes de la télécommande : GET /tv (appairé, en ligne), POST /tv/pair/start et /tv/pair/code pour associer le Player, DELETE /tv/pair pour l’oublier, POST /tv/key pour une touche.',
+  'web/src/components/TvPanel/TvPanel.tsx': 'L’onglet Box TV de la WebApp : l’état du Player, le parcours d’association tant qu’il n’est pas appairé, puis la télécommande pensée pour le téléphone.',
+  'web/src/components/TvPanel/Pairing.tsx': 'Les trois étapes pour associer le Player : allumer, « Associer » (le code s’affiche sur la TV), saisir les 6 caractères du code.',
+  'web/src/components/TvPanel/RemoteKey.tsx': 'Une touche de la télécommande : appui bref envoyé au relâchement, appui maintenu 600 ms envoyé en appui long.',
+  'web/src/lib/useTv.ts': 'Lit l’état de la télécommande toutes les 10 secondes, envoie les touches et conduit l’association du Player (démarrer, code).',
+  'api/src/lib/boxKnownStore.ts': 'La liste des appareils de la maison (box-known.json, des {mac, name, ip}) : écrite une seule fois par le surveillant, jamais écrasée ensuite, complétée seulement quand l’utilisateur ajoute un appareil à la maison.',
+  'sync/src/boxConnections.ts': 'Importe le journal des connexions des invités de la box que House API écrit (box-connections.jsonl) dans la table box_connections : le fichier entier est relu, la clé (date, MAC, événement) évite les doublons et la table garde ce que le fichier a oublié en tournant.',
+  'web/src/lib/useBoxGuests.ts': 'La lecture des appareils invités de la box (invités, exclusion du WiFi, dernières connexions), relue toutes les 30 secondes, et leurs actions : ajouter à la maison (liste de l’API), exclure ou réadmettre du WiFi (filtrage MAC de la box). Chaque action relit ensuite.',
+  'web/src/components/BoxPanel/GuestsBlock.tsx': 'Le bloc « Appareils invités » de l’onglet Box : le tableau des invités (nom, MAC, IP, type, première et dernière vue, état, exclu) avec Exclure (après confirmation), Réadmettre et Ajouter à la maison, puis les dernières connexions.',
   'sync/src/shutterLog.ts': 'Importe le journal des volets que House API écrit (shutters-log.jsonl) dans la table shutter_log : le fichier entier est relu, la clé (date, volet, ordre) évite les doublons et la table garde ce que le fichier a oublié en tournant.',
   'api/src/lib/heatingLog.ts': 'Le journal des activations du chauffage (heating-log.jsonl) : une ligne JSON par activation (date, origine auto ou manuel, durée, température, note, coût prévu), les 5000 dernières gardées, lecture qui ignore les lignes abîmées. House Sync l’importe dans la table heating_log.',
   'api/src/lib/heatingCost.ts': 'Le coût prévu d’une activation du chauffage : puissance en kW, durée en heures, prix du kWh ; les minutes sont découpées entre heures creuses et pleines selon l’heure de Paris (une plage peut passer minuit). Écrit dans la ligne du journal quand l’activation commence.',
@@ -233,7 +267,7 @@ export const EXPLANATIONS: Record<string, string> = {
   'guest/src/auth.test.ts': 'Les tests de la comparaison de clé de la page invité.',
   'site/Dockerfile': 'L’image du site de la maison : nginx sans droits (nginx-unprivileged, Alpine) qui copie sa configuration et le site compilé (dossier www, fabriqué par deploy.sh, jamais commité).',
   'site/nginx.conf': 'La configuration de nginx pour le site : HTTPS sur le port 8082 avec le certificat de la maison, noms de fichiers hachés gardés un an, le reste revérifié, toute adresse inconnue renvoie index.html.',
-  'site/CLAUDE.md': 'Explique le service site : le site de la racine du dépôt, compilé par deploy.sh et servi par nginx sur le port 8082, ce qui est dans www/ et pourquoi ce dossier n’est pas commité.',
+  'site/CLAUDE.md': 'Explique le service site : le site React (sources dans site/src), compilé par deploy.sh et servi par nginx sur le port 8082, ce qui est dans www/ et pourquoi ce dossier n’est pas commité.',
   'guest/Dockerfile': 'L’image de la page invité : Node 24 Alpine, le script seul, sans dépendance.',
   'guest/package.json': 'Les scripts (typecheck, lint, test) et les outils de développement de la page invité ; elle n’a aucune dépendance d’exécution.',
   'sync/src/savedClips.ts': 'Lit la liste des clips sauvegardés écrite par l’API. Renvoie null (donc : rien n’est effacé) si le dossier n’est pas monté ou si le fichier est abîmé.',
@@ -303,6 +337,12 @@ export const EXPLANATIONS: Record<string, string> = {
   'api/src/middleware/requireKey.ts': 'Le middleware de la clé : l’en-tête X-House-Key comparé en temps constant, ou une session ouverte (cookie), sinon 401.',
   'api/src/middleware/errorHandler.ts': 'Les erreurs en JSON : 404 pour l’inconnu, 503 tant que la base n’existe pas, 500 sans détail pour le reste.',
   'api/src/routes/index.ts': 'Toutes les routes : welcome et logout sans clé ; auth, direct, image, events, clips, snapshots, snapshot, stream et frame derrière requireKey (liste SECURED_PATHS) ; les fichiers de la WebApp restent publics.',
+  'api/src/openapi/routes.ts': 'La liste de toutes les routes de l’API (méthode, chemin, groupe, sécurité, paramètres, corps, erreurs) : la source du document OpenAPI. À mettre à jour avec chaque route.',
+  'api/src/openapi/spec.ts': 'Construit le document OpenAPI 3 (GET /openapi.json) à partir de la liste des routes : tags, paramètres, corps, réponses, sécurité par en-tête X-House-Key ou cookie de session.',
+  'api/src/openapi/docs.ts': 'Sert /openapi.json et Swagger UI sur /docs, avec les fichiers du paquet swagger-ui-dist (aucune ressource externe) ; les deux chemins sont derrière la clé.',
+  'api/src/openapi/types.ts': 'Les types de la description de l’API : une route documentée et le document OpenAPI qui en sort.',
+  'api/src/openapi/spec.test.ts': 'Les tests du document OpenAPI : une entrée par route, paramètres, corps, erreurs, sécurité.',
+  'api/src/openapi/docs.test.ts': 'Les tests de /docs et /openapi.json (401 sans clé) et la comparaison de la liste avec les routes réellement montées.',
   'api/src/routes/welcome.ts': 'GET /welcome : l’API est là.',
   'api/src/routes/auth.ts': 'GET /auth : la clé est bonne (le middleware l’a vérifiée), et une session (cookie) est ouverte pour le direct ; GET /logout la ferme.',
   'api/src/routes/ca.ts': 'Le certificat PUBLIC de l’autorité de la maison (rootCA.crt), à télécharger depuis un téléphone pour qu’il fasse confiance au HTTPS de la maison (sans cette étape, le navigateur affiche une alerte). La route refuse de servir le fichier s’il contient une clé privée.',
@@ -338,7 +378,6 @@ export const EXPLANATIONS: Record<string, string> = {
   'web/src/components/Timeline/helpers.ts': 'Les calculs de la frise, sans React : la position d’un instant en % de la fenêtre et l’inverse, les graduations (heures rondes locales, ou minuits pour les très grandes fenêtres), les blocs des événements visibles (avec le rapport entre largeur dessinée et durée réelle, pour qu’un clic dans un bloc élargi tombe juste), les plages de couverture (images à moins de 150 s l’une de l’autre) et le libellé de la fenêtre.',
   'web/src/components/SnapshotImage/SnapshotImage.tsx': 'L’image gardée par House Sync la plus proche d’un instant (service snapshot, à deux minutes près), téléchargée via l’API avec la clé puis donnée au navigateur ; un message si aucune image n’existe à cet instant.',
   'web/src/components/ClipPlayer/ClipPlayer.tsx': 'Le conteneur du lecteur : le clip est téléchargé via l’API avec la clé (une balise vidéo ne peut pas envoyer d’en-tête), donné au lecteur de @house/ui, et l’adresse locale est libérée au démontage. Position de départ, durée et avancée passent entre la carte et le lecteur.',
-  'web/src/components/ApiExplorer/ApiExplorer.tsx': 'Le conteneur de l’explorateur de House API : la liste des services (constants.ts), un clic appelle le service avec la clé et donne le statut HTTP et la réponse mise en forme au composant de @house/ui.',
   'motion/package.json': 'L’enregistreur : aucune dépendance (Node 24 lance le TypeScript, ffmpeg fait le travail vidéo), un script pour les tests et un pour la vérification des types.',
   'motion/Dockerfile': 'Node 24 et ffmpeg, rien d’autre : l’enregistreur et ses sources.',
   'motion/tsconfig.json': 'TypeScript strict pour Node, la vérification sans compilation.',
@@ -410,7 +449,6 @@ export const EXPLANATIONS: Record<string, string> = {
   'ui/src/components/SnapshotImage/helpers.ts': 'Remplace l’adresse de l’image par un GIF d’un pixel quand elle quitte la page : un flux du direct (MJPEG) ne se termine jamais et le navigateur n’ouvre que 6 connexions par hôte.',
   'ui/src/components/Timeline/Timeline.tsx': 'La frise, entièrement dessinée à partir de positions en % : graduations, bande de couverture, un bloc par événement (élargi au minimum, hachuré rouge en cours), le curseur ; elle ne fait que dessiner et remonter les gestes (clic dans un bloc sur la durée réelle, pointeur, molette via axisRef).',
   'ui/src/components/CameraCard/CameraCard.tsx': 'La carte d’une caméra : nom, média légendé (un emplacement), avertissement éventuel, frise (un emplacement).',
-  'ui/src/components/ApiExplorer/ApiExplorer.tsx': 'La liste des services d’une API et la réponse de celui qu’on a appelé ; l’appel est au parent.',
   'ui/src/components/PageFrame/PageFrame.tsx': 'Une autre page dans une iframe, avec un lien pour l’ouvrir à part ; un texte quand l’adresse est vide.',
   'ui/stories/source.ts': 'Le helper source() : le snippet du bloc Source d’une page docs, à poser sur la story.',
   'ui/stories/i18n.ts': 'Le helper prose() : la prose d’une page docs en français puis en anglais, lue dans les deux .md du dossier.',

@@ -1,7 +1,7 @@
 node_modules
 dist
 storybook-static
+www
 public/storybook
 package-lock.json
-code/stack/data
 *.md
