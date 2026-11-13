@@ -8,12 +8,12 @@ export type ZonePoint = [number, number]
 export type Zones = Record<string, ZonePoint[]>
 
 export const MIN_POINTS = 3
-export const MAX_POINTS = 32
+export const MAX_POINTS = 1000
 const CAMERA = /^[\w-]{1,40}$/
 
 export const isCameraName = (name: string): boolean => CAMERA.test(name)
 
-/** Un polygone valable : de 3 à 32 sommets, chacun deux nombres entre 0 et 1 (arrondis à 4 décimales). Null sinon. */
+/** Un polygone valable : de 3 à 1000 sommets, chacun deux nombres entre 0 et 1 (arrondis à 4 décimales). Null sinon. */
 export const parsePolygon = (value: unknown): ZonePoint[] | null => {
   if (!Array.isArray(value) || value.length < MIN_POINTS || value.length > MAX_POINTS) return null
   const points: ZonePoint[] = []

@@ -1,1 +1,0 @@
-L'onglet API de la WebApp : la liste des services avec leur description et une pastille « clé », et à droite la réponse (statut HTTP coloré, corps mis en forme). L'appel réel est au parent ; le composant ne fait que dessiner la liste et la réponse.

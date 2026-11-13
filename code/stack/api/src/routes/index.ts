@@ -15,6 +15,9 @@ import type { PlugService } from '../services/plugService.ts'
 import type { AcService } from '../services/acService.ts'
 import type { ShuttersService } from '../services/shuttersService.ts'
 import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
+import type { BoxService } from '../services/boxService.ts'
+import type { BoxWatcher } from '../services/boxWatcher.ts'
+import type { TvRemote } from '../lib/tvRemote.ts'
 import type { PoeService } from '../services/poeService.ts'
 import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
@@ -24,6 +27,8 @@ import { caRouter } from './ca.ts'
 import { eventsRouter } from './events.ts'
 import { hueRouter } from './hue.ts'
 import { liveRouter } from './live.ts'
+import { boxRouter } from './box.ts'
+import { tvRouter } from './tv.ts'
 import { plugRouter } from './plug.ts'
 import { acRouter } from './ac.ts'
 import { shuttersRouter } from './shutters.ts'
@@ -34,6 +39,7 @@ import { planRouter } from './plan.ts'
 import { recordRouter } from './record.ts'
 import { markersRouter } from './markers.ts'
 import { zonesRouter } from './zones.ts'
+import { docsRouter } from '../openapi/docs.ts'
 
 export interface Services {
   cameras: CamerasService
@@ -50,6 +56,12 @@ export interface Services {
   shutters: ShuttersService | null
   /** L'action automatique des volets (lever et coucher du soleil) ; null sans volets. */
   shuttersAuto: ShuttersAuto | null
+  /** La Freebox ; null sans FREEBOX_APP_TOKEN (GET /box répond alors configured: false). */
+  box: BoxService | null
+  /** Le surveillant des appareils inconnus de la box ; null sans FREEBOX_APP_TOKEN. */
+  boxWatcher: BoxWatcher | null
+  /** La télécommande du Freebox Player ; null dans les tests (les routes répondent 503). */
+  tv?: TvRemote | null
   /** Le chauffage automatique de la prise et son journal ; null sans prise. */
   heating: HeatingService | null
   /** Null quand aucun switch n'est configuré. */
@@ -83,11 +95,15 @@ export const SECURED_PATHS = [
   '/plug',
   '/shutters',
   '/ac',
+  '/box',
+  '/tv',
   '/hue',
   '/zones',
   '/markers',
   '/plan',
   '/record',
+  '/openapi.json',
+  '/docs',
 ]
 
 export const createRoutes = (apiKey: string, services: Services, caCert = ''): Router => {
@@ -97,6 +113,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   const sessions = createSessions(apiKey)
   router.use(SECURED_PATHS, createRequireKey(apiKey, sessions))
   router.use(authRouter(sessions))
+  router.use(docsRouter())
   router.use(camerasRouter(services.cameras))
   router.use(eventsRouter(services.events, services.files))
   router.use(snapshotsRouter(services.snapshots, services.files))
@@ -105,6 +122,8 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(plugRouter(services.plug, services.heating))
   router.use(acRouter(services.ac))
   router.use(shuttersRouter(services.shutters, services.shuttersAuto))
+  router.use(boxRouter(services.box, services.boxWatcher))
+  router.use(tvRouter(services.tv ?? null, services.box))
   router.use(hueRouter(services.hue))
   router.use(zonesRouter(services.zones))
   router.use(markersRouter(services.markers))

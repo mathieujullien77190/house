@@ -32,6 +32,14 @@ import { createAcService } from './services/acService.ts'
 import { createShuttersService } from './services/shuttersService.ts'
 import { createShutterAutoStore } from './lib/shutterAutoStore.ts'
 import { createShuttersAuto } from './services/shuttersAutoService.ts'
+import { createBoxService } from './services/boxService.ts'
+import { createBoxWatcher } from './services/boxWatcher.ts'
+import { createBoxConnectionLog } from './lib/boxConnectionLog.ts'
+import { createBoxKnownStore } from './lib/boxKnownStore.ts'
+import { createBoxGuestsStore } from './lib/boxGuestsStore.ts'
+import { createFreeboxClient } from './lib/freebox.ts'
+import { connectTls, createTvRemote } from './lib/tvRemote.ts'
+import { createTvStore } from './lib/tvStore.ts'
 import { createPoeService } from './services/poeService.ts'
 import { createLiveService } from './services/liveService.ts'
 import { createSnapshotsService } from './services/snapshotsService.ts'
@@ -83,6 +91,11 @@ export const createApp = (config: Config): Express => {
         position: config.housePosition,
       })
     : null
+  const box = config.freebox ? createBoxService(createFreeboxClient(config.freebox)) : null
+  // Le surveillant des invités de la box (tout appareil hors de la maison) : créé ici, lancé par index.ts (app.locals.boxWatcher.start()).
+  const boxWatcher = box
+    ? createBoxWatcher({ box, log: createBoxConnectionLog(`${config.stateDir}/box-connections.jsonl`), known: createBoxKnownStore(`${config.stateDir}/box-known.json`), guests: createBoxGuestsStore(`${config.stateDir}/box-guests.json`) })
+    : null
   const services = {
     cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db), savedClips, clipNotes, clipEmojis),
@@ -108,6 +121,9 @@ export const createApp = (config: Config): Express => {
           position: config.housePosition,
         })
       : null,
+    box,
+    boxWatcher,
+    tv: createTvRemote({ store: createTvStore(`${config.stateDir}/tv`), connect: connectTls(config.tv.host) }),
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
 
@@ -115,6 +131,7 @@ export const createApp = (config: Config): Express => {
   app.disable('x-powered-by')
   // La base reste accessible à qui assemble l'application (les tests la ferment pour supprimer leurs dossiers temporaires).
   app.locals.database = db
+  app.locals.boxWatcher = boxWatcher
   app.use(createRoutes(config.apiKey, services, config.caCert))
   // La WebApp compilée : index.html à la racine, les scripts et styles dans assets/.
   app.use(express.static(config.webDir, { index: 'index.html' }))

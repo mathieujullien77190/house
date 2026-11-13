@@ -20,6 +20,8 @@ test('les valeurs par défaut', () => {
   assert.equal(config.switchPoe, null)
   assert.equal(config.hue, null)
   assert.equal(config.plug, null)
+  assert.equal(config.freebox, null)
+  assert.deepEqual(config.tv, { host: '192.168.1.47' })
   assert.deepEqual(
     config.shutters.map((shutter) => shutter.id),
     ['1', '2', '3', '4'],
@@ -54,6 +56,8 @@ test('toutes les variables renseignées', async () => {
       SWITCH_PORTS: 'cam1:3, cam2 : 4,bad:9,sans-port,:5,x:0',
       HUE_BRIDGE_IP: '1.2.3.4',
       HUE_APP_KEY: 'abc',
+      FREEBOX_APP_TOKEN: 'jeton',
+      TV_HOST: ' 192.168.1.60 ',
       PLUG_MOTION_SENSOR: 'autre',
       SHUTTERS: '5:Cave, 6 : Grenier ,mal',
       SHUTTERS_AUTO: ' 6, ,5',
@@ -71,6 +75,10 @@ test('toutes les variables renseignées', async () => {
     assert.deepEqual(config.go2rtcUrls, ['http://a:1984', 'http://b:1984'])
     assert.deepEqual(config.switchPoe, { url: 'http://sw', user: 'root', password: 'pw', ports: { cam1: 3, cam2: 4 } })
     assert.deepEqual(config.hue, { url: 'http://1.2.3.4', key: 'abc' })
+    assert.deepEqual(config.freebox, { url: 'http://mafreebox.freebox.fr', appId: 'fr.house.home', appToken: 'jeton' })
+    assert.deepEqual(config.tv, { host: '192.168.1.60' })
+    const custom = loadConfig({ API_KEY: '12345678', FREEBOX_APP_TOKEN: ' t ', FREEBOX_URL: 'http://box', FREEBOX_APP_ID: 'mon.app' })
+    assert.deepEqual(custom.freebox, { url: 'http://box', appId: 'mon.app', appToken: 't' })
     assert.deepEqual(config.shutters, [
       { id: '5', name: 'Cave', shadeId: 5 },
       { id: '6', name: 'Grenier', shadeId: 6 },
@@ -142,4 +150,9 @@ test('parseAcUnits : id:nom:adresse, une entrée mal écrite est ignorée', () =
   ])
   assert.deepEqual(parseAcUnits(''), [])
   assert.deepEqual(loadConfig({ API_KEY: '12345678', AC_UNITS: 'a:A:1.2.3.4' }).acUnits, [{ id: 'a', name: 'A', host: '1.2.3.4' }])
+})
+
+test('TV_HOST : l\'IP du Player par défaut', () => {
+  assert.deepEqual(loadConfig({ API_KEY: '12345678' }).tv, { host: '192.168.1.47' })
+  assert.deepEqual(loadConfig({ API_KEY: '12345678', TV_HOST: ' 10.0.0.9 ' }).tv, { host: '10.0.0.9' })
 })

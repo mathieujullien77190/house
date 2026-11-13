@@ -5,7 +5,8 @@ Vue d'ensemble : `../../CLAUDE.md`. Clé, session, certificat : `../../../docs/s
 ## Sans clé
 
 - `GET /welcome`, `GET /rootCA.crt` (certificat **public** de la CA, `CA_CERT`), `/logout`.
-- Le reste est derrière la clé ou la session (`SECURED_PATHS`).
+- Le reste est derrière la clé ou la session (`SECURED_PATHS`), y compris `GET /openapi.json` (document OpenAPI 3) et `GET /docs` (Swagger UI).
+- **Chaque route est décrite dans `../openapi/routes.ts`** (méthode, chemin `/x/{id}`, groupe, `secured`, paramètres, corps, erreurs) : à mettre à jour avec la route, un test le vérifie.
 - `/auth` vérifie la clé et ouvre la session par cookie (renouvelée à chaque appel).
 
 ## Caméras, événements, images
@@ -109,7 +110,7 @@ Défauts : seuil 3 °C, 5 min allumée, délai 20 min, règle activée. C'est le
 
 ## Zones de surveillance
 
-- `GET /zones` : `{"<caméra>": [[x, y], ...]}` (3 à 32 sommets, parts de l'image 0 à 1).
+- `GET /zones` : `{"<caméra>": [[x, y], ...]}` (3 à 1000 sommets, parts de l'image 0 à 1).
 - `PUT /zones/<caméra>` `{"points": [...]}` ou `null` (toute l'image).
 - `zones.json` (écriture temporaire puis renommage) ; House Sync le lit et le donne à l'enregistreur.
 
@@ -141,6 +142,46 @@ Fichiers : `services/acService.ts`, `lib/mitsubishiClient.ts`.
 - Valeurs : `mode` heat/cool/dry/fan/auto ; `fan` auto/quiet/1 à 4 ; `vane` auto/1 (haut) à 5 (bas)/swing ; `wideVane` left/left-center/center/right-center/right/swing.
 - `POST /ac/<id>` : un ou plusieurs de `on`, `mode`, `temperature` (16 à 31, pas de 0,5), `fan`, `vane`, `wideVane` ; les autres ne bougent pas (trame `0x41`, octets de drapeaux).
 - Rend l'état d'avant avec le changement appliqué, **sans relire** (le module met 2 à 3 s). 404 unité inconnue, 400 corps vide ou faux, 502 injoignable.
+
+## Freebox (`/box`)
+
+Fichiers : `lib/freebox.ts` (client), `services/boxService.ts`, `routes/box.ts`. API locale v16 de la box (Freebox Pop v8), HTTP, sans cloud.
+
+- `FREEBOX_URL` (défaut `http://mafreebox.freebox.fr`, joignable depuis le conteneur), `FREEBOX_APP_ID` (`fr.house.home`), `FREEBOX_APP_TOKEN` (**secret**, `.env` du mini PC, jamais dans une réponse ni un log). Jeton absent : non configurée.
+- Session : défi de `/login/`, mot de passe = HMAC-SHA1(jeton, défi) en hexadécimal, `/login/session/` ; `session_token` en cache dans l'en-tête `X-Fbx-App-Auth`, renouvelé une fois sur 403 / `auth_required`. Délai de 5 s par requête.
+- `GET /box` : `{configured, reachable, model, firmware, uptime, connection: {state, type, ipv4, rateDown, rateUp}, wifi: {enabled}, devices: [{name, ip, mac, active, type, vendor}]}`. Débits en octets par seconde, `uptime` en secondes. Appareils actifs d'abord, puis par nom.
+- Sans jeton : 200 avec `configured: false`. Les quatre lectures (`/system/`, `/connection/`, `/wifi/config/`, `/lan/browser/pub/`) sont indépendantes ; aucune ne répond : `reachable: false`.
+- `PUT /box/wifi` `{"enabled": bool}` (droit `settings` de l'application) : rend `{enabled}` ; 400 corps faux, 503 non configurée, 502 box muette ou droit refusé.
+
+## Télécommande TV (`/tv`)
+
+Fichiers : `lib/tvRemote.ts` (client injectable), `tvWire.ts` / `tvMessages.ts` (protobuf écrit à la main), `tvKeys.ts`, `tvCert.ts`, `tvStore.ts`, `routes/tv.ts`. Le Freebox Player POP tourne sous Android TV : il n'a **pas** de « code télécommande réseau » (l'ancienne API `hd1.freebox.fr/pub/remote_control` est abandonnée). On parle le protocole **Android TV Remote v2** (celui de l'appli Google TV).
+
+- **Implémentation maison**, sans bibliothèque : `androidtv-remote` (npm) est abandonné depuis 2022 et tire `systeminformation`, `crypto-js`, `node-forge` 0.10 et `protobufjs` 6 ; `androidtvremote2` n'existe pas sur npm. Les messages sont ceux des `.proto` de tronikos/androidtvremote2 (Apache-2.0). Aucune dépendance ajoutée (`node:tls`, `node:crypto`).
+- `TV_HOST` : adresse du Player, `192.168.1.47` par défaut (réserver l'adresse dans la Freebox). Plus de secret dans l'environnement.
+- **Appairage** (port 6467) : TLS avec un certificat client neuf ; `pairing_request` → `options` → `configuration` (code hexadécimal de 6 caractères, rôle INPUT) ; la TV affiche le code. Le client répond par `SHA-256(modulo + exposant du client, modulo + exposant de la TV, code sans ses 2 premiers caractères)` ; le premier octet du hash doit valoir les 2 premiers caractères du code : un code faux est détecté **sans rien envoyer** et peut être ressaisi. Un appairage ouvert expire après 5 min. À la réussite, `tvStore` écrit `STATE_DIR/tv/client.key` (0600) et `client.crt`.
+- **Télécommande** (port 6466) : TLS avec ce certificat, poignée de main (`remote_configure`, `remote_set_active`), ping de la TV à répondre. La connexion est gardée ouverte (fermée après 60 s sans touche, jugée morte après 20 s de silence) ; une touche = `remote_key_inject` (KeyCode Android, `SHORT`) ; appui long = `START_LONG`, 800 ms, `END_LONG`.
+- `GET /tv` : `{configured, paired, online, name?}`. `paired` = certificat présent ; `online` = `active` du Player dans `/lan/browser/pub/` de la box (l'appareil dont le nom contient « Player » ; le Freebox Server est aussi de type `freebox_pop`), `null` si inconnu ; `name` = son nom dans la box. Aucune connexion au Player pour cet état (il est souvent éteint ou en veille).
+- `POST /tv/pair/start` : le Player affiche le code sur la TV. `POST /tv/pair/code` `{"code"}` : termine et garde le certificat. `DELETE /tv/pair` : oublie le certificat. `POST /tv/key` `{"key", "long"?}` : liste blanche `TV_KEYS` (mêmes noms qu'avant : power, up, down, left, right, ok, back, home, vol_inc, vol_dec, mute, prgm_inc, prgm_dec, 0 à 9, play, prev, next, bwd, fwd, rec, info, epg, red, green, yellow, blue, options, list, media, tv, swap, mail, help, pip) mappée sur un KeyCode Android (`lib/tvKeys.ts`).
+- Erreurs (corps `{error, reason}`, jamais de détail interne) : 400 corps ou code mal formé, 409 aucun appairage ouvert / Player non appairé, 422 code faux, 502 Player éteint, injoignable ou appairage refusé, 503 sans service (tests), 504 le Player ne répond pas.
+- Le certificat, la clé et le code ne figurent dans aucune réponse, aucun message d'erreur, aucun log (`../../../docs/securite.md`). L'état détaillé (chaîne, volume) n'est pas lu.
+- Tests : TV simulée par des sockets en mémoire (`lib/tvRemote.test.ts`) ; seul `connectTls` est testé en boucle locale, jamais contre le Player.
+
+## Invités de la box (`/box/guests`, `/box/known`)
+
+Fichiers : `services/boxWatcher.ts`, `lib/boxConnectionLog.ts`, `lib/boxKnownStore.ts`, `lib/boxGuestsStore.ts`. Lecture de la Freebox en GET seulement, sauf l'exclusion d'un invité (plus bas).
+
+- **La maison** : au tout premier démarrage (pas de `box-known.json`), la photo des appareils **actifs** à cet instant (MAC, nom, IP) est écrite dans `box-known.json` ; le surveillant ne la réécrit jamais ensuite. Le nom du fichier est resté « known » (il existait avant le mot « maison »).
+- **Invité** = tout appareil dont la MAC n'est pas dans la maison. Dès qu'il est vu connecté il entre dans `box-guests.json` (`mac`, `name`, `ip`, `type`, `vendor`, `firstSeen`, `lastSeen` en secondes), y reste **même hors ligne** jusqu'à ce qu'on l'ajoute à la maison ; `lastSeen`, nom et adresse sont remis à jour à chaque lecture où il est actif (écrits au plus une fois par minute, sauf nouvel invité ou changement de nom, d'adresse ou de type). Un invité déjà connecté au démarrage de l'API entre dans la liste dès la première lecture, sans ligne de journal.
+- Un tour toutes les 15 s : pour chaque invité **actif** qui ne l'était pas à la lecture d'avant, une ligne `connect` ; pour chaque invité parti (inactif ou disparu de la liste), une ligne `disconnect`. Plusieurs appareils d'un même tour = plusieurs lignes.
+- Journal `box-connections.jsonl` : `{at, event, mac, name, ip, type, vendor}` (`at` en secondes), 5000 lignes gardées, importé par House Sync dans `box_connections` (`BOX_LOG_FILE` côté House Sync). Les noms de ces fichiers et de la table viennent d'avant le mot « invité » : ils restent.
+- **Compromis** : l'état précédent n'est gardé qu'en mémoire. La première lecture après un démarrage de l'API ne logge rien ; une connexion ou déconnexion pendant un redémarrage n'est pas notée, et un invité resté connecté n'est pas re-loggé. Une lecture qui échoue ne change rien (pas de fausse déconnexion).
+- `GET /box/guests?limit=100` (1 à 500, 400 sinon ; 503 sans box) : `{filterState, guests: [{mac, name, ip, type, vendor, firstSeen, lastSeen, active, excluded}], events}`, invités les plus récemment vus d'abord, événements du plus récent au plus ancien. `filterState` (`disabled`, `blacklist`, `whitelist`) et `excluded` viennent de la box (lecture) ; null quand elle ne répond pas.
+- `GET /box/known` : `{home: [{mac, name, ip}]}`. `PUT /box/known` `{"mac"}` : ajoute l'appareil à la maison (écrit `box-known.json`, retire l'invité de `box-guests.json`, la box n'est pas touchée) et rend `{mac, name, ip}` ; 400 MAC fausse, 503 sans box ou photo de départ pas encore prise. Il ne génère plus de lignes.
+- `PUT /box/guests/<mac>/exclude` `{"excluded": bool}` : **seule écriture de la box de ce bloc**, par le filtrage MAC **du WiFi** (un appareil branché par câble n'est pas touché). Droit « Modification des réglages » de l'application Freebox requis.
+  - Exclure : si le mode du filtrage (`/wifi/config/` `mac_filter_state`) est `disabled`, `PUT /wifi/config/` `{mac_filter_state: "blacklist"}` ; puis `POST /wifi/mac_filter/` `{mac, type: "blacklist", comment: "House : invité exclu"}` (rien si la MAC y est déjà). Mode `whitelist` : **409**, la box n'est pas modifiée.
+  - Réadmettre : `DELETE /wifi/mac_filter/<id>` de chaque entrée liste noire de la MAC. Le mode du filtrage n'est pas remis à `disabled`.
+  - 400 MAC fausse, corps faux, ou MAC de la maison (dont le mini PC et la box : ils y sont) ; 404 si ce n'est pas un invité de la liste ; 502 box muette ou droit refusé (message lisible) ; 503 sans box.
 
 ## Volets roulants (`/shutters`)
 

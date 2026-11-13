@@ -44,6 +44,8 @@ const baseConfig = (dir: string): Config => ({
   hue: null,
   plug: null,
   acUnits: [],
+  freebox: null,
+  tv: { host: '127.0.0.1' },
   shutters: [],
   shuttersAuto: [],
   shuttersEspUrl: null,
@@ -161,6 +163,18 @@ test('tous les services configurés : pont Hue, prise, switch, enregistreur', as
     await bridge.close()
     log.mock.restore()
   }
+})
+
+test('une Freebox configurée : le surveillant des invités est créé, la liste de la maison est vide tant qu’il n’a rien lu', async () => {
+  await withTempDir(async (dir) => {
+    const config: Config = { ...prepare(dir), freebox: { url: 'http://127.0.0.1:1', appId: 'app', appToken: 'jeton' } }
+    await serveApp(config, async (url) => {
+      const key = { 'X-House-Key': KEY }
+      assert.deepEqual((await call(`${url}/box/known`, 'GET', undefined, key)).body, { home: [] })
+      const state = (await call(`${url}/box`, 'GET', undefined, key)).body as { configured: boolean; reachable: boolean }
+      assert.deepEqual([state.configured, state.reachable], [true, false])
+    })
+  })
 })
 
 test('les volets : simulation sans ESP32, action automatique seulement pour les volets listés', async () => {

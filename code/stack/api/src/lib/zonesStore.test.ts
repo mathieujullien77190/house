@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { createZonesStore, parsePolygon } from './zonesStore.ts'
 
-test('un polygone valable : de 3 à 32 sommets entre 0 et 1', () => {
+test('un polygone valable : de 3 à 1000 sommets entre 0 et 1', () => {
   assert.deepEqual(
     parsePolygon([
       [0, 0],
@@ -112,7 +112,7 @@ test('un sommet mal formé refuse le polygone', () => {
     ]),
     null,
   )
-  assert.equal(parsePolygon(Array.from({ length: 33 }, () => [0, 0])), null)
+  assert.equal(parsePolygon(Array.from({ length: 1001 }, () => [0, 0])), null)
 })
 
 test('un fichier de zones abîmé : seules les bonnes entrées sont lues', () => {

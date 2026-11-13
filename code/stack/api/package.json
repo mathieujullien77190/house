@@ -13,7 +13,8 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "swagger-ui-dist": "5.34.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -20,6 +20,10 @@ export interface Config {
   hue: { url: string; key: string } | null
   /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
   plug: { host: string; port: number; mac: string } | null
+  /** La Freebox (API locale v16) : adresse, application autorisée et son jeton ; null sans FREEBOX_APP_TOKEN. */
+  freebox: { url: string; appId: string; appToken: string } | null
+  /** La télécommande du Freebox Player (Android TV Remote v2) : hôte (TV_HOST, 192.168.1.47 par défaut). Le certificat client est gardé dans STATE_DIR/tv, pas dans l'environnement. */
+  tv: { host: string }
   /** Les climatisations Mitsubishi (AC_UNITS="salon:Salon:192.168.1.130" : identifiant, nom, adresse du module Wi-Fi de l'unité, séparés par des virgules) ; vide : ac répond 503. */
   acUnits: { id: string; name: string; host: string }[]
   /** Les volets roulants (SHUTTERS="1:Salon,2:Chambre:19" : le numéro du volet dans le firmware de l'ESP32, son nom, puis, facultatif, le temps qu'il met à se fermer en entier, en secondes : il donne le bouton « Fermer à moitié ») ; vide : shutters répond 503. Par défaut les quatre volets de la maison : PC, salon, porte, cuisine. */
@@ -93,6 +97,10 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .filter(Boolean),
     switchPoe: parseSwitch(env),
     hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
+    freebox: env.FREEBOX_APP_TOKEN
+      ? { url: env.FREEBOX_URL || 'http://mafreebox.freebox.fr', appId: env.FREEBOX_APP_ID || 'fr.house.home', appToken: env.FREEBOX_APP_TOKEN.trim() }
+      : null,
+    tv: { host: env.TV_HOST?.trim() || '192.168.1.47' },
     acUnits: parseAcUnits(env.AC_UNITS ?? ''),
     shutters: parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS),
     shuttersAuto: env.SHUTTERS_AUTO
