@@ -8,14 +8,15 @@ Un site pour **suivre le système domotique d'une maison** : cinq onglets (Camé
 
 | Dossier | Contenu |
 |---|---|
-| `src/` | le site (React, TypeScript, Vite, Tailwind) |
+| `code/stack/site/` | le site (React, TypeScript, Vite, Tailwind), sources dans `src/`, compilé et servi par le mini PC |
 | `code/stack/` | la **vraie pile**, en service sur le mini PC : Docker Compose, enregistreur, House Sync, House API, WebApp, `@house/ui` |
 | `code/stack/remote/` | la session Claude Code permanente du mini PC (sans droit de suppression) |
 
 ## Commandes
 
 ```
-npm install
+cd code/stack/site
+npm ci
 npm run dev          # serveur Vite
 npm run typecheck    # tsc
 npm run lint         # eslint
@@ -23,7 +24,7 @@ npm run build        # tsc puis vite build
 npm run build:storybook   # le Storybook de @house/ui, servi par le site à /storybook/
 ```
 
-Avant de rendre un travail : `npx tsc`, `npx eslint .` et `npm run build` passent. La pile Docker a ses propres commandes (`code/stack/README.md`).
+Avant de rendre un travail (dans `code/stack/site`) : `npx tsc`, `npx eslint .` et `npm run build` passent. La pile Docker a ses propres commandes (`code/stack/README.md`).
 
 ## Documentation
 

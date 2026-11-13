@@ -1,5 +1,5 @@
 node_modules
-public/storybook/
+code/stack/site/public/storybook/
 dist
 *.tsbuildinfo
 .env*

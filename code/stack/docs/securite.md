@@ -26,6 +26,8 @@ Depuis le 7 novembre 2026 : `/etc/ssh/sshd_config.d/00-house-hardening.conf` (`P
 
 `API_KEY` (en-tête `X-House-Key`) protège l'API et la page de House Sync. La saisie de la clé ouvre une **session par cookie** (`GET /auth` pour l'API, `POST /login` pour House Sync) : un jeton signé avec la clé (HMAC) et daté, valable **30 jours**, HttpOnly et Secure, rien en mémoire (il survit à un redémarrage). Le navigateur ne garde jamais la clé : une page rouverte se reconnecte avec le cookie. Changer `API_KEY` invalide tous les cookies ; « Oublier la clé » ou « Quitter » efface celui du navigateur. Le cookie sert aussi à ce qu'une balise `<img>` ou `<video>` charge sans en-tête, dont le direct.
 
+**Swagger** : `/docs` (Swagger UI) et `/openapi.json` sont derrière la même clé ou session que le reste (401 sinon) ; aucun fichier ne vient d'internet.
+
 ## HTTPS
 
 Certificat de la CA de la maison (`data/certs/rootCA.pem`, à installer une fois par appareil ; créé par `certs/`). Pour un téléphone, l'API propose le certificat **public** au téléchargement : `https://<adresse>:8080/rootCA.crt` (jamais la clé `rootCA-key.pem`). La WebApp marche sur n'importe quel hôte du certificat (IP du PC ou `localhost`).
@@ -33,3 +35,5 @@ Certificat de la CA de la maison (`data/certs/rootCA.pem`, à installer une fois
 ## Secrets
 
 Dans `.env` (ignoré par git), modèle dans `.env.example`. Jamais de mot de passe dans le code, la doc ou les commits : go2rtc lit celui de la caméra dans `REOLINK_PASSWORD`.
+
+**Télécommande du Player (Android TV Remote v2)** : le certificat client et sa **clé privée** (`data/house/tv/client.key`, `client.crt`) sont un secret : qui les a pilote la TV depuis le réseau de la maison. Le dossier est en `0700`, la clé en `0600`, propriétaire `node` (uid 1000) ; rien dans le dépôt (`data/` est ignoré), rien dans une réponse d'API, un message d'erreur ni un log. Le Player retient le certificat à l'appairage : `DELETE /tv/pair` (lien « Dissocier » de la WebApp) supprime la clé de l'API ; pour révoquer côté TV, retirer l'appareil dans les réglages du Player. Pas de variable d'environnement secrète (l'ancien `TV_REMOTE_CODE` n'existe plus).

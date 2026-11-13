@@ -15,12 +15,12 @@ Au premier blocage qu'il ne sait pas résoudre, il s'arrête et rend l'échec et
 
 ### 0. État des lieux
 
-`git status --short` et `git diff --stat` : ce qui part. Tout ce qui est modifié part (y compris `src/domotics.ts` et `.claude/`), sauf `data/`, `.env`, `.claude/worktrees/`, `coverage/`, `node_modules/`, `public/storybook/`.
+`git status --short` et `git diff --stat` : ce qui part. Tout ce qui est modifié part (y compris `code/stack/site/src/domotics.ts` et `.claude/`), sauf `data/`, `.env`, `.claude/worktrees/`, `coverage/`, `node_modules/`, `public/storybook/` (site).
 
 ### 1. Documentation
 
 - Une modification de comportement met à jour le `CLAUDE.md` du dossier concerné (le code fait foi ; une information vit à un seul endroit).
-- Un fichier ajouté dans `code/stack` a une entrée dans `src/components/CodeBrowser/constants.ts` (`EXPLANATIONS`, clé relative à `code/stack`, fichier en CRLF) ; les tests, `CLAUDE.md`, `index.ts`, `types.ts`… sont couverts par `ROLE_EXPLANATIONS`.
+- Un fichier ajouté dans `code/stack` a une entrée dans `code/stack/site/src/components/CodeBrowser/constants.ts` (`EXPLANATIONS`, clé relative à `code/stack`, fichier en CRLF) ; les tests, `CLAUDE.md`, `index.ts`, `types.ts`… sont couverts par `ROLE_EXPLANATIONS`.
 
 ### 2. Tests unitaires, couverture, vérifications de A à Z, avec correction
 
@@ -28,7 +28,7 @@ Au premier blocage qu'il ne sait pas résoudre, il s'arrête et rend l'échec et
 
 **Tout** est vérifié, pas seulement ce qui a changé :
 
-- Site (racine) : `npx tsc --noEmit`, `npx eslint .`, `npm run build`.
+- Site (`code/stack/site`) : `npx tsc --noEmit`, `npx eslint .`, `npm run build` (après `npm run build:storybook` si le Storybook n'est pas déjà compilé).
 - Pile, dans chaque paquet de `code/stack` (`api`, `sync`, `sync/web`, `web`, `ui`, `motion`, `guest`) : typecheck, lint, `npm run test:coverage` (seuil de 100 %) ou `npm test` (`motion`, `guest`), et `npm run build` (`web`, `sync/web`) / `npm run build-storybook` (`ui`).
 
 Les paquets sont indépendants : lancés en parallèle (plusieurs appels Bash dans le même message).

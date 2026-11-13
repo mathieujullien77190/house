@@ -5,7 +5,7 @@
 #   ./deploy.sh api sync        ces services seulement
 #   ./deploy.sh --all           tous les services
 #   ./deploy.sh --dry-run       dit ce qui serait fait, sans rien envoyer
-#   ./deploy.sh site            le site de la racine du dépôt, compilé ici puis servi sur le port 8082
+#   ./deploy.sh site            le site (site/, React + Vite), compilé ici puis servi sur le port 8082
 #   ./deploy.sh --skip-checks   sans typecheck / lint / tests locaux
 #
 # Ne touche jamais à `data/` ni à `.env` (ni à `docker-compose.yml`, sauf avec --compose).
@@ -32,9 +32,6 @@ done
 
 # Ordre de déploiement : sync avant api (l'API interroge des colonnes de la base que sync migre).
 ORDER=(sync motion go2rtc api site guest)
-
-# Le site (React, Vite) est à la racine du dépôt, hors de code/stack : ses fichiers font changer `site`.
-SITE_ROOT_PATHS=(src public index.html package.json package-lock.json vite.config.ts tsconfig.json)
 
 # Quel dossier fait changer quel service : `web` et `ui` sont compilés dans les images api (et sync pour ui).
 services_for_path() {
@@ -67,13 +64,10 @@ else
   LAST="$(ssh_run "cat ~/$REMOTE_DIR/.deployed-commit 2>/dev/null" || true)"
   if [ -n "$LAST" ] && git cat-file -e "$LAST^{commit}" 2>/dev/null; then
     CHANGED="$(git diff --name-only "$LAST" -- . ; git ls-files --others --exclude-standard -- .)"
-    ROOT_CHANGED="$(cd ../.. && git diff --name-only "$LAST" -- "${SITE_ROOT_PATHS[@]}" ; git ls-files --others --exclude-standard -- "${SITE_ROOT_PATHS[@]}")"
   else
     echo "Pas de dernier déploiement connu : tous les services."
     CHANGED="$(git ls-files -- . ; git ls-files --others --exclude-standard -- .)"
-    ROOT_CHANGED=x
   fi
-  [ -n "${ROOT_CHANGED//[[:space:]]/}" ] && WANT[site]=1
   # `git diff --name-only` donne des chemins relatifs à la racine du dépôt (code/stack/...).
   while IFS= read -r f; do
     [ -z "$f" ] && continue
@@ -105,19 +99,19 @@ if [ "$SKIP" = 0 ]; then
       sync) check sync typecheck lint test; check sync/web typecheck lint test build; check ui typecheck lint test ;;
       motion) check motion typecheck lint test ;;
       guest) check guest typecheck lint test ;;
-      site) check ../.. typecheck lint ;;
+      site) check site typecheck lint ;;
     esac
   done
 fi
 
 if [ "$DRY" = 1 ]; then echo "--dry-run : rien envoyé."; exit 0; fi
 
-# 3a. Le site : compilé ici (Storybook de @house/ui puis Vite, à la racine, base `/`), copié dans site/www avant l'envoi.
+# 3a. Le site : compilé ici (Storybook de @house/ui puis Vite, dans site/, base `/`), copié dans site/www avant l'envoi.
 if printf '%s
 ' "${TODO[@]}" | grep -qx site; then
-  echo "→ compilation du site (racine du dépôt)"
-  (cd ../.. && npm run --silent build:storybook && npm run --silent build)
-  rm -rf site/www && cp -r ../../dist site/www
+  echo "→ compilation du site (site/)"
+  (cd site && npm run --silent build:storybook && npm run --silent build)
+  rm -rf site/www && cp -r site/dist site/www
 fi
 
 # 3. Envoi : seulement les dossiers des services (jamais data/, .env, node_modules, builds).
@@ -126,7 +120,7 @@ for s in "${TODO[@]}"; do
   case "$s" in
     api) DIRS+=(api web ui) ;;
     sync) DIRS+=(sync ui) ;;
-    site) DIRS+=(site) ;;
+    site) DIRS+=(site/Dockerfile site/nginx.conf site/CLAUDE.md site/www) ;; # pas les sources : le conteneur ne sert que www/
     *) DIRS+=("$s") ;;
   esac
 done

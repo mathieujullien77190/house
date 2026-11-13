@@ -123,6 +123,8 @@ services:
       HEATING_LOG_FILE: /house/heating-log.jsonl
       # Le journal des ordres aux volets roulants (écrit par House API dans data/house, importé toutes les 30 s dans la table shutter_log).
       SHUTTER_LOG_FILE: /house/shutters-log.jsonl
+      # Le journal des connexions des invités de la Freebox (écrit par House API dans data/house, importé toutes les 30 s dans la table box_connections).
+      BOX_LOG_FILE: ${BOX_LOG_FILE:-/house/box-connections.jsonl}
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
@@ -190,6 +192,13 @@ services:
       # l'API la retrouve toute seule par un scan du réseau (une fois par minute au plus). Sans adresse, le service plug répond 503.
       PLUG_HOST: ${PLUG_HOST:-}
       PLUG_MAC: ${PLUG_MAC:-D8:0D:17:1C:84:E3}
+      # La Freebox (onglet Box) : API locale de la box, application autorisée et son jeton (secret, dans .env). Sans jeton, GET /box répond « non configurée ».
+      FREEBOX_URL: ${FREEBOX_URL:-http://mafreebox.freebox.fr}
+      FREEBOX_APP_ID: ${FREEBOX_APP_ID:-fr.house.home}
+      FREEBOX_APP_TOKEN: ${FREEBOX_APP_TOKEN:-}
+      # La télécommande du Freebox Player POP (onglet Box TV) : protocole Android TV Remote v2, ports 6466 (touches) et 6467 (appairage) du Player sur le réseau de la maison.
+      # Aucun secret ici : le certificat client est gardé dans /state/tv (data/house/tv) après l'appairage depuis la WebApp.
+      TV_HOST: ${TV_HOST:-192.168.1.47}
       # Les climatisations Mitsubishi : « id:nom:adresse du module Wi-Fi », séparées par des virgules (par exemple chambre-invite:Chambre invité:192.168.1.130). Vide : le service ac répond 503.
       AC_UNITS: ${AC_UNITS:-}
       # Les volets roulants Somfy RTS : « numéro dans le firmware:nom », séparés par des virgules. Sans SHUTTERS_ESP_URL (l'adresse de l'ESP32 qui fait

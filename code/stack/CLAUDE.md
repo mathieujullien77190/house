@@ -9,7 +9,7 @@ Conteneurs Docker (`docker-compose.yml`) sur le mini PC (ACEMAGIC K1, Ubuntu Ser
 | `motion` | enregistreur : segments (6 h), détection, clips MP4 | interne |
 | `sync` | House Sync : copie clips et images, SQLite, sa page | 8081 |
 | `api` | House API (Express) + WebApp compilée | 8080 |
-| `site` | le site de la maison (schémas, Architecture, explications, vue Code, Storybook), compilé à la racine du dépôt, servi par nginx | 8082 |
+| `site` | le site de la maison (schémas, Architecture, explications, vue Code, Storybook), dont les sources sont dans `site/`, compilé sur le PC, servi par nginx | 8082 |
 | `guest` | page invité (direct léger) ; **éteinte par défaut** (profil `guest`) | 8090 |
 
 Hors Docker, `power/` : deux services systemd (puissance CPU par RAPL, état des conteneurs) lus par House Sync.
@@ -50,7 +50,7 @@ Règle « le code fait foi » et mise à jour de la doc : `../../CLAUDE.md`.
 - **Mobile et bureau** : mobile de 360 à 1024 px (une colonne, cibles tactiles), bureau dès 1024 px (`lg:` seulement, jamais `sm:` ni `md:`). Pas de défilement horizontal de la page à 360 px : un contenu large défile dans son bloc.
 - **Données** dans `data/` (ignoré) : `recordings`, `clips`, `backup`, `certs`, `power`, `house`, `guest` (interrupteur de la page invité), `guest-visits` (journal des visites). Les deux derniers sont à créer à la main avant le premier lancement.
 - **`data/` est irremplaçable** : ne jamais supprimer, déplacer ni écraser un fichier (ni `events.db`) sans copie préalable et accord de l'utilisateur.
-- Les fichiers de ce dossier sont expliqués dans `src/components/CodeBrowser/constants.ts`.
+- Les fichiers de ce dossier sont expliqués dans `site/src/components/CodeBrowser/constants.ts`.
 
 ## Commandes
 
