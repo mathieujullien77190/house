@@ -17,7 +17,6 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 
 - `SimpleTable` (une fiche par ligne sur téléphone), `DataTable` (`details`, `openKey`, `onRowClick`, `filters`), `TableFilters`, `StackedDate`.
 - `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `SpecList`, `ValueChips`.
-- `ApiExplorer` : services rangés par `group`. Les **écritures** (`method`, `body`) sont un cadre en pointillés, pas un bouton, pour ne pas allumer une lampe d'un clic.
 
 ## Médias
 

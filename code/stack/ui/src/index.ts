@@ -1,7 +1,5 @@
 // @house/ui : les composants « dumb » des deux apps de la maison (WebApp et page de House Sync).
 // Aucun état métier, aucun appel réseau : tout arrive par props. Les jetons de couleur sont dans tokens.css.
-export { default as ApiExplorer } from './components/ApiExplorer'
-export type { ApiExplorerProps, ApiResult, ApiService } from './components/ApiExplorer'
 export { default as Button } from './components/Button'
 export type { ButtonProps, ButtonVariant } from './components/Button'
 export { default as CameraCard } from './components/CameraCard'
@@ -71,3 +69,5 @@ export { default as HeatingPanel } from './components/HeatingPanel'
 export type { HeatingField, HeatingPanelProps } from './components/HeatingPanel'
 export { default as StatusDot, STATUS_DOT_DIAMETER, STATUS_DOT_RING } from './components/StatusDot'
 export type { StatusDotProps, StatusDotState } from './components/StatusDot'
+export { default as StatusFrame } from './components/StatusFrame'
+export type { StatusFrameProps, StatusFrameTone } from './components/StatusFrame'
