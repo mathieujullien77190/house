@@ -21,5 +21,8 @@ export const hourLabel = (time: string): string => {
   return `${day} 0 h`
 }
 
+/** Le vent d'une heure : « 25 km/h ». */
+export const windText = (speed: number): string => `${Math.round(speed)} km/h`
+
 /** La chance de pluie d'une heure : « 70 % ». */
 export const rainText = (chance: number): string => `${Math.round(chance)} %`

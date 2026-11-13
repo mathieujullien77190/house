@@ -31,6 +31,7 @@ vi.mock('@/components/Home', () => ({
       <button onClick={p.onOpenAc}>home ac</button>
       <button onClick={p.onOpenShutter}>home volets</button>
       <button onClick={p.onOpenPlug}>home prise</button>
+      <button onClick={p.onOpenBox}>home box</button>
     </div>
   ),
 }))
@@ -38,7 +39,12 @@ vi.mock('@/components/SavedClips', () => ({ default: () => <div data-testid="sav
 vi.mock('@/components/ShuttersPanel', () => ({ default: () => <div data-testid="shutters" /> }))
 vi.mock('@/components/AcPanel', () => ({ default: () => <div data-testid="ac" /> }))
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
-vi.mock('@/components/ApiExplorer', () => ({ default: () => <div data-testid="api" /> }))
+vi.mock('@/components/BoxPanel', () => ({ default: () => <div data-testid="box" /> }))
+vi.mock('@/components/TvPanel', () => ({
+  default: (p: { onBack?: () => void }) => (
+    <div data-testid="tv">{p.onBack ? <button onClick={p.onBack}>retour tv</button> : null}</div>
+  ),
+}))
 vi.mock('@/components/CameraCard', () => {
   const CardMock = (p: any) => {
     h.card = p
@@ -188,24 +194,11 @@ describe('App : onglets', () => {
     ['Lumière', 'lights'],
     ['Volet', 'shutters'],
     ['Prise', 'plug'],
-    ['API', 'api'],
   ])('l’onglet %s', (name, id) => {
     render(<App />)
     tab(name)
     expect(screen.getByTestId(id)).toBeInTheDocument()
     expect(screen.queryByTestId('mosaic')).toBeNull()
-  })
-
-  it('l’onglet API existe sur grand écran, pas sur téléphone (où on retombe sur Home)', () => {
-    const { unmount } = render(<App />)
-    expect(screen.getByRole('tab', { name: 'API' })).toBeInTheDocument()
-    tab('API')
-    expect(screen.getByTestId('api')).toBeInTheDocument()
-    unmount()
-    h.mobile = true
-    render(<App />)
-    expect(screen.queryByRole('tab', { name: 'API' })).toBeNull()
-    expect(screen.getByRole('tab', { name: 'Home' })).toBeInTheDocument()
   })
 
   it('la Home reste montée (cachée) quand on change d’onglet : le clip choisi et les flux restent chargés', () => {
@@ -235,6 +228,16 @@ describe('App : onglets', () => {
     tab('Home')
     fireEvent.click(screen.getByText('home ac'))
     expect(screen.getByTestId('ac')).toBeInTheDocument()
+    tab('Home')
+    fireEvent.click(screen.getByText('home box'))
+    expect(screen.getByTestId('box')).toBeInTheDocument()
+  })
+
+  it('l’onglet Box TV garde la barre sur ordinateur', () => {
+    render(<App />)
+    tab('Box TV')
+    expect(screen.getByTestId('tv')).toBeInTheDocument()
+    expect(screen.queryByText('retour tv')).toBeNull()
   })
 
   it('ouvrir une caméra : retour à la mosaïque, clip choisi', () => {
@@ -318,6 +321,13 @@ describe('App : téléphone', () => {
     expect(h.card.others).toEqual(['voliere-exterieur'])
     act(() => h.card.onOpenCamera('voliere-exterieur'))
     expect(h.mounts).toBe(2)
+  })
+  it('la Box TV est un écran à part, sans barre ; son retour ramène à Home', () => {
+    render(<App />)
+    tab('Box TV')
+    expect(screen.queryByRole('tablist')).toBeNull()
+    fireEvent.click(screen.getByText('retour tv'))
+    expect(screen.getByTestId('home')).toBeInTheDocument()
   })
   it('l’onglet Lumière garde la barre et les onglets (la liste, sans carte)', () => {
     render(<App />)

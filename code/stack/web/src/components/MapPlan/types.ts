@@ -46,6 +46,10 @@ export interface MapPlanProps extends Omit<EditContext, 'cameras'> {
   emojis?: PlanEmoji[]
   /** Les icônes seules posées sur le plan (la pompe à chaleur) : sans rond, on les déplace en modification (`onMoveDecor`). */
   decors?: PlanDecor[]
+  /** Un clic sur une icône seule cliquable (la box), hors modification : la choisit (`onSelectDecor`) ; son double clic ouvre sa page (`onOpenDecor`). `selectedDecorId` sert à l'ancre de la ligne bleue. */
+  onSelectDecor?: (id: string) => void
+  onOpenDecor?: (id: string) => void
+  selectedDecorId?: string
   /** Le clip choisi : sert à l'ancre et à la vue imposée par le parent ; la carte ne le dessine pas autrement. */
   selectedEmojiId?: string
   /** Un clic sur la prise (le chauffage), hors modification : la choisit (`onSelectPlug`) ; son double clic ouvre sa page (`onOpenPlug`). En modification, elle se déplace et le clic ne fait rien. */

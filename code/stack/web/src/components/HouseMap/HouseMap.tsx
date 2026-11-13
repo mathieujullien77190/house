@@ -4,6 +4,7 @@ import ClipPreview from '@/components/ClipPreview'
 import { PLAN_PLUG_POSITION } from '@/components/Lights'
 import LiveTile from '@/components/LiveTile'
 import MapPlan from '@/components/MapPlan'
+import BoxPreview from '@/components/BoxPreview'
 import PlugPanel from '@/components/PlugPanel'
 import ShutterPreview from '@/components/ShutterPreview'
 import { decorItemId, DEFAULT_DECORS } from '@/components/MapPlan/helpers'
@@ -26,9 +27,6 @@ import {
   PLUG_ID,
   THUMBNAIL_CHROME,
   COMPACT_CLASS,
-  CAMERA_BLOCK_CLASS,
-  CAMERA_OFF_CLASS,
-  CAMERA_ON_CLASS,
   THUMBNAIL_CLASS,
   THUMBNAIL_GAP,
   THUMBNAIL_PORTRAIT_WIDTH,
@@ -42,7 +40,7 @@ import type { HouseMapProps } from './types'
  * gardé dans le navigateur. Le toit est caché : on voit les pièces et les cloisons, les caméras (un clic montre leur champ de vision) et toutes les lampes du pont (un clic les allume ou
  * les éteint), relues toutes les 5 s.
  */
-const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onOpenShutter, onOpenPlug }: HouseMapProps) => {
+const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onOpenShutter, onOpenPlug, onOpenBox }: HouseMapProps) => {
   const plan = usePlan(apiKey)
   const { trees, hedges, offsets, links, cage, cameras: planCameras } = plan
   const { link, moveCamera, adjustCamera, moveItem } = plan
@@ -76,7 +74,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   // **sur téléphone** un clic ouvre directement sa page.
   const mobile = useMobile()
   // La sélection (caméra, chauffage, clim, volet, emoji de clip) est **globale** (`lib/homeSelection.ts`) : elle survit à un changement d'onglet (la Home est démontée, la sélection reste).
-  const { camera: selectedCamera, plug: selectedPlug, ac: selectedAc, shutter: selectedShutter, emoji: selectedEmoji } = useHomeSelection()
+  const { camera: selectedCamera, plug: selectedPlug, ac: selectedAc, shutter: selectedShutter, emoji: selectedEmoji, box: selectedBox } = useHomeSelection()
   const real = selectedCamera && links[selectedCamera] ? cameras.find((camera) => camera.name === links[selectedCamera]) : undefined
   // Un clic sur une caméra la choisit toujours (pas de bascule : un second clic, ou deux événements pour un clic, ne la referme pas) ; un clic à côté la ferme.
   // La prise (le chauffage), une clim, un volet et l'emoji d'un clip se comportent pareil : un clic les choisit (la carte prend la même vue, leur bloc s'affiche à droite), un double clic ouvre leur page,
@@ -110,6 +108,10 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
     }
     chooseOnHome({ emoji: id })
   }
+  const selectBox = (id: string) => {
+    // Un clic sur la box ouvre directement l'onglet Box (pas d'aperçu).
+    if (id === 'box') onOpenBox()
+  }
   const selectPlug = () => {
     if (mobile) {
       onOpenPlug()
@@ -122,7 +124,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   // (Pas sur téléphone : aucun aperçu n'y est montré, un clic ouvre la page ; on n'y charge pas de flux pour rien.)
   const preloaded = mobile ? [] : Object.values(links)
   const selectedClip = selectedEmoji ? clips[selectedEmoji] : undefined
-  const open = (Boolean(real) || selectedPlug || selectedAc !== '' || selectedShutter !== '' || selectedClip !== undefined) && !mobile
+  const open = (Boolean(real) || selectedPlug || selectedAc !== '' || selectedShutter !== '' || selectedBox || selectedClip !== undefined) && !mobile
   // Un clic en dehors de la carte et de la miniature ferme la miniature ; un clic dans le vide de la carte la ferme aussi (`select('')`, par `MapPlan`).
   const wrapper = useRef<HTMLDivElement>(null)
   // La taille de la carte, relue quand la position de la caméra change (pas de lecture de ref pendant le rendu).
@@ -135,7 +137,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   const thumbnail = useRef<HTMLDivElement>(null)
   // La place du bloc, donnée à la carte : elle y tire la ligne bleue depuis l'objet choisi (sous les icônes).
   const [box, setBox] = useState<{ left: number; top: number; height: number } | null>(null)
-  const selection = `${selectedCamera}|${selectedPlug}|${selectedAc}|${selectedShutter}|${selectedEmoji}`
+  const selection = `${selectedCamera}|${selectedPlug}|${selectedAc}|${selectedShutter}|${selectedEmoji}|${selectedBox}`
   useEffect(() => {
     const element = thumbnail.current
     const host = wrapper.current
@@ -214,6 +216,9 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
         onSelectAc={selectAc}
         selectedAcId={selectedAc}
         onSelectPlug={selectPlug}
+        onSelectDecor={selectBox}
+        onOpenDecor={(id) => (id === 'box' ? onOpenBox() : undefined)}
+        selectedDecorId={selectedBox ? 'box' : ''}
         selectedPlugId={selectedPlug ? PLUG_ID : ''}
         onOpenPlug={() => onOpenPlug()}
         shutters={shutters}
@@ -233,19 +238,15 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
           .map((camera) => {
             const lastEvent = events.find((event) => event.camera === camera.name)
             return (
-              <div
-                key={camera.name}
-                hidden={!open || camera.name !== real?.name}
-                className={`${CAMERA_BLOCK_CLASS} ${offNames.includes(camera.name) ? CAMERA_OFF_CLASS : CAMERA_ON_CLASS}`}
-              >
-                <LiveTile
-                  apiKey={apiKey}
-                  camera={camera}
-                  lastEvent={lastEvent}
-                  read={lastEvent ? isRead(lastEvent.id) : false}
-                  onOpen={() => onOpenCamera(camera.name)}
-                  onOpenClip={lastEvent?.clip ? () => onOpenCamera(camera.name, lastEvent.id) : undefined}
-                />
+              <div key={camera.name} hidden={!open || camera.name !== real?.name}>
+                  <LiveTile
+                    apiKey={apiKey}
+                    camera={camera}
+                    lastEvent={lastEvent}
+                    read={lastEvent ? isRead(lastEvent.id) : false}
+                    onOpen={() => onOpenCamera(camera.name)}
+                    onOpenClip={lastEvent?.clip ? () => onOpenCamera(camera.name, lastEvent.id) : undefined}
+                  />
               </div>
             )
           })}
@@ -261,6 +262,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
           ) : null}
           {open && !real && selectedShutter ? <ShutterPreview apiKey={apiKey} shutterId={selectedShutter} /> : null}
           {open && !real && selectedAc ? <AcPreview apiKey={apiKey} unitId={selectedAc} /> : null}
+          {open && !real && selectedBox ? <BoxPreview apiKey={apiKey} /> : null}
           {open && !real && selectedPlug ? <PlugPanel apiKey={apiKey} embedded /> : null}
         </div>
       </div>

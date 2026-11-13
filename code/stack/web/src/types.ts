@@ -63,7 +63,123 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'ac' | 'plug' | 'api'
+export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'ac' | 'plug' | 'box' | 'tv'
+
+/** Les touches de la télécommande du Freebox Player (liste de l'API Freebox). */
+export type TvKey =
+  | 'power'
+  | 'free'
+  | 'netflix'
+  | 'disney'
+  | 'list'
+  | 'tv'
+  | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+  | 'back'
+  | 'swap'
+  | 'info'
+  | 'epg'
+  | 'mail'
+  | 'media'
+  | 'help'
+  | 'options'
+  | 'pip'
+  | 'vol_inc'
+  | 'vol_dec'
+  | 'mute'
+  | 'prgm_inc'
+  | 'prgm_dec'
+  | 'prev'
+  | 'bwd'
+  | 'play'
+  | 'fwd'
+  | 'next'
+  | 'up'
+  | 'right'
+  | 'down'
+  | 'left'
+  | 'home'
+  | 'ok'
+  | 'red'
+  | 'green'
+  | 'blue'
+  | 'yellow'
+  | 'rec'
+
+/** L'état de la télécommande TV (`GET /tv`) : `paired` = le Player est associé (certificat client gardé par l'API), `online` = son état dans la box (null si elle ne le dit pas), `name` = son nom dans la box. */
+export interface TvState {
+  configured: boolean
+  paired: boolean
+  online: boolean | null
+  name?: string
+}
+
+/** Un appareil connecté (ou connu) de la Freebox. */
+export interface BoxDevice {
+  /** Bail DHCP statique (IP réservée), dynamique, ou null si la box n'a pas rendu la liste des baux. */
+  staticLease: boolean | null
+  /** Vrai : l'appareil fait partie de la maison ; faux : c'est un invité ; absent : la liste de la maison n'est pas encore prise. */
+  home?: boolean
+  name: string
+  ip: string | null
+  mac: string
+  active: boolean
+  type: string | null
+  vendor: string | null
+}
+
+/** L'état de la Freebox tel que House API le rend (`GET /box`) : débits en octets par seconde, `uptime` en secondes. */
+export interface BoxState {
+  configured: boolean
+  reachable: boolean
+  model: string | null
+  firmware: string | null
+  uptime: number | null
+  connection: { state: string | null; type: string | null; ipv4: string | null; rateDown: number | null; rateUp: number | null } | null
+  wifi: { enabled: boolean } | null
+  devices: BoxDevice[]
+}
+
+/** Une connexion ou déconnexion d'un invité de la box (`GET /box/guests`). */
+export interface BoxConnection {
+  /** Secondes depuis 1970. */
+  at: number
+  event: 'connect' | 'disconnect'
+  mac: string
+  name: string
+  ip: string | null
+  type: string | null
+  vendor: string | null
+}
+
+/** Un invité de la box : tout appareil hors de la maison, vu connecté au moins une fois. `excluded` : exclu du WiFi (null si la box n'a pas répondu). */
+export interface BoxGuest {
+  mac: string
+  name: string
+  ip: string | null
+  type: string | null
+  vendor: string | null
+  /** Secondes depuis 1970. */
+  firstSeen: number
+  lastSeen: number
+  active: boolean
+  excluded: boolean | null
+}
+
+/** Les invités de la box (`GET /box/guests`) : filtrage MAC du WiFi (`disabled`, `blacklist`, `whitelist`), invités et dernières connexions. */
+export interface BoxGuests {
+  filterState: string | null
+  guests: BoxGuest[]
+  events: BoxConnection[]
+}
+
+/** Le WiFi invité de la box (`GET /box/guest-wifi`), lu à la demande. */
+export interface GuestWifi {
+  ssid: string | null
+  password: string
+  description: string | null
+  maxUses: number | null
+  users: number
+}
 
 export type AcMode = 'heat' | 'cool' | 'dry' | 'fan' | 'auto'
 

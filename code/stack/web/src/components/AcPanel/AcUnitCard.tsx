@@ -1,4 +1,4 @@
-import { Button } from '@house/ui'
+import { Button, StatusFrame } from '@house/ui'
 import type { AcPatch, AcUnit } from '@/types'
 import {
   BUTTONS_CLASS,
@@ -50,6 +50,7 @@ const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
   // Sans consigne connue, − et + sont grisés et n'envoient rien.
   const step = (direction: -1 | 1) => (target === null ? undefined : () => onChange({ temperature: stepTarget(target, direction) }))
   return (
+    <StatusFrame tone={unit.power && unit.reachable ? 'ok' : 'off'}>
     <div className={CARD_CLASS}>
       <div className={HEAD_CLASS}>
         <span className={NAME_CLASS}>{unit.name}</span>
@@ -149,6 +150,7 @@ const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
       )}
       {failed ? <span className={ERROR_CLASS}>{SEND_ERROR_TEXT}</span> : null}
     </div>
+    </StatusFrame>
   )
 }
 

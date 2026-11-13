@@ -34,6 +34,7 @@ export const HOUR_ICON_CLASS = 'text-[1.4rem] leading-none'
 export const HOUR_TEMPERATURE_CLASS = 'font-semibold tabular-nums'
 export const HOUR_RAIN_CLASS = 'text-[0.7rem] tabular-nums text-muted'
 export const HOUR_RAINY_CLASS = 'text-[0.7rem] font-semibold tabular-nums text-accent'
+export const HOUR_WIND_CLASS = 'text-[0.7rem] tabular-nums text-muted'
 /** Au-delà de cette probabilité (%), la pluie est mise en avant. */
 export const RAINY_CHANCE = 50
 export const PANEL_LABEL = 'Prévisions heure par heure'

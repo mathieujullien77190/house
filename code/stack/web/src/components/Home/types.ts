@@ -15,4 +15,6 @@ export interface HomeProps {
   onOpenShutter: () => void
   /** Ouvre l'onglet Prise. */
   onOpenPlug: () => void
+  /** Ouvre l'onglet Box. */
+  onOpenBox: () => void
 }

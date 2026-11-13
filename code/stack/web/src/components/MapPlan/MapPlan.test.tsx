@@ -502,6 +502,7 @@ describe('MapPlan : vue imposée et ancre de l’objet choisi', () => {
     ['la clim', { acs: [ac], selectedAcId: 'a1' }],
     ['le volet', { shutters: [shutter], selectedShutterId: 's1' }],
     ['l’emoji', { emojis: [emoji], selectedEmojiId: 'e1' }],
+    ['l’icône seule choisie (la box)', { decors: [{ id: 'box', x: 9, y: 9, image: 'img', clickable: true }], selectedDecorId: 'box' }],
   ] as [string, Partial<MapPlanProps>][])('donne au parent la place à l’écran de %s, relue quand la carte bouge', (_name, over) => {
     const onAnchor = vi.fn()
     const { unmount } = render(<MapPlan {...baseProps({ ...over, onAnchor })} />)

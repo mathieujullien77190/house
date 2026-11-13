@@ -70,7 +70,7 @@ export const POLL_MS = 10_000
 
 export const BOX_CLASS = 'mt-4 flex flex-col gap-3'
 export const LIST_CLASS = 'grid grid-cols-1 gap-3 lg:grid-cols-3'
-export const CARD_CLASS = 'flex flex-col gap-3 rounded-lg border border-line bg-card p-3'
+export const CARD_CLASS = 'flex flex-col gap-3 p-3'
 export const HEAD_CLASS = 'flex items-center justify-between gap-2'
 export const TOGGLE_WRAP_CLASS = 'flex items-center gap-2'
 export const TOGGLE_TEXT_CLASS = 'min-w-7 font-mono text-[0.9rem]'

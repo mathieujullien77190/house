@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Checkbox, Notice, SectionTitle, SpecList } from '@house/ui'
+import { Button, Checkbox, Notice, SectionTitle, SpecList, StatusFrame } from '@house/ui'
 import { ApiError, fetchPlug, setPlug } from '@/lib/api'
 import HeatingSection from '@/components/HeatingSection'
 import {
@@ -143,6 +143,7 @@ const PlugPanel = ({ apiKey, embedded = false }: PlugPanelProps) => {
       {plug ? (
         <>
           {/* Un bloc comme celui d'une climatisation : le nom et l'interrupteur On / Off, l'état, puis les réglages. Allumer part pour la durée choisie (la prise ne reste jamais allumée sans fin). */}
+          <StatusFrame tone={plug.on ? 'ok' : 'off'}>
           <div className={CARD_CLASS}>
             <div className={HEAD_CLASS}>
               <span className={NAME_CLASS}>{plug.alias}</span>
@@ -194,6 +195,7 @@ const PlugPanel = ({ apiKey, embedded = false }: PlugPanelProps) => {
             {/* La règle du chauffage automatique ne s'applique qu'à cette prise : elle est dans son bloc. */}
             <HeatingSection apiKey={apiKey} version={commands} compact={embedded} />
           </div>
+          </StatusFrame>
         </>
       ) : null}
     </section>

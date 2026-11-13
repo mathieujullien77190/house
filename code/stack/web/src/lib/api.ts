@@ -1,7 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
-import type { AcPatch, AcUnit, CameraMarker, CameraPower, CameraRow, EventRow, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
+import type { TvKey, TvState, AcPatch, AcUnit, BoxGuests, BoxState, GuestWifi, CameraMarker, CameraPower, CameraRow, EventRow, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -109,6 +109,63 @@ export const setAc = async (key: string, id: string, patch: AcPatch): Promise<Ac
   return res.json()
 }
 
+/** L'état de la Freebox (ligne, WiFi, appareils) ; `configured: false` sans jeton côté API. */
+export const fetchBox = async (key: string): Promise<BoxState> => (await request(key, '/box')).json()
+
+/** Allume ou coupe le WiFi de la box ; rend le nouvel état. 502 si la box ne répond pas ou refuse. */
+export const setBoxWifi = async (key: string, enabled: boolean): Promise<{ enabled: boolean }> => {
+  const res = await fetch('/box/wifi', {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/box/wifi : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Les invités de la box, leurs dernières connexions et leur exclusion du WiFi (503 sans box configurée). */
+export const fetchBoxGuests = async (key: string, limit = 100): Promise<BoxGuests> => (await request(key, `/box/guests?limit=${limit}`)).json()
+
+/** Exclut un invité du WiFi de la box (liste noire par MAC) ou le réadmet. 409 : la box est en liste blanche ; 502 : box muette ou droit refusé. */
+export const setBoxExcluded = async (key: string, mac: string, excluded: boolean): Promise<void> => {
+  const res = await fetch(`/box/guests/${encodeURIComponent(mac)}/exclude`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ excluded }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/box/guests : HTTP ${res.status}`)
+}
+
+/** L'état de la télécommande TV : Player associé ou non, en ligne ou non (d'après la box). */
+export const fetchTv = async (key: string): Promise<TvState> => (await request(key, '/tv')).json()
+
+const send = async (key: string, path: string, method: string, body?: unknown): Promise<void> => {
+  const res = await fetch(path, {
+    method,
+    headers: { [KEY_HEADER]: key, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `${path} : HTTP ${res.status}`)
+}
+
+/** Envoie une touche au Freebox Player (`long` : appui long). 409 si le Player n'est pas associé, 502 s'il est éteint ou injoignable. */
+export const sendTvKey = (key: string, tvKey: TvKey, long: boolean): Promise<void> => send(key, '/tv/key', 'POST', { key: tvKey, long })
+
+/** Ouvre l'association : le Player affiche un code sur la TV. 502 s'il est éteint ou injoignable, 504 s'il ne répond pas. */
+export const startTvPairing = (key: string): Promise<void> => send(key, '/tv/pair/start', 'POST')
+
+/** Termine l'association avec le code lu sur la TV. 422 code faux, 409 association expirée, 502 Player éteint. */
+export const finishTvPairing = (key: string, code: string): Promise<void> => send(key, '/tv/pair/code', 'POST', { code })
+
+/** Oublie l'association (l'API supprime le certificat client). */
+export const forgetTvPairing = (key: string): Promise<void> => send(key, '/tv/pair', 'DELETE')
+
+/** Le WiFi invité de la box avec son mot de passe, lu à la demande (404 sans clé invité, 502 si la box ne répond pas). */
+export const fetchGuestWifi = async (key: string): Promise<GuestWifi> => (await request(key, '/box/guest-wifi')).json()
+
 /** Les volets roulants et leur dernier ordre (503 si aucun volet n'est configuré). */
 export const fetchShutters = async (key: string): Promise<ShuttersState> => (await request(key, '/shutters')).json()
 
@@ -197,11 +254,6 @@ export const fetchSnapshot = async (key: string, camera: string, at: number): Pr
   const res = await request(key, `/snapshot?camera=${encodeURIComponent(camera)}&at=${Math.floor(at)}`)
   const takenAt = Number(res.headers.get('X-Snapshot-At'))
   return { blob: await res.blob(), takenAt: Number.isFinite(takenAt) && takenAt > 0 ? takenAt : null, code: res.headers.get('X-Snapshot-Code') ?? '' }
-}
-/** Un service quelconque, pour l'explorateur de l'API : le statut et le corps tel quel. */
-export const callService = async (key: string, path: string): Promise<{ status: number; body: string }> => {
-  const res = await fetch(path, { headers: { [KEY_HEADER]: key } })
-  return { status: res.status, body: await res.text() }
 }
 
 /**

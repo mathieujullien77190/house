@@ -23,6 +23,7 @@ describe('Home', () => {
         onOpenAc={vi.fn()}
         onOpenShutter={vi.fn()}
         onOpenPlug={onOpenPlug}
+        onOpenBox={vi.fn()}
       />,
     )
     expect(screen.getByTestId('map')).toHaveTextContent('k:1:true')

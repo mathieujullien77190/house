@@ -1,8 +1,7 @@
-// Les fonctions pures des petits composants : App, ApiExplorer, CameraCard, CameraIndicators, CameraMosaic, Home, PlugPanel.
+// Les fonctions pures des petits composants : App, CameraCard, CameraIndicators, CameraMosaic, Home, PlugPanel.
 import { describe, expect, it } from 'vitest'
 import { formatTime } from '@/lib/format'
 import type { Camera, EventRow, HueLight, HueSensor, PlugState } from '@/types'
-import { prettify } from './ApiExplorer/helpers'
 import { eventsOf } from './App/helpers'
 import { clipLead, clipPathOf, orientationShown, temperatureItems } from './CameraCard/helpers'
 import { lampLabel, plugLabel } from './CameraIndicators/helpers'
@@ -29,13 +28,6 @@ const event = (over: Partial<EventRow> = {}): EventRow =>
 describe('App/helpers', () => {
   it('eventsOf garde les événements de la caméra', () => {
     expect(eventsOf([event({ id: 'a' }), event({ id: 'b', camera: 'autre' })], 'cam').map((e) => e.id)).toEqual(['a'])
-  })
-})
-
-describe('ApiExplorer/helpers', () => {
-  it('prettify met le JSON en forme, rend le reste tel quel', () => {
-    expect(prettify('{"a":1}')).toBe('{\n  "a": 1\n}')
-    expect(prettify('pas du json')).toBe('pas du json')
   })
 })
 

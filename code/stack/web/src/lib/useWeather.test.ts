@@ -16,7 +16,7 @@ const settle = async (ms = 0) => {
 }
 
 const BODY = {
-  current: { temperature_2m: 9.4, weather_code: 61, is_day: 1 },
+  current: { temperature_2m: 9.4, weather_code: 61, is_day: 1, wind_speed_10m: 18.2 },
   hourly: {
     time: ['2026-11-10T14:00', '2026-11-10T15:00'],
     temperature_2m: [9.4, 10],
@@ -24,6 +24,7 @@ const BODY = {
     is_day: [1, 0],
     precipitation_probability: [70, 5],
     precipitation: [0.4, 0],
+    wind_speed_10m: [12.6, 30],
   },
 }
 
@@ -31,8 +32,9 @@ describe('weatherUrl', () => {
   it('demande le temps actuel et les prochaines heures', () => {
     const url = weatherUrl(48.52, 2.64)
     expect(url).toContain('latitude=48.52&longitude=2.64')
-    expect(url).toContain('current=temperature_2m,weather_code,is_day')
-    expect(url).toContain('hourly=temperature_2m,weather_code,is_day,precipitation_probability,precipitation')
+    expect(url).toContain('current=temperature_2m,weather_code,is_day,wind_speed_10m')
+    expect(url).toContain('hourly=temperature_2m,weather_code,is_day,precipitation_probability,precipitation,wind_speed_10m')
+    expect(url).toContain('wind_speed_unit=kmh')
     expect(url).toContain(`forecast_hours=${FORECAST_HOURS}`)
   })
 })
@@ -40,8 +42,8 @@ describe('weatherUrl', () => {
 describe('parseHours', () => {
   it('range les tableaux parallèles heure par heure', () => {
     expect(parseHours(BODY.hourly)).toEqual([
-      { time: '2026-11-10T14:00', temperature: 9.4, code: 61, isDay: true, rainChance: 70, rain: 0.4 },
-      { time: '2026-11-10T15:00', temperature: 10, code: 3, isDay: false, rainChance: 5, rain: 0 },
+      { time: '2026-11-10T14:00', temperature: 9.4, code: 61, isDay: true, rainChance: 70, rain: 0.4, wind: 12.6 },
+      { time: '2026-11-10T15:00', temperature: 10, code: 3, isDay: false, rainChance: 5, rain: 0, wind: 30 },
     ])
   })
   it('sans prévision, ou avec des tableaux absents : rien', () => {
@@ -57,10 +59,11 @@ describe('parseHours', () => {
       is_day: [1, 1, 1, 1],
       precipitation_probability: [null, 1, 1, 'x'],
       precipitation: [null, 1, 1, 'x'],
+      wind_speed_10m: [null, 1, 1, 'x'],
     })
     expect(hours).toEqual([
-      { time: '2026-11-10T14:00', temperature: 9, code: 1, isDay: true, rainChance: 0, rain: 0 },
-      { time: '2026-11-10T17:00', temperature: 8, code: 2, isDay: true, rainChance: 0, rain: 0 },
+      { time: '2026-11-10T14:00', temperature: 9, code: 1, isDay: true, rainChance: 0, rain: 0, wind: 0 },
+      { time: '2026-11-10T17:00', temperature: 8, code: 2, isDay: true, rainChance: 0, rain: 0, wind: 0 },
     ])
   })
 })
@@ -71,8 +74,15 @@ describe('useWeather', () => {
     const { result } = renderHook(() => useWeather(48.52, 2.64))
     expect(result.current).toBeNull()
     await settle()
-    expect(result.current).toMatchObject({ temperature: 9.4, code: 61, isDay: true })
+    expect(result.current).toMatchObject({ temperature: 9.4, wind: 18.2, code: 61, isDay: true })
     expect(result.current?.hours).toHaveLength(2)
+  })
+
+  it('sans vent dans la réponse, le vent vaut zéro', async () => {
+    stubFetch(() => reply({ ...BODY, current: { temperature_2m: 9.4, weather_code: 61, is_day: 1 } }))
+    const { result } = renderHook(() => useWeather(1, 2))
+    await settle()
+    expect(result.current?.wind).toBe(0)
   })
 
   it('une nuit : is_day à zéro', async () => {

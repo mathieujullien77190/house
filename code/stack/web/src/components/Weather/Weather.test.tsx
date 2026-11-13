@@ -17,12 +17,13 @@ Object.defineProperty(HTMLElement.prototype, 'scrollBy', { configurable: true, w
 
 const WEATHER: WeatherData = {
   temperature: 9.4,
+  wind: 18,
   code: 61,
   isDay: true,
   hours: [
-    { time: '2026-11-10T14:00', temperature: 9.4, code: 61, isDay: true, rainChance: 70, rain: 0.4 },
-    { time: '2026-11-10T15:00', temperature: 10.2, code: 3, isDay: true, rainChance: 10, rain: 0 },
-    { time: '2026-11-11T00:00', temperature: 6, code: 0, isDay: false, rainChance: 0, rain: 0 },
+    { time: '2026-11-10T14:00', temperature: 9.4, code: 61, isDay: true, rainChance: 70, rain: 0.4, wind: 20 },
+    { time: '2026-11-10T15:00', temperature: 10.2, code: 3, isDay: true, rainChance: 10, rain: 0, wind: 20 },
+    { time: '2026-11-11T00:00', temperature: 6, code: 0, isDay: false, rainChance: 0, rain: 0, wind: 20 },
   ],
 }
 

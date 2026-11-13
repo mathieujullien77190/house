@@ -1,7 +1,6 @@
 import { reply, stubFetch } from '@/test/fetch'
 import {
   ApiError,
-  callService,
   cancelFade,
   checkKey,
   clearStoredKey,
@@ -131,14 +130,6 @@ describe('lectures (GET)', () => {
     const result = await fetchSnapshot('k', 'c', 1)
     expect(result.takenAt).toBeNull()
     expect(result.code).toBe('')
-  })
-})
-
-describe('callService', () => {
-  it('rend le statut et le corps tels quels, sans lever', async () => {
-    const spy = stubFetch(() => reply('oups', 404))
-    expect(await callService('k', '/x')).toEqual({ status: 404, body: 'oups' })
-    expect(spy).toHaveBeenCalledWith('/x', { headers: { 'X-House-Key': 'k' } })
   })
 })
 

@@ -10,15 +10,17 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 - `lib/api.ts` : client de House API. La clé n'est jamais gardée : l'en-tête `X-House-Key` sert le temps de la saisie, `/auth` ouvre la session par cookie (`../docs/securite.md`).
 - `lib/useHouse.ts` : la clé et son statut (essaie d'abord le cookie), caméras et événements rafraîchis chaque seconde.
 - `lib/useAcUnits.ts`, `lib/useShutters.ts` : lecture et ordres, **partagés** entre l'onglet et l'aperçu de la carte de Home.
+- `lib/useBox.ts` : la Freebox (lecture, WiFi), **partagée** entre l'onglet Box et son aperçu.
+- `lib/useTv.ts` : la télécommande du Freebox Player (état, touches, association par code affiché sur la TV), pour l'onglet Box TV.
 - `lib/homeSelection.ts` : la sélection de la carte de Home, **état global** qui survit au démontage de la Home.
-- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), sept onglets (`TABS`). Ouvre sur **Home** (`DEFAULT_TAB`). Pas d'onglet API sur téléphone.
-- `ApiExplorer` : les services de l'API (liste dans `constants.ts`, à compléter quand l'API gagne un service).
+- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), huit onglets (`TABS`, dont Box TV). Ouvre sur **Home** (`DEFAULT_TAB`).
 
 ## Barre du haut
 
 - Le titre rafraîchit la page.
 - Météo (`components/Weather`, `lib/useWeather.ts`) : Open-Meteo lu par le navigateur, sans clé, toutes les 15 min.
 - Suivie de « · 🏠 22° » : la température du salon lue par sa clim (`lib/useHomeTemperature.ts`, `/ac`, toutes les 30 s ; rien si inconnue).
+- Elle donne aussi le vent (km/h, `wind_speed_10m`) : « 💨 X km/h » par heure dans la prévision et dans l'infobulle.
 - Un clic sur la météo ouvre la prévision des 24 h ; un clic ailleurs ou Échap la ferme.
 - Sur téléphone, un menu « sandwich » regroupe les onglets ; météo et bouton des notifications restent dans la barre.
 
@@ -29,7 +31,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 | Home, carte avec caméras et lampes | `Home/`, `HouseMap/`, `MapPlan/` |
 | Onglet Caméras : mosaïque, clips sauvegardés | `CameraMosaic/`, `SavedClips/` |
 | Détail d'une caméra, frise | `CameraCard/`, `Timeline/` |
-| Lumière, Volet, Clim, Prise | `Lights/`, `ShuttersPanel/`, `AcPanel/`, `PlugPanel/` |
+| Lumière, Volet, Clim, Prise, Box, Box TV | `Lights/`, `ShuttersPanel/`, `AcPanel/`, `PlugPanel/`, `BoxPanel/`, `TvPanel/` |
 
 Chemins : `src/components/<nom>/CLAUDE.md`.
 

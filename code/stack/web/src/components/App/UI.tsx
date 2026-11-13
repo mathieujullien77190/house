@@ -1,7 +1,7 @@
 import { Button, Notice, Page, TopBar } from '@house/ui'
 import Weather from '@/components/Weather'
 import AcPanel from '@/components/AcPanel'
-import ApiExplorer from '@/components/ApiExplorer'
+import BoxPanel from '@/components/BoxPanel'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
 import Home from '@/components/Home'
@@ -10,6 +10,7 @@ import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
 import ShuttersPanel from '@/components/ShuttersPanel'
+import TvPanel from '@/components/TvPanel'
 import {
   BACK_CLASS,
   NOTIFY_LABEL,
@@ -47,9 +48,6 @@ const AppUI = ({
   onConnect,
 }: AppUIProps) => {
   const ready = status === 'ready'
-  // L'onglet API (explorateur de l'API) n'existe pas sur téléphone ; si on y était, on revient à Home.
-  const shownTabs = mobile ? tabs.filter((candidate) => candidate.id !== 'api') : tabs
-  const apiHidden = mobile && tab === 'api'
   // La caméra ouverte en détail, si elle existe encore ; sinon la mosaïque.
   const current = cameras.find((camera) => camera.name === openCamera)
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : ''
@@ -73,6 +71,13 @@ const AppUI = ({
       />
     )
   }
+  // Sur téléphone, la télécommande TV est seule à l'écran : ni titre ni menu, son bouton « Retour » ramène à Home.
+  if (ready && mobile && tab === 'tv')
+    return (
+      <Page>
+        <TvPanel apiKey={apiKey} onBack={() => onTab('home')} />
+      </Page>
+    )
   // Pareil pour le plan des lumières : un écran à part, la flèche retour ramène aux caméras.
   return (
     <Page>
@@ -83,7 +88,7 @@ const AppUI = ({
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
         info={ready ? <Weather apiKey={apiKey} /> : undefined}
-        tabs={ready ? { label: TABS_LABEL, options: shownTabs, value: tab, onChange: onTab } : undefined}
+        tabs={ready ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
         // Le bouton des notifications reste dans la barre (sur téléphone : juste à gauche du sandwich).
         barActions={
           ready && notify !== 'unsupported' ? (
@@ -105,7 +110,7 @@ const AppUI = ({
       {ready ? (
         <>
           {/* La Home reste montée quand on change d'onglet (juste cachée) : la carte, le bloc ou le clip choisi et les flux des miniatures de caméras restent chargés pendant la session. */}
-          <div hidden={!(tab === 'home' || apiHidden)}>
+          <div hidden={tab !== 'home'}>
             <Home
               apiKey={apiKey}
               cameras={cameras}
@@ -118,6 +123,7 @@ const AppUI = ({
               onOpenAc={() => onTab('ac')}
               onOpenShutter={() => onTab('shutters')}
               onOpenPlug={() => onTab('plug')}
+              onOpenBox={() => onTab('box')}
             />
           </div>
           {tab === 'cameras' ? (
@@ -153,7 +159,8 @@ const AppUI = ({
           {tab === 'shutters' ? <ShuttersPanel apiKey={apiKey} /> : null}
           {tab === 'ac' ? <AcPanel apiKey={apiKey} /> : null}
           {tab === 'plug' ? <PlugPanel apiKey={apiKey} /> : null}
-          {tab === 'api' && !mobile ? <ApiExplorer apiKey={apiKey} /> : null}
+          {tab === 'box' ? <BoxPanel apiKey={apiKey} /> : null}
+          {tab === 'tv' ? <TvPanel apiKey={apiKey} /> : null}
         </>
       ) : null}
     </Page>

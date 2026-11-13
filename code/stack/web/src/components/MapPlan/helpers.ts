@@ -73,9 +73,9 @@ export const garageRingFrom = (items: Record<string, { x: number; y: number }>):
 export const decorItemId = (id: string): string => `decor-${id}`
 
 /** Les icônes seules du plan et leur place de départ (au nord de la maison, à déplacer à la main). */
-export const DEFAULT_DECORS: { id: string; x: number; y: number; image: string }[] = [
+export const DEFAULT_DECORS: { id: string; x: number; y: number; image: string; clickable?: boolean }[] = [
   { id: 'pac', x: 270, y: -100, image: HEATPUMP_IMAGE },
-  { id: 'box', x: 330, y: -100, image: ROUTER_IMAGE },
+  { id: 'box', x: 330, y: -100, image: ROUTER_IMAGE, clickable: true },
 ]
 
 /** L'identifiant, dans les éléments du plan gardé, d'un coin (`a` : x1, y1 ; `b` : x2, y2) du rectangle `rect` de la pièce `room`. */

@@ -15,4 +15,6 @@ export interface HouseMapProps {
   onOpenShutter: () => void
   /** Ouvre la page de la prise : un clic sur la prise du plan. */
   onOpenPlug: () => void
+  /** Ouvre l'onglet Box : un double clic sur la box du plan. */
+  onOpenBox: () => void
 }

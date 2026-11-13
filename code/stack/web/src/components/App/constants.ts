@@ -10,7 +10,8 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'shutters', label: 'Volet' },
   { id: 'ac', label: 'Clim' },
   { id: 'plug', label: 'Prise' },
-  { id: 'api', label: 'API' },
+  { id: 'box', label: 'Box' },
+  { id: 'tv', label: 'Box TV' },
 ]
 export const BACK_LABEL = '← Toutes les caméras'
 export const LOCKED_TEXT = 'Entrez votre clé.'

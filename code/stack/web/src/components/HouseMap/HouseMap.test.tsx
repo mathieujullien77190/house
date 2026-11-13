@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Camera, EventRow } from '@/types'
-import { resetHomeSelection } from '@/lib/homeSelection'
+import { chooseOnHome, resetHomeSelection } from '@/lib/homeSelection'
 import HouseMap from './HouseMap'
 import { PREVIEW_VIEW } from './constants'
 
@@ -55,6 +55,7 @@ vi.mock('@/lib/useClipEmojis', () => ({
     clips: { c1: { id: 'c1', camera: 'voliere-toit', emoji: '🦊' } },
   }),
 }))
+vi.mock('@/components/BoxPreview', () => ({ default: () => <div data-testid="box-preview" /> }))
 vi.mock('@/components/ShutterPreview', () => ({
   default: (props: { shutterId: string }) => <div data-testid="shutter-preview">{props.shutterId}</div>,
 }))
@@ -92,10 +93,11 @@ const cameras = [
   { name: 'voliere-interieur', orientation: 'landscape' },
   { name: 'voliere-toit', orientation: 'portrait' },
 ] as Camera[]
+const decorProps = () => h.props as unknown as { onSelectDecor: (id: string) => void; onOpenDecor: (id: string) => void; selectedDecorId: string }
 const select = (id: string) => act(() => (h.props.onSelectCamera as (id: string) => void)(id))
 
 const onOpenPlug = vi.fn()
-const mount = ({ onOpenAc = vi.fn(), onOpenShutter = vi.fn() }: { onOpenAc?: () => void; onOpenShutter?: () => void } = {}) => {
+const mount = ({ onOpenAc = vi.fn(), onOpenShutter = vi.fn(), onOpenBox = vi.fn() }: { onOpenAc?: () => void; onOpenShutter?: () => void; onOpenBox?: () => void } = {}) => {
   const onOpenCamera = vi.fn()
   render(
     <HouseMap
@@ -107,6 +109,7 @@ const mount = ({ onOpenAc = vi.fn(), onOpenShutter = vi.fn() }: { onOpenAc?: () 
       onOpenAc={onOpenAc}
       onOpenShutter={onOpenShutter}
       onOpenPlug={onOpenPlug}
+      onOpenBox={onOpenBox}
     />,
   )
   return onOpenCamera
@@ -554,5 +557,28 @@ describe('HouseMap : les déplacements', () => {
     mount()
     for (const name of ['onMoveTree', 'onResizeTree', 'onSelectTree', 'onMoveHedge', 'onSelectHedge', 'onMoveCage', 'onMoveOffset', 'onMoveTiles', 'onMoveGarage', 'onMoveRooms'])
       expect(h.props[name]).toBeUndefined()
+  })
+})
+
+describe('HouseMap : la box', () => {
+  it('un clic sur la box ouvre l’onglet Box, un autre décor ne fait rien', () => {
+    const onOpenBox = vi.fn()
+    mount({ onOpenBox })
+    act(() => decorProps().onSelectDecor('pac'))
+    act(() => decorProps().onOpenDecor('pac'))
+    expect(onOpenBox).not.toHaveBeenCalled()
+    act(() => decorProps().onSelectDecor('box'))
+    expect(onOpenBox).toHaveBeenCalledTimes(1)
+    act(() => decorProps().onOpenDecor('box'))
+    expect(onOpenBox).toHaveBeenCalledTimes(2)
+  })
+
+  it('la box choisie (sélection globale) montre son aperçu et son décor choisi', () => {
+    mount()
+    expect(decorProps().selectedDecorId).toBe('')
+    expect(screen.queryByTestId('box-preview')).toBeNull()
+    act(() => chooseOnHome({ box: true }))
+    expect(decorProps().selectedDecorId).toBe('box')
+    expect(screen.getByTestId('box-preview')).toBeTruthy()
   })
 })

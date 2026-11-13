@@ -27,6 +27,8 @@ export interface PlanDecor {
   x: number
   y: number
   image: string
+  /** Un clic la choisit et un double clic ouvre sa page (la box), hors modification. */
+  clickable?: boolean
 }
 
 export type Collection = FeatureCollection<Geometry>
@@ -404,7 +406,7 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
     const state = !ac.reachable ? 'lost' : ac.on ? 'on' : 'off'
     points.push(dot([ac.x, ac.y], { kind: 'ac-hit', id: ac.id, state, rotate: ac.rotation ?? 0 }))
   }
-  for (const decor of data.decors) points.push(dot([decor.x, decor.y], { kind: 'decor-hit', id: decor.id, image: decor.image }))
+  for (const decor of data.decors) points.push(dot([decor.x, decor.y], { kind: 'decor-hit', id: decor.id, image: decor.image, clickable: decor.clickable ? 1 : 0 }))
   for (const item of data.emojis) points.push(dot([item.x, item.y], { kind: 'emoji-hit', id: item.id, emoji: item.emoji }))
   for (const label of data.labels) points.push(dot([label.x, label.y], { kind: 'label-hit', id: label.id, temp: label.text }))
   for (const shutter of data.shutters) {

@@ -1,0 +1,16 @@
+export const TITLE = 'WiFi invité'
+export const HELP = 'Le réseau pour les invités de la box. Le mot de passe n’est lu qu’à ta demande.'
+export const SHOW_LABEL = 'Afficher le mot de passe'
+export const HIDE_LABEL = 'Masquer'
+export const COPY_LABEL = 'Copier'
+export const COPIED_TEXT = 'Copié'
+export const LOADING_TEXT = 'Lecture du mot de passe…'
+export const NONE_TEXT = 'La box n’a pas de WiFi invité.'
+export const ERROR_TEXT = 'La box ne répond pas ou refuse de donner le mot de passe.'
+export const LABELS = { ssid: 'Nom du réseau', password: 'Mot de passe', usage: 'Appareils' } as const
+/** Dans le bloc « État de la box » : un filet au-dessus, pas de bordure ni de marge à lui. */
+export const BLOCK_CLASS = 'flex flex-col gap-3 border-t border-line pt-3'
+export const TITLE_CLASS = 'text-[1.05rem] font-semibold'
+export const NOTE_CLASS = 'text-[0.85rem] text-muted'
+export const ERROR_CLASS = 'text-[0.9rem] text-danger'
+export const ACTIONS_CLASS = 'flex flex-wrap items-center gap-2'

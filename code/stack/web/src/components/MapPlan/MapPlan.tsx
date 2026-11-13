@@ -106,6 +106,9 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
     // Hors modification, un clic sur un volet l'ordonne (le descend ou le monte) ; en modification, on le déplace et un clic ne fait rien.
     onToggleShutter: editing ? undefined : (given.onSelectShutter ?? given.onToggleShutter),
     onOpenShutter: editing || !given.onSelectShutter ? undefined : given.onOpenShutter,
+    // Un clic sur la box (une icône seule cliquable) la choisit, son double clic ouvre sa page ; en modification, on la déplace.
+    onToggleDecor: editing ? undefined : given.onSelectDecor,
+    onOpenDecor: editing ? undefined : given.onOpenDecor,
     // Un clic sur l'emoji d'un clip le choisit, son double clic l'ouvre ; en modification, on le déplace et un clic ne fait rien.
     onToggleEmoji: editing ? undefined : given.onToggleEmoji,
     onOpenEmoji: editing ? undefined : given.onOpenEmoji,
@@ -308,7 +311,8 @@ const MapPlan = (given: MapPlanProps) => {
     props.plugs.find((plug) => plug.id === given.selectedPlugId) ??
     props.acs.find((ac) => ac.id === given.selectedAcId) ??
     props.shutters.find((item) => item.id === given.selectedShutterId) ??
-    props.emojis.find((item) => item.id === given.selectedEmojiId)
+    props.emojis.find((item) => item.id === given.selectedEmojiId) ??
+    props.decors.find((item) => item.id === given.selectedDecorId)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady || !anchorCallback) return

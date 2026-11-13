@@ -1,4 +1,4 @@
-import { Button, Checkbox } from '@house/ui'
+import { Button, Checkbox, StatusFrame } from '@house/ui'
 import type { ShutterAuto, ShutterCommand, ShutterInfo } from '@/types'
 import {
   AUTO_CLOSE_LABEL,
@@ -29,6 +29,7 @@ interface ShutterCardProps {
 
 /** Le bloc d'un volet roulant : son nom, Monter / Stop / Descendre (et « Fermer à moitié »), le dernier ordre et les deux cases de l'action automatique. Le même dans l'onglet Volet et dans l'aperçu de la carte. */
 const ShutterCard = ({ shutter, busy, failed, onSend, onHalf, onAuto }: ShutterCardProps) => (
+  <StatusFrame tone={shutter.lastCommand === 'down' ? 'closed' : 'open'}>
   <div className={CARD_CLASS}>
     <span className={NAME_CLASS}>{shutter.name}</span>
     <div className={BUTTONS_CLASS}>
@@ -54,6 +55,7 @@ const ShutterCard = ({ shutter, busy, failed, onSend, onHalf, onAuto }: ShutterC
     {failed === 'auto' ? <span className={ERROR_CLASS}>{AUTO_ERROR_TEXT}</span> : null}
     {failed === 'send' ? <span className={ERROR_CLASS}>{SEND_ERROR_TEXT}</span> : null}
   </div>
+  </StatusFrame>
 )
 
 export default ShutterCard

@@ -13,6 +13,7 @@ import {
   HOUR_RAIN_CLASS,
   HOUR_RAINY_CLASS,
   HOUR_TEMPERATURE_CLASS,
+  HOUR_WIND_CLASS,
   HOUR_TIME_CLASS,
   HOME_ICON,
   HOME_LABEL,
@@ -30,7 +31,7 @@ import {
   TEMPERATURE_CLASS,
   WRAP_CLASS,
 } from './constants'
-import { describeWeather, hourLabel, rainText } from './helpers'
+import { describeWeather, hourLabel, rainText, windText } from './helpers'
 import type { WeatherProps } from './types'
 
 /**
@@ -90,7 +91,7 @@ const Weather = ({ apiKey }: WeatherProps) => {
       <button
         type="button"
         className={BUTTON_CLASS}
-        title={`${HOUSE_PLACE} : ${label}, ${degrees} °C${inside === null ? '' : ` (${OUTSIDE_LABEL}), ${HOME_LABEL} ${Math.round(inside)} °C`}. Prévisions heure par heure`}
+        title={`${HOUSE_PLACE} : ${label}, ${degrees} °C, vent ${windText(weather.wind)}${inside === null ? '' : ` (${OUTSIDE_LABEL}), ${HOME_LABEL} ${Math.round(inside)} °C`}. Prévisions heure par heure`}
         aria-label={`${HOUSE_PLACE} : ${label}, ${degrees} degrés${inside === null ? '' : ` (${OUTSIDE_LABEL}), ${HOME_LABEL} ${Math.round(inside)} degrés`}. ${PANEL_LABEL}`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -141,6 +142,7 @@ const Weather = ({ apiKey }: WeatherProps) => {
                   </span>
                   <span className={HOUR_TEMPERATURE_CLASS}>{Math.round(hour.temperature)}°</span>
                   <span className={hour.rainChance >= RAINY_CHANCE ? HOUR_RAINY_CLASS : HOUR_RAIN_CLASS}>{rainText(hour.rainChance)}</span>
+                  <span className={HOUR_WIND_CLASS}>💨 {windText(hour.wind)}</span>
                 </div>
               )
             })}

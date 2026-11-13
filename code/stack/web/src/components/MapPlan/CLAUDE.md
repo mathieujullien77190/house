@@ -41,7 +41,7 @@ Caméras, ampoules, clims, prise, volet : **icônes react-icons** rendues en SVG
 
 - **Ampoule** : grise éteinte, rouge injoignable. La luminosité ne fait pâlir que la couleur (`bulbColor`, 16 crans), jamais l'opacité. Une image par couleur, dessinée à la demande (`watchDynamicImages`).
 - **Volet** : fermé seulement si le dernier ordre était « descendre » ; monter, stop et la position du milieu valent ouvert.
-- **Pompe à chaleur** (`decors`, `decor-pac`) et **routeur** (`BsRouter`, id `box`) : icône seule, sans rond (`drawBare`), toujours visibles, un clic ne fait rien.
+- **Pompe à chaleur** (`decors`, `decor-pac`) et **routeur** (`BsRouter`, id `box`) : icône seule, sans rond (`drawBare`), toujours visibles. La pompe à chaleur ne réagit à rien ; **la box est cliquable** (`clickable` du décor) : clic = choisir (`onSelectDecor`), double clic = onglet Box (`onOpenDecor`), `selectedDecorId` pour la ligne bleue.
 - **Étiquettes de température** (`labels`, `plan-etiquettes`, au-dessus de tous les objets) : dehors, deux dans la cage, une par pièce climatisée. Rectangle blanc sans bordure, texte noir, image dessinée à la demande (`watchTemperatureImages`).
 - **Emoji des clips** (`emojis`, `plan-emojis`) : pictogramme seul (`drawEmoji`).
 - Une lampe sans place sur le plan n'est pas sur la carte (`planLamps`).

@@ -187,7 +187,9 @@ describe('liveFeatures', () => {
   it('chaque icône seule (pompe à chaleur, routeur) a sa zone de saisie, avec son image', () => {
     const decors = [{ id: 'pac', x: 1, y: 2, image: 'img-pac' }]
     const hits = liveFeatures(data({ decors }), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'decor-hit')
-    expect(hits.map((f) => f.properties)).toEqual([expect.objectContaining({ id: 'pac', image: 'img-pac' })])
+    expect(hits.map((f) => f.properties)).toEqual([expect.objectContaining({ id: 'pac', image: 'img-pac', clickable: 0 })])
+    const clickable = liveFeatures(data({ decors: [{ id: 'box', x: 1, y: 2, image: 'img-box', clickable: true }] }), palette).points.features.filter((f) => (f.properties as { kind: string }).kind === 'decor-hit')
+    expect(clickable.map((f) => f.properties)).toEqual([expect.objectContaining({ id: 'box', clickable: 1 })])
   })
 
   it('un contour des carreaux gardé dans le plan remplace le calculé', () => {

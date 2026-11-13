@@ -26,6 +26,7 @@ Règle commune à caméra, chauffage, clim, volet et emoji de clip :
   - Les flux légers des caméras liées sont ouverts dès l'ouverture de la Home (miniatures seulement `hidden`).
   - Une caméra du plan sans vraie caméra liée est seulement choisie (champ de vision).
 - **Lampes** : toutes celles du pont (`lib/useLampPlan.ts`, 5 s). Un clic allume à 100 % si éteinte ou à 0 %, sinon éteint.
+- **Box** (routeur `box`, décor cliquable) : aperçu `BoxPreview` (`lib/useBox.ts`, `/box`, 12 s), liseré rouge si la box ne répond pas ; double clic = onglet Box ; sélection `box` de `homeSelection`.
 - **Prise / chauffage** (`lib/usePlug.ts`) : aperçu = tout le bloc de l'onglet Prise (`PlugPanel` en `embedded`).
 - **Clims** (`lib/useAcPlan.ts`, `/ac`, 10 s) : aperçu `AcPreview`. Survol : « Salon · Allumée · Chaud · pièce 20 °C · consigne 21 °C ». Place sous `ac-<id>` ; sans place, au mur de sa pièce (`START_POSITIONS`).
 - **Volet cuisine** (`lib/useShutterPlan.ts`, `/shutters`, 10 s) : aperçu `ShutterPreview`. Place sous `shutter-<id>` ; seul le volet « cuisine » a une place de départ (son numéro dépend de `SHUTTERS` dans le `.env`, `1` sur le mini PC). **Un clic ne donne plus d'ordre.**

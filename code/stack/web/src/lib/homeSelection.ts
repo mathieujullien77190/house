@@ -1,4 +1,4 @@
-// La sélection de la carte de Home (caméra, chauffage, clim, volet, emoji de clip) : **un état global**, hors du composant. La Home est démontée quand on change d'onglet ; sans cela, le bloc
+// La sélection de la carte de Home (caméra, chauffage, clim, volet, emoji de clip, box) : **un état global**, hors du composant. La Home est démontée quand on change d'onglet ; sans cela, le bloc
 // choisi (un clip, une clim…) disparaissait au retour. Un seul objet est choisi à la fois ; la sélection n'est gardée que tant que la page reste ouverte (rien dans le navigateur).
 import { useSyncExternalStore } from 'react'
 
@@ -13,9 +13,11 @@ export interface HomeSelection {
   shutter: string
   /** L'identifiant du clip dont l'emoji est choisi. */
   emoji: string
+  /** La box (le routeur du plan) est choisie. */
+  box: boolean
 }
 
-const NONE: HomeSelection = { camera: '', plug: false, ac: '', shutter: '', emoji: '' }
+const NONE: HomeSelection = { camera: '', plug: false, ac: '', shutter: '', emoji: '', box: false }
 
 let current: HomeSelection = NONE
 const listeners = new Set<() => void>()

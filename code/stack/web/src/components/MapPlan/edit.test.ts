@@ -197,6 +197,20 @@ describe('attachEditing', () => {
       state.hits = [{ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'pac' } }]
       fire('mousemove', mouse(1, 1))
       expect(canvas.style.cursor).toBe('')
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'label-hit', id: 'dehors' } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('')
+    })
+    it('hors modification : le doigt qui pointe sur une icône seule cliquable (la box) seulement si un clic la choisit', () => {
+      const clickable = { layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'box', clickable: 1 } }
+      const { fire, state, canvas } = setup({ onMoveDecor: undefined, onToggleDecor: vi.fn() })
+      state.hits = [clickable]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('pointer')
+      const without = setup({ onMoveDecor: undefined })
+      without.state.hits = [clickable]
+      without.fire('mousemove', mouse(1, 1))
+      expect(without.canvas.style.cursor).toBe('')
     })
     it('la poignée d’une caméra, sans rappel de déplacement propre, donne la main', () => {
       const { fire, state, canvas } = setup()
@@ -517,6 +531,19 @@ describe('attachEditing', () => {
       expect(onHoverShutter).toHaveBeenCalledWith('s1')
     })
 
+    it('un toucher sans glisser sur une icône seule cliquable la choisit ; une icône non cliquable ne fait rien', () => {
+      const onToggleDecor = vi.fn()
+      const { fire, state } = setup({ onMoveDecor: undefined, onToggleDecor })
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'pac', clickable: 0 } }]
+      fire('mousedown', mouse(10, 10))
+      fire('mouseup')
+      expect(onToggleDecor).not.toHaveBeenCalled()
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'box', clickable: 1 } }]
+      fire('mousedown', mouse(10, 10))
+      fire('mouseup')
+      expect(onToggleDecor).toHaveBeenCalledWith('box')
+    })
+
     it('un toucher sans rappel ne casse rien', () => {
       const { fire, state } = setup({
         onMovePlug: undefined,
@@ -559,6 +586,17 @@ describe('attachEditing', () => {
       fire('mousedown', mouse(1, 1))
       fire('mouseup')
       expect(ctx.onSelectCamera).toHaveBeenCalledWith('c1')
+    })
+
+    it('un double clic ouvre l’icône seule cliquable (la box), pas une autre', () => {
+      const onOpenDecor = vi.fn()
+      const { fire, state } = setup({ onOpenDecor })
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'pac', clickable: 0 } }]
+      fire('dblclick', mouse(1, 1))
+      expect(onOpenDecor).not.toHaveBeenCalled()
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'decor-hit', id: 'box', clickable: 1 } }]
+      fire('dblclick', mouse(1, 1))
+      expect(onOpenDecor).toHaveBeenCalledWith('box')
     })
 
     it('un double clic ouvre la clim, l’emoji et le volet', () => {
