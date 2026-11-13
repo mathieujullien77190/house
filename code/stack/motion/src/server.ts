@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { pipeline } from 'node:stream/promises'
 import { audioClipPath } from './audio.ts'
 import { shapesClipPath } from './shapes.ts'
-import { eyesFromJpeg, ffmpegDecoder, type Decoder } from './eyes.ts'
+import { eyesFromJpeg, ffmpegDecoder, markEyes, type Decoder } from './eyes.ts'
 import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
@@ -44,8 +44,8 @@ export interface Recording {
   stop: (camera: string) => { id: string; started_at: number; ended_at: number } | null
 }
 
-/** La taille maximale du corps d'une demande de zone (32 sommets tiennent dans moins de 1 Ko). */
-const MAX_BODY = 4096
+/** La taille maximale du corps d'une demande de zone (1000 sommets tiennent dans environ 30 Ko). */
+const MAX_BODY = 64 * 1024
 
 /** La taille maximale d'une image JPEG envoyée pour chercher des yeux. */
 const MAX_IMAGE = 3 * 1024 * 1024
@@ -114,7 +114,7 @@ export const startServer = (
       detection.setMinSeconds(minSeconds[1], seconds)
       return json(res, 200, { camera: minSeconds[1], seconds })
     }
-    // PUT /api/cameras/<caméra>/zone avec {"points": [[x, y], ...]} (parts de l'image, de 3 à 32 sommets) : la zone où on cherche le mouvement ; {"points": null} : toute l'image.
+    // PUT /api/cameras/<caméra>/zone avec {"points": [[x, y], ...]} (parts de l'image, de 3 à 1000 sommets) : la zone où on cherche le mouvement ; {"points": null} : toute l'image.
     const zone = /^\/api\/cameras\/([\w-]+)\/zone$/.exec(pathname)
     if (req.method === 'PUT' && zone) {
       if (!config.cameras.includes(zone[1])) return json(res, 404, { error: 'unknown camera' })
@@ -128,7 +128,7 @@ export const startServer = (
       const value = typeof parsed === 'object' && parsed !== null ? (parsed as { points?: unknown }).points : undefined
       const points = value === null ? null : parsePolygon(value)
       if (value === undefined || (value !== null && points === null))
-        return json(res, 400, { error: 'points must be null or 3 to 32 [x, y] pairs between 0 and 1' })
+        return json(res, 400, { error: 'points must be null or 3 to 1000 [x, y] pairs between 0 and 1' })
       detection.setZone(zone[1], points)
       return json(res, 200, { camera: zone[1], points })
     }
@@ -152,7 +152,22 @@ export const startServer = (
       }
       return json(res, 405, { error: 'method not allowed' })
     }
-    // POST /api/eyes avec un JPEG : cherche des yeux qui brillent (la nuit, un petit point blanc saturé) ; rend { found, pair, distance, eyes: [{ x, y, size, peak, contrast }] }.
+    // POST /api/eyes avec un JPEG : cherche des yeux qui brillent (la nuit, un petit point blanc saturé) ; rend { found, pair, distance, eyes: [{ x, y, size, peak, contrast, width, height, glow }] }.
+    // POST /api/eyes/mark avec un JPEG : le même JPEG avec un carré rouge autour de chaque œil trouvé (image/jpeg) ; 204 s'il n'y a pas d'œil ou si le carré n'a pas pu être dessiné.
+    if (pathname === '/api/eyes/mark') {
+      if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+      const jpeg = await readBytes(req, MAX_IMAGE)
+      if (jpeg === null) return json(res, 413, { error: 'image too large' })
+      const result = jpeg.length > 0 ? await eyesFromJpeg(jpeg, decode) : null
+      if (!result) return json(res, 400, { error: 'unreadable image' })
+      const marked = result.found ? await markEyes(jpeg, result.eyes) : null
+      if (!marked) {
+        res.writeHead(204)
+        return void res.end()
+      }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': marked.length })
+      return void res.end(marked)
+    }
     if (pathname === '/api/eyes') {
       if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
       const jpeg = await readBytes(req, MAX_IMAGE)

@@ -16,7 +16,7 @@ const LEFT_HALF: Point[] = [
   [0, 1],
 ]
 
-test('un polygone valable : de 3 à 32 sommets entre 0 et 1', () => {
+test('un polygone valable : de 3 à 1000 sommets entre 0 et 1', () => {
   assert.deepEqual(parsePolygon(FULL), FULL)
   assert.equal(
     parsePolygon([
@@ -42,7 +42,7 @@ test('un polygone valable : de 3 à 32 sommets entre 0 et 1', () => {
     null,
   )
   assert.equal(parsePolygon('x'), null)
-  assert.equal(parsePolygon(Array.from({ length: 33 }, () => [0.5, 0.5])), null)
+  assert.equal(parsePolygon(Array.from({ length: 1001 }, () => [0.5, 0.5])), null)
 })
 
 test('toute l’image : aucun masque', () => {

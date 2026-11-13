@@ -5,9 +5,9 @@
 export type Point = [number, number]
 
 export const MIN_POINTS = 3
-export const MAX_POINTS = 32
+export const MAX_POINTS = 1000
 
-/** Un polygone valable : de 3 à 32 sommets, chacun deux nombres entre 0 et 1. Rend null sinon. */
+/** Un polygone valable : de 3 à 1000 sommets, chacun deux nombres entre 0 et 1. Rend null sinon. */
 export const parsePolygon = (value: unknown): Point[] | null => {
   if (!Array.isArray(value) || value.length < MIN_POINTS || value.length > MAX_POINTS) return null
   const points: Point[] = []

@@ -13,6 +13,11 @@ export interface Eye {
   peak: number
   /** L'écart entre le point et la moyenne du gris tout autour. */
   contrast: number
+  /** La boîte du point, en pixels (pour la dessiner). */
+  width: number
+  height: number
+  /** Vrai pour un reflet fondu : les deux yeux d'un animal tourné vers la caméra ne font qu'une grosse tache blanche. */
+  glow: boolean
 }
 
 export interface EyesResult {
@@ -35,6 +40,16 @@ export const SIDE_MAX = 7
 export const RING_MAX = 120
 /** Une image où plus de points clairs que ça brillent (lampe, feuillage éclairé) est trop chargée : rien n'y est un œil. */
 export const BLOBS_MAX = 8
+/** Au-delà, l'image est un fouillis (soleil, lampe) : on abandonne. */
+export const BLOBS_LIMIT = 600
+/** Un reflet fondu (animal de face, tête près de la caméra) : une tache blanche plus grosse, compacte, dans un fond qui reste moyen. */
+export const GLOW_AREA_MIN = 100
+export const GLOW_AREA_MAX = 450
+/** Plus long que large (ou l'inverse) de plus de ce rapport : un fil, un poteau, un bord de meuble, pas une tête. */
+export const GLOW_ASPECT_MAX = 2
+export const GLOW_SIDE_MAX = 48
+export const GLOW_FILL_MIN = 0.4
+export const GLOW_RING_MAX = 160
 /** Deux yeux d'une paire sont à cette distance l'un de l'autre, en pixels. */
 export const PAIR_MIN = 4
 export const PAIR_MAX = 30
@@ -112,14 +127,20 @@ const ringMean = (gray: Uint8Array, width: number, height: number, blob: Blob): 
 export const detectEyes = (gray: Uint8Array, width: number, height: number): EyesResult => {
   const none: EyesResult = { found: false, pair: false, distance: 0, eyes: [] }
   if (width <= 0 || height <= 0 || gray.length !== width * height) return none
-  const blobs = findBlobs(gray, width, height, BLOBS_MAX)
+  const blobs = findBlobs(gray, width, height, BLOBS_LIMIT)
   if (blobs === null) return none
+  // Une image chargée en points clairs (herbe, feuillage éclairés) n'a pas de petit œil sûr ; un reflet fondu reste cherché.
+  const crowded = blobs.length > BLOBS_MAX
   const eyes: Eye[] = []
   for (const blob of blobs) {
-    if (blob.area < AREA_MIN || blob.area > AREA_MAX || blob.maxX - blob.minX >= SIDE_MAX || blob.maxY - blob.minY >= SIDE_MAX) continue
+    const w = blob.maxX - blob.minX + 1
+    const h = blob.maxY - blob.minY + 1
+    const small = !crowded && blob.area >= AREA_MIN && blob.area <= AREA_MAX && w <= SIDE_MAX && h <= SIDE_MAX
+    const glow = !small && blob.area >= GLOW_AREA_MIN && blob.area <= GLOW_AREA_MAX && w <= GLOW_SIDE_MAX && h <= GLOW_SIDE_MAX && Math.max(w, h) / Math.min(w, h) <= GLOW_ASPECT_MAX && blob.area / (w * h) >= GLOW_FILL_MIN
+    if (!small && !glow) continue
     const ring = ringMean(gray, width, height, blob)
-    if (ring === null || ring >= RING_MAX) continue
-    eyes.push({ x: Math.round(blob.x), y: Math.round(blob.y), size: blob.area, peak: 255, contrast: Math.round(255 - ring) })
+    if (ring === null || ring >= (small ? RING_MAX : GLOW_RING_MAX)) continue
+    eyes.push({ x: Math.round(blob.x), y: Math.round(blob.y), size: blob.area, peak: 255, contrast: Math.round(255 - ring), width: w, height: h, glow })
   }
   eyes.sort((a, b) => b.contrast - a.contrast)
   let distance = 0
@@ -174,3 +195,29 @@ export const eyesFromJpeg = async (jpeg: Buffer, decode: Decoder = ffmpegDecoder
   const image = decoded === null ? null : parsePgm(decoded)
   return image === null ? null : detectEyes(image.gray, image.width, image.height)
 }
+
+/** Le JPEG avec un carré rouge autour de chaque œil (ffmpeg `drawbox`, 3 pixels d'épaisseur, marge de 8 pixels) ; null si ffmpeg échoue. */
+export const markEyes = (jpeg: Buffer, eyes: Eye[]): Promise<Buffer | null> =>
+  new Promise((resolve) => {
+    if (eyes.length === 0) return resolve(null)
+    const boxes = eyes
+      .map((eye) => {
+        const side = Math.max(eye.width, eye.height) + 16
+        return `drawbox=x=${Math.max(0, Math.round(eye.x - side / 2))}:y=${Math.max(0, Math.round(eye.y - side / 2))}:w=${side}:h=${side}:color=red:t=3`
+      })
+      .join(',')
+    const ffmpeg = spawn('ffmpeg', ['-loglevel', 'error', '-i', 'pipe:0', '-vf', boxes, '-q:v', '2', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'], { stdio: ['pipe', 'pipe', 'ignore'] })
+    const chunks: Buffer[] = []
+    const timer = setTimeout(() => ffmpeg.kill(), 10_000)
+    ffmpeg.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
+    ffmpeg.stdin.on('error', () => undefined)
+    ffmpeg.on('error', () => {
+      clearTimeout(timer)
+      resolve(null)
+    })
+    ffmpeg.on('close', (code) => {
+      clearTimeout(timer)
+      resolve(code === 0 && chunks.length > 0 ? Buffer.concat(chunks) : null)
+    })
+    ffmpeg.stdin.end(jpeg)
+  })

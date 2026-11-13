@@ -33,7 +33,7 @@ Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
 
 - **Détection** : `PUT /api/cameras/<caméra>/detection?enabled=0|1`. Éteinte : ffmpeg du flux léger arrêté, événement ouvert fermé. Allumée par défaut ; House Sync la coupe si les clips de la caméra ne sont pas gardés et répète son état chaque minute.
 - **Sensibilité** (`sensitivity.ts`) : `PUT .../sensitivity?level=1..5` (3 = seuils de base). Niveau 5 : seuils à 0,45 et 0,3 fois la base ; niveau 1 : 1,6 et 3 fois. Appliqué sans relancer ffmpeg.
-- **Zone** (`zone.ts`) : `PUT .../zone` avec `{"points": [[x, y], ...]}` (3 à 32 sommets, parts de 0 à 1) ou `{"points": null}` (toute l'image).
+- **Zone** (`zone.ts`) : `PUT .../zone` avec `{"points": [[x, y], ...]}` (3 à 1000 sommets, parts de 0 à 1) ou `{"points": null}` (toute l'image).
   - Polygone converti en masque sur l'image 160×90 ; la part de pixels changés ne se calcule que dans la zone.
   - Un polygone qui couvre tout ou rien ne met pas de masque.
 - Sensibilité et zone sont en mémoire : House Sync les remet chaque minute, retour aux défauts (3, toute l'image) au redémarrage en attendant.
@@ -61,12 +61,13 @@ Forme de l'ancienne API Frigate, gardée pour que House Sync n'ait pas changé.
 ## 9. Yeux qui brillent (`eyes.ts`, `POST /api/eyes`)
 
 - La nuit, l'œil d'un animal est un petit point blanc **saturé** sur fond sombre en infrarouge monochrome.
-- House Sync envoie un JPEG (corps, 3 Mo max, 413 au-delà) ; ffmpeg le décode en gris (10 s max). Réponse `{found, pair, distance, eyes: [{x, y, size, peak, contrast}]}`, 400 si illisible.
+- House Sync envoie un JPEG (corps, 3 Mo max, 413 au-delà) ; ffmpeg le décode en gris (10 s max). Réponse `{found, pair, distance, eyes: [{x, y, size, peak, contrast, width, height, glow}]}`, 400 si illisible. `POST /api/eyes/mark` rend le même JPEG avec un **carré rouge** autour de chaque œil (`markEyes`, ffmpeg `drawbox`), 204 sans œil.
 - **Règle volontairement simple** (constantes en tête de `eyes.ts`, pour des images 1280×720) :
   - amas de pixels ≥ 250 (`PEAK_MIN`) de 3 à 25 pixels (`AREA_MIN`, `AREA_MAX`) ;
   - anneau de 3 à 6 pixels autour de gris moyen < 120 (`RING_MAX`) ;
   - œil trop près du bord ignoré.
-- Image chargée (plus de 8 amas de 2 pixels et plus à ≥ 250, `BLOBS_MAX`) : rien. Mesuré de nuit, sauf `voliere-toit` toutes les scènes sont pleines de points saturés.
+- **Reflet fondu** (`glow: true`) : un animal de face près de la caméra n'a pas deux points mais une grosse tache blanche (chat du salon de jardin, 12 nov 2026, 00h56). Amas de 100 à 450 pixels (`GLOW_AREA_MIN`, `GLOW_AREA_MAX`), côtés ≤ 48, rapport longueur / largeur ≤ 2, rempli à 40 % au moins, anneau < 160 (`GLOW_RING_MAX`). Mesuré : le chat est vu sur 27 images de son clip, 0 fausse alerte sur 3 300 images de nuit du salon de jardin (une lampe de 590 pixels à (319, 65) a fixé `GLOW_AREA_MAX`).
+- Image chargée (plus de 8 amas de 2 pixels et plus à ≥ 250, `BLOBS_MAX`) : pas de petit œil, le reflet fondu reste cherché (au-delà de `BLOBS_LIMIT` amas, rien). Mesuré de nuit, sauf `voliere-toit` toutes les scènes sont pleines de points saturés : **le petit œil n'y avait donc jamais fonctionné**.
 - Deux yeux voisins (4 à 30 pixels) donnent `pair: true` : un indice, pas une condition.
 - Prudent : un chat raté vaut mieux que des fausses alertes.
 

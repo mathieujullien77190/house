@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { DEFAULT_CONFIG } from './detector.ts'
-import { detectEyes, eyesFromJpeg, parsePgm, type Decoder } from './eyes.ts'
+import { detectEyes, eyesFromJpeg, markEyes, parsePgm, type Decoder, type Eye } from './eyes.ts'
 import { createEventStore } from './events.ts'
 import { startServer } from './server.ts'
 import { createTrigger } from './trigger.ts'
@@ -64,7 +64,7 @@ test('une image sans point saturé, un pixel seul ou un point à peine plus clai
 
 test('une tache étendue, une zone claire ou un point au bord ne sont pas des yeux', () => {
   const big = dark()
-  square(big, 100, 60, 10)
+  square(big, 60, 30, 30)
   assert.equal(detectEyes(big, W, H).found, false)
   const bright = new Uint8Array(W * H).fill(150)
   square(bright, 100, 60, 3)
@@ -79,6 +79,45 @@ test('une image chargée de points brillants (lampe, feuillage éclairé) est ig
   for (let i = 0; i < 10; i += 1) square(gray, 10 + i * 18, 20, 3)
   assert.equal(detectEyes(gray, W, H).found, false)
   assert.equal(detectEyes(new Uint8Array(10), W, H).found, false)
+})
+
+test('un reflet fondu (grosse tache compacte) est un œil, pas un fil ni une tache sur fond clair', () => {
+  const gray = dark()
+  square(gray, 100, 40, 14)
+  const result = detectEyes(gray, W, H)
+  assert.equal(result.found, true)
+  assert.deepEqual([result.eyes[0].glow, result.eyes[0].width, result.eyes[0].height], [true, 14, 14])
+  const small = dark()
+  square(small, 100, 60, 3)
+  assert.equal(detectEyes(small, W, H).eyes[0].glow, false)
+  const thread = dark()
+  for (let y = 10; y < 110; y += 1) square(thread, 100, y, 1)
+  for (let y = 10; y < 110; y += 1) square(thread, 101, y, 1)
+  assert.equal(detectEyes(thread, W, H).found, false)
+  const bright = new Uint8Array(W * H).fill(200)
+  square(bright, 100, 40, 14)
+  assert.equal(detectEyes(bright, W, H).found, false)
+})
+
+test('une image chargée de petits points garde la recherche des reflets fondus', () => {
+  const gray = dark()
+  for (let i = 0; i < 10; i += 1) square(gray, 10 + i * 12, 100, 3)
+  square(gray, 100, 20, 14)
+  const result = detectEyes(gray, W, H)
+  assert.deepEqual([result.eyes.length, result.eyes[0].glow], [1, true])
+})
+
+test('un fouillis de plus de BLOBS_LIMIT points est abandonné', () => {
+  const width = 1000
+  const height = 1000
+  const gray = new Uint8Array(width * height).fill(40)
+  for (let y = 0; y < height; y += 4) {
+    for (let x = 0; x < width; x += 4) {
+      gray[y * width + x] = 255
+      gray[y * width + x + 1] = 255
+    }
+  }
+  assert.equal(detectEyes(gray, width, height).found, false)
 })
 
 const pgm = (gray: Uint8Array, width: number, height: number): Buffer => Buffer.concat([Buffer.from(`P5\n${width} ${height}\n255\n`), Buffer.from(gray)])
@@ -100,6 +139,12 @@ test('eyesFromJpeg décode puis cherche ; null si le décodage échoue', async (
   assert.equal(await eyesFromJpeg(Buffer.from('jpeg'), async () => Buffer.from('pas un pgm')), null)
 })
 
+test('markEyes ne dessine rien sans œil, et rend null si ffmpeg échoue', async () => {
+  const eye: Eye = { x: 0, y: 0, size: 8, peak: 255, contrast: 200, width: 2, height: 4, glow: false }
+  assert.equal(await markEyes(Buffer.from('jpeg'), []), null)
+  assert.equal(await markEyes(Buffer.from('pas un jpeg'), [eye]), null)
+})
+
 test('POST /api/eyes rend les yeux du JPEG envoyé (faux ffmpeg), refuse le reste', async () => {
   const gray = dark()
   square(gray, 100, 60, 3)
@@ -117,6 +162,13 @@ test('POST /api/eyes rend les yeux du JPEG envoyé (faux ffmpeg), refuse le rest
     assert.equal((await fetch(`${base}/api/eyes`, { method: 'POST', body: 'bad' })).status, 400)
     assert.equal((await fetch(`${base}/api/eyes`, { method: 'POST' })).status, 400)
     assert.equal((await fetch(`${base}/api/eyes`)).status, 405)
+    // POST /api/eyes/mark : 204 sans œil ou si ffmpeg ne peut pas dessiner, 400 illisible, 405 hors POST, 413 trop gros
+    assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: 'jpeg' })).status, 204)
+    assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: 'bad' })).status, 400)
+    assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST' })).status, 400)
+    assert.equal((await fetch(`${base}/api/eyes/mark`)).status, 405)
+    const bigMark = await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: Buffer.alloc(3 * 1024 * 1024 + 10) }).catch(() => null)
+    assert.ok(bigMark === null || bigMark.status === 413)
     const huge = await fetch(`${base}/api/eyes`, { method: 'POST', body: Buffer.alloc(3 * 1024 * 1024 + 10) }).catch(() => null)
     assert.ok(huge === null || huge.status === 413)
     // POST /api/cameras/<caméra>/trigger?reason=eyes : ouvre un événement « eyes », puis le prolonge
