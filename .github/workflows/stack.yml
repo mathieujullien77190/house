@@ -29,6 +29,7 @@ jobs:
           - { dir: code/stack/web, scripts: 'typecheck lint test build', ui: true }
           - { dir: code/stack/sync/web, scripts: 'typecheck lint test build', ui: true }
           - { dir: code/stack/ui, scripts: 'typecheck lint test' }
+          - { dir: code/stack/site, scripts: 'typecheck lint build' }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
