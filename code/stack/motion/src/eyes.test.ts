@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { DEFAULT_CONFIG } from './detector.ts'
-import { detectEyes, eyesFromJpeg, markEyes, parsePgm, type Decoder, type Eye } from './eyes.ts'
+import { analyzeJpeg, detectEyes, eyesFromJpeg, isStatic, markEyes, parsePgm, type Decoder, type Eye } from './eyes.ts'
 import { createEventStore } from './events.ts'
 import { startServer } from './server.ts'
 import { createTrigger } from './trigger.ts'
@@ -139,6 +139,30 @@ test('eyesFromJpeg décode puis cherche ; null si le décodage échoue', async (
   assert.equal(await eyesFromJpeg(Buffer.from('jpeg'), async () => Buffer.from('pas un pgm')), null)
 })
 
+test('un point blanc qui n’a pas bougé depuis l’image d’avant n’est pas un œil', () => {
+  const gray = dark()
+  square(gray, 100, 60, 5)
+  const now = { gray, width: W, height: H }
+  assert.equal(detectEyes(gray, W, H, now).found, false)
+  assert.equal(detectEyes(gray, W, H, { gray: dark(), width: W, height: H }).found, true)
+  // une image d'avant d'une autre taille ne sert à rien
+  assert.equal(detectEyes(gray, W, H, { gray: new Uint8Array(10), width: 5, height: 2 }).found, true)
+  // un œil au bord de l'image : la zone comparée est coupée au bord
+  const eye: Eye = { x: 1, y: 1, size: 9, peak: 255, contrast: 200, width: 3, height: 3, glow: false }
+  const same = { gray: dark(), width: W, height: H }
+  assert.equal(isStatic(eye, same, same), true)
+})
+
+test('analyzeJpeg rend les yeux et l’image grise à garder ; null si le décodage échoue', async () => {
+  const gray = dark()
+  square(gray, 100, 60, 3)
+  const decode: Decoder = async () => pgm(gray, W, H)
+  const analyzed = await analyzeJpeg(Buffer.from('jpeg'), decode)
+  assert.deepEqual([analyzed?.result.found, analyzed?.image.width, analyzed?.image.height], [true, W, H])
+  assert.equal((await analyzeJpeg(Buffer.from('jpeg'), decode, analyzed?.image))?.result.found, false)
+  assert.equal(await analyzeJpeg(Buffer.from('jpeg'), async () => null), null)
+})
+
 test('markEyes ne dessine rien sans œil, et rend null si ffmpeg échoue', async () => {
   const eye: Eye = { x: 0, y: 0, size: 8, peak: 255, contrast: 200, width: 2, height: 4, glow: false }
   assert.equal(await markEyes(Buffer.from('jpeg'), []), null)
@@ -161,10 +185,17 @@ test('POST /api/eyes rend les yeux du JPEG envoyé (faux ffmpeg), refuse le rest
     assert.deepEqual([body.found, body.pair, body.eyes[0].x, body.eyes[0].y], [true, false, 101, 61])
     assert.equal((await fetch(`${base}/api/eyes`, { method: 'POST', body: 'bad' })).status, 400)
     assert.equal((await fetch(`${base}/api/eyes`, { method: 'POST' })).status, 400)
+    // ?camera= : la même image deux fois de suite, le point n'a pas bougé : plus d'œil ; une autre caméra n'a pas d'image d'avant
+    const once1 = (await (await fetch(`${base}/api/eyes?camera=c1`, { method: 'POST', body: 'jpeg' })).json()) as { found: boolean }
+    const twice1 = (await (await fetch(`${base}/api/eyes?camera=c1`, { method: 'POST', body: 'jpeg' })).json()) as { found: boolean }
+    const other = (await (await fetch(`${base}/api/eyes?camera=c2`, { method: 'POST', body: 'jpeg' })).json()) as { found: boolean }
+    assert.deepEqual([once1.found, twice1.found, other.found], [true, false, true])
     assert.equal((await fetch(`${base}/api/eyes`)).status, 405)
     // POST /api/eyes/mark : 204 sans œil ou si ffmpeg ne peut pas dessiner, 400 illisible, 405 hors POST, 413 trop gros
     assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: 'jpeg' })).status, 204)
-    assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: 'bad' })).status, 400)
+    assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: 'bad' })).status, 204)
+    assert.equal((await fetch(`${base}/api/eyes/mark?eyes=1,2,3`, { method: 'POST', body: 'jpeg' })).status, 204)
+    assert.equal((await fetch(`${base}/api/eyes/mark?eyes=${encodeURIComponent('10,20,8,8;a,b,c,d')}`, { method: 'POST', body: 'jpeg' })).status, 204)
     assert.equal((await fetch(`${base}/api/eyes/mark`, { method: 'POST' })).status, 400)
     assert.equal((await fetch(`${base}/api/eyes/mark`)).status, 405)
     const bigMark = await fetch(`${base}/api/eyes/mark`, { method: 'POST', body: Buffer.alloc(3 * 1024 * 1024 + 10) }).catch(() => null)

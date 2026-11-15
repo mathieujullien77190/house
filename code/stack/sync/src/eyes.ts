@@ -35,11 +35,22 @@ export const createEyesTable = (db: DatabaseSync): void => {
   `)
 }
 
+interface EyesAnswerEye {
+  x: number
+  y: number
+  size: number
+  peak: number
+  contrast: number
+  width?: number
+  height?: number
+  glow?: boolean
+}
+
 interface EyesAnswer {
   found?: boolean
   pair?: boolean
   distance?: number
-  eyes?: { x: number; y: number; size: number; peak: number; contrast: number; width?: number; height?: number; glow?: boolean }[]
+  eyes?: EyesAnswerEye[]
 }
 
 export const createEyes = (ctx: Context, rec: Recorder) => {
@@ -67,9 +78,10 @@ export const createEyes = (ctx: Context, rec: Recorder) => {
   }
 
   /** Dessine un carré rouge autour de l'œil dans l'image gardée (l'enregistreur le dessine) ; un échec est toléré, l'image reste telle quelle. */
-  const mark = async (base: string, path: string, image: Buffer): Promise<void> => {
+  const mark = async (base: string, path: string, image: Buffer, eyes: EyesAnswerEye[]): Promise<void> => {
     try {
-      const res = await ctx.fetch(`${base}/api/eyes/mark`, { method: 'POST', body: new Uint8Array(image), signal: AbortSignal.timeout(EYES_TIMEOUT_MS) })
+      const boxes = eyes.map((eye) => [eye.x, eye.y, eye.width ?? 8, eye.height ?? 8].join(',')).join(';')
+      const res = await ctx.fetch(`${base}/api/eyes/mark?eyes=${encodeURIComponent(boxes)}`, { method: 'POST', body: new Uint8Array(image), signal: AbortSignal.timeout(EYES_TIMEOUT_MS) })
       if (res.status !== 200) return
       await writeFile(`${ctx.config.dataDir}/${path}`, Buffer.from(await res.arrayBuffer()))
     } catch {
@@ -84,7 +96,7 @@ export const createEyes = (ctx: Context, rec: Recorder) => {
       try {
         const base = rec.recorderOf.get(camera)
         if (!base) throw new Error('enregistreur inconnu')
-        const res = await ctx.fetch(`${base}/api/eyes`, { method: 'POST', body: new Uint8Array(image), signal: AbortSignal.timeout(EYES_TIMEOUT_MS) })
+        const res = await ctx.fetch(`${base}/api/eyes?camera=${encodeURIComponent(camera)}`, { method: 'POST', body: new Uint8Array(image), signal: AbortSignal.timeout(EYES_TIMEOUT_MS) })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         failing = false
         const answer = (await res.json()) as EyesAnswer
@@ -95,7 +107,7 @@ export const createEyes = (ctx: Context, rec: Recorder) => {
         if (previous !== null && takenAt - previous < EYES_MIN_GAP_SECONDS) return
         insert.run(camera, takenAt, path, eye.x, eye.y, eye.size, eye.peak, eye.contrast, answer.pair ? 1 : 0, answer.distance ?? 0)
         ctx.log(`Yeux qui brillent sur ${camera} en (${eye.x}, ${eye.y})${answer.pair ? ', une paire' : ''}${eye.glow ? ', reflet fondu' : ''} : ${path}`)
-        await mark(base, path, image)
+        await mark(base, path, image, answer.eyes as EyesAnswerEye[])
       } catch (error) {
         if (!failing) ctx.log(`Yeux qui brillent sur ${camera} : recherche impossible (${messageOf(error)})`)
         failing = true

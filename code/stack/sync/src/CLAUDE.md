@@ -59,11 +59,11 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
 
 - `eyes_mode` par caméra : `off` (défaut) ou `on` (ancien `night` migré à l'ouverture de la base, encore accepté par `PUT`).
 - Actif seulement en pleine nuit : de 30 min **après** le coucher à 30 min **avant** le lever (`isNight` à marge négative, `EYES_MARGIN_SECONDS`, `settings.eyesActive`) : le contraire des clips de nuit.
-- Chaque image prise est envoyée à `POST /api/eyes` de l'enregistreur (délai 8 s ; règle de détection : `../../motion/src/CLAUDE.md`, point 11).
+- Chaque image prise est envoyée à `POST /api/eyes?camera=<caméra>` de l'enregistreur (délai 8 s ; règle de détection : `../../motion/src/CLAUDE.md`, point 11).
 - Si un œil (ou deux : `pair`) est trouvé :
   - une ligne dans `eye_detections` (`camera`, `taken_at`, `path`, `x`, `y`, `size`, `peak`, `contrast`, `pair`, `distance`), une par caméra et par minute au plus ;
   - **un événement de mouvement** : `POST …/trigger?reason=eyes` (point 12 de `../../motion/src/CLAUDE.md`), un appel par caméra toutes les 30 s au plus.
-- L'image de la détection est **réécrite avec un carré rouge** autour de l'œil (`POST /api/eyes/mark` de l'enregistreur, `mark` dans `eyes.ts`) ; si le dessin échoue, l'image reste telle quelle.
+- L'image de la détection est **réécrite avec un carré rouge** autour de chaque œil trouvé (`POST /api/eyes/mark?eyes=x,y,largeur,hauteur;…` de l'enregistreur, `mark` dans `eyes.ts`) ; si le dessin échoue, l'image reste telle quelle.
 - Le clip n'est copié que si `keepsClip` le veut. Une panne de l'enregistreur est loguée une fois et ne bloque pas la prise d'image.
 - Lignes et images suivent la durée de garde (`purgeSnapshots`).
 - `settings.eyes_now` (0/1) : recherche en cours ; rangé chaque minute par `settings.refreshEyes` (minuteur de `app.ts`) et après un changement ; l'API le rend dans `GET /direct` (`eyes`).

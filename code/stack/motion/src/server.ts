@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { pipeline } from 'node:stream/promises'
 import { audioClipPath } from './audio.ts'
 import { shapesClipPath } from './shapes.ts'
-import { eyesFromJpeg, ffmpegDecoder, markEyes, type Decoder } from './eyes.ts'
+import { analyzeJpeg, ffmpegDecoder, markEyes, type Decoder, type GrayImage } from './eyes.ts'
 import { webClipPath } from './clips.ts'
 import type { Config } from './config.ts'
 import type { EventStore } from './events.ts'
@@ -79,6 +79,8 @@ export const startServer = (
   trigger?: Trigger,
 ) => {
   const clipPath = (id: string): string => `${config.clipsDir}/${id}.mp4`
+  /** La dernière image grise envoyée par caméra (`POST /api/eyes?camera=`) : ce qui n'a pas bougé depuis n'est pas un œil. */
+  const previousImages = new Map<string, GrayImage>()
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // Une adresse mal formée (« // ») fait échouer new URL : 400, et non une erreur qui ferait tomber l'enregistreur.
@@ -153,14 +155,18 @@ export const startServer = (
       return json(res, 405, { error: 'method not allowed' })
     }
     // POST /api/eyes avec un JPEG : cherche des yeux qui brillent (la nuit, un petit point blanc saturé) ; rend { found, pair, distance, eyes: [{ x, y, size, peak, contrast, width, height, glow }] }.
-    // POST /api/eyes/mark avec un JPEG : le même JPEG avec un carré rouge autour de chaque œil trouvé (image/jpeg) ; 204 s'il n'y a pas d'œil ou si le carré n'a pas pu être dessiné.
+    // POST /api/eyes/mark?eyes=x,y,largeur,hauteur;x,y,largeur,hauteur avec un JPEG : le même JPEG avec un carré rouge autour de chaque œil donné (image/jpeg) ; 204 sans œil valide ou si le carré n'a pas pu être dessiné.
     if (pathname === '/api/eyes/mark') {
       if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
       const jpeg = await readBytes(req, MAX_IMAGE)
       if (jpeg === null) return json(res, 413, { error: 'image too large' })
-      const result = jpeg.length > 0 ? await eyesFromJpeg(jpeg, decode) : null
-      if (!result) return json(res, 400, { error: 'unreadable image' })
-      const marked = result.found ? await markEyes(jpeg, result.eyes) : null
+      if (jpeg.length === 0) return json(res, 400, { error: 'unreadable image' })
+      const boxes = (searchParams.get('eyes') ?? '')
+        .split(';')
+        .map((part) => part.split(',').map(Number))
+        .filter((n) => n.length === 4 && n.every((value) => Number.isFinite(value) && value >= 0))
+        .map(([x, y, width, height]) => ({ x, y, width, height }))
+      const marked = boxes.length > 0 ? await markEyes(jpeg, boxes) : null
       if (!marked) {
         res.writeHead(204)
         return void res.end()
@@ -172,8 +178,12 @@ export const startServer = (
       if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
       const jpeg = await readBytes(req, MAX_IMAGE)
       if (jpeg === null) return json(res, 413, { error: 'image too large' })
-      const result = jpeg.length > 0 ? await eyesFromJpeg(jpeg, decode) : null
-      return result ? json(res, 200, result) : json(res, 400, { error: 'unreadable image' })
+      // ?camera= : l'image d'avant de cette caméra est gardée ; un point blanc qui n'a pas bougé (ciel, lampe) n'est pas un œil.
+      const camera = searchParams.get('camera')
+      const analyzed = jpeg.length > 0 ? await analyzeJpeg(jpeg, decode, camera ? (previousImages.get(camera) ?? null) : null) : null
+      if (!analyzed) return json(res, 400, { error: 'unreadable image' })
+      if (camera) previousImages.set(camera, analyzed.image)
+      return json(res, 200, analyzed.result)
     }
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
 

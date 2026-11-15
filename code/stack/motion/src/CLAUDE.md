@@ -61,7 +61,8 @@ Forme de l'ancienne API Frigate, gardée pour que House Sync n'ait pas changé.
 ## 9. Yeux qui brillent (`eyes.ts`, `POST /api/eyes`)
 
 - La nuit, l'œil d'un animal est un petit point blanc **saturé** sur fond sombre en infrarouge monochrome.
-- House Sync envoie un JPEG (corps, 3 Mo max, 413 au-delà) ; ffmpeg le décode en gris (10 s max). Réponse `{found, pair, distance, eyes: [{x, y, size, peak, contrast, width, height, glow}]}`, 400 si illisible. `POST /api/eyes/mark` rend le même JPEG avec un **carré rouge** autour de chaque œil (`markEyes`, ffmpeg `drawbox`), 204 sans œil.
+- House Sync envoie un JPEG (corps, 3 Mo max, 413 au-delà) ; ffmpeg le décode en gris (10 s max). Réponse `{found, pair, distance, eyes: [{x, y, size, peak, contrast, width, height, glow}]}`, 400 si illisible. `POST /api/eyes/mark?eyes=x,y,largeur,hauteur;…` rend le même JPEG avec un **carré rouge** autour de chaque œil donné (`markEyes`, ffmpeg `drawbox`), 204 sans boîte valide.
+- **Ce qui ne bouge pas n'est pas un œil** : `POST /api/eyes?camera=<caméra>` garde l'image grise d'avant de la caméra (en mémoire) ; un point dont la boîte (+3 pixels) est à moins de 30 de gris d'écart moyen sur l'image d'avant (`STATIC_DIFF_MAX`) est écarté (ciel qui blanchit à l'aube, lampe, reflet fixe : `isStatic`). Sans `camera` ou sans image d'avant : pas de filtre. Mesuré : les fausses alertes du ciel de `voliere-toit` (13 nov, ~06h20 UTC, tache de 100 à 150 pixels en (1170, 36)) sont toutes écartées ; le chat est gardé sur 27 images sur 27 avec 5 s d'écart (20 sur 27 avec 1 s).
 - **Règle volontairement simple** (constantes en tête de `eyes.ts`, pour des images 1280×720) :
   - amas de pixels ≥ 250 (`PEAK_MIN`) de 3 à 25 pixels (`AREA_MIN`, `AREA_MAX`) ;
   - anneau de 3 à 6 pixels autour de gris moyen < 120 (`RING_MAX`) ;

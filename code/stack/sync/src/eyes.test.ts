@@ -12,7 +12,7 @@ const NIGHT = Date.UTC(2026, 10, 9, 23, 0, 0)
 const found = { found: true, pair: true, distance: 10, eyes: [{ x: 100, y: 50, size: 5, peak: 255, contrast: 190 }] }
 
 const setup = (answer: (path: string, init?: RequestInit) => Response | Promise<Response>, mode = 'on') => {
-  const ctx = testContext((url, init) => answer(url.replace('http://rec1:8080', ''), init))
+  const ctx = testContext((url, init) => answer(url.replace('http://rec1:8080', '').split('?')[0], init))
   ctx.time.set(NIGHT)
   ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 3, seconds: 5, orientation: 'landscape', eyes: mode })
   const rec = createRecorder(ctx)
@@ -26,10 +26,12 @@ test('une image où l’enregistreur trouve un œil : une ligne et une ligne de 
   const { ctx, eyes } = setup(() => Response.json(found))
   await eyes.look('cam', sec(ctx), 'snapshots/cam/1.jpg', Buffer.from('JPEG'))
   assert.deepEqual(rows(ctx), [{ camera: 'cam', taken_at: sec(ctx), path: 'snapshots/cam/1.jpg', x: 100, y: 50, size: 5, peak: 255, contrast: 190, pair: 1, distance: 10 }])
-  assert.equal(ctx.calls[0]?.url, 'http://rec1:8080/api/eyes')
+  assert.equal(ctx.calls[0]?.url, 'http://rec1:8080/api/eyes?camera=cam')
   assert.equal(ctx.calls[0]?.method, 'POST')
   // un œil lance un événement de mouvement de la caméra
   assert.deepEqual([ctx.calls[1]?.url, ctx.calls[1]?.method], ['http://rec1:8080/api/cameras/cam/trigger?reason=eyes', 'POST'])
+  // sans taille donnée, la boîte du carré rouge est de 8 sur 8
+  assert.ok(ctx.calls.some((call) => call.url === 'http://rec1:8080/api/eyes/mark?eyes=100%2C50%2C8%2C8'))
   assert.match(ctx.logs.at(-1) ?? '', /Yeux qui brillent sur cam en \(100, 50\), une paire : snapshots\/cam\/1\.jpg/)
 })
 
@@ -42,7 +44,7 @@ test('un reflet fondu est dit au journal, et l’image gardée est réécrite av
   mkdirSync(dirname(file), { recursive: true })
   await eyes.look('cam', sec(ctx), 'snapshots/cam/1.jpg', Buffer.from('JPEG'))
   assert.match(ctx.logs.at(-1) ?? '', /, reflet fondu : snapshots/)
-  assert.deepEqual(ctx.calls.map((call) => call.url).filter((url) => url.endsWith('/mark')), ['http://rec1:8080/api/eyes/mark'])
+  assert.deepEqual(ctx.calls.map((call) => call.url).filter((url) => url.includes('/mark')), ['http://rec1:8080/api/eyes/mark?eyes=100%2C50%2C14%2C14'])
   assert.equal(readFileSync(file).toString(), 'MARKED')
 })
 

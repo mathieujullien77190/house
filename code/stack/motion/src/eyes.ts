@@ -123,8 +123,37 @@ const ringMean = (gray: Uint8Array, width: number, height: number, blob: Blob): 
   return sum / count
 }
 
-/** Cherche des yeux qui brillent dans une image grise (width × height octets). */
-export const detectEyes = (gray: Uint8Array, width: number, height: number): EyesResult => {
+/** Une image grise décodée. */
+export interface GrayImage {
+  gray: Uint8Array
+  width: number
+  height: number
+}
+
+/** Un « œil » qui n'a pas bougé : sur l'image d'avant, sa boîte (plus 3 pixels) est à moins de cet écart moyen de gris (0 à 255) : le ciel, une lampe, un reflet fixe. */
+export const STATIC_DIFF_MAX = 30
+export const STATIC_MARGIN = 3
+
+/** Vrai si la zone de l'œil est presque la même (blanche comme avant) sur l'image d'avant. */
+export const isStatic = (eye: Eye, now: GrayImage, before: GrayImage): boolean => {
+  if (before.width !== now.width || before.height !== now.height) return false
+  const x0 = Math.max(0, Math.round(eye.x - eye.width / 2) - STATIC_MARGIN)
+  const x1 = Math.min(now.width - 1, Math.round(eye.x + eye.width / 2) + STATIC_MARGIN)
+  const y0 = Math.max(0, Math.round(eye.y - eye.height / 2) - STATIC_MARGIN)
+  const y1 = Math.min(now.height - 1, Math.round(eye.y + eye.height / 2) + STATIC_MARGIN)
+  let sum = 0
+  let count = 0
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = x0; x <= x1; x += 1) {
+      sum += Math.abs(now.gray[y * now.width + x] - before.gray[y * now.width + x])
+      count += 1
+    }
+  }
+  return count > 0 && sum / count <= STATIC_DIFF_MAX
+}
+
+/** Cherche des yeux qui brillent dans une image grise (width × height octets) ; avec l'image d'avant de la même caméra, ce qui n'a pas bougé n'est pas un œil. */
+export const detectEyes = (gray: Uint8Array, width: number, height: number, before: GrayImage | null = null): EyesResult => {
   const none: EyesResult = { found: false, pair: false, distance: 0, eyes: [] }
   if (width <= 0 || height <= 0 || gray.length !== width * height) return none
   const blobs = findBlobs(gray, width, height, BLOBS_LIMIT)
@@ -140,7 +169,9 @@ export const detectEyes = (gray: Uint8Array, width: number, height: number): Eye
     if (!small && !glow) continue
     const ring = ringMean(gray, width, height, blob)
     if (ring === null || ring >= (small ? RING_MAX : GLOW_RING_MAX)) continue
-    eyes.push({ x: Math.round(blob.x), y: Math.round(blob.y), size: blob.area, peak: 255, contrast: Math.round(255 - ring), width: w, height: h, glow })
+    const eye: Eye = { x: Math.round(blob.x), y: Math.round(blob.y), size: blob.area, peak: 255, contrast: Math.round(255 - ring), width: w, height: h, glow }
+    if (before && isStatic(eye, { gray, width, height }, before)) continue
+    eyes.push(eye)
   }
   eyes.sort((a, b) => b.contrast - a.contrast)
   let distance = 0
@@ -190,14 +221,22 @@ export const ffmpegDecoder: Decoder = (jpeg) =>
   })
 
 /** Les yeux d'un JPEG ; null si l'image ne se décode pas. */
-export const eyesFromJpeg = async (jpeg: Buffer, decode: Decoder = ffmpegDecoder): Promise<EyesResult | null> => {
+export const eyesFromJpeg = async (jpeg: Buffer, decode: Decoder = ffmpegDecoder, before: GrayImage | null = null): Promise<EyesResult | null> =>
+  (await analyzeJpeg(jpeg, decode, before))?.result ?? null
+
+/** Les yeux d'un JPEG et son image grise (à garder comme « image d'avant » de la caméra) ; null si l'image ne se décode pas. */
+export const analyzeJpeg = async (
+  jpeg: Buffer,
+  decode: Decoder = ffmpegDecoder,
+  before: GrayImage | null = null,
+): Promise<{ result: EyesResult; image: GrayImage } | null> => {
   const decoded = await decode(jpeg)
   const image = decoded === null ? null : parsePgm(decoded)
-  return image === null ? null : detectEyes(image.gray, image.width, image.height)
+  return image === null ? null : { result: detectEyes(image.gray, image.width, image.height, before), image }
 }
 
 /** Le JPEG avec un carré rouge autour de chaque œil (ffmpeg `drawbox`, 3 pixels d'épaisseur, marge de 8 pixels) ; null si ffmpeg échoue. */
-export const markEyes = (jpeg: Buffer, eyes: Eye[]): Promise<Buffer | null> =>
+export const markEyes = (jpeg: Buffer, eyes: Pick<Eye, 'x' | 'y' | 'width' | 'height'>[]): Promise<Buffer | null> =>
   new Promise((resolve) => {
     if (eyes.length === 0) return resolve(null)
     const boxes = eyes
