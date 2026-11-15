@@ -19,7 +19,7 @@ export const DRIFT_SECONDS = 0.4
 export const SOUND_LABEL = 'Activer le son'
 export const SOUND_CLASS = 'mt-1.5'
 /** Les commandes maison (quand `controlsHost` est donné) : lecture ou pause et la barre de temps (le temps écrit est caché : seule la barre le montre). Posées hors du lecteur, droites. */
-export const CONTROLS_CLASS = 'flex items-center gap-2 bg-gradient-to-t from-black/75 to-transparent px-2 pb-1.5 pt-6'
+export const CONTROLS_CLASS = 'flex items-center gap-2 px-2 py-1.5'
 /** Lecture / pause : un carré de 32 px (`size-8`, `rounded-md`), comme tous les boutons posés sur une vidéo (retour, son, repères, réduire). */
 export const PLAY_BUTTON_CLASS =
   'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line bg-bg/80 text-[0.75rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'

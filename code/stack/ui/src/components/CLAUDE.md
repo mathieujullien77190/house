@@ -11,19 +11,19 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 ## Formulaires
 
 - `Checkbox`, `Select` (remplace le `<select>` natif, clavier compris).
-- `HeatingPanel` : règle de chauffage automatique de la prise. Champs `number` / `decimal` / `time` en texte, le parent convertit. Sans titre, état ni journal. `compact` : bloc étroit (320 px), deux colonnes, plus petit.
+- `HeatingPanel` : règle de chauffage automatique de la prise. Champs `number` / `decimal` / `time` en texte, le parent convertit. `number` et `decimal` ont un « − » et un « + » de part et d'autre (pas de 1, ou de 0,5 ; l'entier ne passe pas sous 0 ; `helpers.ts`). Sans titre, état ni journal. `compact` : bloc étroit (320 px), deux colonnes, plus petit.
 
 ## Données
 
 - `SimpleTable` (une fiche par ligne sur téléphone), `DataTable` (`details`, `openKey`, `onRowClick`, `filters`), `TableFilters`, `StackedDate`.
-- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `SpecList`, `ValueChips`.
+- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `SpecList`, `ValueChips` (`stretch` : collé à droite de sa ligne, 40 px comme un `Button` ; l'heure de la frise sur téléphone).
 
 ## Médias
 
 - `MediaPanel`.
 - `SnapshotImage` : `upright` remet le texte droit dans un cadre tourné. Au démontage, `src` devient un GIF d'un pixel : un flux MJPEG ne se termine jamais et le navigateur n'ouvre que 6 connexions par hôte.
 - **Le média n'a ni bordure ni arrondi propre** (`MEDIA_INNER_CLASS`, pour `SnapshotImage` et `ClipPlayer`) : la boîte qui l'héberge arrondit et rogne.
-- `ClipPlayer` : pas de commandes natives, barre maison (lecture, temps) posée en bas de l'image sur un dégradé ; un clic sur la vidéo lance ou arrête.
+- `ClipPlayer` : pas de commandes natives, barre maison (lecture, temps) posée en bas de l'image, sans fond ; un clic sur la vidéo lance ou arrête.
   - `overlay` : posé dans le cadre exact de la vidéo (contours du mouvement).
   - `barInset` : la barre s'arrête avant les boutons du bas à droite. `controlsHost` : commandes posées dans un élément du parent (droites même si la vidéo est tournée).
   - `audioSrc` : `<audio>` caché qui suit la vidéo (écart de moins de 0,4 s non corrigé), bouton « Activer le son » si le navigateur refuse.

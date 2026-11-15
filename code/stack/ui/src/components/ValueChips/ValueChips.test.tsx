@@ -12,4 +12,9 @@ describe('ValueChips', () => {
     render(<ValueChips values={['1', '1']} />)
     expect(screen.getAllByText('1')).toHaveLength(2)
   })
+
+  it('étiré : le bloc se colle à droite', () => {
+    render(<ValueChips values={['12:00:00']} stretch />)
+    expect(screen.getByText('12:00:00').className).toContain('h-10')
+  })
 })

@@ -21,10 +21,10 @@ describe('HeatingPanel', () => {
   it('montre la case, les champs et leur aide', () => {
     render(<HeatingPanel {...props()} />)
     expect(screen.getByRole('checkbox', { name: 'Activer la règle' })).toBeChecked()
-    expect(screen.getByLabelText(/Température/)).toHaveValue(3)
-    expect(screen.getByLabelText(/Prix/)).toHaveValue('0,1589')
+    expect(screen.getByLabelText('Température (°C)', { selector: 'input' })).toHaveValue(3)
+    expect(screen.getByLabelText('Prix', { selector: 'input' })).toHaveValue('0,1589')
     expect(screen.getByText('TTC')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Début/)).toHaveValue('23:10')
+    expect(screen.getByLabelText('Début', { selector: 'input' })).toHaveValue('23:10')
   })
 
   it('renvoie les changements et l’enregistrement', () => {
@@ -32,10 +32,32 @@ describe('HeatingPanel', () => {
     render(<HeatingPanel {...p} />)
     fireEvent.click(screen.getByRole('checkbox'))
     expect(p.onEnabledChange).toHaveBeenCalledWith(false)
-    fireEvent.change(screen.getByLabelText(/Température/), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('Température (°C)', { selector: 'input' }), { target: { value: '4' } })
     expect(p.fields[0].onChange).toHaveBeenCalledWith('4')
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     expect(p.onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('« − » et « + » changent un entier d’un pas, sans passer sous 0', () => {
+    const p = props()
+    render(<HeatingPanel {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Augmenter · Température (°C)' }))
+    expect(p.fields[0].onChange).toHaveBeenLastCalledWith('4')
+    fireEvent.click(screen.getByRole('button', { name: 'Diminuer · Température (°C)' }))
+    expect(p.fields[0].onChange).toHaveBeenLastCalledWith('2')
+  })
+
+  it('« + » d’un décimal garde la virgule ; l’heure n’a pas de boutons', () => {
+    const p = props()
+    render(<HeatingPanel {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Augmenter · Prix' }))
+    expect(p.fields[1].onChange).toHaveBeenLastCalledWith('0,6589')
+    expect(screen.queryByRole('button', { name: /Début/ })).toBeNull()
+  })
+
+  it('le bloc étroit a aussi ses boutons', () => {
+    render(<HeatingPanel {...props({ compact: true })} />)
+    expect(screen.getAllByRole('button', { name: /Diminuer/ })).toHaveLength(2)
   })
 
   it('bloque le bouton pendant l’envoi, montre l’erreur', () => {

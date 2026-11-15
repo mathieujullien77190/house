@@ -18,3 +18,12 @@ export const FIELDS_COMPACT_CLASS = 'grid grid-cols-2 gap-2'
 export const FIELD_COMPACT_CLASS = 'flex min-w-0 flex-col gap-1 text-[0.72rem] leading-tight'
 export const INPUT_COMPACT_CLASS = 'w-full min-w-0 rounded-lg border border-line bg-card px-2 py-0.5 text-[0.8rem] text-fg [color-scheme:light] dark:[color-scheme:dark] focus-visible:outline-2 focus-visible:outline-accent'
 export const HINT_COMPACT_CLASS = 'text-[0.68rem] leading-tight text-muted'
+/** Les champs numériques ont un « − » et un « + » de part et d'autre : le pas de chaque sorte (un entier de 1, un décimal de 0,5). */
+export const STEPS = { number: 1, decimal: 0.5 } as const
+export const STEP_LABELS = { less: 'Diminuer', more: 'Augmenter' } as const
+export const STEP_SIGNS = { less: '−', more: '+' } as const
+export const STEPPER_CLASS = 'flex items-stretch gap-1'
+export const STEP_BUTTON_CLASS =
+  'w-9 shrink-0 cursor-pointer rounded-lg border border-line bg-bg text-[1rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent max-lg:min-h-10 max-lg:w-11'
+export const STEP_BUTTON_COMPACT_CLASS =
+  'w-6 shrink-0 cursor-pointer rounded-lg border border-line bg-bg text-[0.8rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
