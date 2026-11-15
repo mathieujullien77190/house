@@ -45,9 +45,9 @@ describe('HeatingSection', () => {
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
     expect(screen.getByRole('checkbox', { name: 'Activer la règle' })).toBeChecked()
-    expect(screen.getByLabelText('Température (°C)')).toHaveValue('3')
-    expect(screen.getByLabelText('Durée (min)')).toHaveValue(5)
-    expect(screen.getByLabelText(/Délai avant réactivation/)).toHaveValue(20)
+    expect(screen.getByLabelText('Température (°C)', { selector: 'input' })).toHaveValue('3')
+    expect(screen.getByLabelText('Durée (min)', { selector: 'input' })).toHaveValue(5)
+    expect(screen.getByLabelText(/Délai avant réactivation/, { selector: 'input' })).toHaveValue(20)
     expect(screen.queryByLabelText(/Prix du kWh/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/heures creuses/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Puissance/)).not.toBeInTheDocument()
@@ -57,11 +57,11 @@ describe('HeatingSection', () => {
   it('relit les réglages quand la version change, sans défaire ce qui est tapé', async () => {
     const { rerender } = render(<HeatingSection apiKey="k" version={0} />)
     await settle()
-    fireEvent.change(screen.getByLabelText('Durée (min)'), { target: { value: '9' } })
+    fireEvent.change(screen.getByLabelText('Durée (min)', { selector: 'input' }), { target: { value: '9' } })
     rerender(<HeatingSection apiKey="k" version={1} />)
     await settle()
     expect(api.fetchHeating).toHaveBeenCalledTimes(2)
-    expect(screen.getByLabelText('Durée (min)')).toHaveValue(9)
+    expect(screen.getByLabelText('Durée (min)', { selector: 'input' })).toHaveValue(9)
   })
 
   it('ignore une lecture arrivée après le démontage', async () => {
@@ -80,7 +80,7 @@ describe('HeatingSection', () => {
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
     fireEvent.click(screen.getByRole('checkbox'))
-    fireEvent.change(screen.getByLabelText('Température (°C)'), { target: { value: '2,5' } })
+    fireEvent.change(screen.getByLabelText('Température (°C)', { selector: 'input' }), { target: { value: '2,5' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await settle()
     expect(api.saveHeating).toHaveBeenCalledWith('k', {
@@ -89,14 +89,14 @@ describe('HeatingSection', () => {
       minutes: 5,
       cooldownMinutes: 20,
         })
-    expect(screen.getByLabelText('Température (°C)')).toHaveValue('2,5')
+    expect(screen.getByLabelText('Température (°C)', { selector: 'input' })).toHaveValue('2,5')
     expect(screen.getByRole('checkbox')).not.toBeChecked()
   })
 
   it('un champ illisible n’envoie rien', async () => {
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
-    fireEvent.change(screen.getByLabelText('Durée (min)'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Durée (min)', { selector: 'input' }), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await settle()
     expect(api.saveHeating).not.toHaveBeenCalled()

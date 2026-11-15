@@ -16,3 +16,13 @@ export const MARKER_MOVABLE_CLASS = 'cursor-grab active:cursor-grabbing'
 export const MARKER_FIXED_CLASS = 'cursor-pointer'
 /** Un repère de caméra inactive (éteinte) : grisé mais cliquable (on l'ouvre pour la rallumer). */
 export const MARKER_INACTIVE_CLASS = 'cursor-pointer opacity-40'
+/**
+ * L'orientation (degrés, sens horaire) du dessin de chaque autre caméra, vue depuis une caméra : l'icône de base regarde à droite, donc 90 la fait regarder vers le bas, 270 vers le haut, 180 vers la gauche.
+ * Clé : la caméra qu'on regarde, puis la caméra du repère. Un repère absent n'est pas tourné.
+ */
+export const MARKER_ROTATIONS: Record<string, Record<string, number>> = {
+  'voliere-toit': { 'salon-de-jardin': 180, 'voliere-exterieur': 90, 'voliere-interieur': 270 },
+  'voliere-interieur': { 'salon-de-jardin': 180, 'voliere-exterieur': 90 },
+  'voliere-exterieur': { 'voliere-toit': 90, 'voliere-interieur': 90 },
+  'salon-de-jardin': { 'voliere-exterieur': 270, 'voliere-toit': 90, 'voliere-interieur': 90 },
+}

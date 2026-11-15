@@ -51,6 +51,7 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
 - Un clic ouvre cette caméra **à la même seconde et à la même vitesse** (`onOpenCamera(nom, instant, vitesse)`, `initialCursor`, `initialRate`).
 - **Une caméra éteinte (PoE coupé, `lib/useOffCameras.ts`) a un repère grisé mais cliquable** (`inactive`) : on l'ouvre pour la rallumer.
 - Sous 1024 px, un repère hors de l'image est collé au bord (`max-lg:` + `clamp`, `CameraMarkers/constants.ts`) ; la place enregistrée ne change pas.
+- **Orientation** : `MARKER_ROTATIONS` (`CameraMarkers/constants.ts`), par caméra regardée puis caméra du repère (l'icône de base regarde à droite). Sur `voliere-toit` : `salon-de-jardin` 180°, `voliere-exterieur` 90° (vers le bas), `voliere-interieur` 270° (vers le haut). Sur `voliere-interieur` : `salon-de-jardin` 180°, `voliere-exterieur` 90°. Sur `voliere-exterieur` : `voliere-toit` 90°, `voliere-interieur` 90°. Sur `salon-de-jardin` : `voliere-exterieur` 270° (quart de tour à gauche), `voliere-toit` et `voliere-interieur` 90° (à droite).
 - Places : `lib/useMarkers.ts` (`GET /markers`, `PUT /markers/<caméra>`) ; sans liste, alignés en haut.
 - `MARKERS_EDITABLE` est à `false` : places figées. À `true` : glisser (au-delà de 5 px), clic droit pour retirer.
 - `components/MarkersToggle` (à côté du son) les cache ; choix dans `localStorage` `house-markers-hidden`.

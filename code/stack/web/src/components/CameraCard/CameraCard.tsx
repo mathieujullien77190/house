@@ -387,6 +387,7 @@ const CameraCard = ({
       layer={
         showMarkers ? (
           <CameraMarkers
+            viewer={camera.name}
             markers={markers.markers}
             onMove={markers.move}
             onCommit={markers.commit}
@@ -435,8 +436,9 @@ const CameraCard = ({
           controls={
             bigView.big ? undefined : (
               <>
-                <ValueChips values={[formatClock(cursor ?? now)]} />
-                {fastScroll}
+                {mobile ? fastScroll : null}
+                <ValueChips values={[formatClock(cursor ?? now)]} stretch={mobile} />
+                {mobile ? null : fastScroll}
               </>
             )
           }

@@ -202,4 +202,19 @@ describe('CameraMarkers : les caméras inactives restent cliquables', () => {
     render(<CameraMarkers markers={markers} onMove={vi.fn()} onCommit={vi.fn()} onRemove={vi.fn()} onOpen={vi.fn()} />)
     for (const button of screen.getAllByRole('button')) expect(button).not.toBeDisabled()
   })
+
+  it('l’icône d’un repère est tournée selon la caméra qu’on regarde, droite sans réglage', () => {
+    const rotation = (viewer: string | undefined, target: string): string => {
+      const { container, unmount } = render(
+        <CameraMarkers markers={[{ target, x: 0.5, y: 0.5 }]} onMove={vi.fn()} onCommit={vi.fn()} onRemove={vi.fn()} onOpen={vi.fn()} viewer={viewer} />,
+      )
+      const value = (container.querySelector('svg') as SVGElement).style.rotate
+      unmount()
+      return value
+    }
+    expect(rotation('voliere-toit', 'salon-de-jardin')).toBe('180deg')
+    expect(rotation('voliere-toit', 'inconnue')).toBe('0deg')
+    expect(rotation('inconnue', 'salon-de-jardin')).toBe('0deg')
+    expect(rotation(undefined, 'salon-de-jardin')).toBe('0deg')
+  })
 })

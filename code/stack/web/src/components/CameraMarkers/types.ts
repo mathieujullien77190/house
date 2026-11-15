@@ -13,4 +13,6 @@ export interface CameraMarkersProps {
   onOpen: (target: string) => void
   /** Les caméras inactives (éteintes) : leur repère est grisé et ne fait rien (ni clic ni glisser). */
   inactive?: string[]
+  /** La caméra qu'on regarde : elle décide de l'orientation des icônes des autres (`MARKER_ROTATIONS`). */
+  viewer?: string
 }

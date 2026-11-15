@@ -8,6 +8,7 @@ import {
   MARKER_FIXED_CLASS,
   MARKER_INACTIVE_CLASS,
   MARKER_MOVABLE_CLASS,
+  MARKER_ROTATIONS,
   MARKERS_EDITABLE,
   OPEN_PREFIX,
 } from './constants'
@@ -17,7 +18,7 @@ import type { CameraMarkersProps } from './types'
  * Les repères posés sur l'image d'une caméra : une icône de caméra par autre caméra, que l'on déplace en le glissant ; un clic (sans glisser) ouvre cette autre caméra ; un clic droit (ou un appui long) retire le repère. Tant que `MARKERS_EDITABLE` est à false, les places sont figées : ni glisser ni retirer, un clic ouvre seulement la caméra. Les places sont des parts de
  * l'image visible ; un repère peut être posé hors de la vidéo (dans le bloc qui l'entoure). Le glisser ne déclenche ni le zoom ni le déplacement de la vidéo.
  */
-const CameraMarkers = ({ markers, onMove, onCommit, onRemove, onOpen, inactive = [] }: CameraMarkersProps) => {
+const CameraMarkers = ({ markers, onMove, onCommit, onRemove, onOpen, inactive = [], viewer }: CameraMarkersProps) => {
   const layer = useRef<HTMLDivElement>(null)
   // Le repère en train d'être glissé : d'où il est parti, et s'il a vraiment bougé (sinon c'est un clic).
   const drag = useRef<{ target: string; startX: number; startY: number; moved: boolean } | null>(null)
@@ -85,7 +86,7 @@ const CameraMarkers = ({ markers, onMove, onCommit, onRemove, onOpen, inactive =
           >
             {/* Le même rond que l'icône de la caméra sur la carte : fond blanc, bordure noire, caméra noire. */}
             <MapIcon label={marker.target}>
-              <HiOutlineVideoCamera aria-hidden="true" />
+              <HiOutlineVideoCamera aria-hidden="true" style={{ rotate: `${(viewer && MARKER_ROTATIONS[viewer]?.[marker.target]) || 0}deg` }} />
             </MapIcon>
           </button>
         )
