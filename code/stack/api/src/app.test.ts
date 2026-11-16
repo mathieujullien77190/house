@@ -49,6 +49,8 @@ const baseConfig = (dir: string): Config => ({
   shutters: [],
   shuttersAuto: [],
   shuttersEspUrl: null,
+  shuttersServo: [],
+  servosFile: join(dir, 'servos.json'),
   plugMotionSensor: 'motion interieur',
   plugTemperatureSensor: 'motion interieur',
   housePosition: { latitude: 48.6, longitude: 2.7 },
@@ -218,7 +220,7 @@ test('les climatisations : une unité configurée, module injoignable = reachabl
 
 test('les volets avec un ESP32 : le pilote réel, un ordre qui échoue rend 502', async () => {
   await withTempDir(async (dir) => {
-    const config: Config = { ...prepare(dir), shutters: [{ id: '1', name: 'Salon', shadeId: 1 }], shuttersAuto: ['1'], shuttersEspUrl: 'http://127.0.0.1:1' }
+    const config: Config = { ...prepare(dir), shutters: [{ id: '1', name: 'Salon', shadeId: 1 }], shuttersAuto: ['1'], shuttersEspUrl: 'http://127.0.0.1:1', shuttersServo: [1] }
     await serveApp(config, async (url) => {
       const key = { 'X-House-Key': KEY }
       assert.equal(((await call(`${url}/shutters`, 'GET', undefined, key)).body as { mock: boolean }).mock, false)

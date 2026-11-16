@@ -29,6 +29,8 @@ test('les valeurs par défaut', () => {
   // par défaut, tous les volets ont l'action automatique ; sans ESP32, c'est la simulation
   assert.deepEqual(config.shuttersAuto, ['1', '2', '3', '4'])
   assert.equal(config.shuttersEspUrl, null)
+  assert.deepEqual(config.shuttersServo, [2, 5, 6])
+  assert.equal(config.servosFile, '/servos/servos.json')
   assert.equal(config.plugMotionSensor, 'motion interieur')
   assert.equal(config.plugTemperatureSensor, 'motion interieur')
   assert.deepEqual(config.housePosition, { latitude: 48.52, longitude: 2.64 })
@@ -91,6 +93,9 @@ test('toutes les variables renseignées', async () => {
     ])
     assert.deepEqual(config.shuttersAuto, ['6', '5'])
     assert.equal(config.shuttersEspUrl, 'http://esp')
+    const servo = loadConfig({ API_KEY: '12345678', SHUTTERS_SERVO: '3, x,0,4.5,7', SERVOS_FILE: '/s/x.json' })
+    assert.deepEqual(servo.shuttersServo, [3, 7])
+    assert.equal(servo.servosFile, '/s/x.json')
     // SHUTTERS_AUTO absent : tous les volets configurés
     assert.deepEqual(loadConfig({ API_KEY: '12345678', SHUTTERS: '7:A,8:B' }).shuttersAuto, ['7', '8'])
     assert.equal(config.plugMotionSensor, 'autre')

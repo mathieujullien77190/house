@@ -26,6 +26,8 @@ import { createHeatingLog } from './lib/heatingLog.ts'
 import { createHeatingSettings } from './lib/heatingSettings.ts'
 import { createPlugService, type MotionSource } from './services/plugService.ts'
 import { createEspSomfyDriver, createMockDriver } from './lib/shutterDriver.ts'
+import { createRoutingDriver, createServoDriver } from './lib/servoDriver.ts'
+import { readServoConfig } from './lib/servoConfig.ts'
 import { createShutterLog } from './lib/shutterLog.ts'
 import { createMitsubishiClient } from './lib/mitsubishiClient.ts'
 import { createAcService } from './services/acService.ts'
@@ -78,7 +80,11 @@ export const createApp = (config: Config): Express => {
     config.shutters.length > 0
       ? createShuttersService({
           shutters: config.shutters,
-          driver: config.shuttersEspUrl ? createEspSomfyDriver(config.shuttersEspUrl) : createMockDriver(),
+          driver: createRoutingDriver(
+            config.shuttersEspUrl ? createEspSomfyDriver(config.shuttersEspUrl) : createMockDriver(),
+            createServoDriver({ readConfig: () => readServoConfig(config.servosFile) }),
+            config.shuttersServo,
+          ),
           log: createShutterLog(`${config.stateDir}/shutters-log.jsonl`),
         })
       : null

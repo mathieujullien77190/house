@@ -32,6 +32,10 @@ export interface Config {
   shuttersAuto: string[]
   /** L'ESP32 (firmware ESPSomfy-RTS) qui envoie les ordres radio ; null : SIMULATION, aucun ordre n'est envoyé (SHUTTERS_ESP_URL). */
   shuttersEspUrl: string | null
+  /** Les volets pilotés par les servos de l'ESP32 Nice (SHUTTERS_SERVO, leurs numéros séparés par des virgules ; par défaut 2,5,6 : salon, PC, porte) : les autres volets vont à l'ESP32 Somfy. */
+  shuttersServo: number[]
+  /** Le fichier de configuration des servos (SERVOS_FILE), écrit par House Sync et relu à chaque ordre. */
+  servosFile: string
   /** Le détecteur Hue qui éteint la prise (option « éteindre au mouvement »), par son nom chez le pont. */
   plugMotionSensor: string
   /** Le détecteur Hue dont la température décide du chauffage automatique (PLUG_TEMPERATURE_SENSOR ; par défaut le détecteur du mouvement). */
@@ -107,6 +111,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       ? env.SHUTTERS_AUTO.split(',').map((id) => id.trim()).filter(Boolean)
       : parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS).map((shutter) => shutter.id),
     shuttersEspUrl: env.SHUTTERS_ESP_URL ? env.SHUTTERS_ESP_URL.replace(/\/+$/, '') : null,
+    shuttersServo: (env.SHUTTERS_SERVO ?? '2,5,6').split(',').map((id) => Number(id.trim())).filter((id) => Number.isInteger(id) && id > 0),
+    servosFile: env.SERVOS_FILE || '/servos/servos.json',
     plugMotionSensor: env.PLUG_MOTION_SENSOR ?? 'motion interieur',
     plugTemperatureSensor: env.PLUG_TEMPERATURE_SENSOR || env.PLUG_MOTION_SENSOR || 'motion interieur',
     housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },

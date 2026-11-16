@@ -210,4 +210,9 @@ Somfy RTS via ESP32 + CC1101 (firmware ESPSomfy-RTS ; onglet Architecture, vue �
 
 **Pilote** (`lib/shutterDriver.ts`) : `createMockDriver` (simulation) et `createEspSomfyDriver` (HTTP `PUT /shadeCommand` `{"shadeId": 1, "command": "up"}`, sans authentification, `stop` envoyé comme `my` ; vérifié sur le volet cuisine).
 
+**Volets à servos** (`lib/servoDriver.ts`, `lib/servoConfig.ts`) : les volets de `SHUTTERS_SERVO` (numéros, défaut `2,5,6` = salon, PC, porte) n'utilisent pas l'ESP32 Somfy mais un second ESP32 (`http://192.168.1.115`, mDNS `servo-page.local`) dont neuf servos MF90 (canaux 0 à 8, trois par volet) sur un PCA9685 appuient sur les touches des télécommandes murales Nice. `up` = Monter, `down` = Descendre, `stop` = Stop.
+
+- Séquence d'un ordre : `GET /set?ch=&us=&speed=` vers `start` (vitesse réglée), attente `ms + 200`, `/set` vers `end`, attente `ms`, attente `hold` s, retour à `start` à vitesse 0, puis **relâche le servo** (`GET /off?ch=` après `ms + 800` : plus d'impulsion, donc ni ronronnement ni effort sur le bois). Le premier `/set` part avant la réponse (502 s'il échoue) ; la suite est en tâche de fond et **tout nouvel ordre au même volet l'annule**. Un redémarrage de l'API perd la suite.
+- Réglages par volet (clé = numéro du volet) : `SERVOS_FILE` (`/servos/servos.json`, volume `data/servos` en lecture seule), écrit par House Sync (`sync/src/CLAUDE.md`), relu **à chaque ordre** ; valeurs par défaut s'il manque ; volet sans réglage : 502. `mock` de `GET /shutters` n'est vrai que si aucun volet n'est à servos (le pilote des servos n'est jamais simulé).
+
 **Journal** `shutters-log.jsonl` (5000 lignes) : `{at, shutter, name, command, ok, note}`, importé par House Sync dans `shutter_log`.
