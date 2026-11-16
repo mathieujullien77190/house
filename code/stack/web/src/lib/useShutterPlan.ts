@@ -1,5 +1,5 @@
 // Les volets roulants prêts pour la carte : relus toutes les 10 s tant que `enabled`, placés d'après le plan (`items`, clé `shutter-<id>`) ou, à défaut, à leur place de départ dans la
-// pièce. Seuls les volets qui ont une place de départ (celui dont le nom contient « cuisine ») ou une place gardée se voient : pour l'instant le volet de la cuisine. Vide sans volets configurés.
+// pièce. Seuls les volets qui ont une place de départ (celui dont le nom contient « cuisine », « salon », « porte » ou « PC ») ou une place gardée se voient : la cuisine, le salon, la porte et le PC. Vide sans volets configurés.
 import { useCallback, useEffect, useState } from 'react'
 import type { PlanShutter } from '@house/ui'
 import { lastText } from '@/components/ShuttersPanel/helpers'
@@ -14,6 +14,12 @@ export const shutterItemId = (id: string): string => `shutter-${id}`
 
 /** La place de départ du volet de la cuisine (repéré par son nom : son numéro dépend de `SHUTTERS` dans le .env), dans le repère de l'ancien plan de la maison (540 × 300, converti à la lecture) : au mur nord de la cuisine. À déplacer à la main. */
 const KITCHEN_START = { x: 315, y: 8 }
+/** La place de départ du volet du salon (repéré par son nom), même repère : au mur sud du salon. À déplacer à la main. */
+const LIVING_ROOM_START = { x: 345, y: 292 }
+/** La place de départ du volet de la porte (repéré par son nom), même repère : au mur ouest. Posée au jugé, à déplacer à la main. */
+const DOOR_START = { x: 8, y: 150 }
+/** La place de départ du volet du PC (repéré par son nom), même repère : au mur ouest, plus bas que la porte. Posée au jugé, à déplacer à la main. */
+const PC_START = { x: 8, y: 230 }
 
 export interface ShutterPlan {
   shutters: PlanShutter[]
@@ -53,7 +59,7 @@ export const useShutterPlan = (apiKey: string, items: Record<string, { x: number
   )
 
   const placed = shutters.flatMap((shutter): PlanShutter[] => {
-    const start = /cuisine/i.test(shutter.name) ? KITCHEN_START : undefined
+    const start = /cuisine/i.test(shutter.name) ? KITCHEN_START : /salon/i.test(shutter.name) ? LIVING_ROOM_START : /porte/i.test(shutter.name) ? DOOR_START : /\bpc\b/i.test(shutter.name) ? PC_START : undefined
     const place = items[shutterItemId(shutter.id)] ?? (start ? fromHousePlan(start.x, start.y) : null)
     return place
       ? [

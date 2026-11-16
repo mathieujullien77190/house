@@ -60,6 +60,17 @@ describe('useShutterPlan', () => {
     expect(byId['3']).toMatchObject({ x: 5, y: 6, closed: true })
   })
 
+  it('place aussi le salon, la porte et le PC à leur place de départ', async () => {
+    vi.mocked(api.fetchShutters).mockResolvedValue(state(shutter('2', 'Volet salon'), shutter('5', 'Volet PC'), shutter('6', 'Volet porte'), shutter('7', 'Volet pcb')))
+    const { result } = renderHook(() => useShutterPlan('k', {}, true))
+    await tick()
+    const byId = Object.fromEntries(result.current.shutters.map((item) => [item.id, item]))
+    expect(byId['2']).toMatchObject(fromHousePlan(345, 292))
+    expect(byId['5']).toMatchObject(fromHousePlan(8, 230))
+    expect(byId['6']).toMatchObject(fromHousePlan(8, 150))
+    expect(byId['7']).toBeUndefined()
+  })
+
   it('relit toutes les 10 s, garde les dernières en cas d’erreur, s’arrête au démontage', async () => {
     const { result, unmount } = renderHook(() => useShutterPlan('k', {}, true))
     await tick()

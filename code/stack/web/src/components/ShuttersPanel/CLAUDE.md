@@ -4,6 +4,7 @@ Volets roulants Somfy RTS (`/shutters`, 10 s). Quatre par défaut (PC, salon, po
 
 - `lib/useShutters.ts` et `ShutterCard.tsx` sont **partagés** avec l'aperçu de la carte (`../ShutterPreview/CLAUDE.md`).
 - **Sens unique** : le Somfy RTS ne renvoie rien. On n'affiche que le dernier ordre (`lastCommand`, `lastAt`), jamais « ouvert » ou « fermé ».
+- **Volets salon (2), PC (5) et porte (6)** : pilotés par des servos qui appuient sur une télécommande Nice, pas par le Somfy ; même bloc, mêmes trois boutons (`../../../../api/src/routes/CLAUDE.md`, « Volets à servos »). Leurs réglages sont dans House Sync, onglet Réglages.
 - **Simulation** : sans `SHUTTERS_ESP_URL` dans le `.env`, l'API est en `mock: true` (ordre noté au journal, aucun signal radio) ; l'onglet l'écrit en tête.
 - `SHUTTERS` vide : 503, l'onglet le dit. ESP32 muet : 502, « L'ordre n'est pas parti ».
 - Journal `shutters-log.jsonl` importé par House Sync dans `shutter_log` (onglet Base).
