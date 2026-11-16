@@ -28,6 +28,8 @@ export interface Config {
   /** CLIP_RETENTION_DAYS tel quel (texte) : sert tant que la page n'a rien réglé. */
   retentionDaysEnv: string | undefined
   guestStateFile: string
+  /** La configuration des servos des volets salon, PC et porte (SERVOS_FILE), que House API relit à chaque ordre. */
+  servosFile: string
   guestVisitsFile: string
   guestVisitsDays: number
   /** La page invité (guest/) : sa clé, son port et, si elle est ouverte à internet, son adresse publique ; null sans GUEST_KEY. House Sync en donne le lien dans ses réglages. */
@@ -73,6 +75,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   savedClipsFile: env.SAVED_CLIPS_FILE ?? '/house/saved-clips.json',
   retentionDaysEnv: env.CLIP_RETENTION_DAYS,
   guestStateFile: env.GUEST_STATE_FILE ?? '/guest/state.json',
+  servosFile: env.SERVOS_FILE ?? '/servos/servos.json',
   guestVisitsFile: env.GUEST_VISITS_FILE ?? '/guest-visits/visits.jsonl',
   guestVisitsDays: Number(env.GUEST_VISITS_DAYS ?? 365),
   guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,

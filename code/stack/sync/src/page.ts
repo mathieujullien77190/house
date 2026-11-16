@@ -13,6 +13,8 @@ import { clipCameras, clipFilterParams, filterClips, filterParams, groupClips, l
 import { ORIENTATIONS } from './database.ts'
 import { readDocker } from './docker.ts'
 import { readGuestEnabled, writeGuestEnabled } from './guestState.ts'
+import { mergeServos, readServos, SERVO_COMMANDS, writeServos } from './servos.ts'
+import { createServoTester } from './servoTest.ts'
 import { readHueBridge } from './hue.ts'
 import type { HueLog } from './hueLog.ts'
 import { intSetting, readJsonObject, sendJson } from './http.ts'
@@ -61,6 +63,7 @@ export interface CurrentWatts {
 export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; resetLiveFpsCheck: () => void; watts: CurrentWatts }) => {
   const { db, config, settings } = ctx
   const { hueLog, resetLiveFpsCheck, watts } = deps
+  const testServo = createServoTester({ fetch: ctx.fetch })
   const dataDir = config.dataDir
   const webDir = config.webDir
 
@@ -144,6 +147,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
   const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
     if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: settings.clipRetentionDays() })
     if (pathname === '/api/guest') return sendJson(res, 200, await guestBody(settings.guestFps()))
+    if (pathname === '/api/servos') return sendJson(res, 200, await readServos(config.servosFile))
     if (pathname === '/api/settings') return sendJson(res, 200, settings.knownCameras().map((camera) => settings.cameraSettings(camera)))
     if (pathname === '/api/overview') return sendJson(res, 200, await overview(params.get('part') !== 'database'))
     if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(config.dockerFile, config.composeFile))
@@ -268,6 +272,38 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       resetLiveFpsCheck()
       if (body.guest_fps !== undefined) ctx.log(`Page invité : ${fps} images/s`)
       return sendJson(res, 200, await guestBody(fps))
+    }
+    // PUT /api/servos : { url?, shutters?: { <volet>: { up?, down?, stop? } } } (chaque ordre : { channel?, start?, end?, speed?, hold? }) : la configuration des servos des volets salon, PC et porte, que House API relit à chaque ordre.
+    if (req.method === 'PUT' && pathname === '/api/servos') {
+      if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+      const body = await readJsonObject(req)
+      if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+      const merged = mergeServos(await readServos(config.servosFile), body)
+      if (!merged) return sendJson(res, 400, { error: 'invalid servos: url http, channel integer 0-15, angles -90..90, speed >= 0, hold >= 0' })
+      try {
+        await writeServos(config.servosFile, merged)
+      } catch {
+        return sendJson(res, 500, { error: 'servos not written' })
+      }
+      ctx.log('Servos des volets : réglages enregistrés')
+      return sendJson(res, 200, merged)
+    }
+    // POST /api/servos/test : { shutter, command, origin? } (`origin: true` : seulement mettre ce servo à 0°) : joue la séquence de cet ordre (réglages enregistrés) vers l'ESP32 des servos ; répond après le premier mouvement, la suite est en tâche de fond.
+    if (req.method === 'POST' && pathname === '/api/servos/test') {
+      if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+      const body = await readJsonObject(req)
+      if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+      const servos = await readServos(config.servosFile)
+      const command = SERVO_COMMANDS.find((candidate) => candidate === body.command)
+      const shutter = typeof body.shutter === 'string' ? servos.shutters[body.shutter] : undefined
+      if (!command || !shutter) return sendJson(res, 400, { error: 'shutter must be a servo shutter number and command up, down or stop' })
+      try {
+        await testServo(servos.url, shutter[command], body.origin === true)
+      } catch {
+        return sendJson(res, 502, { error: 'servo controller unreachable' })
+      }
+      ctx.log(`Servos : ${body.origin === true ? 'origine' : 'test'} ${String(body.shutter)} ${command}`)
+      return sendJson(res, 200, { ok: true })
     }
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
     if (pathname.startsWith('/api/') || pathname.startsWith('/files/')) {

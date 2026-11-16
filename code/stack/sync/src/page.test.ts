@@ -6,6 +6,7 @@ import { Readable } from 'node:stream'
 import { syncBuiltinESMExports } from 'node:module'
 import { mkdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { afterEach, mock, test } from 'node:test'
+import { DEFAULT_SERVOS } from './servos.ts'
 import { apiTargetOf, createPage, createPageServer } from './page.ts'
 import { fakeRequest, fakeResponse, testContext, type FakeResponse, type TestContext } from './testing.ts'
 
@@ -305,6 +306,48 @@ test('PUT /api/guest : cadence et interrupteur de la page invité', async () => 
   writeFileSync(`${ctx.dir}/fichier`, 'x')
   ctx.config.guestStateFile = `${ctx.dir}/fichier/state.json`
   assert.equal((await put({ guest_enabled: false }, cookie)).status, 500)
+})
+
+test('/api/servos : lecture, fusion, écriture, refus', async () => {
+  const { ctx, call, login } = setup()
+  ctx.config.servosFile = `${ctx.dir}/servos/servos.json`
+  const put = (body: unknown, cookie?: string) => call({ method: 'PUT', url: '/api/servos', body, cookie })
+  assert.equal((await put({})).status, 401)
+  assert.equal((await call({ url: '/api/servos' })).status, 401)
+  const cookie = await login()
+  assert.deepEqual(json(await call({ url: '/api/servos', cookie })), DEFAULT_SERVOS)
+  assert.equal((await call({ method: 'PUT', url: '/api/servos', rawBody: '[', cookie })).status, 400)
+  assert.equal((await put({ shutters: { '9': {} } }, cookie)).status, 400)
+  const saved = json(await put({ shutters: { '5': { up: { end: 30 } } } }, cookie)) as typeof DEFAULT_SERVOS
+  assert.equal(saved.shutters['5'].up.end, 30)
+  assert.equal(((json(await call({ url: '/api/servos', cookie }))) as typeof DEFAULT_SERVOS).shutters['5'].up.end, 30)
+  assert.ok(ctx.logs.includes('Servos des volets : réglages enregistrés'))
+  writeFileSync(`${ctx.dir}/fichier`, 'x')
+  ctx.config.servosFile = `${ctx.dir}/fichier/servos.json`
+  assert.equal((await put({}, cookie)).status, 500)
+})
+
+test('POST /api/servos/test : joue la séquence vers l ESP32, refuse le reste', async () => {
+  let esp = false
+  const { ctx, call, login } = setup({}, (made) => {
+    const refuse = made.fetch
+    made.fetch = async (url, init) => (esp ? new Response('{"ms":0}', { status: 200 }) : refuse(url, init))
+  })
+  ctx.config.servosFile = `${ctx.dir}/servos.json`
+  const post = (body: unknown, cookie?: string) => call({ method: 'POST', url: '/api/servos/test', body, cookie })
+  assert.equal((await post({ shutter: '2', command: 'up' })).status, 401)
+  const cookie = await login()
+  assert.equal((await call({ method: 'POST', url: '/api/servos/test', rawBody: '[', cookie })).status, 400)
+  assert.equal((await post({ shutter: '9', command: 'up' }, cookie)).status, 400)
+  assert.equal((await post({ shutter: 2, command: 'up' }, cookie)).status, 400)
+  assert.equal((await post({ shutter: '2', command: 'haut' }, cookie)).status, 400)
+  assert.equal((await post({ shutter: '2', command: 'up' }, cookie)).status, 502)
+  assert.equal((await post({ shutter: '2', command: 'up', origin: true }, cookie)).status, 502)
+  esp = true
+  assert.deepEqual(json(await post({ shutter: '2', command: 'down', origin: true }, cookie)), { ok: true })
+  assert.ok(ctx.logs.includes('Servos : origine 2 down'))
+  assert.deepEqual(json(await post({ shutter: '5', command: 'stop' }, cookie)), { ok: true })
+  assert.ok(ctx.logs.includes('Servos : test 5 stop'))
 })
 
 test('une erreur dans une requête répond 500 sans arrêter la page ; après l\'en-tête, la connexion est fermée', async () => {
