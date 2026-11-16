@@ -1,6 +1,6 @@
 # SettingsSection – l'onglet Réglages
 
-**Tous** les réglages de House Sync, en blocs repliables : **Général**, **un bloc par caméra** (titre = son nom), **Page invité**. Chaque clic ou curseur relâché est enregistré tout de suite ; un échec s'affiche. Effet côté service : `../../../../src/CLAUDE.md`.
+**Tous** les réglages de House Sync, en blocs repliables : **Général**, **un bloc par caméra** (titre = son nom), **Page invité**, **Volets à servos**. Chaque clic ou curseur relâché est enregistré tout de suite ; un échec s'affiche. Effet côté service : `../../../../src/CLAUDE.md`.
 
 ## Général
 
@@ -27,6 +27,10 @@
 - Envoyés au relâchement, seulement si la valeur a changé.
 
 **Pictogramme du titre** : 🌧️ pluie et mode actif, ☔ pluie forte ; rien sinon.
+
+## Volets à servos
+
+- Bloc repliable : adresse de l'ESP32 des servos, puis trois sous-blocs repliables (Salon, PC, Porte) avec, pour Monter / Descendre / Stop, canal, départ, arrivée, vitesse, attente (`GET`/`PUT /api/servos`). Détail : `../ServosSettings/CLAUDE.md`.
 
 ## Page invité
 

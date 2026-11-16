@@ -11,6 +11,7 @@ import {
   fetchLampEnergy,
   fetchMachineEnergy,
   fetchRetention,
+  fetchServos,
   fetchSettings,
   fetchSpecs,
   fetchSystem,
@@ -21,7 +22,9 @@ import {
   logout,
   saveGuest,
   saveRetention,
+  saveServos,
   saveSetting,
+  testServo,
 } from './api'
 
 const fetchMock = vi.fn()
@@ -76,6 +79,7 @@ describe('lectures', () => {
   it.each([
     ['fetchSettings', fetchSettings, '/api/settings'],
     ['fetchGuest', fetchGuest, '/api/guest'],
+    ['fetchServos', fetchServos, '/api/servos'],
     ['fetchDocker', fetchDocker, '/api/docker'],
     ['fetchSpecs', fetchSpecs, '/api/specs'],
     ['fetchHue', fetchHue, '/api/hue'],
@@ -135,6 +139,23 @@ describe('écritures', () => {
     answer({ clip_retention_days: 60 })
     expect(await saveRetention(60)).toBe(60)
     expect(lastCall()[1]?.body).toBe('{"clip_retention_days":60}')
+  })
+
+  it('saveServos envoie le changement', async () => {
+    answer({ url: 'http://x' })
+    expect(await saveServos({ url: 'http://x' })).toEqual({ url: 'http://x' })
+    expect(lastCall()[0]).toBe('/api/servos')
+    expect(lastCall()[1]).toMatchObject({ method: 'PUT', body: '{"url":"http://x"}' })
+  })
+
+  it('testServo joue un ordre, ou met le servo à l’origine', async () => {
+    answer({ ok: true })
+    await testServo('2', 'up')
+    expect(lastCall()[0]).toBe('/api/servos/test')
+    expect(lastCall()[1]).toMatchObject({ method: 'POST', body: '{"shutter":"2","command":"up","origin":false}' })
+    answer({ ok: true })
+    await testServo('5', 'stop', true)
+    expect(lastCall()[1]?.body).toBe('{"shutter":"5","command":"stop","origin":true}')
   })
 
   it('saveGuest envoie le changement', async () => {

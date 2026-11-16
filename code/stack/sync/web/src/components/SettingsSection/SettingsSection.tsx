@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Collapsible, Notice, Tabs } from '@house/ui'
 import GuestLink from '@/components/GuestLink'
+import ServosSettings from '@/components/ServosSettings'
 import { fetchGuest, fetchRetention, fetchSettings, saveGuest, saveRetention, saveSetting } from '@/lib/api'
 import {
   CHOICES_CLASS,
@@ -29,6 +30,7 @@ import {
   SECTION_GUEST,
   SECTION_LIVE,
   SECTION_RECORDING,
+  SECTION_SERVOS,
   MIN_SECONDS_LABEL,
   MIN_SECONDS_MAX,
   MIN_SECONDS_MIN,
@@ -369,6 +371,10 @@ const SettingsSection = () => {
             <GuestLink info={guest.guest_link} />
           </div>
         ) : null}
+      </Collapsible>
+
+      <Collapsible title={SECTION_SERVOS}>
+        <ServosSettings />
       </Collapsible>
     </div>
   )

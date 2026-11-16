@@ -4,6 +4,7 @@ export const SECTION_RECORDING = 'Enregistrement : clips et images'
 export const SECTION_DETECTION = 'Détection du mouvement'
 export const SECTION_LIVE = 'Direct dans la WebApp'
 export const SECTION_GUEST = 'Page invité'
+export const SECTION_SERVOS = 'Volets à servos'
 export const CLIPS_LABEL = 'Clips vidéo'
 /** La durée de garde, pour toutes les caméras : au-delà, un clip non sauvegardé, les images, le journal des lampes, les événements sans clip et les fusions sont effacés (une fois par jour). */
 export const RETENTION_LABEL = 'Durée de garde (clips, images, journal des lampes, événements)'

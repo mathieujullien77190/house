@@ -1,5 +1,6 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
 import type { CameraSetting } from '@/components/SettingsSection'
+import type { ServoPatch, ServoSettings } from '@/components/ServosSettings'
 import { NO_FILTER, filterQuery } from '@/lib/filter'
 import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Page, Row, Specs, System } from '@/types'
 
@@ -64,6 +65,17 @@ export const fetchGuest = async (): Promise<GuestSettings> => (await request('/a
 
 export const saveGuest = async (patch: Partial<Pick<GuestSettings, 'guest_fps' | 'guest_enabled'>>): Promise<GuestSettings> =>
   (await request('/api/guest', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
+
+/** La configuration des servos des volets salon, PC et porte : l'adresse de l'ESP32 et les trois ordres (House API la relit à chaque ordre). */
+export const fetchServos = async (): Promise<ServoSettings> => (await request('/api/servos')).json()
+
+export const saveServos = async (patch: ServoPatch): Promise<ServoSettings> =>
+  (await request('/api/servos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
+
+/** Joue la séquence d'un ordre (réglages enregistrés) vers l'ESP32 des servos : rend la main après le premier mouvement ; 502 si l'ESP32 ne répond pas. */
+export const testServo = async (shutter: string, command: string, origin = false): Promise<void> => {
+  await request('/api/servos/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shutter, command, origin }) })
+}
 
 /** La vue d'ensemble : sans `full`, seulement la base (rapide, sans parcourir le disque backup) ; avec, aussi le disque (clips, images, place). */
 export const fetchOverview = async (full = true): Promise<Overview> => (await request(full ? '/api/overview' : '/api/overview?part=database')).json()

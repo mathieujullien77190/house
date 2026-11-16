@@ -11,6 +11,9 @@ vi.mock('@/lib/api', () => ({
   saveRetention: vi.fn(),
   saveGuest: vi.fn(),
   saveSetting: vi.fn(),
+  fetchServos: vi.fn(),
+  saveServos: vi.fn(),
+  testServo: vi.fn(),
 }))
 const m = vi.mocked(api)
 
@@ -36,6 +39,7 @@ beforeEach(() => {
   m.fetchRetention.mockResolvedValue(15)
   m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: null })
   m.fetchSettings.mockResolvedValue([camera()])
+  m.fetchServos.mockReturnValue(new Promise(() => undefined))
 })
 
 const loaded = async () => {
