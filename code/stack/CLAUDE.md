@@ -48,7 +48,7 @@ Règle « le code fait foi » et mise à jour de la doc : `../../CLAUDE.md`.
 - **Direct** : l'API relaie go2rtc (`go2rtc:1984`, jamais publié) : `/stream` (MJPEG, un ffmpeg tant qu'un onglet regarde) et `/frame`, via le réseau `sync_net`.
 - **Page invité** : seulement si lancée ; `docker compose stop guest` la coupe, le bouton « Coupée » de House Sync ferme son port sans Docker. Réseau à part. Détail : `guest/CLAUDE.md`.
 - **Mobile et bureau** : mobile de 360 à 1024 px (une colonne, cibles tactiles), bureau dès 1024 px (`lg:` seulement, jamais `sm:` ni `md:`). Pas de défilement horizontal de la page à 360 px : un contenu large défile dans son bloc.
-- **Données** dans `data/` (ignoré) : `recordings`, `clips`, `backup`, `certs`, `power`, `house`, `guest` (interrupteur de la page invité), `guest-visits` (journal des visites). Les deux derniers sont à créer à la main avant le premier lancement.
+- **Données** dans `data/` (ignoré) : `recordings`, `clips`, `backup`, `certs`, `power`, `house`, `guest` (interrupteur de la page invité), `guest-visits` (journal des visites), `servos` (réglages des servos des volets salon, PC et porte, écrits par House Sync, lus par l'API). Les trois derniers sont à créer à la main avant le premier lancement.
 - **`data/` est irremplaçable** : ne jamais supprimer, déplacer ni écraser un fichier (ni `events.db`) sans copie préalable et accord de l'utilisateur.
 - Les fichiers de ce dossier sont expliqués dans `site/src/components/CodeBrowser/constants.ts`.
 
