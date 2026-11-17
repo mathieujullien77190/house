@@ -8,7 +8,7 @@ import { mkdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { afterEach, mock, test } from 'node:test'
 import { DEFAULT_SERVOS } from './servos.ts'
 import { apiTargetOf, createPage, createPageServer } from './page.ts'
-import { fakeRequest, fakeResponse, testContext, type FakeResponse, type TestContext } from './testing.ts'
+import { fakeRequest, fakeResponse, putState, testContext, type FakeResponse, type TestContext } from './testing.ts'
 
 afterEach(() => {
   mock.restoreAll()
@@ -22,6 +22,7 @@ interface Call {
   rawBody?: string
   cookie?: string
   range?: string
+  key?: string
   ip?: string | undefined
 }
 
@@ -39,6 +40,7 @@ const setup = (env: Record<string, string> = {}, prepare: (ctx: TestContext) => 
     const headers: Record<string, string> = {}
     if (spec.cookie) headers.cookie = spec.cookie
     if (spec.range) headers.range = spec.range
+    if (spec.key) headers['x-house-key'] = spec.key
     const req = fakeRequest({ method: spec.method, url: spec.url, headers, body: spec.rawBody ?? (spec.body === undefined ? undefined : JSON.stringify(spec.body)), ...('ip' in spec ? { ip: spec.ip } : {}) })
     const res = fakeResponse()
     await page.handlePage(req, res)
@@ -172,7 +174,7 @@ test('/api/clips : un clip par événement, avec ses filtres et la liste des sau
   mkdirSync(`${ctx.dir}/clips/cam`, { recursive: true })
   mkdirSync(`${ctx.dir}/clips/autre`, { recursive: true })
   for (const name of ['clips/cam/100.5-cam.mp4', 'clips/cam/100.5-cam.h264.mp4', 'clips/cam/200.1-cam.mp4', 'clips/autre/300.2-autre.mp4']) writeFileSync(`${ctx.dir}/${name}`, 'x')
-  writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: ['200.1-cam'] }))
+  putState(ctx.db, 'saved-clips', JSON.stringify({ ids: ['200.1-cam'] }))
   const list = async (query: string) => json(await call({ url: `/api/clips${query}`, cookie })) as { items: { id: string }[]; total: number; cameras: string[] }
   const all = await list('')
   assert.equal(all.total, 3)
@@ -183,7 +185,7 @@ test('/api/clips : un clip par événement, avec ses filtres et la liste des sau
   assert.equal((await list('?camera=cam&from=150')).total, 1)
   assert.equal((await list('?page=1&size=2')).items.length, 1)
   // Liste des sauvegardés illisible : elle compte pour vide.
-  ctx.config.savedClipsFile = `${ctx.dir}/absent/saved.json`
+  ctx.db.exec('DROP TABLE house_state')
   assert.equal((await list('?saved=1')).total, 0)
   assert.equal((await list('?saved=0')).total, 3)
 })
@@ -303,7 +305,6 @@ test('PUT /api/guest : cadence et interrupteur de la page invité', async () => 
 
 test('/api/servos : lecture, fusion, écriture, refus', async () => {
   const { ctx, call, login } = setup()
-  ctx.config.servosFile = `${ctx.dir}/servos/servos.json`
   const put = (body: unknown, cookie?: string) => call({ method: 'PUT', url: '/api/servos', body, cookie })
   assert.equal((await put({})).status, 401)
   assert.equal((await call({ url: '/api/servos' })).status, 401)
@@ -315,8 +316,7 @@ test('/api/servos : lecture, fusion, écriture, refus', async () => {
   assert.equal(saved.shutters['5'].up.end, 30)
   assert.equal(((json(await call({ url: '/api/servos', cookie }))) as typeof DEFAULT_SERVOS).shutters['5'].up.end, 30)
   assert.ok(ctx.logs.includes('Servos des volets : réglages enregistrés'))
-  writeFileSync(`${ctx.dir}/fichier`, 'x')
-  ctx.config.servosFile = `${ctx.dir}/fichier/servos.json`
+  ctx.db.exec('DROP TABLE house_state')
   assert.equal((await put({}, cookie)).status, 500)
 })
 
@@ -326,7 +326,6 @@ test('POST /api/servos/test : joue la séquence vers l ESP32, refuse le reste', 
     const refuse = made.fetch
     made.fetch = async (url, init) => (esp ? new Response('{"ms":0}', { status: 200 }) : refuse(url, init))
   })
-  ctx.config.servosFile = `${ctx.dir}/servos.json`
   const post = (body: unknown, cookie?: string) => call({ method: 'POST', url: '/api/servos/test', body, cookie })
   assert.equal((await post({ shutter: '2', command: 'up' })).status, 401)
   const cookie = await login()
@@ -436,4 +435,21 @@ test('une requête sans adresse est traitée comme « / »', async () => {
   const res = fakeResponse()
   await page.route(req, res)
   assert.equal(res.text(), 'accueil')
+})
+
+test('POST /api/journal : House API range une activation du chauffage et un ordre de volet, avec sa clé ou une session', async () => {
+  const { ctx, call, login } = setup()
+  const heating = { at: 1_800_000_000, origin: 'auto', minutes: 5, temperature: 2, note: null, cost: 0.0265 }
+  const shutter = { at: 1_800_000_000, shutter: '1', name: 'Salon', command: 'up', ok: true, note: null }
+  assert.equal((await call({ method: 'POST', url: '/api/journal/heating', body: heating })).status, 401)
+  assert.equal((await call({ method: 'POST', url: '/api/journal/heating', body: heating, key: 'fausse' })).status, 401)
+  const first = await call({ method: 'POST', url: '/api/journal/heating', body: heating, key: 'secret-key-123' })
+  assert.deepEqual([first.status, json(first)], [200, { stored: true }])
+  assert.deepEqual(json(await call({ method: 'POST', url: '/api/journal/heating', body: heating, key: 'secret-key-123' })), { stored: false })
+  const cookie = await login()
+  assert.deepEqual(json(await call({ method: 'POST', url: '/api/journal/shutters', body: shutter, cookie })), { stored: true })
+  assert.deepEqual(json(await call({ method: 'POST', url: '/api/journal/shutters', body: { ...shutter, command: 'nope' }, cookie })), { stored: false })
+  assert.equal((await call({ method: 'POST', url: '/api/journal/shutters', rawBody: '[', cookie })).status, 400)
+  assert.equal((ctx.db.prepare('SELECT COUNT(*) AS n FROM heating_log').get() as { n: number }).n, 1)
+  assert.equal((ctx.db.prepare('SELECT COUNT(*) AS n FROM shutter_log').get() as { n: number }).n, 1)
 })

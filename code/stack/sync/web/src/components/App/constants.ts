@@ -72,6 +72,7 @@ export const ADDRESS_ROWS: string[][] = [
   ['192.168.1.141', 'Caméra Reolink voliere-exterieur', '554'],
   ['192.168.1.52', 'Caméra Reolink voliere-interieur', '554'],
   ['192.168.1.81', 'Pont Philips Hue', '80, 443'],
+  ['192.168.1.115', 'ESP32 servos des volets (page « Volet salon »)', '80'],
   ['192.168.1.200', 'Prise TP-Link Kasa HS100', '9999'],
   ['192.168.1.0/24', 'Réseau de la maison (Freebox)', ''],
   ['192.168.27.139', 'Mini PC vu du VPN WireGuard', '8080, 8081, 8082'],

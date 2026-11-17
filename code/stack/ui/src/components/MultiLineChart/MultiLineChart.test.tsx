@@ -19,6 +19,12 @@ describe('MultiLineChart', () => {
     expect(screen.getByText('4 °C')).toBeInTheDocument()
   })
 
+  it('répartit les repères de temps et borne l’échelle au domaine', () => {
+    const { container } = render(<MultiLineChart series={series} label="x" emptyText="rien" timeLabels={['lun', 'mar', 'mer']} domain={{ from: 0, to: 20 }} />)
+    expect(screen.getByText('mar')).toBeInTheDocument()
+    expect(container.querySelector('path')?.getAttribute('d')).toContain('150.0')
+  })
+
   it('montre le texte vide sans série de deux points', () => {
     render(<MultiLineChart series={[series[2]]} label="x" emptyText="rien" />)
     expect(screen.getByText('rien')).toBeInTheDocument()
@@ -30,6 +36,7 @@ describe('helpers', () => {
     expect(extentOf(series)).toEqual({ minX: 0, maxX: 10, minY: 4, maxY: 20 })
     expect(extentOf([{ id: 'p', label: 'p', tone: 'muted', points: [{ x: 0, y: 5 }, { x: 1, y: 5 }] }])).toEqual({ minX: 0, maxX: 1, minY: 5, maxY: 6 })
     expect(extentOf([series[2]])).toBeNull()
+    expect(extentOf(series, { from: -5, to: 50 })).toEqual({ minX: -5, maxX: 50, minY: 4, maxY: 20 })
   })
   it('pathOf : vide sous deux points, une abscisse unique ne divise pas par zéro', () => {
     expect(pathOf(series[2], { minX: 0, maxX: 1, minY: 0, maxY: 1 })).toBe('')

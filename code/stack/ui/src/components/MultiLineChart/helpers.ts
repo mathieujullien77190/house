@@ -9,14 +9,14 @@ export interface Extent {
 }
 
 /** Les bornes de toutes les séries qui ont au moins deux points ; null s'il n'y en a aucune. L'échelle verticale s'arrondit aux degrés entiers, avec au moins 1 d'écart. */
-export const extentOf = (series: ChartSeries[]): Extent | null => {
+export const extentOf = (series: ChartSeries[], domain?: { from: number; to: number }): Extent | null => {
   const drawn = series.filter((s) => s.points.length >= 2)
   if (drawn.length === 0) return null
   const xs = drawn.flatMap((s) => s.points.map((p) => p.x))
   const ys = drawn.flatMap((s) => s.points.map((p) => p.y))
   const minY = Math.floor(Math.min(...ys))
   const maxY = Math.max(Math.ceil(Math.max(...ys)), minY + 1)
-  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY, maxY }
+  return { minX: domain?.from ?? Math.min(...xs), maxX: domain?.to ?? Math.max(...xs), minY, maxY }
 }
 
 /** Le tracé d'une série dans le cadre ; vide si elle a moins de deux points. */

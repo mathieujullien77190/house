@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSeries, labelOf } from './helpers'
+import { buildSeries, labelOf, timeLabels } from './helpers'
 
 describe('buildSeries', () => {
   it('groupe par nom, garde l’ordre et donne une couleur par rang (en boucle)', () => {
@@ -13,6 +13,18 @@ describe('buildSeries', () => {
   })
   it('sans point, aucune série', () => {
     expect(buildSeries([])).toEqual([])
+  })
+})
+
+describe('timeLabels', () => {
+  const now = Date.UTC(2026, 10, 17, 12, 0) / 1000
+  it('donne cinq repères, du plus ancien au plus récent', () => {
+    for (const days of [1, 7, 365]) expect(timeLabels(now, days)).toHaveLength(5)
+  })
+  it('les heures sur 24 h, les jours sur une semaine, les mois sur l’année', () => {
+    expect(timeLabels(now, 1)[0]).toMatch(/^\d{2}:\d{2}$/)
+    expect(timeLabels(now, 7)[0]).toMatch(/^\d{2}\/\d{2}$/)
+    expect(timeLabels(now, 365)[4]).toMatch(/2026|26/)
   })
 })
 

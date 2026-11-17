@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import TemperatureChart from '@/components/TemperatureChart'
 import * as api from '@/lib/api'
@@ -17,6 +17,16 @@ describe('TemperatureChart', () => {
     const { container } = render(<TemperatureChart refreshTick={0} />)
     await waitFor(() => expect(container.querySelectorAll('path')).toHaveLength(1))
     expect(screen.getByText('Météo')).toBeTruthy()
+  })
+
+  it('recharge sur la période choisie', async () => {
+    vi.mocked(api.fetchTemperatures).mockResolvedValue([])
+    render(<TemperatureChart refreshTick={0} />)
+    await waitFor(() => expect(api.fetchTemperatures).toHaveBeenCalledWith(7))
+    fireEvent.click(screen.getByRole('tab', { name: 'Année' }))
+    await waitFor(() => expect(api.fetchTemperatures).toHaveBeenCalledWith(365))
+    fireEvent.click(screen.getByRole('tab', { name: '24 h' }))
+    await waitFor(() => expect(api.fetchTemperatures).toHaveBeenCalledWith(1))
   })
 
   it('montre le texte vide quand rien ne répond', async () => {

@@ -1,5 +1,7 @@
 // La page de House Sync (port 8081) : les fichiers de la page React compilée (publics), la session par cookie, et les services de
 // données derrière elle (réglages, vue d'ensemble, tables, clips, machine, Docker, réseau, Hue, fichiers du disque backup).
+import { recordHeating } from './heatingLog.ts'
+import { recordShutter } from './shutterLog.ts'
 import { timingSafeEqual } from 'node:crypto'
 import { createReadStream, existsSync, readFileSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
@@ -149,7 +151,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
   const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
     if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: settings.clipRetentionDays() })
     if (pathname === '/api/guest') return sendJson(res, 200, await guestBody(settings.guestFps()))
-    if (pathname === '/api/servos') return sendJson(res, 200, await readServos(config.servosFile))
+    if (pathname === '/api/servos') return sendJson(res, 200, readServos(db))
     if (pathname === '/api/settings') return sendJson(res, 200, settings.knownCameras().map((camera) => settings.cameraSettings(camera)))
     if (pathname === '/api/overview') return sendJson(res, 200, await overview(params.get('part') !== 'database'))
     if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(config.dockerFile, config.composeFile))
@@ -168,7 +170,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       const current = watts.lamps()
       return sendJson(res, 200, { ...energy, lamps: energy.lamps.map((l) => ({ ...l, watts: current.get(l.lamp) ?? null })) })
     }
-    if (pathname === '/api/temperatures') return sendJson(res, 200, { points: readTemperatures(db, Math.floor(Date.now() / 1000), Math.min(60, Math.max(1, Number(params.get('days')) || 7))) })
+    if (pathname === '/api/temperatures') return sendJson(res, 200, { points: readTemperatures(db, Math.floor(Date.now() / 1000), Math.min(366, Math.max(1, Number(params.get('days')) || 7))) })
     if (pathname === '/api/heating-energy') return sendJson(res, 200, readHeatingEnergy(db))
     if (pathname === '/api/machine-energy') return sendJson(res, 200, { ...readMachineEnergy(db), watts: watts.machine() })
     if (pathname === '/api/table') {
@@ -181,7 +183,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       const all = groupClips((await listBackup(dataDir)).filter((f) => f.path.startsWith('clips/')))
       const wanted = clipFilterParams(params)
       // Sauvegardés ou non : la liste écrite par l'API ; illisible, elle compte pour vide (rien n'est montré comme sauvegardé).
-      const saved = wanted.saved ? { ids: (await readSavedIds(config.savedClipsFile)) ?? new Set<string>(), keep: wanted.saved === 'saved' } : undefined
+      const saved = wanted.saved ? { ids: (readSavedIds(db)) ?? new Set<string>(), keep: wanted.saved === 'saved' } : undefined
       const shown = filterClips(all, { camera: wanted.camera, from: wanted.from, to: wanted.to, saved })
       return sendJson(res, 200, { ...paginate(shown, page, size), cameras: clipCameras(all) })
     }
@@ -207,6 +209,15 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     }
     if (req.method === 'POST' && pathname === '/logout') {
       return sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(SESSION_COOKIE, '') })
+    }
+    // POST /api/journal/heating | shutters : House API envoie chaque activation du chauffage et chaque ordre de volet, que House Sync range dans sa base (seul écrivain des journaux). Clé en en-tête (X-House-Key) ou session.
+    if (req.method === 'POST' && (pathname === '/api/journal/heating' || pathname === '/api/journal/shutters')) {
+      const given = req.headers['x-house-key']
+      if (!(typeof given === 'string' && hasValidKey(given)) && !hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+      const body = await readJsonObject(req)
+      if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+      const stored = pathname.endsWith('/heating') ? recordHeating(db, body) : recordShutter(db, body)
+      return sendJson(res, 200, { stored })
     }
     // PUT /api/settings : { camera, clips_mode?, orientation?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, motion_min_seconds?, snapshot_seconds?, rain_mode? }, derrière la session.
     if (req.method === 'PUT' && pathname === '/api/settings') {
@@ -279,10 +290,10 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
       const body = await readJsonObject(req)
       if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
-      const merged = mergeServos(await readServos(config.servosFile), body)
+      const merged = mergeServos(readServos(db), body)
       if (!merged) return sendJson(res, 400, { error: 'invalid servos: url http, channel integer 0-15, angles -90..90, speed >= 0, hold >= 0' })
       try {
-        await writeServos(config.servosFile, merged)
+        writeServos(db, merged, seconds(ctx))
       } catch {
         return sendJson(res, 500, { error: 'servos not written' })
       }
@@ -294,7 +305,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
       const body = await readJsonObject(req)
       if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
-      const servos = await readServos(config.servosFile)
+      const servos = readServos(db)
       const command = SERVO_COMMANDS.find((candidate) => candidate === body.command)
       const shutter = typeof body.shutter === 'string' ? servos.shutters[body.shutter] : undefined
       if (!command || !shutter) return sendJson(res, 400, { error: 'shutter must be a servo shutter number and command up, down or stop' })

@@ -21,6 +21,10 @@ export interface MultiLineChartProps {
   unit?: string
   /** Un texte pour les lecteurs d'écran. */
   label: string
+  /** Les bornes de l'échelle horizontale (secondes) ; par défaut, celles des points. */
+  domain?: { from: number; to: number }
+  /** Des repères répartis à égale distance sous l'échelle horizontale (du plus ancien au plus récent) ; prennent le pas sur `startLabel` et `endLabel`. */
+  timeLabels?: string[]
   /** Le repère du bord gauche et du bord droit. */
   startLabel?: string
   endLabel?: string

@@ -22,8 +22,8 @@ import { extentOf, formatTick, pathOf } from './helpers'
 import type { MultiLineChartProps } from './types'
 
 /** Plusieurs courbes sur la même échelle, avec leur légende : le plus ancien à gauche, le plus récent à droite. */
-const MultiLineChart = ({ series, unit = '', label, startLabel, endLabel, emptyText }: MultiLineChartProps) => {
-  const extent = extentOf(series)
+const MultiLineChart = ({ series, unit = '', label, startLabel, endLabel, timeLabels, domain, emptyText }: MultiLineChartProps) => {
+  const extent = extentOf(series, domain)
   if (!extent) {
     return (
       <div className={WRAP_CLASS}>
@@ -51,8 +51,14 @@ const MultiLineChart = ({ series, unit = '', label, startLabel, endLabel, emptyT
         </svg>
       </div>
       <div className={TIME_CLASS}>
-        <span>{startLabel}</span>
-        <span>{endLabel}</span>
+        {timeLabels ? (
+          timeLabels.map((text, index) => <span key={`${index}-${text}`}>{text}</span>)
+        ) : (
+          <>
+            <span>{startLabel}</span>
+            <span>{endLabel}</span>
+          </>
+        )}
       </div>
       <ul className={LEGEND_CLASS}>
         {series.map((s) => (
