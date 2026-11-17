@@ -20,6 +20,18 @@ export interface PlanLamp {
   color?: string | null
 }
 
+/** Un détecteur de mouvement Hue posé sur le plan : un rond blanc avec sa température dedans (arrondie à l'entier, sans unité, à l'affichage seulement). */
+export interface PlanSensor {
+  id: string
+  name: string
+  x: number
+  y: number
+  /** La température exacte, avec ses décimales ; null si le détecteur ne la donne pas. */
+  temperature: number | null
+  /** Le détecteur répond au pont ; sinon le rond est grisé. */
+  reachable: boolean
+}
+
 /** Un rectangle du plan. */
 export interface PlanRect {
   x: number

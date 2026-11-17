@@ -3,6 +3,7 @@ import { BRIGHTNESS_FLOOR, BRIGHTNESS_MAX, MAP_HOUSE_HEIGHT } from './constants'
 import {
   bulbColor,
   bulbLabel,
+  sensorLabel,
   fromHousePlan,
   garageRingFrom,
   metersPerPixel,
@@ -67,6 +68,16 @@ describe('bulbLabel', () => {
     expect(bulbLabel('P', true, false, 100)).toBe('P')
     expect(bulbLabel('P', true, true, null)).toBe('P')
     expect(bulbLabel('P', true, true, undefined)).toBe('P')
+  })
+})
+
+describe('sensorLabel', () => {
+  it('le nom et la température exacte à la française', () => {
+    expect(sensorLabel('motion sdb', 20.8, true)).toBe('motion sdb · 20,8°')
+  })
+  it('juste le nom sans mesure ou injoignable', () => {
+    expect(sensorLabel('motion sdb', null, true)).toBe('motion sdb')
+    expect(sensorLabel('motion sdb', 20, false)).toBe('motion sdb')
   })
 })
 

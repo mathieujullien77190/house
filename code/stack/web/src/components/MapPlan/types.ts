@@ -1,4 +1,4 @@
-import type { PlanAc, PlanEmoji, PlanLabel, PlanShutter, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanTree } from '@house/ui'
+import type { PlanAc, PlanEmoji, PlanLabel, PlanShutter, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanSensor, PlanTree } from '@house/ui'
 import type { EditContext } from './edit'
 import type { PlanDecor, RoomRects } from './features'
 import type { Point } from './projection'
@@ -25,6 +25,8 @@ export interface MapPlanProps extends Omit<EditContext, 'cameras'> {
   /** Le contour du chemin du garage gardé dans le plan (avant son décalage) ; sans lui, celui de départ. */
   garage?: Point[] | null
   lamps?: PlanLamp[]
+  /** Les détecteurs de mouvement du pont Hue (un rond avec leur température) : on les déplace en modification (`onMoveSensor`). */
+  sensors?: PlanSensor[]
   plugs?: PlanPlug[]
   /** Les climatisations (des rectangles) : un clic ouvre leur page, on les déplace en modification. */
   acs?: PlanAc[]
@@ -80,6 +82,7 @@ export type ResolvedProps = Required<
     MapPlanProps,
     | 'cameras'
     | 'lamps'
+    | 'sensors'
     | 'plugs'
     | 'acs'
     | 'shutters'
@@ -96,6 +99,7 @@ export type ResolvedProps = Required<
     MapPlanProps,
     | 'cameras'
     | 'lamps'
+    | 'sensors'
     | 'plugs'
     | 'acs'
     | 'shutters'

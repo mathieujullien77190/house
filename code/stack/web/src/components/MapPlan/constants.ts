@@ -63,7 +63,7 @@ export const LAMP_LABEL_CLASS =
  * Les cases à cocher qui montrent ou cachent les icônes par type, en bas à gauche de la carte : **toutes cochées au départ**. Chaque type a ses calques (cachés avec la case) et son type de
  * zone de saisie (retirée du filtre de `plan-saisie` : une icône cachée ne se prend plus à la souris).
  */
-export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'shutter' | 'plug' | 'emoji'; label: string; layers: string[]; hit: string }[] = [
+export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'sensor' | 'shutter' | 'plug' | 'emoji'; label: string; layers: string[]; hit: string }[] = [
   { id: 'ac', label: 'Clim', layers: ['plan-clims', 'plan-clims-etat'], hit: 'ac-hit' },
   {
     id: 'camera',
@@ -72,6 +72,7 @@ export const FILTERS: { id: 'ac' | 'camera' | 'lamp' | 'shutter' | 'plug' | 'emo
     hit: 'camera-hit',
   },
   { id: 'lamp', label: 'Lumière', layers: ['plan-lampes'], hit: 'lamp-hit' },
+  { id: 'sensor', label: 'Détecteur', layers: ['plan-capteurs'], hit: 'sensor-hit' },
   { id: 'shutter', label: 'Volet', layers: ['plan-volets', 'plan-volets-etat'], hit: 'shutter-hit' },
   { id: 'plug', label: 'Chauffage', layers: ['plan-prises', 'plan-prises-etat'], hit: 'plug-hit' },
   { id: 'emoji', label: 'Clip', layers: ['plan-emojis'], hit: 'emoji-hit' },

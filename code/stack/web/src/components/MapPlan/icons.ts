@@ -22,6 +22,9 @@ export const SHUTTER_OPEN_COLOR = '#8fd0f7'
 export const SHUTTER_CLOSED_COLOR = '#8b5cf6'
 /** Le préfixe de l'image d'une ampoule (`lamp-#ffa85a`) : une image par couleur, dessinée au moment où la carte la demande. */
 export const LAMP_PREFIX = 'lamp-'
+/** Le préfixe de l'image d'un détecteur (`sensor-21`) : un rond blanc avec la température dedans, une image par valeur. `sensorh-` : le même au survol, sur fond bleu pâle. */
+export const SENSOR_PREFIX = 'sensor-'
+export const SENSOR_HOVER_PREFIX = 'sensorh-'
 export const PLUG_IMAGE = 'plug-icon'
 export const SHUTTER_OPEN_IMAGE = 'shutter-icon-open'
 export const SHUTTER_CLOSED_IMAGE = 'shutter-icon-closed'
@@ -246,6 +249,30 @@ const drawLamp = (color: string, background = '#ffffff'): ImageData | null => {
   return context.getImageData(0, 0, SIZE * SCALE, SIZE * SCALE)
 }
 
+/** Dessine un détecteur : un rond blanc à contour noir, **de la taille de celui d'une ampoule**, avec la température (déjà arrondie, sans unité) en noir au centre. Rend null sans canvas. */
+const drawSensor = (text: string, background = '#ffffff'): ImageData | null => {
+  const canvas = document.createElement('canvas')
+  canvas.width = SIZE * SCALE
+  canvas.height = SIZE * SCALE
+  const context = canvas.getContext('2d')
+  if (!context) return null
+  context.scale(SCALE, SCALE)
+  context.beginPath()
+  context.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 3, 0, Math.PI * 2)
+  context.fillStyle = background
+  context.fill()
+  context.lineWidth = 4
+  context.strokeStyle = '#000000'
+  context.stroke()
+  // Petit texte : deux chiffres, le signe moins et « ° » tiennent dans le rond.
+  context.font = `bold ${text.length > 2 ? 22 : 28}px sans-serif`
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillStyle = '#000000'
+  context.fillText(text, SIZE / 2, SIZE / 2 + 1)
+  return context.getImageData(0, 0, SIZE * SCALE, SIZE * SCALE)
+}
+
 /** Dessine un emoji **seul** : ni fond blanc ni bordure. Synchrone : la carte attend l'image. Rend null sans canvas. */
 const drawEmoji = (emoji: string): ImageData | null => {
   const canvas = document.createElement('canvas')
@@ -274,9 +301,13 @@ export const watchDynamicImages = (map: MapLibreMap): void => {
         ? drawLamp(event.id.slice(LAMP_PREFIX.length))
         : event.id.startsWith(LAMP_HOVER_PREFIX)
           ? drawLamp(event.id.slice(LAMP_HOVER_PREFIX.length), HOVER_BACKGROUND)
-          : event.id.startsWith(EMOJI_PREFIX)
-            ? drawEmoji(event.id.slice(EMOJI_PREFIX.length))
-            : null
+          : event.id.startsWith(SENSOR_PREFIX)
+            ? drawSensor(event.id.slice(SENSOR_PREFIX.length))
+            : event.id.startsWith(SENSOR_HOVER_PREFIX)
+              ? drawSensor(event.id.slice(SENSOR_HOVER_PREFIX.length), HOVER_BACKGROUND)
+              : event.id.startsWith(EMOJI_PREFIX)
+                ? drawEmoji(event.id.slice(EMOJI_PREFIX.length))
+                : null
     if (image) map.addImage(event.id, image, { pixelRatio: PIXEL_RATIO })
   })
 }

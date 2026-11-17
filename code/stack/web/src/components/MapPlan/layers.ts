@@ -15,6 +15,8 @@ import {
   SHUTTER_DOT_CLOSED_IMAGE,
   SHUTTER_DOT_OPEN_IMAGE,
   LAMP_PREFIX,
+  SENSOR_PREFIX,
+  SENSOR_HOVER_PREFIX,
   AC_HOVER_IMAGE,
   CAMERA_HOVER_IMAGE,
   LAMP_HOVER_PREFIX,
@@ -57,6 +59,8 @@ export const PLAN_LAYERS = [
   'plan-vue',
   'plan-lampes',
   'plan-survol-lampes',
+  'plan-capteurs',
+  'plan-survol-capteurs',
   'plan-clims',
   'plan-survol-clims',
   'plan-clims-etat',
@@ -253,6 +257,21 @@ export const addPlanLayers = (
   }
   map.addLayer(lampsLayer)
   map.addLayer(hoverTwin(lampsLayer, 'plan-survol-lampes', ['concat', LAMP_HOVER_PREFIX, ['get', 'color']]))
+  // Les détecteurs de mouvement : un rond blanc, de la taille de celui d'une ampoule, avec la température arrondie dedans (une image par valeur, dessinée à la demande : `sensor-21`).
+  const sensorsLayer: LayerSpecification = {
+    id: 'plan-capteurs',
+    type: 'symbol',
+    source: POINTS_SOURCE,
+    filter: ['==', ['get', 'kind'], 'sensor-hit'],
+    layout: {
+      'icon-image': ['concat', SENSOR_PREFIX, ['get', 'temp']],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.4, 20, 0.7, 22, 1.1],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  }
+  map.addLayer(sensorsLayer)
+  map.addLayer(hoverTwin(sensorsLayer, 'plan-survol-capteurs', ['concat', SENSOR_HOVER_PREFIX, ['get', 'temp']]))
   // Les climatisations : l'icône de climatisation (fond blanc, noire, orientée selon son mur) à la place de chaque point, et sa pastille d'état sur le contour (verte allumée, rouge éteinte, grise injoignable).
   const acsLayer: LayerSpecification = {
     id: 'plan-clims',
@@ -396,7 +415,7 @@ export const addPlanLayers = (
     filter: [
       'in',
       ['get', 'kind'],
-      ['literal', ['camera-hit', 'lamp-hit', 'plug-hit', 'ac-hit', 'shutter-hit', 'label-hit', 'emoji-hit', 'decor-hit']],
+      ['literal', ['camera-hit', 'lamp-hit', 'sensor-hit', 'plug-hit', 'ac-hit', 'shutter-hit', 'label-hit', 'emoji-hit', 'decor-hit']],
     ],
     paint: { 'circle-radius': 14, 'circle-color': '#000000', 'circle-opacity': 0 },
   })

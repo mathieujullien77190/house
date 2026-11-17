@@ -20,6 +20,8 @@ import {
   LAMP_HOVER_PREFIX,
   LAMP_PREFIX,
   PLUG_IMAGE,
+  SENSOR_HOVER_PREFIX,
+  SENSOR_PREFIX,
   SHUTTER_CLOSED_IMAGE,
   SHUTTER_OPEN_IMAGE,
   TEMPERATURE_PREFIX,
@@ -170,6 +172,16 @@ describe('watchDynamicImages', () => {
     expect(context?.stroke).toHaveBeenCalledWith(expect.any(FakePath2D))
   })
 
+  it('dessine à la demande le rond d’un détecteur, normal et au survol, avec sa température', () => {
+    const { map, raw, ask } = fakeMap()
+    watchDynamicImages(map)
+    ask(`${SENSOR_PREFIX}21°`)
+    ask(`${SENSOR_HOVER_PREFIX}5°`)
+    expect(raw.addImage.mock.calls.map((call) => call[0])).toEqual(['sensor-21°', 'sensorh-5°'])
+    expect(context?.fillText).toHaveBeenCalledWith('21°', expect.any(Number), expect.any(Number))
+    expect(context?.fillText).toHaveBeenCalledWith('5°', expect.any(Number), expect.any(Number))
+  })
+
   it('sans Path2D (jsdom), l’ampoule n’a que son rond', () => {
     const { map, raw, ask } = fakeMap()
     watchDynamicImages(map)
@@ -186,6 +198,7 @@ describe('watchDynamicImages', () => {
     context = null
     ask('temp-2°')
     ask('lamp-#fff')
+    ask('sensor-1°')
     ask('emoji-🦊')
     expect(raw.addImage).not.toHaveBeenCalled()
   })

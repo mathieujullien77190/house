@@ -56,6 +56,7 @@ const data = (over: Partial<LiveData> = {}): LiveData => ({
     { id: 't2', x: 50, y: 50, r: 400 },
   ] as PlanTree[],
   cameras: [camera(), camera({ id: 'c2', off: true } as Partial<PlanCamera>)],
+  sensors: [],
   lamps: [
     { id: 'l1', x: 1, y: 1, on: true, reachable: true },
     { id: 'l2', x: 2, y: 2, on: true, reachable: false },
@@ -323,6 +324,24 @@ describe('tilesFeature sans sols de départ', () => {
     expect(props(shapes).some((p) => p.kind === 'tiles')).toBe(true)
     vi.doUnmock('@/components/Lights/constants')
     vi.resetModules()
+  })
+})
+
+describe('liveFeatures : détecteurs', () => {
+  it('un rond avec la température arrondie à l’entier, « – » sans mesure, inactif si injoignable', () => {
+    const { points } = liveFeatures(
+      data({
+        sensors: [
+          { id: '60', name: 'a', x: 1, y: 1, temperature: 20.6, reachable: true },
+          { id: '57', name: 'b', x: 2, y: 2, temperature: null, reachable: true },
+          { id: '54', name: 'c', x: 3, y: 3, temperature: 18, reachable: false },
+        ],
+      }),
+      palette,
+    )
+    const hits = props(points).filter((p) => p.kind === 'sensor-hit')
+    expect(hits.map((p) => p.temp)).toEqual(['21°', '–', '–'])
+    expect(hits.map((p) => p.inactive)).toEqual([0, 0, 1])
   })
 })
 

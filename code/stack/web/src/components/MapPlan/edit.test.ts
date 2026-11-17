@@ -44,6 +44,7 @@ const context = (over: Partial<EditContext> = {}): EditContext => ({
   onMoveLamp: vi.fn(),
   onToggleLamp: vi.fn(),
   onHoverLamp: vi.fn(),
+  onHoverSensor: vi.fn(),
   onMovePlug: vi.fn(),
   ...over,
 })
@@ -282,6 +283,22 @@ describe('attachEditing', () => {
       fire('mousemove', mouse(1, 1))
       expect(ctx.onHoverLamp).toHaveBeenLastCalledWith('')
     })
+    it('un détecteur qu’on peut déplacer : main ouverte ; son nom est annoncé, puis effacé en le quittant', () => {
+      const { fire, state, canvas, ctx } = setup({ onMoveSensor: vi.fn() })
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'sensor-hit', id: '60' } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('grab')
+      expect(ctx.onHoverSensor).toHaveBeenLastCalledWith('60')
+      state.hits = []
+      fire('mousemove', mouse(1, 1))
+      expect(ctx.onHoverSensor).toHaveBeenLastCalledWith('')
+    })
+    it('un détecteur injoignable reste déplaçable en modification', () => {
+      const { fire, state, canvas } = setup({ onMoveCamera: undefined, onMoveLamp: undefined, onMoveSensor: vi.fn() })
+      state.hits = [{ layer: 'plan-saisie', properties: { kind: 'sensor-hit', id: '60', inactive: 1 } }]
+      fire('mousemove', mouse(1, 1))
+      expect(canvas.style.cursor).toBe('grab')
+    })
     it('une lampe qu’on ne peut que toucher : curseur « main »', () => {
       const { fire, state, canvas } = setup({ onMoveLamp: undefined })
       state.hits = [{ layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l' } }]
@@ -355,9 +372,10 @@ describe('attachEditing', () => {
     it.each([
       ['camera', { layer: 'plan-saisie', properties: { kind: 'camera-hit', id: 'c1' } }, 'onMoveCamera', ['c1', 30, 40]],
       ['lampe', { layer: 'plan-saisie', properties: { kind: 'lamp-hit', id: 'l1' } }, 'onMoveLamp', ['l1', 30, 40]],
+      ['détecteur', { layer: 'plan-saisie', properties: { kind: 'sensor-hit', id: '60' } }, 'onMoveSensor', ['60', 30, 40]],
       ['prise', { layer: 'plan-saisie', properties: { kind: 'plug-hit', id: 'p1' } }, 'onMovePlug', ['p1', 30, 40]],
     ] as const)('déplace %s', (_name, hit, callback, args) => {
-      const { drag, ctx } = setup()
+      const { drag, ctx } = setup({ onMoveSensor: vi.fn() })
       drag(hit, { x: 30.2, y: 40.4 })
       expect(ctx[callback]).toHaveBeenCalledWith(...args)
     })

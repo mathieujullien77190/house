@@ -247,6 +247,30 @@ const lamp = (id: string, over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
+describe('MapPlan : les détecteurs', () => {
+  const sensor = (over: Record<string, unknown> = {}) => ({ id: '60', name: 'motion sdb', x: 10, y: 10, temperature: 20.8, reachable: true, ...over })
+
+  it('un détecteur se dessine ; la case « Détecteur » le cache avec ses calques', () => {
+    render(<MapPlan {...baseProps({ sensors: [sensor()] })} />)
+    const map = loaded()
+    expect(pointKinds(map)).toContain('sensor-hit')
+    expect(map.visibility.get('plan-capteurs')).toBe('visible')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Détecteur' }))
+    expect(map.visibility.get('plan-capteurs')).toBe('none')
+    expect(JSON.stringify(map.filters.get('plan-saisie'))).not.toContain('sensor-hit')
+  })
+
+  it('survoler un détecteur écrit son nom et sa température exacte en bas ; le quitter l’efface', () => {
+    render(<MapPlan {...baseProps({ sensors: [sensor()] })} />)
+    const context = editContext()
+    expect(screen.queryByText(/motion sdb/)).toBeNull()
+    act(() => context().onHoverSensor('60'))
+    expect(screen.getByText('motion sdb · 20,8°')).toBeInTheDocument()
+    act(() => context().onHoverSensor(''))
+    expect(screen.queryByText(/motion sdb/)).toBeNull()
+  })
+})
+
 describe('MapPlan : le toit', () => {
   it('le toit est caché et les pièces se voient, sans bouton', () => {
     render(<MapPlan {...baseProps()} />)

@@ -15,6 +15,7 @@ import { PARCEL_GATES } from '@/components/MapPlan/parcel'
 import { acItemId, useAcPlan } from '@/lib/useAcPlan'
 import { emojiItemId, useClipEmojis } from '@/lib/useClipEmojis'
 import { useLampPlan } from '@/lib/useLampPlan'
+import { sensorItemId, useSensorPlan } from '@/lib/useSensorPlan'
 import { chooseOnHome, useHomeSelection } from '@/lib/homeSelection'
 import { useMobile } from '@/lib/useMobile'
 import { labelItemId, useTemperatureLabels } from '@/lib/useTemperatureLabels'
@@ -46,6 +47,8 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   const { link, moveCamera, adjustCamera, moveItem } = plan
   // Toutes les lampes du pont (relues toutes les 5 s ; rien sans pont Hue).
   const { lamps: planLamps, toggle: toggleLamp } = useLampPlan(apiKey, plan.items, true)
+  // Les détecteurs de mouvement du pont Hue (un rond avec leur température, relue toutes les 30 s) : on les déplace en modification.
+  const sensors = useSensorPlan(apiKey, plan.items, cage, true)
   // Les emoji des clips sauvegardés (relus toutes les 30 s) : on les déplace en modification, un clic montre le clip.
   const { emojis: planEmojis, clips } = useClipEmojis(apiKey, plan.items, true)
   // Les climatisations (un rectangle chacune : un clic ouvre leur page, on les déplace en modification).
@@ -55,7 +58,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   // Les volets roulants (une icône : un clic le descend ou le monte, on la déplace en modification).
   const { shutters } = useShutterPlan(apiKey, plan.items, true)
   // Les étiquettes de température : dehors (la météo) et deux dans la cage à perruches (les détecteurs).
-  const labels = useTemperatureLabels(apiKey, plan.items, cage, acs, true)
+  const labels = useTemperatureLabels(plan.items, acs)
   // La position de la prise (déplacée, sinon sa place de départ) ; celle des lampes vient de `planLamps`.
   const plugAt = plan.items[PLUG_ID] ?? PLAN_PLUG_POSITION
   // La prise connectée, avec son état (marche ou arrêt) ; rien sans prise configurée.
@@ -203,6 +206,8 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
         lamps={planLamps}
         onMoveLamp={moveItem}
         onToggleLamp={toggleLamp}
+        sensors={sensors}
+        onMoveSensor={(id, x, y) => moveItem(sensorItemId(id), x, y)}
         acs={acs}
         onOpenAc={() => onOpenAc()}
         emojis={planEmojis}

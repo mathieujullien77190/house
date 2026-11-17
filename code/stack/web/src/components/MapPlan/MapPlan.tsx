@@ -12,6 +12,7 @@ import {
   type PlanEmoji,
   type PlanLabel,
   type PlanLamp,
+  type PlanSensor,
   type PlanPlug,
   type PlanShutter,
 } from '@house/ui'
@@ -54,7 +55,7 @@ import {
   type Palette,
   type PlanDecor,
 } from './features'
-import { bulbLabel } from './helpers'
+import { bulbLabel, sensorLabel } from './helpers'
 import { addPlanLayers, LINK_SOURCE, POINTS_SOURCE, SHAPES_SOURCE, STATIC_SOURCE } from './layers'
 import type { MapPlanProps, ResolvedProps } from './types'
 
@@ -65,6 +66,7 @@ const CENTER_LNG_LAT: [number, number] = [MAP_VIEW_CENTER[1], MAP_VIEW_CENTER[0]
 
 const EMPTY_CAMERAS: PlanCamera[] = []
 const EMPTY_LAMPS: PlanLamp[] = []
+const EMPTY_SENSORS: PlanSensor[] = []
 const EMPTY_PLUGS: PlanPlug[] = []
 const EMPTY_ACS: PlanAc[] = []
 const EMPTY_SHUTTERS: PlanShutter[] = []
@@ -87,6 +89,7 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
   const base: ResolvedProps = {
     ...given,
     cameras: given.cameras ?? EMPTY_CAMERAS,
+    sensors: given.sensors ?? EMPTY_SENSORS,
     plugs: given.plugs ?? EMPTY_PLUGS,
     acs: given.acs ?? EMPTY_ACS,
     shutters: given.shutters ?? EMPTY_SHUTTERS,
@@ -122,6 +125,7 @@ const resolve = (given: MapPlanProps, editing: boolean, hoveredCameraId: string)
     onMoveCamera: undefined,
     onAdjustCamera: undefined,
     onMoveLamp: undefined,
+    onMoveSensor: undefined,
     onMoveAc: undefined,
     onMoveShutter: undefined,
     onMoveLabel: undefined,
@@ -149,6 +153,7 @@ const liveData = (props: ResolvedProps): LiveData => ({
   trees: props.trees,
   hedges: props.hedges,
   lamps: props.lamps,
+  sensors: props.sensors,
   plugs: props.plugs,
   acs: props.acs,
   shutters: props.shutters,
@@ -172,11 +177,14 @@ const MapPlan = (given: MapPlanProps) => {
   const [activeLamp, setActiveLamp] = useState('')
   // La climatisation survolée ou touchée, dont le texte s'écrit en bas de la carte.
   const [activeAc, setActiveAc] = useState('')
+  // Le détecteur survolé, dont le nom et la température s'écrivent en bas de la carte.
+  const [activeSensor, setActiveSensor] = useState('')
   // Les types d'icônes montrés (toutes au départ) : Clim, Caméra, Lumière, Volet, Chauffage, Clip (décochée au départ).
   const [shown, setShown] = useState<Record<string, boolean>>({
     ac: true,
     camera: true,
     lamp: true,
+    sensor: true,
     shutter: true,
     plug: true,
     emoji: false,
@@ -194,6 +202,7 @@ const MapPlan = (given: MapPlanProps) => {
       ...given,
       onHoverLamp: setActiveLamp,
       onHoverAc: setActiveAc,
+      onHoverSensor: setActiveSensor,
       onHoverShutter: setActiveShutter,
       onHoverCamera: setHoveredCamera,
       onHoverPlug: setHoveredPlug,
@@ -401,6 +410,7 @@ const MapPlan = (given: MapPlanProps) => {
   }, [props.rooms, styleReady])
 
   const lamp = props.lamps.find((item) => item.id === activeLamp)
+  const sensor = props.sensors.find((item) => item.id === activeSensor)
   const ac = props.acs.find((item) => item.id === activeAc)
   const shutter = props.shutters.find((item) => item.id === activeShutter)
   // Le nom d'une caméra survolée : celui de la vraie caméra liée, sinon celui de l'icône du plan.
@@ -431,6 +441,7 @@ const MapPlan = (given: MapPlanProps) => {
         {problem ? <p className={PROBLEM_CLASS}>{problem}</p> : null}
       </div>
       {lamp ? <p className={LAMP_LABEL_CLASS}>{bulbLabel(lamp.name, lamp.on, lamp.reachable, lamp.brightness)}</p> : null}
+      {sensor ? <p className={LAMP_LABEL_CLASS}>{sensorLabel(sensor.name, sensor.temperature, sensor.reachable)}</p> : null}
       {ac ? <p className={LAMP_LABEL_CLASS}>{ac.label}</p> : null}
       {shutter ? <p className={LAMP_LABEL_CLASS}>{shutter.label}</p> : null}
       {cameraName ? <p className={LAMP_LABEL_CLASS}>{cameraName}</p> : null}

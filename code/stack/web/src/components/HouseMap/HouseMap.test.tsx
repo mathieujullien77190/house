@@ -63,6 +63,7 @@ vi.mock('@/lib/useMobile', () => ({ useMobile: () => h.mobile }))
 vi.mock('@/lib/useOffCameras', () => ({ useOffCameras: () => h.off }))
 vi.mock('@/lib/usePlug', () => ({ usePlug: () => h.plug }))
 vi.mock('@/lib/useLampPlan', () => ({ useLampPlan: () => ({ lamps: h.lamps, toggle: vi.fn() }) }))
+vi.mock('@/lib/useSensorPlan', () => ({ useSensorPlan: () => [], sensorItemId: (id: string) => `sensor-${id}` }))
 vi.mock('@/lib/useAcPlan', () => ({ useAcPlan: () => [], acItemId: (id: string) => `ac-${id}` }))
 vi.mock('@/lib/useShutterPlan', () => ({
   useShutterPlan: () => ({ shutters: [], toggle: vi.fn() }),
@@ -539,6 +540,8 @@ describe('HouseMap : les déplacements', () => {
     expect(h.moveItem).toHaveBeenCalledWith('shutter-1', 3, 4)
     call('onMoveAc', 'salon', 5, 6)
     expect(h.moveItem).toHaveBeenCalledWith('ac-salon', 5, 6)
+    call('onMoveSensor', '60', 9, 10)
+    expect(h.moveItem).toHaveBeenCalledWith('sensor-60', 9, 10)
   })
 
   it('les icônes seules se déplacent sous leur clé du plan', () => {

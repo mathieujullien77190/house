@@ -51,6 +51,10 @@ export const bulbLabel = (name: string, on: boolean, reachable: boolean, brightn
 /** Une température écrite sur le plan : « 21° » ou « 21,5° » (une décimale au plus, à la française). */
 export const temperatureText = (value: number): string => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}°`
 
+/** Le nom d'un détecteur avec sa température exacte (« motion sdb · 20,8° ») ; sans mesure ou injoignable, le nom seul. */
+export const sensorLabel = (name: string, temperature: number | null, reachable: boolean): string =>
+  reachable && temperature !== null ? `${name} · ${temperatureText(temperature)}` : name
+
 /** L'identifiant, dans les éléments du plan gardé, du coin `index` du contour des carreaux. */
 const tilesCornerId = (index: number): string => `tiles-corner-${index}`
 /** L'identifiant du coin `index` du contour du chemin du garage. */

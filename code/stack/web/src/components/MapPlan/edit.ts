@@ -18,6 +18,9 @@ export interface EditContext {
   /** Un double clic sur une climatisation, hors modification : ouvre la page Clim. */
   onOpenAc?: (id: string) => void
   onMoveLamp?: (id: string, x: number, y: number) => void
+  /** Un détecteur de mouvement : le déplacer (modification), et le survol dont la carte écrit le nom et la température. */
+  onMoveSensor?: (id: string, x: number, y: number) => void
+  onHoverSensor?: (id: string) => void
   /** Un toucher (sans glisser) sur une ampoule : l'allumer ou l'éteindre. */
   onToggleLamp?: (id: string) => void
   /** L'ampoule survolée ou touchée (vide : aucune), dont la carte écrit le nom. */
@@ -59,7 +62,7 @@ const FOV_MIN = 10
 const FOV_MAX = 140
 const HANDLE_RATIO = 0.12
 /** L'ordre des zones de saisie qui se superposent : la première gagne. */
-const HIT_PRIORITY = ['camera-handle', 'camera-hit', 'emoji-hit', 'ac-hit', 'shutter-hit', 'plug-hit', 'lamp-hit', 'label-hit', 'decor-hit']
+const HIT_PRIORITY = ['camera-handle', 'camera-hit', 'emoji-hit', 'ac-hit', 'shutter-hit', 'plug-hit', 'lamp-hit', 'sensor-hit', 'label-hit', 'decor-hit']
 /** Un glissement commence au-delà de ce nombre de pixels : en deçà c'est un clic. */
 const MOVE_THRESHOLD = 4
 
@@ -78,6 +81,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const HOVER_LAYERS: Record<string, string> = {
   'camera-hit': 'plan-survol-cameras',
   'lamp-hit': 'plan-survol-lampes',
+  'sensor-hit': 'plan-survol-capteurs',
   'ac-hit': 'plan-survol-clims',
   'shutter-hit': 'plan-survol-volets',
   'plug-hit': 'plan-survol-prises',
@@ -88,7 +92,7 @@ const HOVER_LAYERS: Record<string, string> = {
  * comme les autres (il faut pouvoir la placer). La modification est reconnue à ses rappels de déplacement.
  */
 const disabled = (properties: Record<string, unknown> | null | undefined, here: EditContext): boolean =>
-  properties?.inactive === 1 && here.onMoveCamera === undefined && here.onMoveLamp === undefined
+  properties?.inactive === 1 && here.onMoveCamera === undefined && here.onMoveLamp === undefined && here.onMoveSensor === undefined
 
 /**
  * Le curseur au-dessus d'un objet : la main qui attrape quand on peut le déplacer (modification), le doigt qui pointe quand un clic fait quelque chose (une caméra, une lampe, une
@@ -98,6 +102,7 @@ const cursorFor = (kind: unknown, here: EditContext, clickable = false): string 
   const movers: Record<string, unknown> = {
     'camera-hit': here.onMoveCamera,
     'lamp-hit': here.onMoveLamp,
+    'sensor-hit': here.onMoveSensor,
     'plug-hit': here.onMovePlug,
     'ac-hit': here.onMoveAc,
     'shutter-hit': here.onMoveShutter,
@@ -162,6 +167,7 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
       camera: here.onMoveCamera,
       'camera-handle': here.onAdjustCamera,
       lamp: here.onMoveLamp ?? here.onToggleLamp,
+      sensor: here.onMoveSensor,
       plug: here.onMovePlug ?? here.onTogglePlug,
       ac: here.onMoveAc ?? here.onToggleAc,
       shutter: here.onMoveShutter ?? here.onToggleShutter,
@@ -191,6 +197,7 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
         map.getCanvas().style.cursor = cursor
         showHover(hit && cursor !== '' ? hit : null)
         context().onHoverLamp?.(lamp ? String(hit?.id) : '')
+        context().onHoverSensor?.(hit?.kind === 'sensor-hit' ? String(hit.id) : '')
         context().onHoverCamera?.(hit?.kind === 'camera-hit' ? String(hit.id) : '')
         context().onHoverPlug?.(hit?.kind === 'plug-hit' ? String(hit.id) : '')
         context().onHoverAc?.(hit?.kind === 'ac-hit' ? String(hit.id) : '')
@@ -205,6 +212,7 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
     const round = Math.round
     if (grab.kind === 'camera') here.onMoveCamera?.(grab.id, round(x), round(y))
     else if (grab.kind === 'lamp') here.onMoveLamp?.(grab.id, round(x), round(y))
+    else if (grab.kind === 'sensor') here.onMoveSensor?.(grab.id, round(x), round(y))
     else if (grab.kind === 'plug') here.onMovePlug?.(grab.id, round(x), round(y))
     else if (grab.kind === 'ac') here.onMoveAc?.(grab.id, round(x), round(y))
     else if (grab.kind === 'shutter') here.onMoveShutter?.(grab.id, round(x), round(y))
@@ -261,6 +269,7 @@ export const attachEditing = (map: MapLibreMap, context: () => EditContext): (()
     const here = context()
     here.onSelectCamera?.('')
     here.onHoverLamp?.('')
+    here.onHoverSensor?.('')
     here.onHoverAc?.('')
     here.onHoverShutter?.('')
   }

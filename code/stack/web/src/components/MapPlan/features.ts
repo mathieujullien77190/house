@@ -2,7 +2,7 @@
 // lampe, prise, poignée de caméra), reconstruite quand elles changent. Chaque élément porte son genre (`kind`) et son identifiant pour qu'on puisse le saisir à la souris.
 import type { Feature as GeoFeature, FeatureCollection, Geometry } from 'geojson'
 import polygonClipping from 'polygon-clipping'
-import type { PlanAc, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanLabel, PlanShutter, PlanTree, PlanEmoji } from '@house/ui'
+import type { PlanAc, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanSensor, PlanLabel, PlanShutter, PlanTree, PlanEmoji } from '@house/ui'
 import {
   HOUSE_SHIFT,
   PLAN_EXTENSION,
@@ -261,6 +261,7 @@ export interface LiveData {
   trees: PlanTree[]
   cameras: PlanCamera[]
   lamps: PlanLamp[]
+  sensors: PlanSensor[]
   plugs: PlanPlug[]
   acs: PlanAc[]
   shutters: PlanShutter[]
@@ -400,6 +401,11 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
         inactive: lamp.reachable ? 0 : 1,
       }),
     )
+  }
+  for (const sensor of data.sensors) {
+    // Le détecteur est une icône (calque de symboles sur son point) : un rond avec sa température **arrondie à l'entier** (l'arrondi n'est que pour le dessin : la donnée garde ses décimales) ; « – » sans mesure.
+    const text = sensor.reachable && sensor.temperature !== null ? `${Math.round(sensor.temperature)}°` : '–'
+    points.push(dot([sensor.x, sensor.y], { kind: 'sensor-hit', id: sensor.id, temp: text, inactive: sensor.reachable ? 0 : 1 }))
   }
   for (const ac of data.acs) {
     // La climatisation est une icône (calque de symboles sur son point) : `state` choisit l'image (allumée, éteinte, injoignable).

@@ -37,12 +37,14 @@ Caméras, ampoules, clims, prise, volet : **icônes react-icons** rendues en SVG
 | Ampoule | `RiLightbulbFill` dans sa vraie couleur (`color` de `GET /hue`, orange si inconnue) | aucune |
 | Prise (chauffage) | `LuHeater` | verte allumée, rouge éteinte (`plan-prises-etat`) |
 | Volet cuisine | `MdOutlineSensorWindow` (ouvert) / `MdSensorWindow` (fermé) | bleu pâle `#8fd0f7` ouvert, violet `#8b5cf6` baissé (`plan-volets-etat`) |
+| Détecteur de mouvement | rond blanc **sans icône**, de la taille de celui d'une ampoule, avec la **température arrondie à l’entier, suivie de « ° »** dedans (`sensors`, `plan-capteurs`, image `sensor-<valeur>` dessinée à la demande) ; « – » sans mesure | aucune |
 | Clim | `TbAirConditioning`, orientée selon son mur (`ROTATIONS` de `useAcPlan.ts`) | verte allumée, rouge éteinte, grise injoignable (`plan-clims-etat`) |
 
 - **Ampoule** : grise éteinte, rouge injoignable. La luminosité ne fait pâlir que la couleur (`bulbColor`, 16 crans), jamais l'opacité. Une image par couleur, dessinée à la demande (`watchDynamicImages`).
 - **Volet** : fermé seulement si le dernier ordre était « descendre » ; monter, stop et la position du milieu valent ouvert.
 - **Pompe à chaleur** (`decors`, `decor-pac`) et **routeur** (`BsRouter`, id `box`) : icône seule, sans rond (`drawBare`), toujours visibles. La pompe à chaleur ne réagit à rien ; **la box est cliquable** (`clickable` du décor) : clic = choisir (`onSelectDecor`), double clic = onglet Box (`onOpenDecor`), `selectedDecorId` pour la ligne bleue.
-- **Étiquettes de température** (`labels`, `plan-etiquettes`, au-dessus de tous les objets) : dehors, deux dans la cage, une par pièce climatisée. Rectangle blanc sans bordure, texte noir, image dessinée à la demande (`watchTemperatureImages`).
+- **Détecteurs** (`lib/useSensorPlan.ts`, clé `sensor-<id>` du plan) : tous ceux du pont (`/hue/sensors`, 30 s) ; place de départ : les deux de la cage dans la cage (à la place gardée de leur ancienne étiquette), « motion sdb » (60) dans la salle de bain ; un détecteur sans place n'est pas sur la carte. L'arrondi n'est que dans le dessin (`features.ts`) : la donnée garde ses décimales. Au survol : « Nom · 20,8° » (`sensorLabel`). Déplaçables en modification, sans clic utile ; case **Détecteur** dans les filtres.
+- **Étiquettes de température** (`labels`, `plan-etiquettes`, au-dessus de tous les objets) : dehors et une par pièce climatisée (la cage a ses ronds de détecteur, plus d’étiquette). Rectangle blanc sans bordure, texte noir, image dessinée à la demande (`watchTemperatureImages`).
 - **Emoji des clips** (`emojis`, `plan-emojis`) : pictogramme seul (`drawEmoji`).
 - Une lampe sans place sur le plan n'est pas sur la carte (`planLamps`).
 
