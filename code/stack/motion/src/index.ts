@@ -8,7 +8,6 @@ import { audioClipPath, buildAudioClip, pruneAudio, recordAudio } from './audio.
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
-import { createTrigger } from './trigger.ts'
 import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
 import { detectorForLevel, DEFAULT_SENSITIVITY } from './sensitivity.ts'
@@ -38,12 +37,6 @@ const detectors = new Map<string, typeof config.detector>(config.cameras.map((ca
 // La zone surveillée de chaque caméra : son polygone (pour comparer) et son masque sur l'image analysée (absent = toute l'image).
 // House Sync l'envoie à chaque minute ; en mémoire, comme la sensibilité.
 const zones = new Map<string, { points: Point[] | null; mask: Uint8Array | null }>()
-
-// Les événements déclenchés de l'extérieur (les yeux qui brillent, vus par House Sync) : ouverts, prolongés puis fermés ici.
-const trigger = createTrigger(store)
-setInterval(() => {
-  for (const id of trigger.tick()) log(`événement déclenché ${id} fermé`)
-}, 5_000)
 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
@@ -169,8 +162,6 @@ startServer(
     stop: stopManual,
   },
   log,
-  undefined,
-  trigger,
 )
 
 // La copie H.264 720p de chaque clip qui n'en a pas (un navigateur sans décodeur H.265 ne lit que celle-là). Une à la fois :

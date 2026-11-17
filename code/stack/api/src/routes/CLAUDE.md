@@ -11,7 +11,7 @@ Vue d'ensemble : `../../CLAUDE.md`. Clé, session, certificat : `../../../docs/s
 
 ## Caméras, événements, images
 
-- `GET /direct` : par caméra, orientation (réglage de House Sync, paysage par défaut), `rain` (`off`, `rain`, `heavy`, `fog`) et `eyes` (recherche des yeux en cours).
+- `GET /direct` : par caméra, orientation (réglage de House Sync, paysage par défaut), `rain` (`off`, `rain`, `heavy`, `fog`).
 - `/events` : les 200 derniers ; `?last=1` ; `?saved=1` ; `?camera=&from=&to=` (secondes, 1000 au plus, `&limit=`).
 - Un événement porte `saved`, `clip` (original H.265 4K), `clip_h264` (720p, null si absente), `clip_audio`, `clip_shapes`, `note`, `emoji`, `orientation`.
 - Orientation `portrait` : la vidéo se lit tournée d'un quart de tour horaire ; null (base ancienne) = paysage.

@@ -12,8 +12,7 @@
 
 - Clips : Toujours / La nuit / Jamais (hors des clips gardés, la détection est éteinte).
 - Rythme des images : 5, 10, 15, 30 s, 1, 2 ou 5 min.
-- Yeux qui brillent (Off / On, `eyes_mode`) : une ligne d'aide dit les bornes de nuit ; la WebApp montre une icône œil pendant la recherche.
-- Mode pluie (OFF / ON) : texte « Pluie en ce moment : mode pluie actif » quand il s'applique (`rain_now`). Il coupe les clips mais **pas la recherche des yeux**.
+- Mode pluie (OFF / ON) : texte « Pluie en ce moment : mode pluie actif » quand il s'applique (`rain_now`). Il coupe les clips.
 - Orientation (Paysage / Portrait) : s'applique aux nouveaux événements.
 
 **Détection du mouvement**

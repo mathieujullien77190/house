@@ -73,15 +73,6 @@ test('le déclencheur donne à un nouvel événement l\'orientation de sa camér
   assert.deepEqual([read('a'), read('b'), read('c')], ['portrait', 'landscape', 'landscape'])
 })
 
-test('les yeux qui brillent : l’ancienne valeur « night » devient « on » à l’ouverture, « off » reste', () => {
-  const db = new DatabaseSync(':memory:')
-  quiet(() => initDatabase(db, tempDir(), () => NOW))
-  db.exec("INSERT INTO settings (camera, snapshot_seconds, eyes_mode) VALUES ('a', 60, 'night'), ('b', 60, 'off'), ('c', 60, NULL)")
-  quiet(() => initDatabase(db, tempDir(), () => NOW))
-  const modes = db.prepare('SELECT camera, eyes_mode FROM settings ORDER BY camera').all().map((row) => ({ ...row }))
-  assert.deepEqual(modes, [{ camera: 'a', eyes_mode: 'on' }, { camera: 'b', eyes_mode: 'off' }, { camera: 'c', eyes_mode: null }])
-})
-
 test('une base d’avant les codes : la colonne est ajoutée et les images reçoivent leur code, une seule fois', () => {
   const db = new DatabaseSync(':memory:')
   db.exec('CREATE TABLE snapshots (camera TEXT NOT NULL, taken_at INTEGER NOT NULL, path TEXT NOT NULL, PRIMARY KEY (camera, taken_at))')

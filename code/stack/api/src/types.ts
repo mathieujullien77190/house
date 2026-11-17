@@ -29,8 +29,6 @@ export interface CameraRow {
   orientation?: Orientation
   /** Le niveau de pluie qui s'applique à la caméra (le mode pluie réglé dans House Sync et la météo) : pluie ou pluie forte, la détection est coupée et une image est gardée toutes les 5 s ; la WebApp montre le symbole. */
   rain?: RainMode
-  /** Vrai quand la recherche des yeux qui brillent tourne sur cette caméra (réglage de House Sync, de 30 min après le coucher à 30 min avant le lever) : la WebApp montre une icône œil. */
-  eyes?: boolean
 }
 
 /** Un événement tel que l'API le renvoie : le chemin du clip devient une adresse de service. */

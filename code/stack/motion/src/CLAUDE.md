@@ -58,26 +58,9 @@ Forme de l'ancienne API Frigate, gardée pour que House Sync n'ait pas changé.
 - `/clip.mp4` (original), `/clip.h264.mp4` (copie légère, 404 tant que non faite), `/clip.aac` (404 sans son).
 - `GET /api/<caméra>/latest.jpg?h=` : image du flux principal prise par go2rtc.
 
-## 9. Yeux qui brillent (`eyes.ts`, `POST /api/eyes`)
+## 9 et 10. Retirés
 
-- La nuit, l'œil d'un animal est un petit point blanc **saturé** sur fond sombre en infrarouge monochrome.
-- House Sync envoie un JPEG (corps, 3 Mo max, 413 au-delà) ; ffmpeg le décode en gris (10 s max). Réponse `{found, pair, distance, eyes: [{x, y, size, peak, contrast, width, height, glow}]}`, 400 si illisible. `POST /api/eyes/mark?eyes=x,y,largeur,hauteur;…` rend le même JPEG avec un **carré rouge** autour de chaque œil donné (`markEyes`, ffmpeg `drawbox`), 204 sans boîte valide.
-- **Ce qui ne bouge pas n'est pas un œil** : `POST /api/eyes?camera=<caméra>` garde l'image grise d'avant de la caméra (en mémoire) ; un point dont la boîte (+3 pixels) est à moins de 30 de gris d'écart moyen sur l'image d'avant (`STATIC_DIFF_MAX`) est écarté (ciel qui blanchit à l'aube, lampe, reflet fixe : `isStatic`). Sans `camera` ou sans image d'avant : pas de filtre. Mesuré : les fausses alertes du ciel de `voliere-toit` (13 nov, ~06h20 UTC, tache de 100 à 150 pixels en (1170, 36)) sont toutes écartées ; le chat est gardé sur 27 images sur 27 avec 5 s d'écart (20 sur 27 avec 1 s).
-- **Règle volontairement simple** (constantes en tête de `eyes.ts`, pour des images 1280×720) :
-  - amas de pixels ≥ 250 (`PEAK_MIN`) de 3 à 25 pixels (`AREA_MIN`, `AREA_MAX`) ;
-  - anneau de 3 à 6 pixels autour de gris moyen < 120 (`RING_MAX`) ;
-  - œil trop près du bord ignoré.
-- **Reflet fondu** (`glow: true`) : un animal de face près de la caméra n'a pas deux points mais une grosse tache blanche (chat du salon de jardin, 12 nov 2026, 00h56). Amas de 100 à 450 pixels (`GLOW_AREA_MIN`, `GLOW_AREA_MAX`), côtés ≤ 48, rapport longueur / largeur ≤ 2, rempli à 40 % au moins, anneau < 160 (`GLOW_RING_MAX`). Mesuré : le chat est vu sur 27 images de son clip, 0 fausse alerte sur 3 300 images de nuit du salon de jardin (une lampe de 590 pixels à (319, 65) a fixé `GLOW_AREA_MAX`).
-- Image chargée (plus de 8 amas de 2 pixels et plus à ≥ 250, `BLOBS_MAX`) : pas de petit œil, le reflet fondu reste cherché (au-delà de `BLOBS_LIMIT` amas, rien). Mesuré de nuit, sauf `voliere-toit` toutes les scènes sont pleines de points saturés : **le petit œil n'y avait donc jamais fonctionné**.
-- Deux yeux voisins (4 à 30 pixels) donnent `pair: true` : un indice, pas une condition.
-- Prudent : un chat raté vaut mieux que des fausses alertes.
-
-## 10. Événement de l'extérieur (`trigger.ts`)
-
-- `POST /api/cameras/<caméra>/trigger?reason=eyes`, appelé par House Sync après un œil trouvé.
-- Ouvre maintenant un événement de `label` `eyes`, ou prolonge celui d'un appel précédent (`extended: true`). Sans nouvel appel pendant `TRIGGER_HOLD_SECONDS` (10 s), il est fermé à l'instant du dernier appel.
-- Raison inconnue : 400 ; caméra inconnue : 404.
-- House Sync décide si le clip est copié (`keepsClip`) et limite les appels (un par caméra toutes les 30 s). Indépendant du détecteur : les deux événements peuvent se recouvrir, la fusion les réunit.
+La recherche des yeux qui brillent (`eyes.ts`, `POST /api/eyes`) et le déclenchement d'événement de l'extérieur (`trigger.ts`, `POST …/trigger`) ont été retirés en novembre 2026. Les numéros de section sont gardés pour que les renvois ne bougent pas. Les anciens événements de `label` `eyes` restent lisibles dans le fichier.
 
 ## 11. Contours du mouvement (`shapes.ts`)
 

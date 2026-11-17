@@ -73,9 +73,6 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   addColumn(db, 'settings', 'rain_mode', 'TEXT')
   // Le niveau de pluie qui s'applique vraiment à la caméra (off, rain, heavy) : le mode pluie et la météo ; écrit par House Sync, lu par l'API pour le symbole.
   addColumn(db, 'settings', 'rain_now', 'TEXT')
-  // Les yeux qui brillent de la caméra (off ou on) et si la recherche tourne maintenant (0 ou 1), écrit par House Sync, lu par l'API pour l'icône œil.
-  addColumn(db, 'settings', 'eyes_mode', 'TEXT')
-  addColumn(db, 'settings', 'eyes_now', 'INTEGER')
   // Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
   addColumn(db, 'events', 'clip_started_at', 'INTEGER')
   // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).
@@ -113,6 +110,4 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS snapshots_code ON snapshots (code)')
   const coded = backfillSnapshotCodes(db)
   if (coded > 0) console.log(`Images : ${coded} codes attribués`)
-  // L'ancienne valeur « night » du réglage des yeux qui brillent vaut « on » (à chaque ouverture : sans effet une fois faite).
-  db.exec("UPDATE settings SET eyes_mode = 'on' WHERE eyes_mode = 'night'")
 }

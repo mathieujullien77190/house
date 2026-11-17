@@ -23,7 +23,6 @@ Détail, routes, seuils : `src/CLAUDE.md`.
 - `segments.ts`, `clips.ts`, `merge.ts` : enregistrement, assemblage d'un clip, groupes à fusionner.
 - `events.ts` : magasin d'événements (`data/clips/events.json`). `closeOrphans` ferme au démarrage les événements restés ouverts, sinon ils seraient « en cours » pour toujours.
 - `audio.ts`, `sensitivity.ts`, `zone.ts` : son à part, seuils par niveau, masque de zone.
-- `eyes.ts`, `trigger.ts` : yeux qui brillent, événement déclenché de l'extérieur.
 - `server.ts`, `config.ts`, `shutdown.ts` : API, environnement, arrêt propre des ffmpeg.
 
 ## Régler

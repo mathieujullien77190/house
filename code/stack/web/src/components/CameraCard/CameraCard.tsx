@@ -137,13 +137,12 @@ const CameraCard = ({
   // Le carré de la prise connectée, à côté du rond de la lampe (vert allumée, rouge éteinte), en direct aussi.
   const plug = usePlug(apiKey, CAMERA_WITH_PLUG.includes(camera.name) && isLive)
   const indicators =
-    isLive && (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off' || camera.eyes === true) ? (
+    isLive && (temperatures.length > 0 || lamp !== null || plug !== null || (camera.rain ?? 'off') !== 'off') ? (
       <CameraIndicators
         temperatures={temperatures.map((item) => item.value)}
         lamp={lamp}
         plug={plug}
         rain={camera.rain}
-        eyes={camera.eyes}
       />
     ) : undefined
   const off = power !== null && !power.on

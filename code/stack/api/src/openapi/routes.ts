@@ -36,7 +36,7 @@ export const ROUTES: RouteDoc[] = [
   { method: 'get', path: '/docs', group: 'Général', summary: 'Swagger UI', description: 'La page de documentation interactive. Se charge avec le cookie de session (ouvrir d’abord la WebApp).', secured: true, ok: { description: 'La page HTML.', contentType: 'text/html' } },
 
   // Caméra
-  { method: 'get', path: '/direct', group: 'Caméra', summary: 'Le direct de chaque caméra', description: 'Par caméra : adresse du direct (go2rtc), orientation, pluie (rain) et recherche des yeux (eyes).', secured: true, ok: { description: 'Une entrée par caméra.' } },
+  { method: 'get', path: '/direct', group: 'Caméra', summary: 'Le direct de chaque caméra', description: 'Par caméra : adresse du direct (go2rtc), orientation et pluie (rain).', secured: true, ok: { description: 'Une entrée par caméra.' } },
   { method: 'get', path: '/image', group: 'Caméra', summary: 'La dernière image de chaque caméra', secured: true, ok: { description: 'Une adresse par caméra.' } },
   {
     method: 'get',

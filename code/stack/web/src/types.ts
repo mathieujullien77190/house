@@ -19,8 +19,6 @@ export interface CameraRow {
   orientation: Orientation
   /** Le niveau de pluie qui s'applique à la caméra (le mode pluie de House Sync et la météo). */
   rain?: RainMode
-  /** Vrai quand la recherche des yeux qui brillent tourne (réglage de House Sync, la nuit). */
-  eyes?: boolean
 }
 
 export interface EventRow {
@@ -335,7 +333,5 @@ export interface Camera {
   orientation: Orientation
   /** Le mode pluie (éteint, pluie, pluie forte) : allumé, la détection est coupée et une image est gardée toutes les 5 s. */
   rain?: RainMode
-  /** La recherche des yeux qui brillent tourne : l'icône œil sur la caméra. */
-  eyes?: boolean
 }
 

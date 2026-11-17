@@ -5,7 +5,6 @@
 import { mkdirSync } from 'node:fs'
 import { unlink, writeFile } from 'node:fs/promises'
 import { seconds, type Context } from './context.ts'
-import { createEyes } from './eyes.ts'
 import type { Recorder } from './recorder.ts'
 import { insertSnapshot } from './snapshotCodes.ts'
 
@@ -14,8 +13,6 @@ const SNAPSHOT_HEIGHT = 720
 /** Supprime les images plus vieilles que `limit` (secondes depuis 1970) : fichier puis ligne. Rend leur nombre. */
 export const purgeSnapshots = async (ctx: Context, limit: number): Promise<number> => {
   const { db, config } = ctx
-  // Les détections d'yeux (`eye_detections`) ont la même durée de garde que leur image : la ligne et l'image partent ensemble.
-  db.prepare('DELETE FROM eye_detections WHERE taken_at < ?').run(limit)
   const rows = db.prepare('SELECT camera, taken_at, path FROM snapshots WHERE taken_at < ?').all(limit) as { camera: string; taken_at: number; path: string }[]
   const remove = db.prepare('DELETE FROM snapshots WHERE camera = ? AND taken_at = ?')
   for (const row of rows) {
@@ -27,7 +24,6 @@ export const purgeSnapshots = async (ctx: Context, limit: number): Promise<numbe
 
 export const createSnapshots = (ctx: Context, rec: Recorder) => {
   const { db, config, settings } = ctx
-  const eyes = createEyes(ctx, rec)
   const lastSnapshotAt = new Map<string, number>()
   // Les caméras du dernier tour de polling, pour le minuteur rapide (`again`) qui prend les images toutes les 5, 10 ou 15 s entre deux tours (30 s).
   let known: string[] = []
@@ -52,7 +48,6 @@ export const createSnapshots = (ctx: Context, rec: Recorder) => {
         const path = `snapshots/${camera}/${takenAt}.jpg`
         await writeFile(`${config.dataDir}/${path}`, image)
         insertSnapshot(db, camera, takenAt, path)
-        await eyes.look(camera, takenAt, path, image)
         return 1
       }),
     )

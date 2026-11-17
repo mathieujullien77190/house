@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
-/** Pourquoi l'événement existe : un mouvement vu par le détecteur, ou des yeux qui brillent (déclenché par House Sync, `trigger.ts`). */
+/** Pourquoi l'événement existe. Un mouvement vu par le détecteur ; les anciens événements « eyes » (yeux qui brillent, fonction retirée) restent lisibles dans le fichier. */
 export type MotionLabel = 'motion' | 'eyes'
 
 export interface MotionRecord {
