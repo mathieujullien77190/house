@@ -39,6 +39,17 @@ describe('energyTree', () => {
     expect(root.cost).toBeCloseTo(0.05 + 0.07 + 0.15)
   })
 
+  it('le chauffage est une feuille de plus, dans le total', () => {
+    const heating: MachineEnergy = { since: null, kwh: 2, cost: 0.4, watts: 2000 }
+    const root = buildEnergyTree(null, null, machine, heating)!
+    expect(root.children.map((c) => [c.id, c.label])).toEqual([
+      ['machine', 'Mini PC (processeur seul)'],
+      ['heating', 'Chauffage (prise volière)'],
+    ])
+    expect(root.kwh).toBeCloseTo(3)
+    expect(root.cost).toBeCloseTo(0.55)
+  })
+
   it('une source absente n’a pas de branche ; aucune source, pas d’arbre', () => {
     expect(buildEnergyTree(null, lamps, null)!.children.map((c) => c.id)).toEqual(['lamps'])
     expect(buildEnergyTree(null, null, null)).toBeNull()

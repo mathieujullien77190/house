@@ -13,3 +13,6 @@ export const CARET_CLASS = 'inline-block text-[0.8rem] transition-transform grou
  */
 export const ACTIONS_CLASS = 'flex cursor-default flex-wrap items-center gap-x-3 gap-y-2 text-[0.9rem] font-normal text-fg lg:gap-x-4'
 export const DETAIL_CLASS = 'font-mono text-[0.8rem] font-normal text-muted'
+/** Un sous-titre : la couleur du texte, un peu plus petit que le titre. */
+export const SUBTITLE_SUMMARY_CLASS =
+  'mt-2 mb-1 flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 text-[1rem] lg:gap-x-4 font-medium text-fg select-none [&::-webkit-details-marker]:hidden'

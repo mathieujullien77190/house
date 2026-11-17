@@ -26,7 +26,7 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
 
 ## Réglages par caméra (table `settings`)
 
-`GET`/`PUT /api/settings` avec `{camera, clips_mode?, snapshot_seconds?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, motion_min_seconds?, rain_mode?, eyes_mode?, orientation?}`. Interface : `../web/src/components/SettingsSection/CLAUDE.md`.
+`GET`/`PUT /api/settings` avec `{camera, clips_mode?, snapshot_seconds?, live_fps?, light_fps?, live_fps_mobile?, light_fps_mobile?, motion_sensitivity?, motion_min_seconds?, rain_mode?, orientation?}`. Interface : `../web/src/components/SettingsSection/CLAUDE.md`.
 
 - **Clips** `clips_mode` : `always` (défaut), `night` ou `off` (`clips_enabled` pour les anciennes bases).
   - `night` : seuls les événements commençant entre 30 min avant le coucher et 30 min après le lever ont leur clip (`sun.ts`, copie de `api/src/lib/sun.ts` ; `HOUSE_LATITUDE` / `HOUSE_LONGITUDE`, 48,52 et 2,64).
@@ -53,21 +53,11 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
   - forte : 65, 67, 82, 95 à 99 ; normale : 63, 81 ou au moins 2,5 mm ;
   - **la pluie faible ne compte pas** (51 à 57, 61, 66, 80).
 - `settings.setWeatherRain` range le niveau applicable (`rain_now`, `off` si mode éteint) ; l'API le rend dans `GET /direct`.
-- `effectiveSettings` : en mode actif, **pas de clips** (détection coupée) et **une image toutes les 5 s**. Exception : les événements des yeux gardent leur clip. Les réglages gardés ne changent jamais.
+- `effectiveSettings` : en mode actif, **pas de clips** (détection coupée) et **une image toutes les 5 s**. Les réglages gardés ne changent jamais.
 
-### Yeux qui brillent (`eyes.ts`)
+### Yeux qui brillent : retirés
 
-- `eyes_mode` par caméra : `off` (défaut) ou `on` (ancien `night` migré à l'ouverture de la base, encore accepté par `PUT`).
-- Actif seulement en pleine nuit : de 30 min **après** le coucher à 30 min **avant** le lever (`isNight` à marge négative, `EYES_MARGIN_SECONDS`, `settings.eyesActive`) : le contraire des clips de nuit.
-- Chaque image prise est envoyée à `POST /api/eyes?camera=<caméra>` de l'enregistreur (délai 8 s ; règle de détection : `../../motion/src/CLAUDE.md`, point 11).
-- Si un œil (ou deux : `pair`) est trouvé :
-  - une ligne dans `eye_detections` (`camera`, `taken_at`, `path`, `x`, `y`, `size`, `peak`, `contrast`, `pair`, `distance`), une par caméra et par minute au plus ;
-  - **un événement de mouvement** : `POST …/trigger?reason=eyes` (point 12 de `../../motion/src/CLAUDE.md`), un appel par caméra toutes les 30 s au plus.
-- L'image de la détection est **réécrite avec un carré rouge** autour de chaque œil trouvé (`POST /api/eyes/mark?eyes=x,y,largeur,hauteur;…` de l'enregistreur, `mark` dans `eyes.ts`) ; si le dessin échoue, l'image reste telle quelle.
-- Le clip n'est copié que si `keepsClip` le veut. Une panne de l'enregistreur est loguée une fois et ne bloque pas la prise d'image.
-- Lignes et images suivent la durée de garde (`purgeSnapshots`).
-- `settings.eyes_now` (0/1) : recherche en cours ; rangé chaque minute par `settings.refreshEyes` (minuteur de `app.ts`) et après un changement ; l'API le rend dans `GET /direct` (`eyes`).
-- Colonnes `eyes_mode` et `eyes_now` ajoutées au démarrage : **déployer House Sync avant House API**.
+La recherche des yeux qui brillent a été retirée en novembre 2026 (code, réglage, icône de la WebApp). **Rien n'a été supprimé des données** : la table `eye_detections` de `events.db` (plus créée, lue ni montrée par la page), les colonnes `settings.eyes_mode` et `eyes_now`, les anciens événements de `label` `eyes` avec leurs clips, et les images des détections (réécrites avec un carré rouge, dans `snapshots/`) restent telles quelles. Les images de `snapshots/` suivent toujours la durée de garde par leur ligne de la table `snapshots`.
 
 ## Réglages globaux (table `app_settings`)
 
@@ -124,6 +114,8 @@ Hors polling : minuteur d'une minute dans `app.ts`. Entre deux relevés, on comp
 | Module | Source | Table | Réponse |
 |---|---|---|---|
 | `cameraEnergy.ts` | `GET /poe` de l'API (`apiTargetOf`, `fetchCameraPower`) | `camera_energy` | `{since, cameras: [{camera, kwh, cost, watts}], total}` |
+| `temperatureLog.ts` | météo (Open-Meteo), `GET /ac` (`roomTemp` de chaque pompe à chaleur), `GET /hue/sensors` (température de chaque détecteur) | `temperature_log` (`taken_at` début d'heure, puis une colonne par source : `meteo`, `clim_<nom>`, `hue_<nom>`, ajoutée au premier relevé) ; l'ancienne forme (une ligne par source) est gardée dans `temperature_log_long` | une ligne par heure (relevé tenté chaque minute tant que l'heure n'a aucune ligne) ; `/api/temperatures?days=7` → `{points}` pour le graphique sous la table |
+| `heatingEnergy.ts` | la table `heating_log` (minutes allumées × 2000 W, coût du journal) | aucune (lecture seule) | `{since, kwh, cost, watts}` (watts : 2000 pendant une activation, 0 sinon), `/api/heating-energy` |
 | `lampEnergy.ts` | `GET /hue` de l'API (`fetchLampPower`) | `lamp_energy` | `{since, lamps: [...], total}`, gourmande d'abord |
 | `machineEnergy.ts` | `readCpuPower(config.powerFile)` (RAPL, `power/house-power.sh`) | `machine_energy` (`device` = `mini-pc`) | `{since, kwh, cost, watts}` |
 

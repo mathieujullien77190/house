@@ -9,6 +9,7 @@ Une table de `events.db`, **repliée par défaut** (la page ne se charge qu'une 
 - `events`, `snapshots`, `merges` : caméra et date.
 - `hue_events` : nom du matériel et date.
 - `guest_visits` : clé (avec, sans, fausse) et date.
+- `temperature_log` : date seule (une ligne par heure, une colonne par source). Le graphique `TemperatureChart` (7 jours, une courbe par source) est dessiné par la page juste sous la table.
 - `heating_log`, `plan` : pas de filtre (`heating_log` : date seule).
 
 ## Cas particuliers

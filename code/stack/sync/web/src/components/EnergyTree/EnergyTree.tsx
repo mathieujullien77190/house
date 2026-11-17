@@ -14,7 +14,7 @@ const EnergyTree = ({ node, depth = 0 }: EnergyTreeProps) => {
     )
   }
   return (
-    <Collapsible title={node.label} detail={energyFigures(node)} compact={depth > 0} defaultOpen={false}>
+    <Collapsible title={node.label} detail={energyFigures(node)} compact={depth > 0} subtitle={depth > 0} defaultOpen={false}>
       <div className={depth > 0 ? CHILDREN_CLASS : undefined}>
         {node.children.map((child) => (
           <EnergyTree key={child.id} node={child} depth={depth + 1} />

@@ -1,8 +1,9 @@
-import type { CameraEnergy, EnergyNode, LampEnergy, MachineEnergy } from '@/types'
+import type { CameraEnergy, EnergyNode, HeatingEnergy, LampEnergy, MachineEnergy } from '@/types'
 
 export const ENERGY_ROOT_LABEL = 'Consommation électrique (estimation)'
 export const CAMERAS_LABEL = 'Caméras'
 export const LAMPS_LABEL = 'Lampes Hue'
+export const HEATING_LABEL = 'Chauffage (prise volière)'
 export const MACHINE_LABEL = 'Mini PC (processeur seul)'
 
 /** Un nœud qui en regroupe d’autres : puissance, énergie et coût sont les sommes de ses enfants (une puissance inconnue compte pour 0). */
@@ -16,7 +17,7 @@ export const sumNode = (id: string, label: string, children: EnergyNode[]): Ener
 })
 
 /** L’arbre de la consommation : racine (tout), puis caméras, lampes Hue et mini PC, puis chaque appareil ; null si aucune source ne répond. Une source absente n’a pas de branche. */
-export const buildEnergyTree = (cameras: CameraEnergy | null, lamps: LampEnergy | null, machine: MachineEnergy | null): EnergyNode | null => {
+export const buildEnergyTree = (cameras: CameraEnergy | null, lamps: LampEnergy | null, machine: MachineEnergy | null, heating: HeatingEnergy | null = null): EnergyNode | null => {
   const groups: EnergyNode[] = []
   if (cameras) {
     const leaves = cameras.cameras.map((c) => ({ id: `camera:${c.camera}`, label: c.camera, watts: c.watts, kwh: c.kwh, cost: c.cost, children: [] }))
@@ -27,6 +28,7 @@ export const buildEnergyTree = (cameras: CameraEnergy | null, lamps: LampEnergy 
     groups.push(sumNode('lamps', LAMPS_LABEL, leaves))
   }
   if (machine) groups.push({ id: 'machine', label: MACHINE_LABEL, watts: machine.watts, kwh: machine.kwh, cost: machine.cost, children: [] })
+  if (heating) groups.push({ id: 'heating', label: HEATING_LABEL, watts: heating.watts, kwh: heating.kwh, cost: heating.cost, children: [] })
   return groups.length > 0 ? sumNode('root', ENERGY_ROOT_LABEL, groups) : null
 }
 

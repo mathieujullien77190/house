@@ -15,7 +15,7 @@ Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépend
 - `POST /login` avec `HOUSE_KEY` = `API_KEY` : clé de moins de 8 caractères = aucune session ; 10 essais ratés par adresse en 15 min puis 429 (`attempts.ts`, `session.ts`).
 - `GET`/`PUT /api/settings`, `/api/retention`, `/api/guest`, `/api/servos` : réglages (`src/CLAUDE.md`).
 - `/api/overview` (`?part=database` : sans parcourir le disque), `/api/system`, `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (fiche publique du pont), `/api/hue-log`.
-- `/api/camera-energy`, `/api/lamp-energy`, `/api/machine-energy` : alimentent l'arbre de consommation de la page Machine.
+- `/api/camera-energy`, `/api/lamp-energy`, `/api/machine-energy`, `/api/heating-energy` : alimentent l'arbre de consommation de la page Machine.
 - `/api/table?name=&page=&size=`, `/api/clips?page=&size=`, `/files/…` (`Range` : 206, `range.ts`).
 - Une erreur de requête répond 500 sans arrêter le service. Pagination bornée à 100 (`data.ts`).
 
@@ -25,7 +25,7 @@ Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépend
 - Modules à dépendances injectées via un `Context` (`context.ts` : base, config, réglages, `fetch`, `now`, `log`).
 - `config.ts` : toutes les variables, lues une fois (exceptions : `specs.ts`, `network.ts`, `hue.ts` pour leurs chemins). Défauts = ceux du compose.
 - `database.ts` : schéma, colonnes ajoutées après coup (`addColumn`), déclencheur et migration d'orientation.
-- `poll.ts` (le tour), `recorder.ts`, `clips.ts`, `events.ts`, `snapshots.ts`, `snapshotCodes.ts`, `control.ts`, `eyes.ts`, `weather.ts`, `settings.ts`, `imports.ts` : détail dans `src/CLAUDE.md`.
+- `poll.ts` (le tour), `recorder.ts`, `clips.ts`, `events.ts`, `snapshots.ts`, `snapshotCodes.ts`, `control.ts`, `weather.ts`, `settings.ts`, `imports.ts` : détail dans `src/CLAUDE.md`.
 - `page.ts` : session, services, fichiers du disque, `createPageServer`. `http.ts` : petits outils HTTP.
 - **Copies assumées** : `sun.ts` (avec `api/src/lib/sun.ts`) et `cameraOrder.ts` (avec `api/src/lib/cameraOrder.ts`) : changer les deux.
 - `specs.ts` et `system.ts` prennent un préfixe `root` pour `/proc` et `/sys` (essais).

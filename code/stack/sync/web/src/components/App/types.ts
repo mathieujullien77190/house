@@ -1,5 +1,5 @@
 import type { LiveHistory } from '@/lib/live'
-import type { CameraEnergy, Media, Docker, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Specs, System } from '@/types'
+import type { CameraEnergy, Media, Docker, HeatingEnergy, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Specs, System } from '@/types'
 
 export type Status = 'locked' | 'checking' | 'ready'
 
@@ -14,6 +14,7 @@ export interface AppUIProps {
   cameraEnergy: CameraEnergy | null
   lampEnergy: LampEnergy | null
   machineEnergy: MachineEnergy | null
+  heatingEnergy: HeatingEnergy | null
   /** La mémoire et le processeur, null tant qu'ils ne sont pas lus. */
   system: System | null
   /** Les caractéristiques de la machine, null tant qu'elles ne sont pas lues. */

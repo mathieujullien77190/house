@@ -5,7 +5,7 @@ import { mkdirSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { createClips } from './clips.ts'
 import { loadConfig } from './config.ts'
-import { messageOf, seconds, type Context, type Fetch } from './context.ts'
+import { messageOf, type Context, type Fetch } from './context.ts'
 import { createControl } from './control.ts'
 import { initDatabase } from './database.ts'
 import { createEvents } from './events.ts'
@@ -19,7 +19,7 @@ import { createSnapshots } from './snapshots.ts'
 import { createWeather, WEATHER_POLL_MS } from './weather.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createCameraEnergy, createCameraEnergyTable } from './cameraEnergy.ts'
-import { createEyesTable } from './eyes.ts'
+import { createTemperatureLog, createTemperatureTable } from './temperatureLog.ts'
 import { createLampEnergy, createLampEnergyTable } from './lampEnergy.ts'
 import { createMachineEnergy, createMachineEnergyTable } from './machineEnergy.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
@@ -59,8 +59,8 @@ export const startApp = async (deps: AppDeps) => {
   createBoxConnectionsTable(db)
   createCameraEnergyTable(db)
   createLampEnergyTable(db)
-  createEyesTable(db)
   createMachineEnergyTable(db)
+  createTemperatureTable(db)
   createPlanTable(db)
 
   const rec = createRecorder(ctx)
@@ -72,6 +72,7 @@ export const startApp = async (deps: AppDeps) => {
   const cameraEnergy = createCameraEnergy(ctx, () => apiTargetOf(config))
   const lampEnergy = createLampEnergy(ctx, () => apiTargetOf(config))
   const machineEnergy = createMachineEnergy(ctx)
+  const temperatures = createTemperatureLog(ctx, () => apiTargetOf(config))
   const poller = createPoller(ctx, { rec, events, clips, control, snapshots })
   // Les images toutes les 5, 10 ou 15 s : un minuteur à part (chaque seconde, pour tomber à une seconde près), car le tour de polling est de 30 s.
   const snapshotTimer = setInterval(() => void snapshots.again(), 1_000)
@@ -100,13 +101,12 @@ export const startApp = async (deps: AppDeps) => {
   void cameraEnergy.sample()
   void lampEnergy.sample()
   void machineEnergy.sample()
-  // La recherche des yeux qui brillent : « tourne-t-elle maintenant ? » se range en base chaque minute, pour l'icône œil de la WebApp.
-  settings.refreshEyes(seconds(ctx))
+  void temperatures.sample()
   const energyTimer = setInterval(() => {
-    settings.refreshEyes(seconds(ctx))
     void cameraEnergy.sample()
     void lampEnergy.sample()
     void machineEnergy.sample()
+    void temperatures.sample()
   }, 60_000)
 
   // ---- Le polling ----

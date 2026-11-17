@@ -138,7 +138,7 @@ test('la météo est lue au démarrage puis toutes les 10 minutes, jusqu’à l�
   const { urls, deps, logs } = boot({}, (url) => (url.includes('open-meteo') ? Response.json({ current: { weather_code: 63, precipitation: 0.5 } }) : defaultAnswer(url)))
   const app = await startApp(deps)
   await new Promise((resolve) => setImmediate(resolve))
-  const weatherCalls = () => urls.filter((url) => url.includes('open-meteo')).length
+  const weatherCalls = () => urls.filter((url) => url.includes('weather_code')).length
   assert.equal(weatherCalls(), 1)
   assert.ok(logs.includes('Météo : pluie'))
   mock.timers.tick(600_000)

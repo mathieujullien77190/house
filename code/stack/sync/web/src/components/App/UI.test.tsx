@@ -1,10 +1,12 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { overview } from '@/lib/fixtures'
 import { EMPTY_HISTORY } from '@/lib/live'
+import { EMPTY_TEXT } from '@/components/TemperatureChart/constants'
 import AppUI from './UI'
 import type { AppUIProps } from './types'
 
-vi.mock('@/lib/api', () => ({ fetchTable: vi.fn(async () => ({ items: [], total: 0, page: 0, size: 20, options: [] })), fetchClips: vi.fn(), fetchRetention: vi.fn(), fetchGuest: vi.fn(), fetchSettings: vi.fn() }))
+vi.mock('@/lib/api', () => ({ fetchTable: vi.fn(async () => ({ items: [], total: 0, page: 0, size: 20, options: [] })), fetchClips: vi.fn(), fetchRetention: vi.fn(), fetchGuest: vi.fn(), fetchSettings: vi.fn(), fetchTemperatures: vi.fn(async () => []) }))
 
 const props = (patch: Partial<AppUIProps> = {}): AppUIProps => ({
   status: 'ready',
@@ -13,6 +15,7 @@ const props = (patch: Partial<AppUIProps> = {}): AppUIProps => ({
   cameraEnergy: null,
   lampEnergy: null,
   machineEnergy: null,
+  heatingEnergy: null,
   system: null,
   specs: null,
   network: null,
@@ -43,5 +46,11 @@ describe('AppUI', () => {
   it('en vérification : le texte d’attente', () => {
     render(<AppUI {...props({ status: 'checking' })} />)
     expect(screen.getByText('Vérification…')).toBeTruthy()
+  })
+  it('onglet base : le graphique des températures suit la table temperature_log', async () => {
+    const base = overview()
+    const withLog = { ...base, database: { ...base.database, tables: [{ name: 'temperature_log', columns: ['date', 'meteo'], count: 0, filters: { match: null, date: true } }] } }
+    render(<AppUI {...props({ tab: 'db', overview: withLog })} />)
+    expect(await screen.findByText(EMPTY_TEXT)).toBeTruthy()
   })
 })

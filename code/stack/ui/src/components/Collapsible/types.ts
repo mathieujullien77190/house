@@ -8,6 +8,8 @@ export interface CollapsibleProps {
   actions?: ReactNode
   /** Des classes en plus pour le titre (sa largeur, par exemple, pour aligner les commandes d'une liste de sections). */
   headClass?: string
+  /** Un sous-titre : texte ordinaire (pas le bleu des titres), plus petit, pour une section dans une section. */
+  subtitle?: boolean
   /** Moins d'espace au-dessus du titre : pour des sections qui se suivent de près. */
   compact?: boolean
   /** Ouvert au départ ; le visiteur l'ouvre et le ferme ensuite (le navigateur retient l'état). */

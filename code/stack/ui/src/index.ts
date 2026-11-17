@@ -27,6 +27,8 @@ export type { LightsChange, LightsLamp, LightsPanelProps, LightsRoom, LightsSens
 export type { PlanAc, PlanCamera, PlanGate, PlanHedge, PlanLamp, PlanPlug, PlanLabel, PlanEmoji, PlanShutter, PlanRect, PlanRoom, PlanTree, PlanWall } from './plan'
 export { default as LineChart } from './components/LineChart'
 export type { LineChartProps } from './components/LineChart'
+export { default as MultiLineChart } from './components/MultiLineChart'
+export type { MultiLineChartProps, ChartSeries, ChartPoint } from './components/MultiLineChart'
 export { default as MediaPanel } from './components/MediaPanel'
 export type { MediaKind, MediaPanelProps } from './components/MediaPanel'
 export { default as Notice } from './components/Notice'

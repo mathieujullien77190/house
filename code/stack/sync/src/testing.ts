@@ -1,4 +1,5 @@
 // Outils des essais (hors couverture) : une base en mémoire prête, un contexte, de fausses requêtes et réponses HTTP, un faux réseau.
+import { createTemperatureTable } from './temperatureLog.ts'
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
 import https, { type RequestOptions } from 'node:https'
@@ -12,7 +13,6 @@ import { loadConfig, type Config } from './config.ts'
 import type { Context, Fetch } from './context.ts'
 import { initDatabase } from './database.ts'
 import { createCameraEnergyTable } from './cameraEnergy.ts'
-import { createEyesTable } from './eyes.ts'
 import { createLampEnergyTable } from './lampEnergy.ts'
 import { createMachineEnergyTable } from './machineEnergy.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
@@ -64,9 +64,9 @@ export const testContext = (handler: Handler = () => new Response('', { status: 
     createBoxConnectionsTable(db)
     createCameraEnergyTable(db)
     createLampEnergyTable(db)
-    createEyesTable(db)
     createMachineEnergyTable(db)
     createPlanTable(db)
+    createTemperatureTable(db)
   } finally {
     console.log = log
   }

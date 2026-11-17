@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Button, CodeBlock, Collapsible, Notice, Page, LineChart, PieChart, SimpleTable, SpecList, TopBar } from '@house/ui'
 import ClipsSection from '@/components/ClipsSection'
 import SettingsSection from '@/components/SettingsSection'
@@ -5,6 +6,7 @@ import KeyForm from '@/components/KeyForm'
 import EnergyTree from '@/components/EnergyTree'
 import MediaPanel from '@/components/MediaPanel'
 import TableSection from '@/components/TableSection'
+import TemperatureChart from '@/components/TemperatureChart'
 import { buildDiskChart } from '@/lib/disk'
 import {
   buildContainerItems,
@@ -73,7 +75,7 @@ import {
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEnergy, heatingEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
@@ -82,7 +84,7 @@ const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEne
   const specItems = specs ? buildSpecItems(specs) : []
   const linkItems = network ? buildLinkItems(network) : []
   const diskChart = overview ? buildDiskChart(overview) : null
-  const energyTree = buildEnergyTree(cameraEnergy, lampEnergy, machineEnergy)
+  const energyTree = buildEnergyTree(cameraEnergy, lampEnergy, machineEnergy, heatingEnergy)
   const statusText = status === 'checking' ? CHECKING_TEXT : status === 'locked' ? LOCKED_TEXT : loadedAt ? `mis à jour ${loadedAt}` : ''
   return (
     <Page>
@@ -102,7 +104,10 @@ const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEne
             overview ? (
               <Collapsible title={DATABASE_TITLE} detail={overview.database.path}>
                 {overview.database.tables.map((table) => (
-                  <TableSection key={table.name} table={table} refreshTick={refreshTick} onOpen={onOpen} />
+                  <Fragment key={table.name}>
+                    <TableSection table={table} refreshTick={refreshTick} onOpen={onOpen} />
+                    {table.name === 'temperature_log' ? <TemperatureChart refreshTick={refreshTick} /> : null}
+                  </Fragment>
                 ))}
               </Collapsible>
             ) : (

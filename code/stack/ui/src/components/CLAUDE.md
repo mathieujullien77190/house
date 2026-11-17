@@ -16,11 +16,11 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 ## Données
 
 - `SimpleTable` (une fiche par ligne sur téléphone), `DataTable` (`details`, `openKey`, `onRowClick`, `filters`), `TableFilters`, `StackedDate`.
-- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `SpecList`, `ValueChips` (`stretch` : collé à droite de sa ligne, 40 px comme un `Button` ; l'heure de la frise sur téléphone).
+- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `MultiLineChart` (plusieurs courbes sur une échelle, légende), `SpecList`, `ValueChips` (`stretch` : collé à droite de sa ligne, 40 px comme un `Button` ; l'heure de la frise sur téléphone).
 
 ## Médias
 
-- `MediaPanel`.
+- `MediaPanel` : `rotated` (caméra portrait) tourne le média d'un quart de tour horaire dans un cadre portrait ; une vidéo tournée a ses propres commandes (lecture, barre de temps), droites sous le cadre, au lieu des natives qui tourneraient avec elle.
 - `SnapshotImage` : `upright` remet le texte droit dans un cadre tourné. Au démontage, `src` devient un GIF d'un pixel : un flux MJPEG ne se termine jamais et le navigateur n'ouvre que 6 connexions par hôte.
 - **Le média n'a ni bordure ni arrondi propre** (`MEDIA_INNER_CLASS`, pour `SnapshotImage` et `ClipPlayer`) : la boîte qui l'héberge arrondit et rogne.
 - `ClipPlayer` : pas de commandes natives, barre maison (lecture, temps) posée en bas de l'image, sans fond ; un clic sur la vidéo lance ou arrête.

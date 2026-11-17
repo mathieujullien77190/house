@@ -2,7 +2,7 @@
 import type { CameraSetting } from '@/components/SettingsSection'
 import type { ServoPatch, ServoSettings } from '@/components/ServosSettings'
 import { NO_FILTER, filterQuery } from '@/lib/filter'
-import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Page, Row, Specs, System } from '@/types'
+import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HeatingEnergy, HueBridge, TemperaturePoint, LampEnergy, MachineEnergy, NetworkInterface, Overview, Page, Row, Specs, System } from '@/types'
 
 export class ApiError extends Error {
   status: number
@@ -94,6 +94,8 @@ export const fetchSystem = async (): Promise<System> => (await request('/api/sys
 export const fetchCameraEnergy = async (): Promise<CameraEnergy> => (await request('/api/camera-energy')).json()
 
 export const fetchLampEnergy = async (): Promise<LampEnergy> => (await request('/api/lamp-energy')).json()
+export const fetchTemperatures = async (days: number): Promise<TemperaturePoint[]> => ((await (await request(`/api/temperatures?days=${days}`)).json()) as { points: TemperaturePoint[] }).points
+export const fetchHeatingEnergy = async (): Promise<HeatingEnergy> => (await request('/api/heating-energy')).json()
 export const fetchMachineEnergy = async (): Promise<MachineEnergy> => (await request('/api/machine-energy')).json()
 
 export const fetchTable = async (name: string, page: number, size: number, filter: Filter = NO_FILTER): Promise<FilteredPage<Row>> =>

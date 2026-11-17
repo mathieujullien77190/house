@@ -4,6 +4,7 @@ import {
   fetchClips,
   fetchDocker,
   fetchGuest,
+  fetchHeatingEnergy,
   fetchHue,
   fetchNetwork,
   fetchOverview,
@@ -15,6 +16,7 @@ import {
   fetchSettings,
   fetchSpecs,
   fetchSystem,
+  fetchTemperatures,
   fetchTable,
   fileUrl,
   isLoginRequired,
@@ -88,10 +90,17 @@ describe('lectures', () => {
     ['fetchCameraEnergy', fetchCameraEnergy, '/api/camera-energy'],
     ['fetchLampEnergy', fetchLampEnergy, '/api/lamp-energy'],
     ['fetchMachineEnergy', fetchMachineEnergy, '/api/machine-energy'],
+    ['fetchHeatingEnergy', fetchHeatingEnergy, '/api/heating-energy'],
   ])('%s lit %s', async (_name, read, path) => {
     answer({ ok: true })
     expect(await read()).toEqual({ ok: true })
     expect(lastCall()[0]).toBe(path)
+  })
+
+  it('fetchTemperatures lit les points des jours demandés', async () => {
+    answer({ points: [{ at: 1 }] })
+    expect(await fetchTemperatures(7)).toEqual([{ at: 1 }])
+    expect(lastCall()[0]).toBe('/api/temperatures?days=7')
   })
 
   it('fetchOverview : complète ou seulement la base', async () => {

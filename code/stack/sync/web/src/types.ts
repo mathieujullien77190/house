@@ -89,6 +89,16 @@ export interface MachineEnergy {
   watts: number | null
 }
 
+/** Un relevé de température : l'heure (secondes depuis 1970, début d'heure), la source (« Météo », « Clim salon », « Hue motion exterieur ») et les degrés Celsius. */
+export interface TemperaturePoint {
+  at: number
+  name: string
+  celsius: number
+}
+
+/** La consommation du chauffage depuis le début du journal (estimation : minutes allumées × puissance du radiateur) ; `watts` : 2000 pendant une activation, 0 sinon. */
+export type HeatingEnergy = MachineEnergy
+
 /** Un nœud de l'arbre de la consommation : un appareil (feuille) ou un groupe dont les chiffres sont la somme de ses enfants. `watts` : puissance actuelle (null : inconnue), `kwh` et `cost` : depuis le début du suivi. */
 export interface EnergyNode {
   id: string

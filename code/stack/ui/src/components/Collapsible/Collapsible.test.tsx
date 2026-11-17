@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import Collapsible from './Collapsible'
-import { COMPACT_SUMMARY_CLASS, SUMMARY_CLASS } from './constants'
+import { COMPACT_SUMMARY_CLASS, SUBTITLE_SUMMARY_CLASS, SUMMARY_CLASS } from './constants'
 
 describe('Collapsible', () => {
   it('est ouvert par défaut et montre titre, détail et contenu', () => {
@@ -39,6 +39,12 @@ describe('Collapsible', () => {
       </Collapsible>,
     )
     expect(container.querySelector('summary')?.className).toBe(COMPACT_SUMMARY_CLASS)
+    rerender(
+      <Collapsible title="A" subtitle>
+        x
+      </Collapsible>,
+    )
+    expect(container.querySelector('summary')?.className).toBe(SUBTITLE_SUMMARY_CLASS)
   })
 
   it('ajoute la classe de tête du parent à celle du titre', () => {
