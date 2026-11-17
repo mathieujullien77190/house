@@ -39,16 +39,14 @@ Règle « le code fait foi » et mise à jour de la doc : `../../CLAUDE.md`.
 ## Règles
 
 - **Santé** : `api`, `sync`, `motion`, `go2rtc`, `site` ont un `healthcheck` ; `guest` non (son port est fermé exprès quand elle est coupée). Les images n'embarquent pas les tests (`.dockerignore`). `docker builder prune -f` vide le cache de build sans toucher aux données.
-- **Seul House Sync écrit** la base (`data/backup/events.db`), les clips et images sauvegardés. L'enregistreur écrit ses segments et clips.
-- **L'API** n'écrit jamais la base ni le disque backup, et n'expose jamais la base brute. Elle écrit seulement, dans `data/house` :
-  - positions des ampoules, liste des clips sauvegardés (House Sync efface les autres après 15 jours par défaut) ;
-  - `zones.json` (donné à l'enregistreur par House Sync), `plan.json` (importé dans la table `plan`) ;
-  - `heating.json` et `heating-log.jsonl` (importé dans `heating_log`).
+- **Qui écrit la base** (`data/backup/events.db`) : House Sync écrit toutes les **observations** (événements, connexions des appareils de la box, journaux, mesures) et les clips et images sauvegardés ; l'enregistreur écrit ses segments et clips. **L'API n'écrit dans la base que pour une action de l'utilisateur** (la WebApp lui demande de changer quelque chose) ; toute autre modification de la base est faite ailleurs (Sync). Migration en cours : les fichiers JSON de `data/house` ci-dessous deviennent des tables (une étape à la fois).
+- **L'API** n'écrit jamais le disque backup, et n'expose jamais la base brute. Dans la base, elle écrit **les actions de l'utilisateur** : la table `house_state` (un document JSON par clé : positions des ampoules, clips sauvegardés, notes et emojis des clips, zones, repères, plan, réglages du chauffage, volets automatiques, garde de la prise), et l'ajout d'un appareil à la maison (tables de la box). House Sync écrit **seul** les observations et les journaux (l'API lui envoie chaque activation du chauffage et chaque ordre de volet) et lit les documents dont il a besoin (zones pour l'enregistreur, clips sauvegardés pour le ménage, plan pour la table `plan`).
   - Elle relaie go2rtc et commande switch PoE, pont Hue, prise.
+  - `data/house` ne garde que `tv/` (certificat et clé du Player, secrets). Ses anciens `*.json` ont été repris une fois dans la base et ne sont plus lus ; copies dans `data/backup/manual/`.
 - **Direct** : l'API relaie go2rtc (`go2rtc:1984`, jamais publié) : `/stream` (MJPEG, un ffmpeg tant qu'un onglet regarde) et `/frame`, via le réseau `sync_net`.
 - **Page invité** : seulement si lancée ; `docker compose stop guest` la coupe, le bouton « Coupée » de House Sync ferme son port sans Docker. Réseau à part. Détail : `guest/CLAUDE.md`.
 - **Mobile et bureau** : mobile de 360 à 1024 px (une colonne, cibles tactiles), bureau dès 1024 px (`lg:` seulement, jamais `sm:` ni `md:`). Pas de défilement horizontal de la page à 360 px : un contenu large défile dans son bloc.
-- **Données** dans `data/` (ignoré) : `recordings`, `clips`, `backup`, `certs`, `power`, `house`, `guest` (interrupteur de la page invité), `guest-visits` (journal des visites), `servos` (réglages des servos des volets salon, PC et porte, écrits par House Sync, lus par l'API). Les trois derniers sont à créer à la main avant le premier lancement.
+- **Données** dans `data/` (ignoré) : `recordings`, `clips`, `backup`, `certs`, `power`, `house`, `guest` (interrupteur de la page invité), `guest-visits` (journal des visites), `servos` (ancien fichier des réglages des servos, repris dans la base : plus lu). Les trois derniers sont à créer à la main avant le premier lancement.
 - **`data/` est irremplaçable** : ne jamais supprimer, déplacer ni écraser un fichier (ni `events.db`) sans copie préalable et accord de l'utilisateur.
 - Les fichiers de ce dossier sont expliqués dans `site/src/components/CodeBrowser/constants.ts`.
 

@@ -16,9 +16,9 @@ Vue d'ensemble : `../../CLAUDE.md`. Clé, session, certificat : `../../../docs/s
 - Un événement porte `saved`, `clip` (original H.265 4K), `clip_h264` (720p, null si absente), `clip_audio`, `clip_shapes`, `note`, `emoji`, `orientation`.
 - Orientation `portrait` : la vidéo se lit tournée d'un quart de tour horaire ; null (base ancienne) = paysage.
 - `GET /clips/:id`, `/h264`, `/audio` (AAC à part, lu dans `events.clip_audio_path`), `/shapes` (contours du mouvement, 404 pour un clip ancien).
-- `PUT /clips/:id/saved` `{"saved": bool}` : House Sync n'efface jamais un clip sauvegardé ; `saved-clips.json` est lu par lui avant le ménage.
-- `PUT /clips/:id/note` `{"note"}` : 200 caractères au plus, vide = supprime ; fichier `clip-notes.json` (à part, House Sync ne le lit pas).
-- `PUT /clips/:id/emoji` `{"emoji"}` : un seul pictogramme, 16 caractères au plus, `null` = retire ; `clip-emojis.json`.
+- `PUT /clips/:id/saved` `{"saved": bool}` : House Sync n'efface jamais un clip sauvegardé ; le document `saved-clips` de `house_state` est lu par lui avant le ménage.
+- `PUT /clips/:id/note` `{"note"}` : 200 caractères au plus, vide = supprime ; document `clip-notes` de `house_state` (à part, House Sync ne le lit pas).
+- `PUT /clips/:id/emoji` `{"emoji"}` : un seul pictogramme, 16 caractères au plus, `null` = retire ; le document `clip-emojis` de `house_state`.
 - 404 pour ces `PUT` si le clip n'existe pas.
 - `/snapshots?camera=&from=&to=` ; `/snapshot?camera=&at=` : image la plus proche (tolérance 5 min), en-têtes `X-Snapshot-At` et `X-Snapshot-Code` (code posé par House Sync, l'API ne l'écrit pas).
 - `/stream?camera=` : MJPEG relayé de go2rtc tant que le client reste connecté. `&quality=hd` : flux `<nom>_main_mjpeg` ; `&screen=mobile` : flux `…_mjpeg_m`.
@@ -43,7 +43,7 @@ Détail des automatisations et du journal : `../../../docs/hue.md` (le journal e
 - `watts` : puissance **estimée** par `lib/hueWatts.ts` (0 si injoignable, 0,4 en veille, sinon veille + (max − veille) × (bri/254)², max par modèle) ; null si modèle inconnu. Une approximation.
 - `GET /hue/sensors` : détecteurs avec température et luminosité.
 - `GET /hue/automations` : règles du pont en phrases (API v2, certificat non vérifié : équipement du réseau).
-- `GET`/`PUT /hue/positions` : positions fusionnées avec celles gardées (`lights-positions.json`).
+- `GET`/`PUT /hue/positions` : positions fusionnées avec celles gardées (document `lights-positions` de `house_state`).
 - `PUT /hue/rooms/:id`, `PUT /hue/lights/:id` : `{"on"}` et/ou `{"bri": 1..254}`.
 - 503 sans `HUE_BRIDGE_IP` et `HUE_APP_KEY` (clé : bouton du pont puis `POST http://<pont>/api` avec `{"devicetype":"house#mini"}`).
 
@@ -66,8 +66,8 @@ Détail des automatisations et du journal : `../../../docs/hue.md` (le journal e
 **Option « éteindre au mouvement »** (`"offOnMotion": true`, `services/plugService.ts`) :
 
 - Lit toutes les 3 s le détecteur `PLUG_MOTION_SENSOR` (défaut `motion interieur`) et éteint au premier front montant (un mouvement déjà en cours à l'armement ne compte pas).
-- Puis l'option s'efface ; état dans `plug-guard.json` (survit au redémarrage) ; 503 sans pont Hue. Dépend de l'API et du pont, contrairement au minuteur.
-- **Le chauffage automatique l'arme toujours** : un mouvement qui coupe un chauffage de la règle **désactive la règle** (`enabled: false`, `onAutoCut`) ; réactivation à la main. Un allumage manuel coupé ne touche pas à la règle (`origin` dans `plug-guard.json`).
+- Puis l'option s'efface ; état dans le document `plug-guard` de `house_state` (survit au redémarrage) ; 503 sans pont Hue. Dépend de l'API et du pont, contrairement au minuteur.
+- **Le chauffage automatique l'arme toujours** : un mouvement qui coupe un chauffage de la règle **désactive la règle** (`enabled: false`, `onAutoCut`) ; réactivation à la main. Un allumage manuel coupé ne touche pas à la règle (`origin` dans le document `plug-guard` de `house_state`).
 
 **Retrouver la prise** : `PLUG_MAC` (défaut `D8:0D:17:1C:84:E3`). Si `PLUG_HOST` ne répond plus, scan du port 9999 du `/24`, reconnaissance par MAC dans `get_sysinfo`, nouvelle adresse gardée jusqu'au redémarrage (un scan par minute au plus).
 
@@ -91,14 +91,14 @@ Défauts : seuil 3 °C, 5 min allumée, délai 20 min, règle activée. C'est le
 
 - `GET /plug/heating` : `{enabled, thresholdC, minutes, cooldownMinutes, lastActivationAt, nextAllowedAt, temperature, night, cold}` ; 503 sans prise ou sans pont.
 - `PUT /plug/heating` : une valeur absente garde l'ancienne ; 400 sinon : `thresholdC` de -30 à 30, `minutes` entier 1 à 120, `cooldownMinutes` entier entre `minutes` et 1440.
-- Prix, heures creuses et puissance ne sont **pas** des réglages (ignorés). Fichier `heating.json` (écriture temporaire puis renommage ; absent ou abîmé = défauts).
+- Prix, heures creuses et puissance ne sont **pas** des réglages (ignorés). Document `heating` de `house_state` (absent ou abîmé = défauts).
 - `GET /plug/log?limit=50` : journal, récent d'abord (1 à 500, 400 sinon ; 503 sans prise).
 
-**Journal** `heating-log.jsonl` :
+**Journal** `heating_log` :
 
 - Une ligne par activation commandée par notre système : `{at, origin: "auto"|"manuel", minutes, temperature, note, cost}`.
-- Écrit par `plugService` à chaque `startTimer` réussi ; 5000 lignes gardées ; ligne abîmée ignorée.
-- Seul House Sync écrit la base : il importe ce fichier (`../../../sync/src/CLAUDE.md`).
+- Envoyé par `plugService` à chaque `startTimer` réussi à House Sync (`POST /api/journal/heating`, `lib/journalClient.ts` ; une erreur d’envoi ne gêne jamais la prise) ; l’API relit la table.
+- Seul House Sync écrit la base : il range la ligne dans `heating_log` (`../../../sync/src/CLAUDE.md`).
 
 **Coût** (`cost`) : calculé **à l'activation** et figé (le tarif d'aujourd'hui ne change pas le passé).
 
@@ -112,16 +112,16 @@ Défauts : seuil 3 °C, 5 min allumée, délai 20 min, règle activée. C'est le
 
 - `GET /zones` : `{"<caméra>": [[x, y], ...]}` (3 à 1000 sommets, parts de l'image 0 à 1).
 - `PUT /zones/<caméra>` `{"points": [...]}` ou `null` (toute l'image).
-- `zones.json` (écriture temporaire puis renommage) ; House Sync le lit et le donne à l'enregistreur.
+- document `zones` de `house_state` ; House Sync le lit et le donne à l'enregistreur.
 
 ## Repères de caméras
 
 - `GET /markers` : `{"<caméra>": [{target, x, y}, ...]}`, 8 au plus, `x` et `y` de -0,5 à 1,5 (hors vidéo permis).
-- `PUT /markers/<caméra>` `{"markers": [...]}` ou `null` (places de départ). Fichier `markers.json`.
+- `PUT /markers/<caméra>` `{"markers": [...]}` ou `null` (places de départ). Document `markers` de `house_state`.
 
 ## Plan de la maison
 
-- `GET /plan` : `{"plan": {...}}` ou `{"plan": null}` ; `PUT /plan` remplace (128 ko au plus). Fichier `plan.json`, seul ce qui est bien formé est gardé (7 décimales).
+- `GET /plan` : `{"plan": {...}}` ou `{"plan": null}` ; `PUT /plan` remplace (128 ko au plus). Document `plan` de `house_state`, seul ce qui est bien formé est gardé (7 décimales).
 - **Positions en longitude/latitude** (`version`: 2), tailles en mètres, angles en caps (degrés depuis le nord).
 - House Sync l'importe dans la table `plan`.
 
@@ -169,15 +169,14 @@ Fichiers : `lib/tvRemote.ts` (client injectable), `tvWire.ts` / `tvMessages.ts` 
 
 ## Invités de la box (`/box/guests`, `/box/known`)
 
-Fichiers : `services/boxWatcher.ts`, `lib/boxConnectionLog.ts`, `lib/boxKnownStore.ts`, `lib/boxGuestsStore.ts`. Lecture de la Freebox en GET seulement, sauf l'exclusion d'un invité (plus bas).
+**House Sync surveille la box** (`sync/src/boxWatcher.ts`, une lecture de `GET /box` toutes les 15 s) et range ce qu'il voit dans SQLite : `box_known` (la maison), `box_guests` (les invités), `box_connections` (leurs connexions). **L'API les lit** (`repositories/boxRepository.ts`) et n'y écrit que pour une action de l'utilisateur. Lecture de la Freebox en GET seulement, sauf l'exclusion d'un invité (plus bas).
 
-- **La maison** : au tout premier démarrage (pas de `box-known.json`), la photo des appareils **actifs** à cet instant (MAC, nom, IP) est écrite dans `box-known.json` ; le surveillant ne la réécrit jamais ensuite. Le nom du fichier est resté « known » (il existait avant le mot « maison »).
-- **Invité** = tout appareil dont la MAC n'est pas dans la maison. Dès qu'il est vu connecté il entre dans `box-guests.json` (`mac`, `name`, `ip`, `type`, `vendor`, `firstSeen`, `lastSeen` en secondes), y reste **même hors ligne** jusqu'à ce qu'on l'ajoute à la maison ; `lastSeen`, nom et adresse sont remis à jour à chaque lecture où il est actif (écrits au plus une fois par minute, sauf nouvel invité ou changement de nom, d'adresse ou de type). Un invité déjà connecté au démarrage de l'API entre dans la liste dès la première lecture, sans ligne de journal.
-- Un tour toutes les 15 s : pour chaque invité **actif** qui ne l'était pas à la lecture d'avant, une ligne `connect` ; pour chaque invité parti (inactif ou disparu de la liste), une ligne `disconnect`. Plusieurs appareils d'un même tour = plusieurs lignes.
-- Journal `box-connections.jsonl` : `{at, event, mac, name, ip, type, vendor}` (`at` en secondes), 5000 lignes gardées, importé par House Sync dans `box_connections` (`BOX_LOG_FILE` côté House Sync). Les noms de ces fichiers et de la table viennent d'avant le mot « invité » : ils restent.
-- **Compromis** : l'état précédent n'est gardé qu'en mémoire. La première lecture après un démarrage de l'API ne logge rien ; une connexion ou déconnexion pendant un redémarrage n'est pas notée, et un invité resté connecté n'est pas re-loggé. Une lecture qui échoue ne change rien (pas de fausse déconnexion).
+- **La maison** (`box_known`) : au tout premier tour de Sync (table vide), la photo des appareils **actifs** à cet instant (MAC, nom, IP) ; Sync ne la réécrit jamais ensuite. Les anciens fichiers `box-known.json` et `box-guests.json` ont été repris une fois dans les tables (ils ne sont plus lus ni écrits).
+- **Invité** = tout appareil dont la MAC n'est pas dans la maison. Dès qu'il est vu connecté il entre dans `box_guests` (`mac`, `name`, `ip`, `type`, `vendor`, `first_seen`, `last_seen` en secondes), y reste **même hors ligne** jusqu'à ce qu'on l'ajoute à la maison ; `last_seen`, nom et adresse sont remis à jour à chaque lecture où il est actif. `active` (dans la réponse) : vu il y a moins de 45 s. Un invité déjà connecté au démarrage de Sync entre dans la liste dès la première lecture, sans ligne de connexion.
+- Un tour toutes les 15 s : pour chaque invité **actif** qui ne l'était pas à la lecture d'avant, une ligne `connect` dans `box_connections` ; pour chaque invité parti, une ligne `disconnect`. Colonnes : `happened_at`, `event`, `mac`, `name`, `ip`, `type`, `vendor`.
+- **Compromis** : l'état précédent n'est gardé qu'en mémoire de Sync. La première lecture après un démarrage ne note rien ; une connexion ou déconnexion pendant un redémarrage n'est pas notée. Une lecture qui échoue ne change rien (pas de fausse déconnexion).
 - `GET /box/guests?limit=100` (1 à 500, 400 sinon ; 503 sans box) : `{filterState, guests: [{mac, name, ip, type, vendor, firstSeen, lastSeen, active, excluded}], events}`, invités les plus récemment vus d'abord, événements du plus récent au plus ancien. `filterState` (`disabled`, `blacklist`, `whitelist`) et `excluded` viennent de la box (lecture) ; null quand elle ne répond pas.
-- `GET /box/known` : `{home: [{mac, name, ip}]}`. `PUT /box/known` `{"mac"}` : ajoute l'appareil à la maison (écrit `box-known.json`, retire l'invité de `box-guests.json`, la box n'est pas touchée) et rend `{mac, name, ip}` ; 400 MAC fausse, 503 sans box ou photo de départ pas encore prise. Il ne génère plus de lignes.
+- `GET /box/known` : `{home: [{mac, name, ip}]}`. `PUT /box/known` `{"mac"}` (**action de l'utilisateur**, écrite par l'API dans la base) : ajoute l'appareil à la maison, le retire de `box_guests` et **efface ses lignes de `box_connections`** (la box n'est pas touchée) ; rend `{mac, name, ip}` (nom et adresse pris à la box si elle le voit, sinon à l'invité) ; 400 MAC fausse, 503 sans box ou maison encore vide. `DELETE /box/known/<mac>` le retire de la maison (il redevient invité à la lecture suivante) ; 404 s'il n'y était pas.
 - `PUT /box/guests/<mac>/exclude` `{"excluded": bool}` : **seule écriture de la box de ce bloc**, par le filtrage MAC **du WiFi** (un appareil branché par câble n'est pas touché). Droit « Modification des réglages » de l'application Freebox requis.
   - Exclure : si le mode du filtrage (`/wifi/config/` `mac_filter_state`) est `disabled`, `PUT /wifi/config/` `{mac_filter_state: "blacklist"}` ; puis `POST /wifi/mac_filter/` `{mac, type: "blacklist", comment: "House : invité exclu"}` (rien si la MAC y est déjà). Mode `whitelist` : **409**, la box n'est pas modifiée.
   - Réadmettre : `DELETE /wifi/mac_filter/<id>` de chaque entrée liste noire de la MAC. Le mode du filtrage n'est pas remis à `disabled`.
@@ -200,19 +199,19 @@ Somfy RTS via ESP32 + CC1101 (firmware ESPSomfy-RTS ; onglet Architecture, vue �
 - **Tout autre ordre au même volet l'annule.** Un redémarrage de l'API perd la suite.
 - Temps de fermeture dans `SHUTTERS` : `SHUTTERS="1:Volet cuisine:19"` (3ᵉ partie facultative ; sans elle, pas de bouton).
 
-**Action automatique** (`services/shuttersAutoService.ts`, `shutters-auto.json`, désactivée par défaut) :
+**Action automatique** (`services/shuttersAutoService.ts`, le document `shutters-auto` de `house_state`, désactivée par défaut) :
 
 - Pour les volets de `SHUTTERS_AUTO` (défaut tous) : **ouvrir au lever**, **fermer au coucher**, deux options séparées, volet par volet.
 - `auto` de `GET /shutters` : `null` (pas d'action) ou `{open, close}`. `PUT /shutters/<id>/auto` `{"open"?, "close"?}` ; 404 / 400.
 - Un tour par minute (`crossedEvents`, `lib/sun.ts`) ; notes de journal « auto : lever du soleil » / « coucher ».
 - Un lever manqué (API arrêtée) est joué s'il date de moins de 2 h. **Activer après un lever ne l'ouvre pas.**
-- Ancien fichier avec une seule case `enabled` : vaut pour les deux options.
+- Ancien document avec une seule case `enabled` : vaut pour les deux options.
 
 **Pilote** (`lib/shutterDriver.ts`) : `createMockDriver` (simulation) et `createEspSomfyDriver` (HTTP `PUT /shadeCommand` `{"shadeId": 1, "command": "up"}`, sans authentification, `stop` envoyé comme `my` ; vérifié sur le volet cuisine).
 
 **Volets à servos** (`lib/servoDriver.ts`, `lib/servoConfig.ts`) : les volets de `SHUTTERS_SERVO` (numéros, défaut `2,5,6` = salon, PC, porte) n'utilisent pas l'ESP32 Somfy mais un second ESP32 (`http://192.168.1.115`, mDNS `servo-page.local`) dont neuf servos MF90 (canaux 0 à 8, trois par volet) sur un PCA9685 appuient sur les touches des télécommandes murales Nice. `up` = Monter, `down` = Descendre, `stop` = Stop.
 
 - Séquence d'un ordre : `GET /set?ch=&us=&speed=` vers `start` (vitesse réglée), attente `ms + 200`, `/set` vers `end`, attente `ms`, attente `hold` s, retour à `start` à vitesse 0, puis **relâche le servo** (`GET /off?ch=` après `ms + 800` : plus d'impulsion, donc ni ronronnement ni effort sur le bois). Le premier `/set` part avant la réponse (502 s'il échoue) ; la suite est en tâche de fond et **tout nouvel ordre au même volet l'annule**. Un redémarrage de l'API perd la suite.
-- Réglages par volet (clé = numéro du volet) : `SERVOS_FILE` (`/servos/servos.json`, volume `data/servos` en lecture seule), écrit par House Sync (`sync/src/CLAUDE.md`), relu **à chaque ordre** ; valeurs par défaut s'il manque ; volet sans réglage : 502. `mock` de `GET /shutters` n'est vrai que si aucun volet n'est à servos (le pilote des servos n'est jamais simulé).
+- Réglages par volet (clé = numéro du volet) : document `servos` de `house_state`, écrit par House Sync (`sync/src/CLAUDE.md`), relu **à chaque ordre** ; valeurs par défaut s'il manque ; volet sans réglage : 502. `mock` de `GET /shutters` n'est vrai que si aucun volet n'est à servos (le pilote des servos n'est jamais simulé).
 
-**Journal** `shutters-log.jsonl` (5000 lignes) : `{at, shutter, name, command, ok, note}`, importé par House Sync dans `shutter_log`.
+**Journal** `shutter_log` : `{at, shutter, name, command, ok, note}`, envoyé par l’API à House Sync (`POST /api/journal/shutters`), qui le range dans `shutter_log` ; l’API relit la table au démarrage.

@@ -59,7 +59,7 @@ const SOFTWARE: ArchView = {
   id: 'software',
   label: 'Logiciel',
   intro: [
-    'Quatre conteneurs Docker en service sur le mini PC : go2rtc et motion (une seule unité pour les quatre caméras), House Sync, et House API qui sert la WebApp. S’y ajoutent certs, qui crée le certificat HTTPS puis s’arrête, et la page invité, éteinte par défaut, qu’on lance à la demande.',
+    'Une seule base de données : House Sync y écrit toutes les observations (événements, connexions des appareils de la box, journaux, mesures) ; House API la lit et n’y écrit que lorsque l’utilisateur agit (placer une lampe, une note, un réglage). Quatre conteneurs Docker en service sur le mini PC : go2rtc et motion (une seule unité pour les quatre caméras), House Sync, et House API qui sert la WebApp. S’y ajoutent certs, qui crée le certificat HTTPS puis s’arrête, et la page invité, éteinte par défaut, qu’on lance à la demande.',
     'L’unité est un go2rtc et son enregistreur motion : go2rtc ouvre une seule connexion vers chaque caméra et la partage ; motion enregistre le flux principal des quatre caméras par segments, détecte le mouvement sur le flux léger et fabrique les clips. Une autre machine aurait sa propre unité. La page invité ne montre que voliere-exterieur et voliere-interieur ; le son d’un clip n’existe que pour voliere-interieur. House Sync interroge l’enregistreur par polling, copie les clips et une image par minute sur le SSD du mini PC, et écrit dans SQLite les événements et l’adresse du go2rtc de chaque caméra.',
     'L’utilisateur donne sa clé une seule fois : House API pose un cookie de session signé de 30 jours (HttpOnly), que le navigateur renvoie ensuite tout seul ; la clé n’est gardée nulle part. Le direct (MJPEG, quelques images par seconde) et l’image à l’instant viennent du go2rtc, relayés par l’API dans le réseau Docker ; les événements, les clips et les images par minute viennent de SQLite et du SSD. Les clips se lisent en continu (par morceaux), sans les télécharger en entier. L’API n’appelle jamais l’enregistreur.',
     'Sécurité : le go2rtc (1984, 8554) et l’API de l’enregistreur n’ont pas de mot de passe et ne sont jamais publiés ; seuls l’API (8080) et la page de House Sync (8081), avec la clé, le sont, et le pare-feu du mini PC (ufw) les réserve au réseau de la maison et au VPN WireGuard de la Freebox.',
@@ -87,7 +87,7 @@ const SOFTWARE: ArchView = {
     { id: 'motion', x: 450, y: 105, w: 110, h: 240, tone: 'plain', title: 'motion', lines: ['mouvement', 'clips · 6 h', 'les 4 caméras'] },
     { id: 'webapp', x: 875, y: 90, w: 250, h: 70, tone: 'green', title: 'WebApp', lines: ['la page web', 'appelle l’API'] },
     { id: 'api', x: 875, y: 245, w: 250, h: 140, tone: 'green', title: 'House API', lines: ['auth : clé → cookie 30 jours', 'stream : direct MJPEG', 'frame : image à l’instant', 'events · clips · snapshots', 'poe : coupe / relance'] },
-    { id: 'sync', x: 480, y: 450, w: 150, h: 96, tone: 'green', title: 'House Sync', lines: ['interroge motion', 'copie clips + images', 'écrit SQLite'] },
+    { id: 'sync', x: 480, y: 450, w: 150, h: 96, tone: 'green', title: 'House Sync', lines: ['interroge motion et la box', 'copie clips + images', 'écrit SQLite (observations)'] },
     { id: 'guest', x: 290, y: 430, w: 155, h: 125, tone: 'green', title: 'Page invité', lines: ['2 caméras : vignettes + 4K', 'lien secret · lecture seule', 'port 8090 · à la demande'] },
     { id: 'switch', x: 1195, y: 400, w: 130, h: 90, tone: 'plain', title: 'Switch ES208GP', lines: ['PoE port par port', 'alimente les caméras'] },
     { id: 'browser', x: 1195, y: 80, w: 130, h: 90, tone: 'plain', title: 'Utilisateur', lines: ['ouvre la WebApp', 'à la maison'] },
@@ -117,7 +117,7 @@ const SOFTWARE: ArchView = {
     { id: 'write', d: 'M632 498 H668' },
     { id: 'write-db', d: 'M590 548 V611 H653' },
     { id: 'read-backup', d: 'M910 387 V490 H812' },
-    { id: 'read-db', d: 'M980 387 V611 H827' },
+    { id: 'read-db', d: 'M980 387 V611 H827', both: true },
     { id: 'api-switch', d: 'M1100 387 V445 H1193' },
     { id: 'tunnel', d: 'M1250 638 V592', both: true, vpn: true },
     { id: 'vpn-pc', d: 'M1173 552 H1128', vpn: true },
@@ -147,7 +147,7 @@ const SOFTWARE: ArchView = {
     { id: 'write', x: 650, y: 489, text: 'write', anchor: 'middle' },
     { id: 'write-db', x: 598, y: 603, text: 'write' },
     { id: 'read-backup', x: 872, y: 507, text: 'read (clips, images)', anchor: 'middle' },
-    { id: 'read-db', x: 905, y: 603, text: 'read', anchor: 'middle' },
+    { id: 'read-db', x: 905, y: 603, text: 'read · write (actions)', anchor: 'middle' },
     { id: 'api-switch', x: 1108, y: 424, text: 'poe on/off' },
     { id: 'api-switch-login', x: 1108, y: 438, text: 'page web · compte (env.)', note: true },
     { id: 'compose1', x: 280, y: 650, text: 'docker compose :', note: true },
@@ -160,7 +160,7 @@ const SOFTWARE: ArchView = {
   ],
   disks: [
     { id: 'backup', cx: 740, cy: 468, title: 'SSD du mini PC', lines: ['clips · images/minute'] },
-    { id: 'sqlite', cx: 740, cy: 568, rx: 85, title: 'SQLite', lines: ['événements', 'images par minute', 'flux go2rtc par caméra'] },
+    { id: 'sqlite', cx: 740, cy: 568, rx: 85, title: 'SQLite', lines: ['événements · appareils de la box', 'images par minute', 'actions de l’utilisateur'] },
   ],
 }
 

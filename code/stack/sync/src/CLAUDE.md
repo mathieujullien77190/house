@@ -13,7 +13,7 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
 6. **Fusions** : l'enregistreur réunit les clips qui se recouvrent, 30 min après (`../../motion/src/CLAUDE.md`).
    - `syncMerges` relit les 6 dernières heures : l'événement absorbé va dans la table `merges`, puis disparaît de `events` avec ses fichiers.
    - Le survivant est recopié (clip, début réel), copie légère redemandée. La fusion efface aussi le son (recopié avec lui).
-7. **Réglages** (`control.ts`), imports (plan, visites invité, journaux chauffage et volets : `imports.ts`), puis ménage quotidien.
+7. **Réglages** (`control.ts`), imports (plan, visites invité : `imports.ts`) et surveillance de la box (`boxWatcher.ts`), puis ménage quotidien.
 8. **Images** toutes les `SNAPSHOT_INTERVAL_SECONDS` (60 s, réglable par caméra, minuteur d'1 s) : dernière image de chaque caméra (720 px) dans `snapshots`.
 
 **Code permanent des images** (`snapshots.code`, `snapshotCodes.ts`) :
@@ -36,7 +36,7 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
 - **Détection** (`control.ts`) : `PUT <enregistreur>/api/cameras/<caméra>/detection?enabled=0|1` à chaque changement et chaque minute. Elle suit les clips (éteinte en `off`, et en `night` hors nuit) : un mouvement sans clip n'a pas d'intérêt et la coupure économise le décodage.
 - **Sensibilité** `motion_sensitivity` (1 à 5, défaut 3) : `PUT …/sensitivity?level=N`, à chaque changement et chaque minute (l'enregistreur la perd s'il redémarre). Détail : `../../motion/src/CLAUDE.md`.
 - **Durée minimale** `motion_min_seconds` (0 à 30 s, défaut 1) : `PUT …/min-seconds?seconds=N`, même rythme. Un mouvement plus court n'ouvre aucun événement ; 0 = le premier compte.
-- **Zone** : lit `zones.json` (écrit par l'API dans `data/house`, monté en `/house`, `ZONES_FILE`) et envoie `PUT …/zone` `{"points": ...}` au changement et chaque minute (`null` = toute l'image). Dossier non monté ou fichier abîmé : rien n'est envoyé.
+- **Zone** : lit le document `zones` de `house_state` (écrit par l'API) et envoie `PUT …/zone` `{"points": ...}` au changement et chaque minute (`null` = toute l'image). Dossier non monté ou fichier abîmé : rien n'est envoyé.
 - **Images** `snapshot_seconds` : 5, 10, 15, 30, 60, 120 ou 300 (`SNAPSHOT_CHOICES` ; l'API cherche à 5 min près) ; défaut `SNAPSHOT_INTERVAL_SECONDS`.
 - **Directs** `live_fps` (4K) et `light_fps` (léger), de 1 à 25 (défaut 25), plus `*_mobile` pour les écrans de moins de 1024 px (flux `_m`).
   - Changés à chaud par `PATCH /api/streams` de go2rtc (`GO2RTC_URL`, défaut `http://go2rtc:1984`) : source `ffmpeg:<caméra>_main#video=mjpegN` (ou `_sub`), modèle déclaré dans `go2rtc/go2rtc.yaml`.
@@ -57,7 +57,7 @@ Vue d'ensemble, page, découpe, tests : `../CLAUDE.md`.
 
 ### Yeux qui brillent : retirés
 
-La recherche des yeux qui brillent a été retirée en novembre 2026 (code, réglage, icône de la WebApp). **Rien n'a été supprimé des données** : la table `eye_detections` de `events.db` (plus créée, lue ni montrée par la page), les colonnes `settings.eyes_mode` et `eyes_now`, les anciens événements de `label` `eyes` avec leurs clips, et les images des détections (réécrites avec un carré rouge, dans `snapshots/`) restent telles quelles. Les images de `snapshots/` suivent toujours la durée de garde par leur ligne de la table `snapshots`.
+La recherche des yeux qui brillent a été retirée en novembre 2026 (code, réglage, icône de la WebApp), puis **ses données ont été supprimées** à la demande de l'utilisateur : table `eye_detections`, colonnes `settings.eyes_mode` et `eyes_now`, événements de `label` `eyes` avec leurs clips et images. Copies sur le mini PC : `data/backup/events.db.before-eyes-removal-20261117` et `data/clips/events.json.before-eyes-removal-20261117`.
 
 ## Réglages globaux (table `app_settings`)
 
@@ -71,7 +71,7 @@ La recherche des yeux qui brillent a été retirée en novembre 2026 (code, rég
   - **journal Hue** (`hue_events`, `purgeHueLog`) ;
   - **événements sans clip** (`started_at`), y compris ceux dont le clip vient de partir ; un événement dont le clip est sauvegardé reste ;
   - lignes de `merges` (`merged_at`).
-- Un clip **sauvegardé** n'est jamais effacé : liste dans `saved-clips.json` (écrit par l'API dans `data/house`, `/house` en lecture seule, `SAVED_CLIPS_FILE`, `savedClips.ts`).
+- Un clip **sauvegardé** n'est jamais effacé : document `saved-clips` de `house_state` (écrit par l'API, `savedClips.ts`).
 - **Garde-fou** : dossier non monté ou fichier abîmé (`readSavedIds` rend null) : **rien n'est effacé**, jour non marqué, nouvel essai dans 10 min. Fichier absent dans un dossier existant = aucun clip sauvegardé.
 - Les visites de la page invité ont leur durée : `GUEST_VISITS_DAYS` (365).
 - Anciennes variables supprimées : `SNAPSHOT_RETENTION_DAYS`, `HUE_LOG_DAYS`.
@@ -86,22 +86,21 @@ La recherche des yeux qui brillent a été retirée en novembre 2026 (code, rég
 
 - `GET`/`PUT /api/servos` (`servos.ts`) : `{url, shutters: {"2": {up, down, stop}, "5": ..., "6": ...}}` : l'adresse de l'ESP32 des servos (commune, défaut `http://192.168.1.115`) et, par volet (n° dans `SHUTTERS` de l'API : 2 salon, 5 PC, 6 porte), `up` (Monter), `down` (Descendre), `stop` : `{channel, start, end, speed, hold}`. Défauts : salon = réglages validés à la main (canaux 0, 1, 2) ; PC (canaux 3, 4, 5) et porte (6, 7, 8) avec angles à 0 (rien ne bouge tant qu'ils ne sont pas saisis). Le `PUT` accepte un corps partiel (fusionné avec l'existant) ; refus 400 si un volet est inconnu, si l'adresse n'est pas http, le canal n'est pas un entier de 0 à 15, un angle sort de −90..90, ou la vitesse ou l'attente sont négatives ou non finies.
 - `POST /api/servos/test` `{shutter, command, origin?}` (`servoTest.ts` ; `origin: true` met seulement le servo à 0° à la vitesse réglée, bouton « Origine ») : bouton « Tester » des réglages. Joue la séquence de l'ordre avec les réglages enregistrés, **directement** vers l'ESP32 des servos (même séquence que `api/src/lib/servoDriver.ts`, copie assumée : changer les deux) : `/set` vers le départ (vitesse réglée), attente, `/set` vers l'arrivée, attente, attente `hold`, retour au départ à vitesse 0, puis **relâche le servo** (`GET /off?ch=` après `ms + 800` : plus d'impulsion, donc ni ronronnement ni effort sur le bois). Répond 200 après le premier `/set` ; 502 si l'ESP32 ne répond pas, 400 si volet ou ordre inconnu. La suite est en tâche de fond ; un nouveau test sur le même canal l'annule.
-- Fichier `SERVOS_FILE` (`/servos/servos.json`, volume `./data/servos`, **à créer à la main** par l'utilisateur de la machine), écrit par fichier temporaire puis renommage ; House API le relit en lecture seule à chaque ordre (`api/src/lib/servoConfig.ts`). Sans fichier ou fichier faux : valeurs par défaut. Ancienne forme `{url, up, down, stop}` (salon seul) encore lue ; volets manquants aux défauts.
+- Stockage : le document `servos` de `house_state` (`servos.ts`), écrit ici, relu par l'API à chaque ordre. Le volume `./data/servos` n'est plus que l'ancien `servos.json`, repris une seule fois au démarrage. Sans document ou document faux : valeurs par défaut ; ancienne forme `{url, up, down, stop}` (salon seul) encore lue ; volets manquants aux défauts.
 
 ## Imports des autres services
 
+**`house_state`** (`houseState.ts`) : une ligne par document de l'utilisateur (`key`, `value` JSON, `updated_at`), écrite par l'API ; au démarrage, Sync reprend une seule fois chaque ancien fichier de `data/house` (`HOUSE_DIR`) et `servos.json` dont la clé manque. Journaux du chauffage et des volets : `POST /api/journal/…` (plus bas).
+
 Tous idempotents, fichiers lus en lecture seule. Un fichier absent ou abîmé ne touche pas la table.
 
-- **Plan** : toutes les 30 s, `plan.json` (`PLAN_FILE`, `plan.ts`) refait la table `plan` s'il a changé. Colonnes : `kind` (`arbre`, `haie`, `cage`, `decalage`, `objet`, `camera`), `id`, `x`, `y`, `data` (JSON). Le fichier reste la source.
+- **Plan** : toutes les 30 s, le document `plan` de `house_state` (`plan.ts`) refait la table `plan` s'il a changé. Colonnes : `kind` (`arbre`, `haie`, `cage`, `decalage`, `objet`, `camera`), `id`, `x`, `y`, `data` (JSON). Le fichier reste la source.
 - **Visites invité** : toutes les 15 s, `visits.jsonl` (`GUEST_VISITS_FILE`, volume `./data/guest-visits`, `guestVisits.ts`) vers `guest_visits`.
   - `kind` : `page`, `stream`, `refused` ; `origin` : maison, VPN, mini PC, internet ; `cle` : `avec clé`, `sans clé`, `clé fausse`.
   - Position lue dans `app_settings.guest_visits_offset` ; fichier qui a tourné relu depuis le début ; seules les lignes complètes comptent.
   - Au-delà de `GUEST_VISITS_DAYS`, supprimées chaque jour. Ce que la page écrit : `../../guest/CLAUDE.md`.
-- **Chauffage** : toutes les 30 s, `heating-log.jsonl` (`HEATING_LOG_FILE`, `heatingLog.ts`) vers `heating_log`.
-  - Unicité (`started_at`, `origin`). `cost` est **calculé par l'API** à l'activation et recopié tel quel : aucune logique de tarif ici.
-  - Le fichier garde 5000 lignes, la table tout. L'en-tête de la table affiche les sommes (`sumsOf` de `data.ts`, `heating_log` seulement). Règles : `../../api/src/routes/CLAUDE.md`.
-- **Volets** : toutes les 30 s, `shutters-log.jsonl` (`SHUTTER_LOG_FILE`, `shutterLog.ts`) vers `shutter_log` (`happened_at`, `shutter`, `name`, `command`, `ok`, `note`). Unicité (`happened_at`, `shutter`, `command`). `ok` à 0 : ESP32 muette ; `note` `simulation` sans radio.
-- **Invités de la box** : toutes les 30 s, `box-connections.jsonl` (`BOX_LOG_FILE`, `boxConnections.ts`) vers `box_connections` (`happened_at`, `event` `connect`/`disconnect`, `mac`, `name`, `ip`, `type`, `vendor`). Unicité (`happened_at`, `mac`, `event`). Table créée par `CREATE TABLE IF NOT EXISTS` : les bases existantes ne sont pas touchées. Les noms viennent d'avant le mot « invité » et ont été gardés. Règles côté API : `../../api/src/routes/CLAUDE.md` (« Invités de la box »).
+- **Journaux du chauffage et des volets** (plus d'import de fichier) : House API envoie chaque activation et chaque ordre à `POST /api/journal/heating` et `/api/journal/shutters` (clé `X-House-Key` ou session ; `heatingLog.ts`, `shutterLog.ts`), que Sync range dans `heating_log` (unicité `started_at`, `origin` ; `cost` **calculé par l'API** à l'activation, recopié tel quel) et `shutter_log` (`happened_at`, `shutter`, `name`, `command`, `ok`, `note` ; unicité `happened_at`, `shutter`, `command` ; `ok` à 0 : ESP32 muette ; `note` `simulation` sans radio). L'en-tête de la table du chauffage affiche les sommes (`sumsOf` de `data.ts`). Règles : `../../api/src/routes/CLAUDE.md`.
+- **Box** (`boxWatcher.ts`, **pas un import** : Sync surveille lui-même) : toutes les 15 s, `GET /box` de l'API (`apiTargetOf`, `fetchApi` ; le jeton de la box reste chez l'API) vers `box_known` (la maison, photo des appareils actifs au premier tour), `box_guests` (les invités vus connectés) et `box_connections` (`happened_at`, `event` `connect`/`disconnect`, `mac`, `name`, `ip`, `type`, `vendor` ; unicité `happened_at`, `mac`, `event`). Au démarrage, reprise unique des anciens `box-known.json` et `box-guests.json` (`BOX_KNOWN_FILE`, `BOX_GUESTS_FILE`) si les tables sont vides. L'API écrit seulement l'ajout d'un appareil à la maison (action de l'utilisateur). Règles : `../../api/src/routes/CLAUDE.md` (« Invités de la box »).
 
 ## Énergie (estimations)
 

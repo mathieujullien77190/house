@@ -1,6 +1,6 @@
 # sync – House Sync
 
-Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépendance. Le **seul programme qui écrit** sur le disque backup (`/data` = `data/backup`) : `events.db` (SQLite), `clips/<caméra>/<id>.mp4`, `snapshots/<caméra>/<t>.jpg`. Règles de la pile : `../CLAUDE.md`.
+Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépendance. Le **seul programme qui écrit les observations** dans la base et qui écrit sur le disque backup (`/data` = `data/backup`) : `events.db` (SQLite), `clips/<caméra>/<id>.mp4`, `snapshots/<caméra>/<t>.jpg`. Règles de la pile : `../CLAUDE.md`.
 
 ## Deux rôles
 

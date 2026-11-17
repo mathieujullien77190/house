@@ -8,12 +8,12 @@ Express 5 en TypeScript, Node 24 (pas de compilation). Sert aussi la WebApp comp
 
 ## Rôle
 
-- Lit `events.db` et le disque backup (lecture seule). **N'écrit jamais** la base ni le disque backup.
+- Lit `events.db` et le disque backup. **N'écrit dans la base que pour une action de l'utilisateur** (tables d'actions, `Database.run`) ; jamais le disque backup, jamais une observation (c'est House Sync).
 - Relaie go2rtc pour le direct : `GO2RTC_URLS` (un par enregistreur, le premier par défaut, `http://go2rtc:1984`, réseau `sync_net`).
 - Pilote le PoE du switch, le pont Hue, la prise Kasa, les climatisations, les volets, la Freebox (WiFi, appareils) et la télécommande du Player ; relaie l'enregistreur pour les clips à la main.
-- Ses seules écritures : les ordres aux équipements et les fichiers de `STATE_DIR` (`/state`, volume `data/house`).
+- Ses seules écritures : les ordres aux équipements, la table `house_state` (les documents de l'utilisateur, `lib/docStore.ts`), l'ajout d'un appareil à la maison et le dossier `STATE_DIR` (`/state`, volume `data/house`) pour `tv/`.
 - `data/house` est à créer avec l'utilisateur qui lance Docker : le conteneur écrit en `node` (uid 1000).
-- Contenu de `STATE_DIR` : positions des ampoules, clips sauvegardés, notes et emoji des clips, zones, repères, plan, garde de la prise, `heating.json` et `heating-log.jsonl`, volets, `box-connections.jsonl`, `box-known.json` (la maison), `box-guests.json` (invités de la box) et `tv/` (certificat client et clé privée du Player appairé, **secret**, droits `0700` / `0600`).
+- Contenu de `STATE_DIR` : seulement `tv/` (certificat client et clé privée du Player appairé, **secret**, droits `0700` / `0600`). Tous les autres documents sont dans `house_state` (positions des ampoules, clips sauvegardés, notes et emoji des clips, zones, repères, plan, garde de la prise, `heating`, volets automatiques, `servos`).
 
 ## Fichiers clés
 
@@ -21,10 +21,11 @@ Express 5 en TypeScript, Node 24 (pas de compilation). Sert aussi la WebApp comp
 - `routes/index.ts` : monte les routes ; `SECURED_PATHS` liste ce qui exige la clé (`/openapi.json` et `/docs` compris).
 - `openapi/` : `routes.ts` (liste de toutes les routes, source), `spec.ts` (document OpenAPI 3), `docs.ts` (`GET /openapi.json` et Swagger UI sur `GET /docs`, fichiers du paquet `swagger-ui-dist` servis par l'API, aucun CDN).
 - `middleware/requireKey` : `X-House-Key` en temps constant, ou la session ; 10 clés fausses par adresse en 15 min, puis 429.
-- `db/database.ts` : SQLite en lecture seule ; base pas prête : 503.
+- `db/database.ts` : SQLite (lecture, et écriture des actions de l'utilisateur, `run`) ; base pas prête : 503.
 - `services/poe` : caméra vers port du switch, état en cache 3 s.
 - `lib/freebox.ts` : client de la Freebox (session HMAC en cache, renouvelée) ; secret `FREEBOX_APP_TOKEN`.
-- `services/boxWatcher.ts` : surveillant des invités de la box, créé dans `app.ts` et **lancé par `index.ts`** (`app.locals.boxWatcher.start()`, pas dans les tests). Détail : `src/routes/CLAUDE.md` (« Invités de la box »).
+- `lib/journalClient.ts` : envoie à House Sync (`POST /api/journal/heating|shutters`, `SYNC_URL`) chaque activation du chauffage et chaque ordre de volet ; `lib/heatingLog.ts` et `lib/shutterLog.ts` les relisent dans les tables `heating_log` et `shutter_log`.
+- `repositories/boxRepository.ts` : les appareils de la box (maison, invités, connexions), lus dans les tables que House Sync remplit ; écrit seulement l'ajout ou le retrait d'un appareil de la maison (action de l'utilisateur). Détail : `src/routes/CLAUDE.md` (« Invités de la box »).
 - `lib/tvRemote.ts` (+ `tvWire.ts`, `tvMessages.ts`, `tvKeys.ts`, `tvCert.ts`, `tvStore.ts`) : télécommande du Freebox Player (Android TV Remote v2) ; secret : le certificat client dans `STATE_DIR/tv` (voir `src/routes/CLAUDE.md`, « Télécommande TV »).
 - `lib/*Client.ts` : clients des équipements (Hue, Kasa, switch ES208GP, climatisations Mitsubishi).
 - `lib/backupFiles.ts` : envoi d'un fichier du disque backup, jamais hors du disque, avec `Range`.
