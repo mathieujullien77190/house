@@ -2,19 +2,19 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { FreeboxError } from '../lib/freebox.ts'
 import { WhitelistMode, type BoxService } from '../services/boxService.ts'
-import type { BoxWatcher } from '../services/boxWatcher.ts'
+import type { BoxRepository } from '../repositories/boxRepository.ts'
 import { call, routerApp, withServer } from '../testing/helpers.ts'
 import { boxRouter } from './box.ts'
 
 const GUEST = 'AA:BB:CC:DD:EE:01'
 const HOME = 'AA:BB:CC:DD:EE:02'
 
-const watcher = {
+const repo = {
   recent: (count: number) => [{ at: count, event: 'connect', mac: GUEST, name: 'Tel', ip: null, type: null, vendor: null }],
   homeList: () => [{ mac: HOME, name: 'TV', ip: null }],
   guestList: () => [{ mac: GUEST, name: 'Tel', ip: null, type: null, vendor: null, firstSeen: 1, lastSeen: 2, active: true }],
   addToHome: (mac: unknown) => (mac === 'x' ? 'invalid' : mac === 'later' ? 'not-ready' : { mac, name: 'N', ip: null }),
-} as unknown as BoxWatcher
+} as unknown as BoxRepository
 
 const boxWith = (setExcluded: BoxService['setExcluded'], filter: Awaited<ReturnType<BoxService['macFilter']>> | Error) =>
   ({
@@ -27,7 +27,7 @@ const boxWith = (setExcluded: BoxService['setExcluded'], filter: Awaited<ReturnT
 
 test('GET /box/guests : résumé, invités avec leur exclusion, événements, limite validée', async () => {
   const box = boxWith(async () => ({ excluded: true }), { state: 'blacklist', entries: [{ id: 'a', mac: GUEST, type: 'blacklist' }] })
-  await withServer(routerApp(boxRouter(box, watcher)), async (url) => {
+  await withServer(routerApp(boxRouter(box, repo)), async (url) => {
     const body = (await call(`${url}/box/guests`)).body as { filterState: string; guests: { excluded: boolean }[]; events: { at: number }[] }
     assert.equal(body.filterState, 'blacklist')
     assert.equal(body.guests[0].excluded, true)
@@ -40,17 +40,17 @@ test('GET /box/guests : résumé, invités avec leur exclusion, événements, li
 
 test('GET /box/guests : excluded est null si la box ne répond pas ou sans box', async () => {
   const mute = boxWith(async () => ({ excluded: true }), new Error('muette'))
-  await withServer(routerApp(boxRouter(mute, watcher)), async (url) => {
+  await withServer(routerApp(boxRouter(mute, repo)), async (url) => {
     const body = (await call(`${url}/box/guests`)).body as { filterState: null; guests: { excluded: null }[] }
     assert.deepEqual([body.filterState, body.guests[0].excluded], [null, null])
   })
-  await withServer(routerApp(boxRouter(null, watcher)), async (url) => {
+  await withServer(routerApp(boxRouter(null, repo)), async (url) => {
     assert.equal(((await call(`${url}/box/guests`)).body as { guests: { excluded: null }[] }).guests[0].excluded, null)
   })
 })
 
 test('GET /box/known et PUT /box/known', async () => {
-  await withServer(routerApp(boxRouter(null, watcher)), async (url) => {
+  await withServer(routerApp(boxRouter(null, repo)), async (url) => {
     assert.deepEqual((await call(`${url}/box/known`)).body, { home: [{ mac: HOME, name: 'TV', ip: null }] })
     const put = (mac: unknown) => call(`${url}/box/known`, 'PUT', { mac })
     assert.equal((await put('AA:BB:CC:DD:EE:03')).status, 200)
@@ -70,7 +70,7 @@ test('PUT /box/guests/:mac/exclude : validations, succès et erreurs de la box',
     },
     { state: 'disabled', entries: [] },
   )
-  await withServer(routerApp(boxRouter(box, watcher)), async (url) => {
+  await withServer(routerApp(boxRouter(box, repo)), async (url) => {
     const exclude = (mac: string, body: unknown = { excluded: true }) => call(`${url}/box/guests/${mac}/exclude`, 'PUT', body)
     assert.equal((await exclude('pas-une-mac')).status, 400)
     assert.equal((await exclude(GUEST, { excluded: 'oui' })).status, 400)
@@ -111,11 +111,11 @@ test('GET /box : non configurée, état tel quel sans liste de la maison, `home`
   await withServer(routerApp(boxRouter(box)), async (url) => {
     assert.deepEqual((await call(`${url}/box`)).body, state)
   })
-  const empty = { homeList: () => [] } as unknown as BoxWatcher
+  const empty = { homeList: () => [] } as unknown as BoxRepository
   await withServer(routerApp(boxRouter(box, empty)), async (url) => {
     assert.deepEqual((await call(`${url}/box`)).body, state)
   })
-  await withServer(routerApp(boxRouter(box, watcher)), async (url) => {
+  await withServer(routerApp(boxRouter(box, repo)), async (url) => {
     const devices = ((await call(`${url}/box`)).body as { devices: { home: boolean }[] }).devices
     assert.deepEqual(devices.map((device) => device.home), [true, false])
   })
@@ -149,14 +149,14 @@ test('DELETE /box/known/:mac : retire de la maison, ou 400, 503, 404', async () 
   const removing = {
     homeList: () => [{ mac: HOME, name: 'TV', ip: null }],
     removeFromHome: () => result,
-  } as unknown as BoxWatcher
+  } as unknown as BoxRepository
   await withServer(routerApp(boxRouter(null)), async (url) => {
     assert.equal((await call(`${url}/box/known/${HOME}`, 'DELETE')).status, 503)
   })
   await withServer(routerApp(boxRouter(null, removing)), async (url) => {
     const remove = () => call(`${url}/box/known/${HOME}`, 'DELETE')
     assert.deepEqual((await remove()).body, { home: [{ mac: HOME, name: 'TV', ip: null }] })
-    for (const [name, status] of [['invalid', 400], ['not-ready', 503], ['absent', 404]] as const) {
+    for (const [name, status] of [['invalid', 400], ['absent', 404]] as const) {
       result = name
       assert.equal((await remove()).status, status, name)
     }
@@ -183,4 +183,20 @@ test('PUT /box/wifi : 503, 400, succès, erreurs de la box', async () => {
     failure = new Error('x')
     assert.deepEqual((await put({ enabled: true })).body, { error: 'box unreachable' })
   })
+})
+
+test('PUT /box/known : le nom et l’adresse vivants de la box sont transmis, sinon rien', async () => {
+  const seen: unknown[] = []
+  const adding = { addToHome: (mac: unknown, live: unknown) => (seen.push(live), { mac, name: 'N', ip: null }) } as unknown as BoxRepository
+  const live = { state: async () => ({ devices: [{ mac: GUEST, name: 'Tel', ip: '192.168.1.30' }, { mac: HOME, name: 'TV' }] }) } as unknown as BoxService
+  await withServer(routerApp(boxRouter(live, adding)), async (url) => {
+    await call(`${url}/box/known`, 'PUT', { mac: GUEST.toLowerCase() })
+    await call(`${url}/box/known`, 'PUT', { mac: HOME })
+    await call(`${url}/box/known`, 'PUT', { mac: 'AA:BB:CC:DD:EE:09' })
+  })
+  const mute = { state: async () => { throw new Error('muette') } } as unknown as BoxService
+  await withServer(routerApp(boxRouter(mute, adding)), async (url) => {
+    await call(`${url}/box/known`, 'PUT', { mac: GUEST })
+  })
+  assert.deepEqual(seen, [{ name: 'Tel', ip: '192.168.1.30' }, { name: 'TV', ip: null }, null, null])
 })
