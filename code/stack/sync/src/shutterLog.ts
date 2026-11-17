@@ -1,7 +1,5 @@
-// Le journal des ordres aux volets roulants : House API écrit une ligne JSON par ordre dans un fichier (monté ici en lecture seule), House Sync les
-// importe dans la table `shutter_log` de SQLite (onglet Base). Le fichier ne garde que les dernières lignes (l'API le fait tourner) : la table garde tout ;
-// la clé d'unicité (happened_at, shutter, command) évite d'importer deux fois la même ligne.
-import { readFile } from 'node:fs/promises'
+// Le journal des ordres aux volets roulants, table `shutter_log` de SQLite (onglet Base). House API envoie chaque ordre à House Sync (`POST /api/journal/shutters`),
+// seul à écrire dans la base ; la clé d'unicité (happened_at, shutter, command) évite deux fois la même ligne.
 import type { DatabaseSync } from 'node:sqlite'
 
 export const SHUTTER_LOG_TABLE = 'shutter_log'
@@ -23,16 +21,8 @@ export const createShutterLogTable = (db: DatabaseSync): void => {
   `)
 }
 
-/** Une ligne du journal en ligne de table ; null si elle n'a pas la forme attendue. */
-export const parseShutter = (line: string) => {
-  let raw: Record<string, unknown>
-  try {
-    const parsed: unknown = JSON.parse(line)
-    if (typeof parsed !== 'object' || parsed === null) return null
-    raw = parsed as Record<string, unknown>
-  } catch {
-    return null
-  }
+/** Un ordre reçu en ligne de table ; null s'il n'a pas la forme attendue. */
+export const parseShutter = (raw: Record<string, unknown>) => {
   if (typeof raw.at !== 'number' || !Number.isFinite(raw.at)) return null
   if (typeof raw.shutter !== 'string' || typeof raw.name !== 'string' || typeof raw.ok !== 'boolean') return null
   if (typeof raw.command !== 'string' || !COMMANDS.includes(raw.command)) return null
@@ -46,28 +36,12 @@ export const parseShutter = (line: string) => {
   }
 }
 
-/** Importe les lignes nouvelles du fichier (le fichier entier est relu : il est court) ; rend leur nombre. Un fichier absent ne fait rien. */
-export const importShutterLog = async (db: DatabaseSync, file: string): Promise<number> => {
-  let text: string
-  try {
-    text = await readFile(file, 'utf8')
-  } catch {
-    return 0
-  }
+/** Range un ordre ; rend vrai s'il est nouveau, faux s'il est mal formé ou déjà là. */
+export const recordShutter = (db: DatabaseSync, raw: Record<string, unknown>): boolean => {
+  const entry = parseShutter(raw)
+  if (!entry) return false
   const insert = db.prepare(
     `INSERT OR IGNORE INTO ${SHUTTER_LOG_TABLE} (happened_at, shutter, name, command, ok, note) VALUES (:happened_at, :shutter, :name, :command, :ok, :note)`,
   )
-  let imported = 0
-  db.exec('BEGIN')
-  try {
-    for (const line of text.split('\n')) {
-      const entry = parseShutter(line)
-      if (entry) imported += Number(insert.run(entry).changes)
-    }
-    db.exec('COMMIT')
-  } catch (error) {
-    db.exec('ROLLBACK')
-    throw error
-  }
-  return imported
+  return Number(insert.run(entry).changes) > 0
 }

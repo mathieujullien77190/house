@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createMockDriver, type ShutterDriver } from '../lib/shutterDriver.ts'
 import { createShutterLog, type ShutterEntry, type ShutterLog } from '../lib/shutterLog.ts'
-import { withTempDir } from '../testing/helpers.ts'
+import { journalToDatabase, memoryDatabase } from '../testing/helpers.ts'
 import { createShuttersService, NoCloseTime, OPEN_MARGIN_SECONDS, UnknownShutter } from './shuttersService.ts'
 
 const SHUTTERS = [
@@ -79,12 +79,11 @@ test('le dernier ordre est relu du journal (le plus récent réussi de chaque vo
   assert.equal(service.state().shutters[1].lastCommand, null)
 })
 
-test('avec un vrai journal sur disque', async () => {
-  await withTempDir(async (dir) => {
-    const log = createShutterLog(`${dir}/log.jsonl`)
-    await createShuttersService({ shutters: SHUTTERS, driver: createMockDriver(), log, now: () => 9 }).command('1', 'up')
-    assert.equal(createShuttersService({ shutters: SHUTTERS, driver: createMockDriver(), log }).state().shutters[0].lastAt, 9)
-  })
+test('avec le vrai journal (envoi puis relecture de la table)', async () => {
+  const db = memoryDatabase()
+  const log = createShutterLog(journalToDatabase(db), db)
+  await createShuttersService({ shutters: SHUTTERS, driver: createMockDriver(), log, now: () => 9 }).command('1', 'up')
+  assert.equal(createShuttersService({ shutters: SHUTTERS, driver: createMockDriver(), log }).state().shutters[0].lastAt, 9)
 })
 
 const HALF = [{ id: '1', name: 'Cuisine', shadeId: 11, closeSeconds: 19 }, ...SHUTTERS.slice(1)]

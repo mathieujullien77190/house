@@ -1,8 +1,8 @@
-// Le journal des ordres aux volets roulants : une ligne JSON par ordre dans STATE_DIR/shutters-log.jsonl.
-// L'API l'écrit ; House Sync l'importe dans la table `shutter_log` de SQLite (l'API n'écrit jamais la base). Le fichier garde les N dernières lignes.
-import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { SHUTTER_COMMANDS, type ShutterCommand } from './shutterDriver.ts'
+// Le journal des ordres aux volets roulants, table `shutter_log` de la base. L'API envoie chaque ordre à House Sync (`lib/journalClient.ts`), seul à écrire dans la base, et la relit
+// au démarrage pour retrouver le dernier ordre de chaque volet. Une base pas encore prête ou une écriture qui échoue ne gêne jamais la commande du volet.
+import type { Database } from '../db/database.ts'
+import type { JournalPost } from './journalClient.ts'
+import type { ShutterCommand } from './shutterDriver.ts'
 
 export interface ShutterEntry {
   /** Secondes depuis 1970. */
@@ -17,64 +17,28 @@ export interface ShutterEntry {
   note: string | null
 }
 
-/** Combien de lignes le fichier garde. */
-export const MAX_LINES = 5000
-
-/** Une ligne du fichier en ordre ; null si elle est abîmée. */
-export const parseEntry = (line: string): ShutterEntry | null => {
-  let raw: Record<string, unknown>
-  try {
-    const parsed: unknown = JSON.parse(line)
-    if (typeof parsed !== 'object' || parsed === null) return null
-    raw = parsed as Record<string, unknown>
-  } catch {
-    return null
-  }
-  if (typeof raw.at !== 'number' || !Number.isFinite(raw.at)) return null
-  if (typeof raw.shutter !== 'string' || typeof raw.name !== 'string' || typeof raw.ok !== 'boolean') return null
-  if (typeof raw.command !== 'string' || !SHUTTER_COMMANDS.includes(raw.command as ShutterCommand)) return null
-  return {
-    at: raw.at,
-    shutter: raw.shutter,
-    name: raw.name,
-    command: raw.command as ShutterCommand,
-    ok: raw.ok,
-    note: typeof raw.note === 'string' ? raw.note.slice(0, 200) : null,
-  }
+interface ShutterRow {
+  at: number
+  shutter: string
+  name: string
+  command: ShutterCommand
+  ok: number
+  note: string | null
 }
 
-export const createShutterLog = (file: string, limit = MAX_LINES) => {
-  const readAll = (): ShutterEntry[] => {
-    let text: string
+export const createShutterLog = (post: JournalPost, db: Database) => ({
+  /** Envoie un ordre à House Sync. */
+  append: (entry: ShutterEntry): void => post('shutters', entry),
+  /** Les `count` derniers ordres, le plus récent d'abord. */
+  recent: (count: number): ShutterEntry[] => {
     try {
-      text = readFileSync(file, 'utf8')
+      return db
+        .all<ShutterRow>('SELECT happened_at AS at, shutter, name, command, ok, note FROM shutter_log ORDER BY happened_at DESC, id DESC LIMIT ?', count)
+        .map((row) => ({ ...row, ok: row.ok === 1 }))
     } catch {
       return []
     }
-    return text
-      .split('\n')
-      .map(parseEntry)
-      .filter((entry): entry is ShutterEntry => entry !== null)
-  }
-  return {
-    /** Ajoute un ordre. Une écriture qui échoue ne gêne jamais la commande du volet. */
-    append: (entry: ShutterEntry): void => {
-      try {
-        mkdirSync(dirname(file), { recursive: true })
-        appendFileSync(file, `${JSON.stringify(entry)}\n`)
-        const all = readAll()
-        if (all.length > limit) {
-          const partial = `${file}.tmp`
-          writeFileSync(partial, all.slice(-limit).map((kept) => `${JSON.stringify(kept)}\n`).join(''))
-          renameSync(partial, file)
-        }
-      } catch {
-        // le journal est perdu pour cette fois, le volet a reçu son ordre quand même
-      }
-    },
-    /** Les `count` derniers ordres, le plus récent d'abord. */
-    recent: (count: number): ShutterEntry[] => readAll().slice(-count).reverse(),
-  }
-}
+  },
+})
 
 export type ShutterLog = ReturnType<typeof createShutterLog>

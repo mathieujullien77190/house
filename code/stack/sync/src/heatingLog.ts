@@ -1,8 +1,6 @@
-// Le journal des activations du chauffage (la prise de la volière) : House API écrit une ligne JSON par activation dans un fichier (monté ici en lecture
-// seule), House Sync les importe dans la table `heating_log` de SQLite (onglet Base). Le fichier ne garde que les dernières lignes (l'API le fait tourner) :
-// la table garde tout ; la clé d’unicité (started_at, origin) évite d'importer deux fois la même ligne. Le coût (`cost`) est calculé par l'API au moment de
-// l'activation (tarif et puissance du moment) : House Sync le recopie sans le recalculer.
-import { readFile } from 'node:fs/promises'
+// Le journal des activations du chauffage (la prise de la volière), table `heating_log` de SQLite (onglet Base). House API envoie chaque activation à House Sync
+// (`POST /api/journal/heating`), seul à écrire dans la base ; la clé d'unicité (started_at, origin) évite deux fois la même ligne. Le coût (`cost`) est calculé par
+// l'API au moment de l'activation (tarif et puissance du moment) : House Sync le range sans le recalculer.
 import type { DatabaseSync } from 'node:sqlite'
 
 export const HEATING_LOG_TABLE = 'heating_log'
@@ -25,16 +23,8 @@ export const createHeatingLogTable = (db: DatabaseSync): void => {
 
 const number = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null)
 
-/** Une ligne du journal en ligne de table ; null si elle n'a pas la forme attendue. */
-export const parseHeating = (line: string) => {
-  let raw: Record<string, unknown>
-  try {
-    const parsed: unknown = JSON.parse(line)
-    if (typeof parsed !== 'object' || parsed === null) return null
-    raw = parsed as Record<string, unknown>
-  } catch {
-    return null
-  }
+/** Une activation reçue en ligne de table ; null si elle n'a pas la forme attendue. */
+export const parseHeating = (raw: Record<string, unknown>) => {
   const at = number(raw.at)
   const minutes = number(raw.minutes)
   if (at === null || minutes === null || (raw.origin !== 'auto' && raw.origin !== 'manuel')) return null
@@ -48,28 +38,12 @@ export const parseHeating = (line: string) => {
   }
 }
 
-/** Importe les lignes nouvelles du fichier (le fichier entier est relu : il est court) ; rend leur nombre. Un fichier absent ne fait rien. */
-export const importHeatingLog = async (db: DatabaseSync, file: string): Promise<number> => {
-  let text: string
-  try {
-    text = await readFile(file, 'utf8')
-  } catch {
-    return 0
-  }
+/** Range une activation ; rend vrai si elle est nouvelle, faux si elle est mal formée ou déjà là. */
+export const recordHeating = (db: DatabaseSync, raw: Record<string, unknown>): boolean => {
+  const entry = parseHeating(raw)
+  if (!entry) return false
   const insert = db.prepare(
     `INSERT OR IGNORE INTO ${HEATING_LOG_TABLE} (started_at, origin, minutes, temperature, note, cost) VALUES (:started_at, :origin, :minutes, :temperature, :note, :cost)`,
   )
-  let imported = 0
-  db.exec('BEGIN')
-  try {
-    for (const line of text.split('\n')) {
-      const entry = parseHeating(line)
-      if (entry) imported += Number(insert.run(entry).changes)
-    }
-    db.exec('COMMIT')
-  } catch (error) {
-    db.exec('ROLLBACK')
-    throw error
-  }
-  return imported
+  return Number(insert.run(entry).changes) > 0
 }

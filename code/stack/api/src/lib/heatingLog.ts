@@ -1,7 +1,7 @@
-// Le journal des activations du chauffage (la prise de la volière) : une ligne JSON par activation dans STATE_DIR/heating-log.jsonl.
-// L'API l'écrit ; House Sync l'importe dans la table `heating_log` de SQLite (l'API n'écrit jamais la base). Le fichier garde les N dernières lignes.
-import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+// Le journal des activations du chauffage (la prise de la volière), table `heating_log` de la base. L'API envoie chaque activation à House Sync (`lib/journalClient.ts`), seul à écrire
+// dans la base, et relit la table pour le rythme de la règle automatique et la page. Une base pas encore prête ou une écriture qui échoue ne gêne jamais la commande de la prise.
+import type { Database } from '../db/database.ts'
+import type { JournalPost } from './journalClient.ts'
 
 /** D'où vient l'activation : la règle automatique, ou une commande de l'API (WebApp) avec une durée. Un geste sur la prise elle-même (bouton, appli Kasa) n'est pas noté. */
 export type HeatingOrigin = 'auto' | 'manuel'
@@ -22,71 +22,34 @@ export interface HeatingEntry {
 /** Une activation avant le calcul de son coût. */
 export type Activation = Omit<HeatingEntry, 'cost'>
 
-/** Combien de lignes le fichier garde. */
-export const MAX_LINES = 5000
-const ORIGINS: readonly string[] = ['auto', 'manuel']
-
-const numberOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null)
-
-/** Une ligne du fichier en activation ; null si elle est abîmée. */
-export const parseEntry = (line: string): HeatingEntry | null => {
-  let raw: Record<string, unknown>
-  try {
-    const parsed: unknown = JSON.parse(line)
-    if (typeof parsed !== 'object' || parsed === null) return null
-    raw = parsed as Record<string, unknown>
-  } catch {
-    return null
-  }
-  const at = numberOrNull(raw.at)
-  const minutes = numberOrNull(raw.minutes)
-  if (at === null || minutes === null || typeof raw.origin !== 'string' || !ORIGINS.includes(raw.origin)) return null
-  return {
-    at,
-    origin: raw.origin as HeatingOrigin,
-    minutes,
-    temperature: numberOrNull(raw.temperature),
-    note: typeof raw.note === 'string' ? raw.note.slice(0, 200) : null,
-    cost: numberOrNull(raw.cost),
-  }
-}
-
-export const createHeatingLog = (file: string, limit = MAX_LINES) => {
-  /** Toutes les activations du fichier, dans l'ordre d'écriture (les lignes abîmées et un fichier absent sont ignorés). */
-  const readAll = (): HeatingEntry[] => {
-    let text: string
+export const createHeatingLog = (post: JournalPost, db: Database) => {
+  // L'envoi à House Sync est asynchrone : la dernière activation envoyée compte tout de suite pour la règle (cooldown), avant d'être dans la table.
+  let sentAt: number | null = null
+  const lastStored = (): number | null => {
     try {
-      text = readFileSync(file, 'utf8')
+      return db.get<{ at: number | null }>('SELECT MAX(started_at) AS at FROM heating_log')?.at ?? null
     } catch {
-      return []
+      return null
     }
-    return text
-      .split('\n')
-      .map(parseEntry)
-      .filter((entry): entry is HeatingEntry => entry !== null)
   }
   return {
-    /** Ajoute une activation. Une écriture qui échoue ne gêne jamais la commande de la prise. */
+    /** Envoie une activation à House Sync. */
     append: (entry: HeatingEntry): void => {
+      sentAt = Math.max(sentAt ?? entry.at, entry.at)
+      post('heating', entry)
+    },
+    /** Les `count` dernières activations, la plus récente d'abord. */
+    recent: (count: number): HeatingEntry[] => {
       try {
-        mkdirSync(dirname(file), { recursive: true })
-        appendFileSync(file, `${JSON.stringify(entry)}\n`)
-        const all = readAll()
-        if (all.length > limit) {
-          const partial = `${file}.tmp`
-          writeFileSync(partial, all.slice(-limit).map((kept) => `${JSON.stringify(kept)}\n`).join(''))
-          renameSync(partial, file)
-        }
+        return db.all<HeatingEntry>('SELECT started_at AS at, origin, minutes, temperature, note, cost FROM heating_log ORDER BY started_at DESC LIMIT ?', count)
       } catch {
-        // le journal est perdu pour cette fois, la prise marche quand même
+        return []
       }
     },
-    /** Les `limit` dernières activations, la plus récente d'abord. */
-    recent: (count: number): HeatingEntry[] => readAll().slice(-count).reverse(),
     /** Le début de la dernière activation (secondes), null s'il n'y en a jamais eu. */
     lastAt: (): number | null => {
-      const all = readAll()
-      return all.length === 0 ? null : Math.max(...all.map((entry) => entry.at))
+      const stored = lastStored()
+      return stored === null ? sentAt : sentAt === null ? stored : Math.max(stored, sentAt)
     },
   }
 }
