@@ -33,6 +33,7 @@ export const ZONES: { id: string; name: string; lights: string[]; sensors?: stri
   { id: 'cuisine', name: 'Cuisine', lights: ['13', '14', '3', '5'] },
   { id: 'entree', name: 'Entrée', lights: ['27'] },
   { id: 'chambre-1', name: 'Chambre 1', lights: ['15'] },
+  { id: 'jardin', name: 'Jardin', lights: ['2'] },
   // Les lampes du pont qui ne sont dans aucune zone (« SdB 2 », la lampe 1, par exemple) ne sont pas dans l'application.
   { id: 'sdb', name: 'SdB', lights: ['9', '10', '19', '8', '6', '4'] },
   { id: 'wc', name: 'WC', lights: ['28'] },
@@ -97,6 +98,7 @@ export const PLAN_ENTRANCE_WALL = { room: 'Entrée', fromX: 404 }
  * à gauche de la maison). Une lampe qui n'est pas ici attend dans la zone « À placer », à droite de la maison.
  */
 export const LAMP_POSITIONS: Positions = {
+  '2': { x: 300, y: 380 },
   '3': { x: 331, y: 140 },
   '4': { x: 205, y: 14 },
   '6': { x: 207, y: 40 },

@@ -63,7 +63,7 @@ export interface LampPower {
  * Les lampes Hue **placées dans une zone de la maison** (identifiants du pont) : celles de la page Lumière hors du groupe « À placer ». Seules elles comptent dans la consommation. **Copie assumée**
  * des lampes de `ZONES` dans `web/src/components/Lights/constants.ts` : si l'un change, changer l'autre.
  */
-export const PLACED_LAMPS: ReadonlySet<string> = new Set(['15', '9', '10', '19', '8', '6', '4', '28', '13', '14', '3', '5', '7', '27', '11', '16', '18', '22', '26'])
+export const PLACED_LAMPS: ReadonlySet<string> = new Set(['2', '15', '9', '10', '19', '8', '6', '4', '28', '13', '14', '3', '5', '7', '27', '11', '16', '18', '22', '26'])
 
 /** Les lampes de `GET /hue` (pièces et leurs lampes), chacune une fois même si plusieurs pièces la citent ; une lampe sans estimation (`watts` nul) ou « à placer » (hors de `PLACED_LAMPS`) est laissée de côté. */
 export const parseLamps = (data: unknown): LampPower[] | null => {
@@ -86,7 +86,7 @@ export const parseLamps = (data: unknown): LampPower[] | null => {
 }
 
 /** Lit `path` chez House API (même clé, même CA) et le passe à `parse` ; échoue avec un message lisible. */
-const fetchApi = <T>(target: ApiTarget, path: string, parse: (data: unknown) => T | null): Promise<T> =>
+export const fetchApi = <T>(target: ApiTarget, path: string, parse: (data: unknown) => T | null): Promise<T> =>
   new Promise((resolve, reject) => {
     const req = request(
       `${target.url}${path}`,

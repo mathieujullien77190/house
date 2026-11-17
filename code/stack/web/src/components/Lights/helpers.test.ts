@@ -116,7 +116,7 @@ describe('planLamps', () => {
   })
 
   it('une ancienne position dans la zone « À placer » ou absente : la lampe n’est pas sur la carte', () => {
-    const lamps = planLamps([light('1'), light('2'), light('3')], {}, { '1': { x: SIDE_ZONE.x, y: 5 } })
+    const lamps = planLamps([light('1'), light('998'), light('3')], {}, { '1': { x: SIDE_ZONE.x, y: 5 } })
     expect(lamps.map((lamp) => lamp.id)).toEqual(['3'])
     expect(lamps[0]).toMatchObject({ ...fromHousePlan(LAMP_POSITIONS['3'].x, LAMP_POSITIONS['3'].y) })
   })
