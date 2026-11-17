@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { test } from 'node:test'
-import { withTempDir } from '../testing/helpers.ts'
+import { memoryDoc } from '../testing/helpers.ts'
 import { createPositionsStore, parsePositions } from './positionsStore.ts'
 
 test('des positions valables sont arrondies', () => {
@@ -26,18 +24,16 @@ test('des positions mal formées sont refusées', () => {
   assert.equal(parsePositions({ '1': { x: 1, y: -5001 } }), null)
 })
 
-test('le magasin fusionne, écrit et relit ; un fichier illisible donne {}', async () => {
-  await withTempDir((dir) => {
-    const file = join(dir, 'sous', 'pos.json')
-    const store = createPositionsStore(file)
-    assert.deepEqual(store.get(), {})
-    assert.deepEqual(store.merge({ '1': { x: 1, y: 2 } }), { '1': { x: 1, y: 2 } })
-    assert.deepEqual(store.merge({ '2': { x: 3, y: 4 } }), { '1': { x: 1, y: 2 }, '2': { x: 3, y: 4 } })
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), store.get())
-    writeFileSync(file, 'pas du json')
-    assert.deepEqual(store.get(), {})
-    // du JSON valable mais pas des positions
-    writeFileSync(file, '[1]')
-    assert.deepEqual(store.get(), {})
-  })
+test('le magasin fusionne, écrit et relit ; un document illisible donne {}', () => {
+  const doc = memoryDoc()
+  const store = createPositionsStore(doc)
+  assert.deepEqual(store.get(), {})
+  assert.deepEqual(store.merge({ '1': { x: 1, y: 2 } }), { '1': { x: 1, y: 2 } })
+  assert.deepEqual(store.merge({ '2': { x: 3, y: 4 } }), { '1': { x: 1, y: 2 }, '2': { x: 3, y: 4 } })
+  assert.deepEqual(JSON.parse(doc.text() ?? ''), store.get())
+  doc.write('pas du json')
+  assert.deepEqual(store.get(), {})
+  // du JSON valable mais pas des positions
+  doc.write('[1]')
+  assert.deepEqual(store.get(), {})
 })

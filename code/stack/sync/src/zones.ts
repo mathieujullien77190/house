@@ -1,7 +1,7 @@
-// Les zones de surveillance du mouvement, écrites par House API (fichier JSON dans data/house, monté en lecture seule) : pour chaque caméra,
+// Les zones de surveillance du mouvement, écrites par House API (document `zones` de la table house_state) : pour chaque caméra,
 // un polygone dessiné sur l'image dans la WebApp. House Sync les donne à l'enregistreur ; une caméra sans zone est surveillée sur toute l'image.
-import { readFile, stat } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import type { DatabaseSync } from 'node:sqlite'
+import { readState } from './houseState.ts'
 
 export type ZonePoint = [number, number]
 export type Zones = Record<string, ZonePoint[]>
@@ -17,21 +17,17 @@ export const validPolygon = (value: unknown): value is ZonePoint[] =>
   )
 
 /**
- * Les zones par caméra. null quand on ne peut pas en être sûr (dossier non monté, fichier abîmé) : l'appelant ne change alors rien chez
- * l'enregistreur (qui garde la zone qu'il a). Un fichier absent dans un dossier qui existe veut dire « aucune zone » : toute l'image.
+ * Les zones par caméra. null quand on ne peut pas en être sûr (base illisible, document abîmé) : l'appelant ne change alors rien chez
+ * l'enregistreur (qui garde la zone qu'il a). Un document absent veut dire « aucune zone » : toute l'image.
  */
-export const readZones = async (file: string): Promise<Zones | null> => {
-  const folder = await stat(dirname(file)).then(
-    (info) => info.isDirectory(),
-    () => false,
-  )
-  if (!folder) return null
-  let text: string
+export const readZones = (db: DatabaseSync): Zones | null => {
+  let text: string | null
   try {
-    text = await readFile(file, 'utf8')
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? {} : null
+    text = readState(db, 'zones')
+  } catch {
+    return null
   }
+  if (text === null) return {}
   try {
     const parsed: unknown = JSON.parse(text)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null

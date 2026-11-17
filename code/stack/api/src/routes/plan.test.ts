@@ -1,18 +1,15 @@
 import assert from 'node:assert/strict'
-import { join } from 'node:path'
 import { mock, test } from 'node:test'
 import { createPlanStore, type PlanStore } from '../lib/planStore.ts'
-import { call, routerApp, withServer, withTempDir } from '../testing/helpers.ts'
+import { call, memoryDoc, routerApp, withServer } from '../testing/helpers.ts'
 import { planRouter } from './plan.ts'
 
 test('plan : vide, remplacé, puis relu', async () => {
-  await withTempDir(async (dir) => {
-    await withServer(routerApp(planRouter(createPlanStore(join(dir, 'plan.json')))), async (url) => {
-      assert.deepEqual((await call(`${url}/plan`)).body, { plan: null })
-      const saved = await call(`${url}/plan`, 'PUT', { version: 2, cage: { x: 1, y: 2 } })
-      assert.deepEqual((saved.body as { plan: { cage: unknown } }).plan.cage, { x: 1, y: 2 })
-      assert.deepEqual(((await call(`${url}/plan`)).body as { plan: { cage: unknown } }).plan.cage, { x: 1, y: 2 })
-    })
+  await withServer(routerApp(planRouter(createPlanStore(memoryDoc()))), async (url) => {
+    assert.deepEqual((await call(`${url}/plan`)).body, { plan: null })
+    const saved = await call(`${url}/plan`, 'PUT', { version: 2, cage: { x: 1, y: 2 } })
+    assert.deepEqual((saved.body as { plan: { cage: unknown } }).plan.cage, { x: 1, y: 2 })
+    assert.deepEqual(((await call(`${url}/plan`)).body as { plan: { cage: unknown } }).plan.cage, { x: 1, y: 2 })
   })
 })
 

@@ -16,7 +16,7 @@ import type { AcService } from '../services/acService.ts'
 import type { ShuttersService } from '../services/shuttersService.ts'
 import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
 import type { BoxService } from '../services/boxService.ts'
-import type { BoxWatcher } from '../services/boxWatcher.ts'
+import type { BoxRepository } from '../repositories/boxRepository.ts'
 import type { TvRemote } from '../lib/tvRemote.ts'
 import type { PoeService } from '../services/poeService.ts'
 import type { LiveService } from '../services/liveService.ts'
@@ -59,7 +59,7 @@ export interface Services {
   /** La Freebox ; null sans FREEBOX_APP_TOKEN (GET /box répond alors configured: false). */
   box: BoxService | null
   /** Le surveillant des appareils inconnus de la box ; null sans FREEBOX_APP_TOKEN. */
-  boxWatcher: BoxWatcher | null
+  boxRepository: BoxRepository | null
   /** La télécommande du Freebox Player ; null dans les tests (les routes répondent 503). */
   tv?: TvRemote | null
   /** Le chauffage automatique de la prise et son journal ; null sans prise. */
@@ -122,7 +122,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(plugRouter(services.plug, services.heating))
   router.use(acRouter(services.ac))
   router.use(shuttersRouter(services.shutters, services.shuttersAuto))
-  router.use(boxRouter(services.box, services.boxWatcher))
+  router.use(boxRouter(services.box, services.boxRepository))
   router.use(tvRouter(services.tv ?? null, services.box))
   router.use(hueRouter(services.hue))
   router.use(zonesRouter(services.zones))

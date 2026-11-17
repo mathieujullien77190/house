@@ -1,6 +1,5 @@
 // Les emoji des clips (🦊) : un petit fichier JSON gardé par l'API (STATE_DIR), à part des notes et de la liste des clips sauvegardés. Un emoji par clip ; la carte de la maison le montre.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 const ID = /^[\w.-]+$/
 
@@ -11,10 +10,10 @@ export const MAX_EMOJI_LENGTH = 16
 export const isEmoji = (value: string): boolean => value.length > 0 && value.length <= MAX_EMOJI_LENGTH && /[\p{Extended_Pictographic}\p{Regional_Indicator}]/u.test(value) && !/[\p{L}\p{N}]/u.test(value)
 
 /** Les emoji du fichier ; null s'il existe mais n'a pas la bonne forme (on ne l'écrase jamais : ils seraient perdus). */
-const readEmojis = (file: string): Record<string, string> | null => {
+const readEmojis = (file: DocStore): Record<string, string> | null => {
   let text: string
   try {
-    text = readFileSync(file, 'utf8')
+    text = file.read()
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === 'ENOENT' ? {} : null
   }
@@ -27,7 +26,7 @@ const readEmojis = (file: string): Record<string, string> | null => {
   }
 }
 
-export const createClipEmojisStore = (file: string) => ({
+export const createClipEmojisStore = (file: DocStore) => ({
   /** Les emoji par identifiant de clip (vide si le fichier manque ou est illisible : l'affichage n'en dépend pas). */
   all: (): Record<string, string> => readEmojis(file) ?? {},
   /** Pose l'emoji d'un clip ; `null` le retire. Refuse un texte qui n'est pas un emoji et d'écraser un fichier illisible. */
@@ -39,10 +38,7 @@ export const createClipEmojisStore = (file: string) => ({
     const next = { ...current }
     if (emoji !== null) next[id] = emoji
     else delete next[id]
-    mkdirSync(dirname(file), { recursive: true })
-    const partial = `${file}.tmp`
-    writeFileSync(partial, JSON.stringify({ emojis: next }, null, 2))
-    renameSync(partial, file)
+    file.write(JSON.stringify({ emojis: next }, null, 2))
   },
 })
 

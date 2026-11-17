@@ -24,7 +24,8 @@ import { createLampEnergy, createLampEnergyTable } from './lampEnergy.ts'
 import { createMachineEnergy, createMachineEnergyTable } from './machineEnergy.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
 import { createShutterLogTable } from './shutterLog.ts'
-import { createBoxConnectionsTable } from './boxConnections.ts'
+import { createHouseStateTable, migrateHouseState } from './houseState.ts'
+import { createBoxTables, createBoxWatcher, migrateBoxFiles, WATCH_INTERVAL_MS } from './boxWatcher.ts'
 import { createPlanTable } from './plan.ts'
 
 export interface AppDeps {
@@ -44,6 +45,8 @@ export const startApp = async (deps: AppDeps) => {
   const config = loadConfig(deps.env)
   mkdirSync(config.dataDir, { recursive: true })
   const db = new DatabaseSync(`${config.dataDir}/events.db`)
+  // L'API écrit parfois (actions de l'utilisateur) : attendre son tour plutôt qu'échouer.
+  db.exec('PRAGMA busy_timeout = 5000')
   initDatabase(db, config.dataDir, deps.now)
   const settings = createSettings(db, config)
   const ctx: Context = { db, config, settings, fetch: deps.fetch, now: deps.now, log: deps.log }
@@ -56,7 +59,12 @@ export const startApp = async (deps: AppDeps) => {
   createGuestVisitsTable(db)
   createHeatingLogTable(db)
   createShutterLogTable(db)
-  createBoxConnectionsTable(db)
+  createBoxTables(db)
+  createHouseStateTable(db)
+  const adopted = migrateHouseState(db, config.houseDir, Math.floor(deps.now() / 1000), { servos: config.servosFile })
+  if (adopted > 0) deps.log(`Maison : ${adopted} document(s) repris des anciens fichiers de House API`)
+  const migrated = migrateBoxFiles(db, config.boxKnownFile, config.boxGuestsFile)
+  if (migrated > 0) deps.log(`Box : ${migrated} ligne(s) reprise(s) des anciens fichiers de House API`)
   createCameraEnergyTable(db)
   createLampEnergyTable(db)
   createMachineEnergyTable(db)
@@ -86,12 +94,10 @@ export const startApp = async (deps: AppDeps) => {
   const planTimer = setInterval(() => void imports.syncPlan(), 30_000)
   void imports.syncGuestVisits()
   const visitsTimer = setInterval(() => void imports.syncGuestVisits(), 15_000)
-  void imports.syncHeatingLog()
-  const heatingTimer = setInterval(() => void imports.syncHeatingLog(), 30_000)
-  void imports.syncShutterLog()
-  const shutterTimer = setInterval(() => void imports.syncShutterLog(), 30_000)
-  void imports.syncBoxConnections()
-  const boxTimer = setInterval(() => void imports.syncBoxConnections(), 30_000)
+  // La surveillance de la box : les appareils connus et invités, leurs connexions (via GET /box de House API).
+  const boxWatcher = createBoxWatcher(ctx, () => apiTargetOf(config))
+  void boxWatcher.poll()
+  const boxTimer = setInterval(() => void boxWatcher.poll(), WATCH_INTERVAL_MS)
 
   const { server, secure } = createPageServer(config, page.handlePage)
   server.listen(config.pagePort, () => deps.log(`Page de House Sync en ${secure ? 'HTTPS' : 'HTTP'} sur le port ${config.pagePort}`))
@@ -122,8 +128,6 @@ export const startApp = async (deps: AppDeps) => {
     clearInterval(weatherTimer)
     clearInterval(planTimer)
     clearInterval(visitsTimer)
-    clearInterval(heatingTimer)
-    clearInterval(shutterTimer)
     clearInterval(boxTimer)
     clearInterval(energyTimer)
     hueLog.stop()

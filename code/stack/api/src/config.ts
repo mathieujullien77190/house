@@ -34,8 +34,6 @@ export interface Config {
   shuttersEspUrl: string | null
   /** Les volets pilotés par les servos de l'ESP32 Nice (SHUTTERS_SERVO, leurs numéros séparés par des virgules ; par défaut 2,5,6 : salon, PC, porte) : les autres volets vont à l'ESP32 Somfy. */
   shuttersServo: number[]
-  /** Le fichier de configuration des servos (SERVOS_FILE), écrit par House Sync et relu à chaque ordre. */
-  servosFile: string
   /** Le détecteur Hue qui éteint la prise (option « éteindre au mouvement »), par son nom chez le pont. */
   plugMotionSensor: string
   /** Le détecteur Hue dont la température décide du chauffage automatique (PLUG_TEMPERATURE_SENSOR ; par défaut le détecteur du mouvement). */
@@ -46,6 +44,10 @@ export interface Config {
   recorderUrl: string | null
   /** Le certificat de la maison ; absent, l'API reste en HTTP (développement). */
   tls: { cert: string; key: string } | null
+  /** La page de House Sync (SYNC_URL, par exemple https://sync:8081) : l'API lui envoie les lignes de journal (chauffage, volets) ; vide : elles ne sont pas notées. */
+  syncUrl: string
+  /** Le nom que le certificat de House Sync porte (SYNC_SERVERNAME, `localhost` par défaut). */
+  syncServername: string
   /** Le certificat public de l'autorité de la maison, que l'API propose au téléchargement (/rootCA.crt) ; vide : pas de téléchargement. */
   caCert: string
 }
@@ -112,7 +114,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       : parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS).map((shutter) => shutter.id),
     shuttersEspUrl: env.SHUTTERS_ESP_URL ? env.SHUTTERS_ESP_URL.replace(/\/+$/, '') : null,
     shuttersServo: (env.SHUTTERS_SERVO ?? '2,5,6').split(',').map((id) => Number(id.trim())).filter((id) => Number.isInteger(id) && id > 0),
-    servosFile: env.SERVOS_FILE || '/servos/servos.json',
     plugMotionSensor: env.PLUG_MOTION_SENSOR ?? 'motion interieur',
     plugTemperatureSensor: env.PLUG_TEMPERATURE_SENSOR || env.PLUG_MOTION_SENSOR || 'motion interieur',
     housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },
@@ -120,5 +121,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     recorderUrl: env.RECORDER_URL ? env.RECORDER_URL.replace(/\/+$/, '') : null,
     tls: cert && key && existsSync(cert) && existsSync(key) ? { cert, key } : null,
     caCert: env.CA_CERT ?? '',
+    syncUrl: env.SYNC_URL ? env.SYNC_URL.replace(/\/+$/, '') : '',
+    syncServername: env.SYNC_SERVERNAME ?? 'localhost',
   }
 }

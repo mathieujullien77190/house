@@ -2,7 +2,7 @@
 // en lecture seule à chaque ordre. Chaque ordre (Monter, Descendre, Stop) d'un volet appuie sur une touche de sa télécommande murale Nice par un servo MF90 du PCA9685.
 // Forme : {"url": "...", "shutters": {"2": {"up": {...}, "down": {...}, "stop": {...}}, "5": {...}, "6": {...}}} (clé = numéro du volet). Ancienne forme encore lue :
 // {"url", "up", "down", "stop"} = le volet salon seul. Sans fichier, ou avec un champ absent ou faux, les valeurs par défaut ci-dessous servent.
-import { readFile } from 'node:fs/promises'
+import type { DocStore } from './docStore.ts'
 
 /** Un ordre : le canal du PCA9685 (0 à 15), l'angle de départ et d'arrivée (degrés, signés : 0 = le milieu), la vitesse (degrés par seconde, 0 = la plus rapide) et l'attente en bas de course (secondes). */
 export interface ServoOrder {
@@ -63,11 +63,11 @@ const shutterOf = (value: unknown, fallback: ServoShutter): ServoShutter => {
   return { up: orderOf(raw.up, fallback.up), down: orderOf(raw.down, fallback.down), stop: orderOf(raw.stop, fallback.stop) }
 }
 
-/** Lit le fichier (relu à chaque ordre : un changement des réglages compte tout de suite). Fichier absent ou illisible : les valeurs par défaut ; un champ faux ou un volet manquant garde sa valeur par défaut. */
-export const readServoConfig = async (file: string): Promise<ServoConfig> => {
+/** Lit le document `servos` de house_state (relu à chaque ordre : un changement des réglages compte tout de suite). Fichier absent ou illisible : les valeurs par défaut ; un champ faux ou un volet manquant garde sa valeur par défaut. */
+export const readServoConfig = async (doc: DocStore): Promise<ServoConfig> => {
   let raw: Record<string, unknown> = {}
   try {
-    const parsed: unknown = JSON.parse(await readFile(file, 'utf8'))
+    const parsed: unknown = JSON.parse(doc.read())
     if (typeof parsed === 'object' && parsed !== null) raw = parsed as Record<string, unknown>
   } catch {
     // Pas de fichier (ou illisible) : les valeurs par défaut.

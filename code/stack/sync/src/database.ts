@@ -1,5 +1,5 @@
 // La base SQLite de House Sync (events.db) : ses tables, les colonnes ajoutées après coup, le déclencheur d'orientation et la migration
-// unique des orientations. Seul House Sync écrit dans cette base ; House API la lit.
+// unique des orientations. House Sync écrit toutes les observations ; House API la lit et n'y écrit que pour une action de l'utilisateur.
 import type { DatabaseSync } from 'node:sqlite'
 import { backfillSnapshotCodes } from './snapshotCodes.ts'
 

@@ -1,7 +1,6 @@
 // Les positions des ampoules sur le plan de la maison : un petit fichier JSON gardé par l'API (STATE_DIR), pour qu'elles
 // suivent l'utilisateur d'un appareil à l'autre. Un seul fichier, écrit en entier à chaque changement (quelques dizaines de lampes).
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 /** La position d'une ampoule par identifiant de lampe, en unités du plan (la maison fait 540 × 300, origine en haut à gauche). */
 export type LampPositions = Record<string, { x: number; y: number }>
@@ -26,10 +25,10 @@ export const parsePositions = (body: unknown, maxEntries = MAX_ENTRIES): LampPos
   return positions
 }
 
-export const createPositionsStore = (file: string) => {
+export const createPositionsStore = (file: DocStore) => {
   const read = (): LampPositions => {
     try {
-      return parsePositions(JSON.parse(readFileSync(file, 'utf8')), Infinity) ?? {}
+      return parsePositions(JSON.parse(file.read()), Infinity) ?? {}
     } catch {
       return {}
     }
@@ -39,10 +38,7 @@ export const createPositionsStore = (file: string) => {
     /** Ajoute ou remplace ces positions, garde les autres ; rend l'ensemble. Écrit dans un fichier temporaire puis le renomme. */
     merge: (changes: LampPositions): LampPositions => {
       const next = { ...read(), ...changes }
-      mkdirSync(dirname(file), { recursive: true })
-      const partial = `${file}.tmp`
-      writeFileSync(partial, JSON.stringify(next, null, 2))
-      renameSync(partial, file)
+      file.write(JSON.stringify(next, null, 2))
       return next
     },
   }

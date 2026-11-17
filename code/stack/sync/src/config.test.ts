@@ -18,12 +18,11 @@ test('sans variable : les valeurs par défaut du compose', () => {
   assert.equal(config.retentionDaysEnv, undefined)
   assert.equal(config.guestVisitsDays, 365)
   assert.equal(config.guest, null)
-  assert.equal(config.heatingLogFile, '/house/heating-log.jsonl')
-  assert.equal(config.shutterLogFile, '/house/shutters-log.jsonl')
-  assert.equal(config.boxLogFile, '/house/box-connections.jsonl')
+  assert.equal(config.boxKnownFile, '/house/box-known.json')
+  assert.equal(config.boxGuestsFile, '/house/box-guests.json')
   assert.equal(config.servosFile, '/servos/servos.json')
   assert.equal(config.apiServername, 'localhost')
-  assert.equal(config.zonesFile, '/house/zones.json')
+  assert.equal(config.houseDir, '/house')
 })
 
 test('RECORDER_URLS : plusieurs enregistreurs, espaces et « / » final retirés, vides ignorés', () => {
@@ -47,9 +46,9 @@ test('les réglages de l\'environnement sont repris', () => {
     HUE_BRIDGE_IP: '1.2.3.4',
     HUE_APP_KEY: 'app',
     GUEST_VISITS_DAYS: '5',
-    HEATING_LOG_FILE: '/h/log.jsonl',
-    SHUTTER_LOG_FILE: '/h/volets.jsonl',
-    BOX_LOG_FILE: '/h/box.jsonl',
+    HOUSE_DIR: '/h',
+    BOX_KNOWN_FILE: '/h/known.json',
+    BOX_GUESTS_FILE: '/h/guests.json',
     DATA_DIR: '/d',
     GUEST_KEY: 'g',
     GUEST_PORT: '8091',
@@ -57,9 +56,9 @@ test('les réglages de l\'environnement sont repris', () => {
   })
   assert.deepEqual([config.houseKey, config.pagePort, config.intervalMs], ['k', 9000, 5000])
   assert.deepEqual(config.housePosition, { latitude: 10, longitude: 20 })
-  assert.equal(config.heatingLogFile, '/h/log.jsonl')
-  assert.equal(config.shutterLogFile, '/h/volets.jsonl')
-  assert.equal(config.boxLogFile, '/h/box.jsonl')
+  assert.equal(config.boxKnownFile, '/h/known.json')
+  assert.equal(config.boxGuestsFile, '/h/guests.json')
+  assert.equal(config.houseDir, '/h')
   assert.equal(loadConfig({ SERVOS_FILE: '/s/x.json' }).servosFile, '/s/x.json')
   assert.equal(config.go2rtcUrl, 'http://g:1')
   assert.deepEqual([config.retentionDaysEnv, config.hueAddress, config.hueKey, config.guestVisitsDays, config.dataDir], ['30', '1.2.3.4', 'app', 5, '/d'])

@@ -219,7 +219,7 @@ export const createClips = (ctx: Context, rec: Recorder) => {
     if ((purgedOn.get(PURGE_DONE_KEY) as { value: string } | undefined)?.value === day) return NOTHING_PURGED
     if (now - lastPurgeAt < PURGE_RETRY_SECONDS) return NOTHING_PURGED
     lastPurgeAt = now
-    const saved = await readSavedIds(config.savedClipsFile)
+    const saved = readSavedIds(db)
     if (!saved) {
       ctx.log('Ménage des clips sauté : la liste des clips sauvegardés est illisible')
       return NOTHING_PURGED

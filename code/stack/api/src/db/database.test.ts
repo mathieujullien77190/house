@@ -14,7 +14,7 @@ test('une base absente donne DatabaseNotReady, à chaque demande', async () => {
   })
 })
 
-test('la base est lue en lecture seule, la connexion est gardée', async () => {
+test('la base est lue, la connexion est gardée', async () => {
   await withTempDir((dir) => {
     const file = join(dir, 'events.db')
     createDatabaseFile(file, "CREATE TABLE t (a INTEGER, b TEXT); INSERT INTO t VALUES (1, 'x'), (2, 'y');")
@@ -25,7 +25,8 @@ test('la base est lue en lecture seule, la connexion est gardée', async () => {
       assert.deepEqual(rows, [{ a: 1 }, { a: 2 }])
       assert.equal(db.get<{ b: string }>('SELECT b FROM t WHERE a = ?', 2)?.b, 'y')
       assert.equal(db.get('SELECT b FROM t WHERE a = ?', 9), undefined)
-      assert.throws(() => db.all("INSERT INTO t VALUES (3, 'z')"), /readonly/i)
+      assert.equal(db.run('INSERT INTO t VALUES (?, ?)', 3, 'z'), 1)
+      assert.equal(db.get<{ b: string }>('SELECT b FROM t WHERE a = ?', 3)?.b, 'z')
       db.close()
       // fermée, elle se rouvre au besoin
       assert.equal(db.get<{ b: string }>('SELECT b FROM t WHERE a = ?', 1)?.b, 'x')

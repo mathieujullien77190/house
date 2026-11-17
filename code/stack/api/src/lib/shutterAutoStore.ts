@@ -1,8 +1,7 @@
 // Les volets qui s'ouvrent au lever du soleil et/ou se ferment à son coucher : ce qui est activé (deux options séparées), gardé dans STATE_DIR/shutters-auto.json
 // (écriture dans un fichier temporaire puis renommé). `since` est l'instant (secondes) jusqu'où les lever et coucher ont déjà été traités :
 // il évite de rejouer un ordre après un redémarrage, et d'agir sur un lever passé au moment où on active la règle.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 export interface AutoState {
   /** Ouvrir au lever du soleil. */
@@ -14,11 +13,11 @@ export interface AutoState {
 
 export type AutoStates = Record<string, AutoState>
 
-export const createShutterAutoStore = (file: string) => ({
+export const createShutterAutoStore = (file: DocStore) => ({
   /** Les réglages gardés ; vide si le fichier manque ou est abîmé (rien n'est activé). */
   get: (): AutoStates => {
     try {
-      const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
+      const raw: unknown = JSON.parse(file.read())
       if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
       const states: AutoStates = {}
       for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -34,10 +33,7 @@ export const createShutterAutoStore = (file: string) => ({
     }
   },
   set: (states: AutoStates): void => {
-    mkdirSync(dirname(file), { recursive: true })
-    const partial = `${file}.tmp`
-    writeFileSync(partial, JSON.stringify(states, null, 2))
-    renameSync(partial, file)
+    file.write(JSON.stringify(states, null, 2))
   },
 })
 

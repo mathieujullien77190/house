@@ -26,7 +26,7 @@ const services: Services = {
   shuttersAuto: null,
   heating: null,
   box: null,
-  boxWatcher: null,
+  boxRepository: null,
   poe: null,
   files: {} as BackupFiles,
   zones: { get: () => ({}) } as unknown as ZonesStore,

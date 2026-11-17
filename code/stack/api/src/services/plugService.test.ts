@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import type { KasaClient, PlugInfo } from '../lib/kasaClient.ts'
-import { withTempDir } from '../testing/helpers.ts'
+import { memoryDoc } from '../testing/helpers.ts'
 import { createPlugService, type MotionSource } from './plugService.ts'
 
 const INFO: PlugInfo = { alias: 'chauffage', model: 'HS100', on: true, rssi: -60, onTime: 10, timerSeconds: null }
@@ -71,121 +69,111 @@ test('une commande qui échoue n’arme rien', async (t) => {
   clock(t)
   const { client, state } = fakePlug()
   const { motion } = fakeMotion()
-  const plug = createPlugService(client, { motion, file: '' })
+  const plug = createPlugService(client, { motion, doc: null })
   state.failSet = true
   await assert.rejects(() => plug.set(true, true), /injoignable/)
   assert.equal((await plug.get()).offOnMotion, false)
 })
 
-test('éteindre au mouvement : le front montant éteint la prise, l’option se garde dans un fichier', async (t) => {
-  await withTempDir(async (dir) => {
-    clock(t)
-    const file = join(dir, 'sous', 'guard.json')
-    const { client, state } = fakePlug()
-    const { motion, control } = fakeMotion()
-    const plug = createPlugService(client, { motion, file })
-    assert.equal(plug.canWatchMotion, true)
+test('éteindre au mouvement : le front montant éteint la prise, l’option se garde dans la base', async (t) => {
+  clock(t)
+  const doc = memoryDoc()
+  const { client, state } = fakePlug()
+  const { motion, control } = fakeMotion()
+  const plug = createPlugService(client, { motion, doc })
+  assert.equal(plug.canWatchMotion, true)
 
-    // sans option armée, un tour ne fait rien
-    t.mock.timers.tick(3000)
-    await flush()
-    assert.equal(state.infoCalls, 0)
+  // sans option armée, un tour ne fait rien
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.equal(state.infoCalls, 0)
 
-    // un mouvement déjà en cours à l'armement ne compte pas
-    control.next = true
-    assert.equal((await plug.startTimer(15, true)).offOnMotion, true)
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: true, origin: 'manuel' })
-    t.mock.timers.tick(3000)
-    await flush()
-    assert.equal(state.info.on, true)
+  // un mouvement déjà en cours à l'armement ne compte pas
+  control.next = true
+  assert.equal((await plug.startTimer(15, true)).offOnMotion, true)
+  assert.deepEqual(JSON.parse(doc.text() ?? ''), { offOnMotion: true, origin: 'manuel' })
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.equal(state.info.on, true)
 
-    // le détecteur ne dit rien : l'état précédent est gardé
-    control.next = null
-    t.mock.timers.tick(3000)
-    await flush()
-    // plus de mouvement, puis un mouvement : la prise s'éteint et l'option s'efface
-    control.next = false
-    t.mock.timers.tick(3000)
-    await flush()
-    control.next = true
-    t.mock.timers.tick(3000)
-    await flush()
-    assert.equal(state.info.on, false)
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: false, origin: 'manuel' })
-    assert.equal((await plug.get()).offOnMotion, false)
+  // le détecteur ne dit rien : l'état précédent est gardé
+  control.next = null
+  t.mock.timers.tick(3000)
+  await flush()
+  // plus de mouvement, puis un mouvement : la prise s'éteint et l'option s'efface
+  control.next = false
+  t.mock.timers.tick(3000)
+  await flush()
+  control.next = true
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.equal(state.info.on, false)
+  assert.deepEqual(JSON.parse(doc.text() ?? ''), { offOnMotion: false, origin: 'manuel' })
+  assert.equal((await plug.get()).offOnMotion, false)
 
-    // une panne du détecteur ne casse rien : on réessaie au tour suivant
-    await plug.set(true, true)
-    control.next = new Error('pont injoignable')
-    t.mock.timers.tick(3000)
-    await flush()
-    assert.equal((await plug.get()).offOnMotion, true)
-  })
+  // une panne du détecteur ne casse rien : on réessaie au tour suivant
+  await plug.set(true, true)
+  control.next = new Error('pont injoignable')
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.equal((await plug.get()).offOnMotion, true)
 })
 
 test('la prise éteinte autrement efface l’option ; un tour n’en attend pas un autre', async (t) => {
-  await withTempDir(async (dir) => {
-    clock(t)
-    const file = join(dir, 'guard.json')
-    const { client, state } = fakePlug()
-    const { motion, control } = fakeMotion()
-    const plug = createPlugService(client, { motion, file })
-    await plug.startTimer(15, true)
+  clock(t)
+  const doc = memoryDoc()
+  const { client, state } = fakePlug()
+  const { motion, control } = fakeMotion()
+  const plug = createPlugService(client, { motion, doc })
+  await plug.startTimer(15, true)
 
-    // le détecteur répond lentement : le deuxième tour est ignoré
-    let release = () => {}
-    control.wait = new Promise<void>((done) => (release = done))
-    control.next = false
-    const before = state.infoCalls
-    t.mock.timers.tick(3000)
-    await flush()
-    t.mock.timers.tick(3000)
-    await flush()
-    assert.equal(state.infoCalls, before + 1)
-    release()
-    control.wait = null
-    await flush()
+  // le détecteur répond lentement : le deuxième tour est ignoré
+  let release = () => {}
+  control.wait = new Promise<void>((done) => (release = done))
+  control.next = false
+  const before = state.infoCalls
+  t.mock.timers.tick(3000)
+  await flush()
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.equal(state.infoCalls, before + 1)
+  release()
+  control.wait = null
+  await flush()
 
-    // quelqu'un éteint la prise à la main
-    state.info.on = false
-    t.mock.timers.tick(3000)
-    await flush()
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: false, origin: 'manuel' })
-    // désarmer une option déjà désarmée n'écrit rien de plus
-    await plug.set(false)
-    assert.equal((await plug.get()).offOnMotion, false)
-  })
+  // quelqu'un éteint la prise à la main
+  state.info.on = false
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.deepEqual(JSON.parse(doc.text() ?? ''), { offOnMotion: false, origin: 'manuel' })
+  // désarmer une option déjà désarmée n'écrit rien de plus
+  await plug.set(false)
+  assert.equal((await plug.get()).offOnMotion, false)
 })
 
-test('l’option armée est relue au démarrage ; un fichier illisible ou absent donne faux', async () => {
-  await withTempDir(async (dir) => {
-    const file = join(dir, 'guard.json')
-    const { client } = fakePlug()
-    const { motion } = fakeMotion()
-    assert.equal((await createPlugService(client, { motion, file }).get()).offOnMotion, false)
-    writeFileSync(file, 'pas du json')
-    assert.equal((await createPlugService(client, { motion, file }).get()).offOnMotion, false)
-    writeFileSync(file, JSON.stringify({ offOnMotion: true, origin: 'manuel' }))
-    const armed = createPlugService(client, { motion, file })
-    assert.equal((await armed.get()).offOnMotion, true)
-  })
-})
-
-test('si le fichier de l’option ne s’écrit pas, elle marche quand même en mémoire', async () => {
-  await withTempDir(async (dir) => {
-    const blocker = join(dir, 'fichier')
-    writeFileSync(blocker, 'x')
-    const { client } = fakePlug()
-    const { motion } = fakeMotion()
-    const plug = createPlugService(client, { motion, file: join(blocker, 'sous', 'guard.json') })
-    assert.equal((await plug.startTimer(5, true)).offOnMotion, true)
-  })
-})
-
-test('le garde avec un détecteur mais sans fichier : l’option reste en mémoire', async () => {
+test('l’option armée est relue au démarrage ; un document illisible ou absent donne faux', async () => {
+  const doc = memoryDoc()
   const { client } = fakePlug()
   const { motion } = fakeMotion()
-  const plug = createPlugService(client, { motion, file: '' })
+  assert.equal((await createPlugService(client, { motion, doc }).get()).offOnMotion, false)
+  doc.write('pas du json')
+  assert.equal((await createPlugService(client, { motion, doc }).get()).offOnMotion, false)
+  doc.write(JSON.stringify({ offOnMotion: true, origin: 'manuel' }))
+  const armed = createPlugService(client, { motion, doc })
+  assert.equal((await armed.get()).offOnMotion, true)
+})
+
+test('si le document de l’option ne s’écrit pas, elle marche quand même en mémoire', async () => {
+  const { client } = fakePlug()
+  const { motion } = fakeMotion()
+  const plug = createPlugService(client, { motion, doc: { read: () => '{}', write: () => { throw new Error('base fermée') } } })
+  assert.equal((await plug.startTimer(5, true)).offOnMotion, true)
+})
+
+test('le garde avec un détecteur mais sans document : l’option reste en mémoire', async () => {
+  const { client } = fakePlug()
+  const { motion } = fakeMotion()
+  const plug = createPlugService(client, { motion, doc: null })
   assert.equal((await plug.set(true, true)).offOnMotion, true)
   assert.equal((await plug.set(false)).offOnMotion, false)
   // avec le détecteur mais sans le surveiller : le minuteur de l'intervalle est détaché du processus (unref)
@@ -195,7 +183,7 @@ test('chaque allumage pour une durée va au journal : manuel par défaut, ou ave
   clock(t)
   const { client } = fakePlug()
   const noted: unknown[] = []
-  const plug = createPlugService(client, { motion: null, file: '', record: (entry) => noted.push(entry) })
+  const plug = createPlugService(client, { motion: null, doc: null, record: (entry) => noted.push(entry) })
   await plug.startTimer(5)
   await plug.startTimer(7, false, { origin: 'auto', temperature: 2.5, note: null })
   await plug.set(false)
@@ -209,53 +197,48 @@ test('chaque allumage pour une durée va au journal : manuel par défaut, ou ave
 })
 
 test('un mouvement qui éteint un chauffage de la règle automatique la désactive ; un allumage manuel non', async (t) => {
-  await withTempDir(async (dir) => {
-    clock(t)
-    const file = join(dir, 'guard.json')
-    const { client, state } = fakePlug()
-    const { motion, control } = fakeMotion()
-    let cuts = 0
-    const plug = createPlugService(client, { motion, file, onAutoCut: () => (cuts += 1) })
-    const cutByMotion = async (): Promise<void> => {
-      control.next = false
-      t.mock.timers.tick(3000)
-      await flush()
-      control.next = true
-      t.mock.timers.tick(3000)
-      await flush()
-    }
-
-    // allumage manuel : le mouvement éteint la prise, la règle reste
-    await plug.startTimer(5, true)
-    await cutByMotion()
-    assert.equal(state.info.on, false)
-    assert.equal(cuts, 0)
-
-    // allumage par la règle : l'origine est gardée dans le fichier, le mouvement éteint la prise et désactive la règle
-    await plug.startTimer(5, true, { origin: 'auto', temperature: 1, note: null })
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { offOnMotion: true, origin: 'auto' })
-    await cutByMotion()
-    assert.equal(state.info.on, false)
-    assert.equal(cuts, 1)
-  })
-})
-
-test('l’origine de l’allumage sous garde est relue au démarrage', async (t) => {
-  await withTempDir(async (dir) => {
-    clock(t)
-    const file = join(dir, 'guard.json')
-    writeFileSync(file, JSON.stringify({ offOnMotion: true, origin: 'auto' }))
-    const { client, state } = fakePlug()
-    const { motion, control } = fakeMotion()
-    let cuts = 0
-    createPlugService(client, { motion, file, onAutoCut: () => (cuts += 1) })
+  clock(t)
+  const doc = memoryDoc()
+  const { client, state } = fakePlug()
+  const { motion, control } = fakeMotion()
+  let cuts = 0
+  const plug = createPlugService(client, { motion, doc, onAutoCut: () => (cuts += 1) })
+  const cutByMotion = async (): Promise<void> => {
     control.next = false
     t.mock.timers.tick(3000)
     await flush()
     control.next = true
     t.mock.timers.tick(3000)
     await flush()
-    assert.equal(state.info.on, false)
-    assert.equal(cuts, 1)
-  })
+  }
+
+  // allumage manuel : le mouvement éteint la prise, la règle reste
+  await plug.startTimer(5, true)
+  await cutByMotion()
+  assert.equal(state.info.on, false)
+  assert.equal(cuts, 0)
+
+  // allumage par la règle : l'origine est gardée dans le fichier, le mouvement éteint la prise et désactive la règle
+  await plug.startTimer(5, true, { origin: 'auto', temperature: 1, note: null })
+  assert.deepEqual(JSON.parse(doc.text() ?? ''), { offOnMotion: true, origin: 'auto' })
+  await cutByMotion()
+  assert.equal(state.info.on, false)
+  assert.equal(cuts, 1)
+})
+
+test('l’origine de l’allumage sous garde est relue au démarrage', async (t) => {
+  clock(t)
+  const doc = memoryDoc(JSON.stringify({ offOnMotion: true, origin: 'auto' }))
+  const { client, state } = fakePlug()
+  const { motion, control } = fakeMotion()
+  let cuts = 0
+  createPlugService(client, { motion, doc, onAutoCut: () => (cuts += 1) })
+  control.next = false
+  t.mock.timers.tick(3000)
+  await flush()
+  control.next = true
+  t.mock.timers.tick(3000)
+  await flush()
+  assert.equal(state.info.on, false)
+  assert.equal(cuts, 1)
 })

@@ -11,7 +11,7 @@ const DETECTION_REFRESH_SECONDS = 60
 const LIVE_FPS_CHECK_SECONDS = 60
 
 export const createControl = (ctx: Context) => {
-  const { config, settings } = ctx
+  const { config, settings, db } = ctx
   const detectionSent = new Map<string, { enabled: boolean; at: number }>()
   // La sensibilité de la détection : envoyée de la même façon (quand elle change, et chaque minute au cas où l'enregistreur aurait redémarré).
   const sensitivitySent = new Map<string, { level: number; at: number }>()
@@ -23,7 +23,7 @@ export const createControl = (ctx: Context) => {
   const syncDetection = async (base: string, cameras: string[]): Promise<void> => {
     const now = seconds(ctx)
     // null (fichier illisible) : on ne change rien, l'enregistreur garde sa zone.
-    const zones = await readZones(config.zonesFile)
+    const zones = readZones(db)
     for (const camera of cameras) {
       const enabled = settings.keepsClip(camera, now)
       const sent = detectionSent.get(camera)

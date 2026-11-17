@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { test } from 'node:test'
+import { memoryDoc } from '../testing/helpers.ts'
 import { createPlanStore, parsePlan } from './planStore.ts'
 
 test('un document vide est valable, le reste est nettoyé et arrondi', () => {
@@ -45,18 +43,13 @@ test('un document vide est valable, le reste est nettoyé et arrondi', () => {
   assert.deepEqual(plan.links, { 'cage-haut-gauche': 'voliere-exterieur' })
 })
 
-test('le plan se garde dans un fichier et se relit ; sans fichier, null', () => {
-  const folder = mkdtempSync(join(tmpdir(), 'plan-'))
-  try {
-    const file = join(folder, 'sous', 'plan.json')
-    const store = createPlanStore(file)
-    assert.equal(store.get(), null)
-    store.set({ cage: { x: 1, y: 2 } })
-    assert.deepEqual(store.get()?.cage, { x: 1, y: 2 })
-    assert.equal(JSON.parse(readFileSync(file, 'utf8')).cage.y, 2)
-  } finally {
-    rmSync(folder, { recursive: true, force: true })
-  }
+test('le plan se garde dans la base et se relit ; sans document, null', () => {
+  const doc = memoryDoc()
+  const store = createPlanStore(doc)
+  assert.equal(store.get(), null)
+  store.set({ cage: { x: 1, y: 2 } })
+  assert.deepEqual(store.get()?.cage, { x: 1, y: 2 })
+  assert.equal(JSON.parse(doc.text() ?? '').cage.y, 2)
 })
 
 test('les positions de la lampe et de la prise, les caméras du plan, les liens : seul ce qui est bien formé reste', () => {

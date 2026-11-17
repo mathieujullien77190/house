@@ -1,4 +1,5 @@
 // L'application Express : les services JSON derrière la clé, la WebApp en statique, les erreurs en JSON.
+import { existsSync, readFileSync } from 'node:fs'
 import express, { type Express } from 'express'
 import type { Config } from './config.ts'
 import { openDatabase } from './db/database.ts'
@@ -23,6 +24,8 @@ import { createSwitchClient } from './lib/switchClient.ts'
 import { createHueService, toSensors } from './services/hueService.ts'
 import { createHeatingService, createRecorder, type TemperatureSource } from './services/heatingService.ts'
 import { createHeatingLog } from './lib/heatingLog.ts'
+import { createDocStore } from './lib/docStore.ts'
+import { createJournalPost } from './lib/journalClient.ts'
 import { createHeatingSettings } from './lib/heatingSettings.ts'
 import { createPlugService, type MotionSource } from './services/plugService.ts'
 import { createEspSomfyDriver, createMockDriver } from './lib/shutterDriver.ts'
@@ -35,10 +38,7 @@ import { createShuttersService } from './services/shuttersService.ts'
 import { createShutterAutoStore } from './lib/shutterAutoStore.ts'
 import { createShuttersAuto } from './services/shuttersAutoService.ts'
 import { createBoxService } from './services/boxService.ts'
-import { createBoxWatcher } from './services/boxWatcher.ts'
-import { createBoxConnectionLog } from './lib/boxConnectionLog.ts'
-import { createBoxKnownStore } from './lib/boxKnownStore.ts'
-import { createBoxGuestsStore } from './lib/boxGuestsStore.ts'
+import { createBoxRepository } from './repositories/boxRepository.ts'
 import { createFreeboxClient } from './lib/freebox.ts'
 import { connectTls, createTvRemote } from './lib/tvRemote.ts'
 import { createTvStore } from './lib/tvStore.ts'
@@ -65,13 +65,17 @@ export const createApp = (config: Config): Express => {
   const hueClient = config.hue ? createHueClient(config.hue) : null
   const motion = hueClient ? createMotionSource(hueClient, config.plugMotionSensor) : null
   const live = createLiveService(config.go2rtcUrls, cameras)
-  const savedClips = createSavedClipsStore(`${config.stateDir}/saved-clips.json`)
-  const clipNotes = createClipNotesStore(`${config.stateDir}/clip-notes.json`)
-  const clipEmojis = createClipEmojisStore(`${config.stateDir}/clip-emojis.json`)
-  const heatingLog = createHeatingLog(`${config.stateDir}/heating-log.jsonl`)
-  const heatingSettings = createHeatingSettings(`${config.stateDir}/heating.json`)
+  const savedClips = createSavedClipsStore(createDocStore(db, 'saved-clips'))
+  const clipNotes = createClipNotesStore(createDocStore(db, 'clip-notes'))
+  const clipEmojis = createClipEmojisStore(createDocStore(db, 'clip-emojis'))
+  const journalPost = createJournalPost(
+    config.syncUrl && config.caCert && existsSync(config.caCert) ? { url: config.syncUrl, key: config.apiKey, ca: readFileSync(config.caCert, 'utf8'), servername: config.syncServername } : null,
+    (message) => console.error(message),
+  )
+  const heatingLog = createHeatingLog(journalPost, db)
+  const heatingSettings = createHeatingSettings(createDocStore(db, 'heating'))
   const plug = config.plug
-    ? createPlugService(createKasaClient(config.plug), { motion, file: `${config.stateDir}/plug-guard.json`, record: createRecorder(heatingLog), onAutoCut: heatingSettings.disable })
+    ? createPlugService(createKasaClient(config.plug), { motion, doc: createDocStore(db, 'plug-guard'), record: createRecorder(heatingLog), onAutoCut: heatingSettings.disable })
     : null
   // Les climatisations Mitsubishi : le module Wi-Fi de chaque unité (AC_UNITS) ; sans unité, /ac répond 503.
   const ac = config.acUnits.length > 0 ? createAcService({ units: config.acUnits, client: createMitsubishiClient() }) : null
@@ -82,10 +86,10 @@ export const createApp = (config: Config): Express => {
           shutters: config.shutters,
           driver: createRoutingDriver(
             config.shuttersEspUrl ? createEspSomfyDriver(config.shuttersEspUrl) : createMockDriver(),
-            createServoDriver({ readConfig: () => readServoConfig(config.servosFile) }),
+            createServoDriver({ readConfig: () => readServoConfig(servosDoc) }),
             config.shuttersServo,
           ),
-          log: createShutterLog(`${config.stateDir}/shutters-log.jsonl`),
+          log: createShutterLog(journalPost, db),
         })
       : null
   // L'action automatique de certains volets : ouvrir au lever du soleil, fermer à son coucher (activable volet par volet).
@@ -93,27 +97,26 @@ export const createApp = (config: Config): Express => {
     ? createShuttersAuto({
         ids: config.shuttersAuto.filter((id) => config.shutters.some((shutter) => shutter.id === id)),
         shutters,
-        store: createShutterAutoStore(`${config.stateDir}/shutters-auto.json`),
+        store: createShutterAutoStore(createDocStore(db, 'shutters-auto')),
         position: config.housePosition,
       })
     : null
+  const servosDoc = createDocStore(db, 'servos')
   const box = config.freebox ? createBoxService(createFreeboxClient(config.freebox)) : null
-  // Le surveillant des invités de la box (tout appareil hors de la maison) : créé ici, lancé par index.ts (app.locals.boxWatcher.start()).
-  const boxWatcher = box
-    ? createBoxWatcher({ box, log: createBoxConnectionLog(`${config.stateDir}/box-connections.jsonl`), known: createBoxKnownStore(`${config.stateDir}/box-known.json`), guests: createBoxGuestsStore(`${config.stateDir}/box-guests.json`) })
-    : null
+  // Les appareils de la box : House Sync les surveille et les range dans la base, l'API les lit (et écrit les ajouts à la maison faits par l'utilisateur).
+  const boxRepository = box ? createBoxRepository(db) : null
   const services = {
     cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db), savedClips, clipNotes, clipEmojis),
     snapshots: createSnapshotsService(createSnapshotsRepository(db)),
     live,
     files: createBackupFiles(config.dataDir),
-    zones: createZonesStore(`${config.stateDir}/zones.json`),
-    markers: createMarkersStore(`${config.stateDir}/markers.json`),
-    plan: createPlanStore(`${config.stateDir}/plan.json`),
+    zones: createZonesStore(createDocStore(db, 'zones')),
+    markers: createMarkersStore(createDocStore(db, 'markers')),
+    plan: createPlanStore(createDocStore(db, 'plan')),
     recorderUrl: config.recorderUrl,
     savedClips,
-    hue: hueClient ? createHueService(hueClient, createPositionsStore(`${config.stateDir}/lights-positions.json`)) : null,
+    hue: hueClient ? createHueService(hueClient, createPositionsStore(createDocStore(db, 'lights-positions'))) : null,
     plug,
     ac,
     shutters,
@@ -128,7 +131,7 @@ export const createApp = (config: Config): Express => {
         })
       : null,
     box,
-    boxWatcher,
+    boxRepository,
     tv: createTvRemote({ store: createTvStore(`${config.stateDir}/tv`), connect: connectTls(config.tv.host) }),
     poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
   }
@@ -137,7 +140,6 @@ export const createApp = (config: Config): Express => {
   app.disable('x-powered-by')
   // La base reste accessible à qui assemble l'application (les tests la ferment pour supprimer leurs dossiers temporaires).
   app.locals.database = db
-  app.locals.boxWatcher = boxWatcher
   app.use(createRoutes(config.apiKey, services, config.caCert))
   // La WebApp compilée : index.html à la racine, les scripts et styles dans assets/.
   app.use(express.static(config.webDir, { index: 'index.html' }))

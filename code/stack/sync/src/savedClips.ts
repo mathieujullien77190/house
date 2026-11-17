@@ -1,20 +1,19 @@
-// La liste des clips sauvegardés, écrite par House API (fichier JSON dans data/house, monté en lecture seule).
-import { readFile, stat } from 'node:fs/promises'
-import { dirname } from 'node:path'
+// La liste des clips sauvegardés, écrite par House API (document `saved-clips` de la table `house_state`).
+import type { DatabaseSync } from 'node:sqlite'
+import { readState } from './houseState.ts'
 
 /**
- * Les identifiants des clips à ne jamais effacer. null quand on ne peut pas en être sûr (dossier non monté, fichier abîmé) :
- * l'appelant n'efface alors rien. Un fichier absent dans un dossier qui existe veut dire « aucun clip sauvegardé ».
+ * Les identifiants des clips à ne jamais effacer. null quand on ne peut pas en être sûr (base illisible, document abîmé) :
+ * l'appelant n'efface alors rien. Un document absent veut dire « aucun clip sauvegardé ».
  */
-export const readSavedIds = async (file: string): Promise<Set<string> | null> => {
-  const folder = await stat(dirname(file)).then((info) => info.isDirectory(), () => false)
-  if (!folder) return null
-  let text: string
+export const readSavedIds = (db: DatabaseSync): Set<string> | null => {
+  let text: string | null
   try {
-    text = await readFile(file, 'utf8')
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? new Set() : null
+    text = readState(db, 'saved-clips')
+  } catch {
+    return null
   }
+  if (text === null) return new Set()
   try {
     const parsed = JSON.parse(text) as { ids?: unknown }
     return Array.isArray(parsed.ids) ? new Set(parsed.ids.filter((id): id is string => typeof id === 'string')) : null

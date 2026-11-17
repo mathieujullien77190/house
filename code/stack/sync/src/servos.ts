@@ -1,8 +1,8 @@
-// La configuration des servos des volets (bloc « Volets à servos » des réglages) : un fichier JSON que House Sync écrit et que House API relit en lecture seule
-// à chaque ordre (le même principe que guestState.ts). Forme : {"url", "shutters": {"<numéro du volet>": {"up", "down", "stop"}}}. Ancienne forme encore lue :
-// {"url", "up", "down", "stop"} = le volet salon seul. Sans fichier, les valeurs par défaut ci-dessous.
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+// La configuration des servos des volets (bloc « Volets à servos » des réglages) : le document `servos` de la table `house_state`, que House Sync écrit (page des réglages)
+// et que House API relit à chaque ordre. Forme : {"url", "shutters": {"<numéro du volet>": {"up", "down", "stop"}}}. Ancienne forme encore lue :
+// {"url", "up", "down", "stop"} = le volet salon seul. Sans document, les valeurs par défaut ci-dessous.
+import type { DatabaseSync } from 'node:sqlite'
+import { HOUSE_STATE_TABLE, readState } from './houseState.ts'
 
 /** Un ordre : canal du PCA9685 (0 à 15), angles de départ et d'arrivée (degrés, de −90 à 90), vitesse (degrés par seconde, 0 = la plus rapide), attente (secondes). */
 export interface ServoOrder {
@@ -106,19 +106,17 @@ const normalize = (raw: unknown): ServoConfig | null => {
   return parseServos({ url: raw.url ?? DEFAULT_SERVOS.url, shutters })
 }
 
-/** Lit la configuration ; fichier absent ou faux : les valeurs par défaut. */
-export const readServos = async (file: string): Promise<ServoConfig> => {
+/** Lit la configuration ; document absent ou faux : les valeurs par défaut. */
+export const readServos = (db: DatabaseSync): ServoConfig => {
   try {
-    return normalize(JSON.parse(await readFile(file, 'utf8'))) ?? DEFAULT_SERVOS
+    const text = readState(db, 'servos')
+    return (text === null ? null : normalize(JSON.parse(text))) ?? DEFAULT_SERVOS
   } catch {
     return DEFAULT_SERVOS
   }
 }
 
-/** Écrit la configuration (fichier temporaire puis renommage : l'API ne lit jamais un fichier à moitié écrit). */
-export const writeServos = async (file: string, config: ServoConfig): Promise<void> => {
-  await mkdir(dirname(file), { recursive: true })
-  const partial = `${file}.tmp`
-  await writeFile(partial, JSON.stringify(config))
-  await rename(partial, file)
+/** Écrit la configuration. */
+export const writeServos = (db: DatabaseSync, config: ServoConfig, nowSeconds: number): void => {
+  db.prepare(`INSERT INTO ${HOUSE_STATE_TABLE} (key, value, updated_at) VALUES ('servos', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run(JSON.stringify(config), nowSeconds)
 }

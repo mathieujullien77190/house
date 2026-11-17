@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { writeFileSync } from 'node:fs'
 import { afterEach, mock, test } from 'node:test'
 import { startApp, unhandledRejectionMessage } from './app.ts'
-import { clock, tempDir } from './testing.ts'
+import { clock, putState, tempDir } from './testing.ts'
 
 afterEach(() => {
   mock.timers.reset()
@@ -37,7 +37,7 @@ const boot = (extraEnv: Record<string, string> = {}, answer: (url: string) => Re
   const exits: number[] = []
   const urls: string[] = []
   const deps = {
-    env: { DATA_DIR: dir, RECORDER_URLS: 'http://rec:1', HOUSE_KEY: 'secret-key-123', POLL_INTERVAL_SECONDS: '5', ZONES_FILE: `${dir}/zones.json`, SAVED_CLIPS_FILE: `${dir}/saved.json`, PLAN_FILE: `${dir}/plan.json`, GUEST_VISITS_FILE: `${dir}/visits.jsonl`, GUEST_STATE_FILE: `${dir}/guest/state.json`, ...extraEnv },
+    env: { DATA_DIR: dir, RECORDER_URLS: 'http://rec:1', HOUSE_KEY: 'secret-key-123', POLL_INTERVAL_SECONDS: '5', HOUSE_DIR: dir, GUEST_VISITS_FILE: `${dir}/visits.jsonl`, GUEST_STATE_FILE: `${dir}/guest/state.json`, ...extraEnv },
     fetch: async (url: string) => {
       urls.push(url)
       return answer(url)
@@ -73,10 +73,10 @@ test('démarrage : la base, la page, un premier tour ; arrêt : tout est fermé 
 test('les tours reviennent à leur rythme : polling, plan et visites', async () => {
   fakeServer()
   mock.timers.enable({ apis: ['setInterval'] })
-  const { urls, deps, dir } = boot()
+  const { urls, deps } = boot()
   const app = await startApp(deps)
   const before = urls.length
-  writeFileSync(`${dir}/plan.json`, JSON.stringify({ version: 2, trees: [{ id: 'nouveau', x: 1, y: 2, r: 3 }] }))
+  putState(app.db, 'plan', JSON.stringify({ version: 2, trees: [{ id: 'nouveau', x: 1, y: 2, r: 3 }] }))
   mock.timers.tick(30_000)
   const planRows = () => (app.db.prepare('SELECT COUNT(*) AS n FROM plan').get() as { n: number }).n
   for (let waited = 0; planRows() === 0 && waited < 100; waited += 1) await new Promise((resolve) => setTimeout(resolve, 10))
@@ -146,4 +146,15 @@ test('la météo est lue au démarrage puis toutes les 10 minutes, jusqu’à l�
   await app.stop()
   mock.timers.tick(600_000)
   assert.equal(weatherCalls(), 2)
+})
+
+test('démarrage : les anciens fichiers de la box sont repris une fois dans la base', async () => {
+  fakeServer()
+  const known = `${tempDir()}/known.json`
+  const { deps, logs } = boot({ BOX_KNOWN_FILE: known })
+  writeFileSync(known, JSON.stringify([{ mac: 'AA:BB:CC:DD:EE:01', name: 'TV' }]))
+  const app = await startApp(deps)
+  assert.ok(logs.includes('Box : 1 ligne(s) reprise(s) des anciens fichiers de House API'))
+  assert.equal((app.db.prepare('SELECT COUNT(*) AS n FROM box_known').get() as { n: number }).n, 1)
+  await app.stop()
 })

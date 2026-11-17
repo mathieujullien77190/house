@@ -1,8 +1,7 @@
 // Le plan de la maison (la carte de la WebApp) : arbres, haies, cage, chemin du garage et portes, positions de la lampe et de la prise, caméras du plan et leur lien avec les vraies
 // caméras. Gardé par l'API (STATE_DIR/plan.json) pour qu'il soit le même sur tous les appareils ; House Sync le lit (en lecture seule) et l'importe dans SQLite (table `plan`).
 // Positions en longitude et latitude (version 2). Un document : seules les parties connues et bien formées sont gardées, le reste est jeté.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 type Point = [number, number]
 
@@ -107,10 +106,10 @@ export const parsePlan = (value: unknown): PlanDocument => {
   return plan
 }
 
-export const createPlanStore = (file: string) => {
+export const createPlanStore = (file: DocStore) => {
   const read = (): PlanDocument | null => {
     try {
-      return parsePlan(JSON.parse(readFileSync(file, 'utf8')))
+      return parsePlan(JSON.parse(file.read()))
     } catch {
       return null
     }
@@ -121,10 +120,7 @@ export const createPlanStore = (file: string) => {
     /** Garde le plan (nettoyé) et le rend. Écrit dans un fichier temporaire puis le renomme. */
     set: (value: unknown): PlanDocument => {
       const plan = parsePlan(value)
-      mkdirSync(dirname(file), { recursive: true })
-      const partial = `${file}.tmp`
-      writeFileSync(partial, JSON.stringify(plan, null, 2))
-      renameSync(partial, file)
+      file.write(JSON.stringify(plan, null, 2))
       return plan
     },
   }

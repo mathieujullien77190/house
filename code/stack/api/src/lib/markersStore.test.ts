@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { test } from 'node:test'
+import { memoryDoc } from '../testing/helpers.ts'
 import { createMarkersStore, isCameraName, MAX_PLACE, MIN_PLACE, parseMarkers } from './markersStore.ts'
 
 test('des repères valables sont arrondis à 4 décimales, la liste vide aussi', () => {
@@ -42,37 +40,25 @@ test('un nom de caméra : lettres, chiffres, tiret, 40 caractères au plus', () 
 })
 
 test('les repères d’une caméra se gardent, se remplacent et se retirent', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'markers-'))
-  try {
-    const file = join(dir, 'sous', 'markers.json')
-    const store = createMarkersStore(file)
-    assert.deepEqual(store.get(), {})
-    const list = [{ target: 'b', x: 0.2, y: 0.3 }]
-    assert.deepEqual(store.set('a', list), { a: list })
-    assert.equal(existsSync(`${file}.tmp`), false)
-    assert.deepEqual(createMarkersStore(file).get(), { a: list })
-    assert.deepEqual(store.set('a', []), { a: [] })
-    assert.deepEqual(store.set('a', null), {})
-    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), {})
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
+  const doc = memoryDoc()
+  const store = createMarkersStore(doc)
+  assert.deepEqual(store.get(), {})
+  const list = [{ target: 'b', x: 0.2, y: 0.3 }]
+  assert.deepEqual(store.set('a', list), { a: list })
+  assert.deepEqual(createMarkersStore(doc).get(), { a: list })
+  assert.deepEqual(store.set('a', []), { a: [] })
+  assert.deepEqual(store.set('a', null), {})
+  assert.deepEqual(JSON.parse(doc.text() ?? ''), {})
 })
 
-test('un fichier abîmé ou d’une autre forme vaut aucun repère, les entrées invalides sont ignorées', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'markers-'))
-  try {
-    const file = join(dir, 'markers.json')
-    const store = createMarkersStore(file)
-    writeFileSync(file, '{pas du json')
-    assert.deepEqual(store.get(), {})
-    writeFileSync(file, '[]')
-    assert.deepEqual(store.get(), {})
-    writeFileSync(file, 'null')
-    assert.deepEqual(store.get(), {})
-    writeFileSync(file, JSON.stringify({ a: [{ target: 'b', x: 0, y: 0 }], b: 'non', 'mauvais nom': [] }))
-    assert.deepEqual(store.get(), { a: [{ target: 'b', x: 0, y: 0 }] })
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
+test('un document abîmé ou d’une autre forme vaut aucun repère, les entrées invalides sont ignorées', () => {
+  const doc = memoryDoc('{pas du json')
+  const store = createMarkersStore(doc)
+  assert.deepEqual(store.get(), {})
+  doc.write('[]')
+  assert.deepEqual(store.get(), {})
+  doc.write('null')
+  assert.deepEqual(store.get(), {})
+  doc.write(JSON.stringify({ a: [{ target: 'b', x: 0, y: 0 }], b: 'non', 'mauvais nom': [] }))
+  assert.deepEqual(store.get(), { a: [{ target: 'b', x: 0, y: 0 }] })
 })

@@ -1,6 +1,5 @@
 // Les réglages de la règle du chauffage automatique, gardés dans STATE_DIR/heating.json (écriture dans un fichier temporaire puis renommé).
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 export interface HeatingSettings {
   /** La règle est active. */
@@ -70,22 +69,19 @@ export const mergeSettings = (body: unknown, current: HeatingSettings): HeatingS
   return next
 }
 
-export const createHeatingSettings = (file: string) => {
+export const createHeatingSettings = (file: DocStore) => {
   const store = {
     /** Les réglages gardés ; ceux par défaut si le fichier manque ou est abîmé. */
     get: (): HeatingSettings => {
       try {
-        const merged = mergeSettings(JSON.parse(readFileSync(file, 'utf8')), DEFAULT_SETTINGS)
+        const merged = mergeSettings(JSON.parse(file.read()), DEFAULT_SETTINGS)
         return typeof merged === 'string' ? DEFAULT_SETTINGS : merged
       } catch {
         return DEFAULT_SETTINGS
       }
     },
     set: (settings: HeatingSettings): void => {
-      mkdirSync(dirname(file), { recursive: true })
-      const partial = `${file}.tmp`
-      writeFileSync(partial, JSON.stringify(settings, null, 2))
-      renameSync(partial, file)
+      file.write(JSON.stringify(settings, null, 2))
     },
     /** Désactive la règle (un mouvement a coupé le chauffage) ; les autres réglages restent. */
     disable: (): void => store.set({ ...store.get(), enabled: false }),

@@ -1,15 +1,14 @@
 // Les clips sauvegardés (à garder pour toujours) : un petit fichier JSON gardé par l'API (STATE_DIR) que House Sync lit
 // avant d'effacer les vieux clips. L'API n'écrit jamais la base : c'est ce fichier qui dit quels clips sont à l'abri.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 const ID = /^[\w.-]+$/
 
 /** Les identifiants du fichier ; null s'il existe mais n'a pas la bonne forme (on ne l'écrase jamais : la liste serait perdue). */
-const readIds = (file: string): string[] | null => {
+const readIds = (file: DocStore): string[] | null => {
   let text: string
   try {
-    text = readFileSync(file, 'utf8')
+    text = file.read()
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === 'ENOENT' ? [] : null
   }
@@ -21,7 +20,7 @@ const readIds = (file: string): string[] | null => {
   }
 }
 
-export const createSavedClipsStore = (file: string) => ({
+export const createSavedClipsStore = (file: DocStore) => ({
   /** Les identifiants sauvegardés (vide si le fichier manque ou est illisible : l'affichage n'en dépend pas pour effacer). */
   ids: (): Set<string> => new Set(readIds(file) ?? []),
   /** Sauvegarde ou libère un clip. Écrit dans un fichier temporaire puis le renomme ; refuse d'écraser un fichier illisible. */
@@ -32,10 +31,7 @@ export const createSavedClipsStore = (file: string) => ({
     const next = new Set(current)
     if (saved) next.add(id)
     else next.delete(id)
-    mkdirSync(dirname(file), { recursive: true })
-    const partial = `${file}.tmp`
-    writeFileSync(partial, JSON.stringify({ ids: [...next] }, null, 2))
-    renameSync(partial, file)
+    file.write(JSON.stringify({ ids: [...next] }, null, 2))
   },
 })
 

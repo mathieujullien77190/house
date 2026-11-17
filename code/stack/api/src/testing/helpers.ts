@@ -7,6 +7,8 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import express, { type Router } from 'express'
 import { openDatabase, type Database } from '../db/database.ts'
+import type { DocStore } from '../lib/docStore.ts'
+import type { JournalPost } from '../lib/journalClient.ts'
 import { errorHandler, notFound } from '../middleware/errorHandler.ts'
 
 /** Un dossier temporaire, supprimé après le travail. */
@@ -61,6 +63,12 @@ export const SCHEMA = `
     clip_started_at INTEGER, clip_web_path TEXT, clip_audio_path TEXT, clip_shapes_path TEXT, orientation TEXT
   );
   CREATE TABLE snapshots (camera TEXT, taken_at INTEGER, path TEXT, code TEXT);
+  CREATE TABLE house_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+  CREATE TABLE box_known (mac TEXT PRIMARY KEY, name TEXT NOT NULL, ip TEXT);
+  CREATE TABLE box_guests (mac TEXT PRIMARY KEY, name TEXT NOT NULL, ip TEXT, type TEXT, vendor TEXT, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL);
+  CREATE TABLE box_connections (id INTEGER PRIMARY KEY AUTOINCREMENT, happened_at INTEGER NOT NULL, event TEXT NOT NULL, mac TEXT NOT NULL, name TEXT NOT NULL, ip TEXT, type TEXT, vendor TEXT);
+  CREATE TABLE heating_log (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at INTEGER NOT NULL, origin TEXT, minutes INTEGER, temperature REAL, note TEXT, cost REAL);
+  CREATE TABLE shutter_log (id INTEGER PRIMARY KEY AUTOINCREMENT, happened_at INTEGER NOT NULL, shutter TEXT, name TEXT, command TEXT, ok INTEGER, note TEXT);
 `
 
 /** Crée un fichier SQLite avec ce SQL (le schéma, puis des lignes). */
@@ -119,3 +127,48 @@ export const call = async (url: string, method = 'GET', body?: unknown, headers:
   }
   return { status: res.status, body: parsed, headers: res.headers }
 }
+
+export interface MemoryDoc extends DocStore {
+  /** Le texte gardé, null tant que rien n'a été écrit. */
+  text: () => string | null
+}
+
+/** Un document en mémoire à la place de la table `house_state` : `initial` est son texte de départ (null : absent) ; `readError` : le code d'erreur que sa lecture lève (EISDIR…). */
+export const memoryDoc = (initial: string | null = null, readError: string | null = null): MemoryDoc => {
+  let content = initial
+  return {
+    read: () => {
+      if (readError) throw Object.assign(new Error(readError), { code: readError })
+      if (content === null) throw Object.assign(new Error('absent'), { code: 'ENOENT' })
+      return content
+    },
+    write: (text) => {
+      content = text
+    },
+    text: () => content,
+  }
+}
+
+/** Une base en mémoire (le schéma de `SCHEMA` par défaut), sans fichier à supprimer. */
+export const memoryDatabase = (sql = SCHEMA): Database => {
+  const db = new DatabaseSync(':memory:')
+  db.exec(sql)
+  return {
+    all: <T>(query: string, ...params: (string | number)[]) => db.prepare(query).all(...params) as T[],
+    get: <T>(query: string, ...params: (string | number)[]) => db.prepare(query).get(...params) as T | undefined,
+    run: (query: string, ...params: (string | number | null)[]) => Number(db.prepare(query).run(...params).changes),
+    close: () => db.close(),
+  }
+}
+
+/** Joue le rôle de House Sync : range dans `heating_log` ou `shutter_log` ce que l'API lui envoie. */
+export const journalToDatabase =
+  (db: Database): JournalPost =>
+  (kind, entry) => {
+    const e = entry as Record<string, string | number | boolean | null>
+    if (kind === 'heating') {
+      db.run('INSERT INTO heating_log (started_at, origin, minutes, temperature, note, cost) VALUES (?, ?, ?, ?, ?, ?)', e.at as number, e.origin as string, e.minutes as number, e.temperature as number | null, e.note as string | null, e.cost as number | null)
+    } else {
+      db.run('INSERT INTO shutter_log (happened_at, shutter, name, command, ok, note) VALUES (?, ?, ?, ?, ?, ?)', e.at as number, e.shutter as string, e.name as string, e.command as string, e.ok ? 1 : 0, e.note as string | null)
+    }
+  }

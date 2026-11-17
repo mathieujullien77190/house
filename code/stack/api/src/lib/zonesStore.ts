@@ -1,7 +1,6 @@
 // Les zones de surveillance du mouvement : pour chaque caméra, un polygone dessiné sur l'image dans la WebApp, gardé par l'API (STATE_DIR/zones.json).
 // House Sync le lit (en lecture seule) et le donne à l'enregistreur. Une caméra sans entrée est surveillée sur toute l'image.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 /** Un sommet, en part de l'image : x de 0 (gauche) à 1 (droite), y de 0 (haut) à 1 (bas). */
 export type ZonePoint = [number, number]
@@ -27,10 +26,10 @@ export const parsePolygon = (value: unknown): ZonePoint[] | null => {
   return points
 }
 
-export const createZonesStore = (file: string) => {
+export const createZonesStore = (file: DocStore) => {
   const read = (): Zones => {
     try {
-      const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
+      const parsed: unknown = JSON.parse(file.read())
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
       const zones: Zones = {}
       for (const [camera, value] of Object.entries(parsed)) {
@@ -49,10 +48,7 @@ export const createZonesStore = (file: string) => {
       const next = read()
       if (points) next[camera] = points
       else delete next[camera]
-      mkdirSync(dirname(file), { recursive: true })
-      const partial = `${file}.tmp`
-      writeFileSync(partial, JSON.stringify(next, null, 2))
-      renameSync(partial, file)
+      file.write(JSON.stringify(next, null, 2))
       return next
     },
   }

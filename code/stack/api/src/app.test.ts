@@ -50,7 +50,8 @@ const baseConfig = (dir: string): Config => ({
   shuttersAuto: [],
   shuttersEspUrl: null,
   shuttersServo: [],
-  servosFile: join(dir, 'servos.json'),
+  syncUrl: '',
+  syncServername: 'localhost',
   plugMotionSensor: 'motion interieur',
   plugTemperatureSensor: 'motion interieur',
   housePosition: { latitude: 48.6, longitude: 2.7 },
@@ -167,7 +168,7 @@ test('tous les services configurés : pont Hue, prise, switch, enregistreur', as
   }
 })
 
-test('une Freebox configurée : le surveillant des invités est créé, la liste de la maison est vide tant qu’il n’a rien lu', async () => {
+test('une Freebox configurée : les appareils se lisent dans la base, la liste de la maison est vide tant que House Sync n’a rien lu', async () => {
   await withTempDir(async (dir) => {
     const config: Config = { ...prepare(dir), freebox: { url: 'http://127.0.0.1:1', appId: 'app', appToken: 'jeton' } }
     await serveApp(config, async (url) => {
@@ -227,4 +228,24 @@ test('les volets avec un ESP32 : le pilote réel, un ordre qui échoue rend 502'
       assert.equal((await call(`${url}/shutters/1`, 'POST', { command: 'up' }, key)).status, 502)
     })
   })
+})
+
+test('les ordres des volets partent au journal de House Sync quand SYNC_URL et la CA sont configurés', async () => {
+  const log = mock.method(console, 'error', () => undefined)
+  try {
+    await withTempDir(async (dir) => {
+      const caCert = join(dir, 'rootCA.crt')
+      writeFileSync(caCert, '-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----\n')
+      const config: Config = { ...prepare(dir), shutters: [{ id: '1', name: 'Salon', shadeId: 1 }], caCert, syncUrl: 'https://127.0.0.1:1', syncServername: 'localhost' }
+      await serveApp(config, async (url) => {
+        const key = { 'X-House-Key': KEY }
+        assert.equal((await call(`${url}/shutters/1`, 'POST', { command: 'up' }, key)).status, 200)
+        // House Sync ne répond pas : l'erreur est écrite dans le journal du conteneur, l'ordre a été donné
+        for (let wait = 0; wait < 100 && log.mock.callCount() === 0; wait += 1) await new Promise((done) => setTimeout(done, 20))
+        assert.match(String(log.mock.calls[0]?.arguments[0]), /^journal shutters : /)
+      })
+    })
+  } finally {
+    log.mock.restore()
+  }
 })

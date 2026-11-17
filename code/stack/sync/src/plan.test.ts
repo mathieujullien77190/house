@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { createHouseStateTable } from './houseState.ts'
 import { createPlanTable, importPlan, planRows, readPlan } from './plan.ts'
+import { putState } from './testing.ts'
 
 const PLAN = {
   version: 2,
@@ -60,17 +59,15 @@ test('un plan aux formes bizarres : rien ne casse, les valeurs absentes devienne
   assert.deepEqual(planRows({ version: 2, cage: 'x', trees: 'x', hedges: 'x', cameras: 'x', links: 'x' }), [])
 })
 
-test('readPlan : le JSON du fichier, ou null s\'il manque ou est abîmé', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'sync-plan-'))
-  try {
-    writeFileSync(`${dir}/plan.json`, JSON.stringify(PLAN))
-    assert.deepEqual(await readPlan(`${dir}/plan.json`), PLAN)
-    assert.equal(await readPlan(`${dir}/absent.json`), null)
-    writeFileSync(`${dir}/plan.json`, '{')
-    assert.equal(await readPlan(`${dir}/plan.json`), null)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
+test('readPlan : le document de la base, ou null s’il manque ou est abîmé', () => {
+  const db = new DatabaseSync(':memory:')
+  assert.equal(readPlan(db), null)
+  createHouseStateTable(db)
+  assert.equal(readPlan(db), null)
+  putState(db, 'plan', JSON.stringify(PLAN))
+  assert.deepEqual(readPlan(db), PLAN)
+  putState(db, 'plan', '{')
+  assert.equal(readPlan(db), null)
 })
 
 test('importPlan : un plan sans élément vide la table ; un autre document ne la touche pas', () => {

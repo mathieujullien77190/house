@@ -5,7 +5,8 @@ import { test } from 'node:test'
 import { createClips, NOTHING_PURGED, parisNow, PURGE_DONE_KEY, saveResponse } from './clips.ts'
 import { createRecorder } from './recorder.ts'
 import type { RecorderEvent } from './recorder.ts'
-import { testContext, type TestContext } from './testing.ts'
+import { createHouseStateTable } from './houseState.ts'
+import { putState, testContext, type TestContext } from './testing.ts'
 
 type Route = Response | (() => Response | Promise<Response>)
 
@@ -210,7 +211,7 @@ test('purgeOldClips : efface les clips non sauvegardés trop vieux, garde la tra
   const { ctx, clips } = setup()
   ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
   mkdirSync(`${ctx.dir}/clips/cam`, { recursive: true })
-  writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: ['garde'] }))
+  putState(ctx.db, 'saved-clips', JSON.stringify({ ids: ['garde'] }))
   for (const id of ['vieux', 'garde']) for (const suffix of ['.mp4', '.h264.mp4', '.aac', '.shapes.json']) writeFileSync(clipFile(ctx, `${id}${suffix}`), 'x')
   expired(ctx, 'vieux')
   expired(ctx, 'garde')
@@ -233,12 +234,12 @@ test('purgeOldClips : efface les clips non sauvegardés trop vieux, garde la tra
 test('purgeOldClips : au plus toutes les 10 minutes ; liste illisible = rien d\'effacé', async () => {
   const { ctx, clips } = setup()
   ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
-  ctx.config.savedClipsFile = `${ctx.dir}/absent/saved.json`
+  ctx.db.exec('DROP TABLE house_state')
   expired(ctx, 'vieux')
   assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
   assert.deepEqual(ctx.logs, ['Ménage des clips sauté : la liste des clips sauvegardés est illisible'])
   ctx.time.advance(60_000)
-  ctx.config.savedClipsFile = `${ctx.dir}/saved.json`
+  createHouseStateTable(ctx.db)
   assert.deepEqual(await clips.purgeOldClips(), NOTHING_PURGED)
   ctx.time.advance(600_000)
   assert.equal((await clips.purgeOldClips()).clips, 1)
@@ -247,7 +248,7 @@ test('purgeOldClips : au plus toutes les 10 minutes ; liste illisible = rien d\'
 test('purgeOldClips : une fois par jour, à heure fixe (04:00 à Paris), pas avant, pas deux fois le même jour', async () => {
   const { ctx, clips } = setup()
   mkdirSync(`${ctx.dir}/clips/cam`, { recursive: true })
-  writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: [] }))
+  putState(ctx.db, 'saved-clips', JSON.stringify({ ids: [] }))
   // 3 h 30 à Paris (2 h 30 UTC) : trop tôt, rien n'est fait.
   ctx.time.set(Date.parse('2026-11-10T02:30:00Z'))
   expired(ctx, 'un')
@@ -267,7 +268,7 @@ test('purgeOldClips : une fois par jour, à heure fixe (04:00 à Paris), pas ava
 test('le ménage du jour efface aussi images, journal Hue, événements sans clip et fusions, au-delà de la durée de garde', async () => {
   const { ctx, clips } = setup()
   ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
-  writeFileSync(`${ctx.dir}/saved.json`, JSON.stringify({ ids: ['garde'] }))
+  putState(ctx.db, 'saved-clips', JSON.stringify({ ids: ['garde'] }))
   const now = seconds(ctx)
   const old = now - 40 * 86400
   const recent = now - 2 * 86400
@@ -297,7 +298,7 @@ test('le ménage du jour efface aussi images, journal Hue, événements sans cli
 test('liste des clips sauvegardés illisible : rien du tout n est effacé et le jour n est pas marqué fait', async () => {
   const { ctx, clips } = setup()
   ctx.time.set(Date.parse('2026-11-10T10:00:00Z'))
-  ctx.config.savedClipsFile = `${ctx.dir}/absent/saved.json`
+  ctx.db.exec('DROP TABLE house_state')
   const old = seconds(ctx) - 40 * 86400
   expired(ctx, 'sans-clip', { clip_path: null, clip_web_path: null, clip_audio_path: null })
   ctx.db.prepare('INSERT INTO snapshots (camera, taken_at, path) VALUES (?, ?, ?)').run('cam', old, 'snapshots/cam/vieille.jpg')

@@ -1,11 +1,22 @@
 // Tests de la configuration des servos des volets : lecture, validation, fusion, écriture.
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
+import { createHouseStateTable } from './houseState.ts'
 import { DEFAULT_SERVOS, mergeServos, parseServos, readServos, SERVO_COMMANDS, writeServos, type ServoConfig } from './servos.ts'
-import { tempDir } from './testing.ts'
+import { putState } from './testing.ts'
 
-const dir = tempDir()
+const memory = () => {
+  const db = new DatabaseSync(':memory:')
+  createHouseStateTable(db)
+  return db
+}
+/** Une base où le document `servos` vaut ce texte. */
+const withServos = (text: string) => {
+  const db = memory()
+  putState(db, 'servos', text)
+  return db
+}
 
 test('les trois ordres', () => {
   assert.deepEqual(SERVO_COMMANDS, ['up', 'down', 'stop'])
@@ -54,38 +65,34 @@ test('mergeServos : refuse un corps ou un champ faux', () => {
   assert.equal(mergeServos(DEFAULT_SERVOS, { url: 'x' }), null)
 })
 
-test('readServos : sans fichier ou fichier faux, les valeurs par défaut', async () => {
-  assert.deepEqual(await readServos(`${dir}/absent.json`), DEFAULT_SERVOS)
-  writeFileSync(`${dir}/abime.json`, 'x{')
-  assert.deepEqual(await readServos(`${dir}/abime.json`), DEFAULT_SERVOS)
-  writeFileSync(`${dir}/tableau.json`, '[]')
-  assert.deepEqual(await readServos(`${dir}/tableau.json`), DEFAULT_SERVOS)
-  writeFileSync(`${dir}/faux.json`, JSON.stringify({ shutters: 'non' }))
-  assert.deepEqual(await readServos(`${dir}/faux.json`), DEFAULT_SERVOS)
-  writeFileSync(`${dir}/valeur.json`, JSON.stringify({ url: 'ftp://x' }))
-  assert.deepEqual(await readServos(`${dir}/valeur.json`), DEFAULT_SERVOS)
+test('readServos : sans document ou document faux, les valeurs par défaut', () => {
+  assert.deepEqual(readServos(memory()), DEFAULT_SERVOS)
+  assert.deepEqual(readServos(new DatabaseSync(':memory:')), DEFAULT_SERVOS)
+  assert.deepEqual(readServos(withServos('x{')), DEFAULT_SERVOS)
+  assert.deepEqual(readServos(withServos('[]')), DEFAULT_SERVOS)
+  assert.deepEqual(readServos(withServos(JSON.stringify({ shutters: 'non' }))), DEFAULT_SERVOS)
+  assert.deepEqual(readServos(withServos(JSON.stringify({ url: 'ftp://x' }))), DEFAULT_SERVOS)
 })
 
-test('readServos : forme actuelle, volets manquants par défaut ; ancienne forme = le salon', async () => {
+test('readServos : forme actuelle, volets manquants par défaut ; ancienne forme = le salon', () => {
   const salon = { ...DEFAULT_SERVOS.shutters['2'], up: { channel: 9, start: 1, end: 2, speed: 3, hold: 4 } }
-  writeFileSync(`${dir}/actuel.json`, JSON.stringify({ url: 'http://x', shutters: { '2': salon } }))
-  const current = await readServos(`${dir}/actuel.json`)
+  const current = readServos(withServos(JSON.stringify({ url: 'http://x', shutters: { '2': salon } })))
   assert.equal(current.url, 'http://x')
   assert.deepEqual(current.shutters['2'], salon)
   assert.deepEqual(current.shutters['5'], DEFAULT_SERVOS.shutters['5'])
-  writeFileSync(`${dir}/sansurl.json`, JSON.stringify({ shutters: {} }))
-  assert.deepEqual(await readServos(`${dir}/sansurl.json`), DEFAULT_SERVOS)
-  writeFileSync(`${dir}/ancien.json`, JSON.stringify({ url: 'http://y', ...salon }))
-  const old = await readServos(`${dir}/ancien.json`)
+  assert.deepEqual(readServos(withServos(JSON.stringify({ shutters: {} }))), DEFAULT_SERVOS)
+  const old = readServos(withServos(JSON.stringify({ url: 'http://y', ...salon })))
   assert.equal(old.url, 'http://y')
   assert.deepEqual(old.shutters['2'], salon)
 })
 
-test('writeServos : écrit (dossier créé) puis relu', async () => {
-  const file = `${dir}/sous/servos.json`
-  await writeServos(file, DEFAULT_SERVOS)
-  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), DEFAULT_SERVOS)
-  assert.deepEqual(await readServos(file), DEFAULT_SERVOS)
-  mkdirSync(`${dir}/dossier.json`)
-  await assert.rejects(writeServos(`${dir}/dossier.json`, DEFAULT_SERVOS))
+test('writeServos : écrit dans house_state puis relu, la date est notée, un second écrit remplace', () => {
+  const db = memory()
+  writeServos(db, DEFAULT_SERVOS, 100)
+  assert.deepEqual(readServos(db), DEFAULT_SERVOS)
+  const other = { ...DEFAULT_SERVOS, url: 'http://autre' }
+  writeServos(db, other, 200)
+  assert.deepEqual(readServos(db), other)
+  assert.equal((db.prepare("SELECT updated_at FROM house_state WHERE key = 'servos'").get() as { updated_at: number }).updated_at, 200)
+  assert.throws(() => writeServos(new DatabaseSync(':memory:'), DEFAULT_SERVOS, 1))
 })

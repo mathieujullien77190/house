@@ -2,8 +2,7 @@
 // Option « éteindre au mouvement » : tant qu'elle est armée, un détecteur de mouvement Hue (par défaut « motion interieur ») qui voit quelqu'un
 // éteint la prise ; l'option s'efface alors, et dès que la prise est éteinte autrement. Quand la prise avait été allumée par la règle automatique du
 // chauffage (elle arme toujours l'option), le mouvement désactive aussi la règle (`onAutoCut`).
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from '../lib/docStore.ts'
 import type { Activation } from '../lib/heatingLog.ts'
 import type { KasaClient, PlugInfo } from '../lib/kasaClient.ts'
 
@@ -24,7 +23,8 @@ export interface MotionSource {
 interface GuardOptions {
   motion: MotionSource | null
   /** Le fichier où l'option armée est gardée (pour qu'un redémarrage ne l'oublie pas). */
-  file: string
+  /** Le document de la garde (house_state) ; absent : la garde n'est pas gardée entre deux démarrages. */
+  doc: DocStore | null
   /** Appelée à chaque allumage commandé par l'API (le journal du chauffage). */
   record?: (entry: Activation) => void
   /** Appelée quand un mouvement éteint un chauffage allumé par la règle automatique : la règle se désactive. */
@@ -39,7 +39,7 @@ export interface ActivationMeta {
 }
 const MANUAL: ActivationMeta = { origin: 'manuel', temperature: null, note: null }
 
-export const createPlugService = (client: KasaClient, guard: GuardOptions = { motion: null, file: '' }) => {
+export const createPlugService = (client: KasaClient, guard: GuardOptions = { motion: null, doc: null }) => {
   let cached: { at: number; state: PlugInfo } | null = null
   const read = async (): Promise<PlugInfo> => {
     if (cached && Date.now() - cached.at < CACHE_MS) return cached.state
@@ -49,9 +49,9 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
   }
 
   const load = (): { armed: boolean; origin: ActivationMeta['origin'] } => {
-    if (!guard.file) return { armed: false, origin: 'manuel' }
+    if (!guard.doc) return { armed: false, origin: 'manuel' }
     try {
-      const saved = JSON.parse(readFileSync(guard.file, 'utf8')) as { offOnMotion?: unknown; origin?: unknown }
+      const saved = JSON.parse(guard.doc.read()) as { offOnMotion?: unknown; origin?: unknown }
       return { armed: saved.offOnMotion === true, origin: saved.origin === 'auto' ? 'auto' : 'manuel' }
     } catch {
       return { armed: false, origin: 'manuel' }
@@ -65,12 +65,9 @@ export const createPlugService = (client: KasaClient, guard: GuardOptions = { mo
     if (armed === value && armedOrigin === origin) return
     armed = value
     armedOrigin = origin
-    if (!guard.file) return
+    if (!guard.doc) return
     try {
-      mkdirSync(dirname(guard.file), { recursive: true })
-      const partial = `${guard.file}.tmp`
-      writeFileSync(partial, JSON.stringify({ offOnMotion: value, origin }))
-      renameSync(partial, guard.file)
+      guard.doc.write(JSON.stringify({ offOnMotion: value, origin }))
     } catch {
       // l'option marche quand même en mémoire
     }

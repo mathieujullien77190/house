@@ -1,33 +1,35 @@
 // Tests de la liste des clips sauvegardés.
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
+import { createHouseStateTable } from './houseState.ts'
 import { readSavedIds } from './savedClips.ts'
-import { tempDir } from './testing.ts'
+import { putState } from './testing.ts'
 
-const dir = tempDir()
+const memory = () => {
+  const db = new DatabaseSync(':memory:')
+  createHouseStateTable(db)
+  return db
+}
 
-test('dossier non monté : null (rien ne sera effacé)', async () => {
-  assert.equal(await readSavedIds(`${dir}/absent/saved.json`), null)
+test('table absente (base illisible) : null (rien ne sera effacé)', () => {
+  assert.equal(readSavedIds(new DatabaseSync(':memory:')), null)
 })
 
-test('fichier absent dans un dossier qui existe : aucun clip sauvegardé', async () => {
-  assert.deepEqual(await readSavedIds(`${dir}/saved.json`), new Set())
+test('document absent : aucun clip sauvegardé', () => {
+  assert.deepEqual(readSavedIds(memory()), new Set())
 })
 
-test('fichier lu : les identifiants texte seulement', async () => {
-  writeFileSync(`${dir}/saved.json`, JSON.stringify({ ids: ['a', 3, 'b'] }))
-  assert.deepEqual(await readSavedIds(`${dir}/saved.json`), new Set(['a', 'b']))
+test('document lu : les identifiants texte seulement', () => {
+  const db = memory()
+  putState(db, 'saved-clips', JSON.stringify({ ids: ['a', 3, 'b'] }))
+  assert.deepEqual(readSavedIds(db), new Set(['a', 'b']))
 })
 
-test('fichier abîmé ou sans liste : null', async () => {
-  writeFileSync(`${dir}/saved.json`, '{pas du json')
-  assert.equal(await readSavedIds(`${dir}/saved.json`), null)
-  writeFileSync(`${dir}/saved.json`, '{"ids": "non"}')
-  assert.equal(await readSavedIds(`${dir}/saved.json`), null)
-})
-
-test("un fichier illisible pour une autre raison qu'absent : null", async () => {
-  mkdirSync(`${dir}/dossier.json`)
-  assert.equal(await readSavedIds(`${dir}/dossier.json`), null)
+test('document abîmé ou sans liste : null', () => {
+  const db = memory()
+  putState(db, 'saved-clips', '{pas du json')
+  assert.equal(readSavedIds(db), null)
+  putState(db, 'saved-clips', '{"ids": "non"}')
+  assert.equal(readSavedIds(db), null)
 })

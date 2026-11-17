@@ -17,11 +17,17 @@ import { createLampEnergyTable } from './lampEnergy.ts'
 import { createMachineEnergyTable } from './machineEnergy.ts'
 import { createGuestVisitsTable } from './guestVisits.ts'
 import { createHeatingLogTable } from './heatingLog.ts'
+import { createHouseStateTable, HOUSE_STATE_TABLE } from './houseState.ts'
 import { createShutterLogTable } from './shutterLog.ts'
-import { createBoxConnectionsTable } from './boxConnections.ts'
+import { createBoxTables } from './boxWatcher.ts'
 import { createHueLog } from './hueLog.ts'
 import { createPlanTable } from './plan.ts'
 import { createSettings } from './settings.ts'
+
+/** Range un document de l'utilisateur (comme le fait House API) dans la table `house_state`. */
+export const putState = (db: DatabaseSync, key: string, value: string): void => {
+  db.prepare(`INSERT OR REPLACE INTO ${HOUSE_STATE_TABLE} (key, value, updated_at) VALUES (?, ?, 0)`).run(key, value)
+}
 
 /** Un dossier temporaire, supprimé à la fin du fichier d'essais. */
 export const tempDir = (): string => {
@@ -50,7 +56,7 @@ type Handler = (url: string, init?: RequestInit) => Response | Promise<Response>
 export const testContext = (handler: Handler = () => new Response('', { status: 404 }), env: Record<string, string> = {}): TestContext => {
   const dir = tempDir()
   const time = clock()
-  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), ZONES_FILE: join(dir, 'zones.json'), SAVED_CLIPS_FILE: join(dir, 'saved.json'), PLAN_FILE: join(dir, 'plan.json'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), SERVOS_FILE: join(dir, 'servos.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), HEATING_LOG_FILE: join(dir, 'heating-log.jsonl'), SHUTTER_LOG_FILE: join(dir, 'shutters-log.jsonl'), BOX_LOG_FILE: join(dir, 'box-connections.jsonl'), ...env })
+  const config: Config = loadConfig({ DATA_DIR: dir, RECORDER_URLS: 'http://rec1:8080', HOUSE_KEY: 'secret-key-123', WEB_DIR: join(dir, 'web'), HOUSE_DIR: join(dir, 'house'), GUEST_STATE_FILE: join(dir, 'guest', 'state.json'), SERVOS_FILE: join(dir, 'servos.json'), GUEST_VISITS_FILE: join(dir, 'visits.jsonl'), BOX_KNOWN_FILE: join(dir, 'box-known.json'), BOX_GUESTS_FILE: join(dir, 'box-guests.json'), ...env })
   const db = new DatabaseSync(':memory:')
   const log = console.log
   console.log = () => undefined
@@ -61,7 +67,8 @@ export const testContext = (handler: Handler = () => new Response('', { status: 
     createGuestVisitsTable(db)
     createHeatingLogTable(db)
     createShutterLogTable(db)
-    createBoxConnectionsTable(db)
+    createBoxTables(db)
+    createHouseStateTable(db)
     createCameraEnergyTable(db)
     createLampEnergyTable(db)
     createMachineEnergyTable(db)

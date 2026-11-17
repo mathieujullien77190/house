@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict'
-import { join } from 'node:path'
 import { test } from 'node:test'
 import { createClipEmojisStore } from '../lib/clipEmojisStore.ts'
 import { createClipNotesStore } from '../lib/clipNotesStore.ts'
 import { createSavedClipsStore } from '../lib/savedClipsStore.ts'
 import { createEventsRepository } from '../repositories/eventsRepository.ts'
-import { openFixture, withTempDir } from '../testing/helpers.ts'
+import { memoryDoc, openFixture, withTempDir } from '../testing/helpers.ts'
 import { createEventsService } from './eventsService.ts'
 
 const setup = async (
@@ -19,9 +18,9 @@ const setup = async (
   await withTempDir((dir) => {
     const db = openFixture(dir)
     try {
-      const saved = createSavedClipsStore(join(dir, 'saved.json'))
-      const notes = createClipNotesStore(join(dir, 'notes.json'))
-      const emojis = createClipEmojisStore(join(dir, 'emojis.json'))
+      const saved = createSavedClipsStore(memoryDoc())
+      const notes = createClipNotesStore(memoryDoc())
+      const emojis = createClipEmojisStore(memoryDoc())
       work(createEventsService(createEventsRepository(db), saved, notes, emojis), saved, notes, emojis)
     } finally {
       db.close()

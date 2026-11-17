@@ -1,16 +1,15 @@
 // Tests de ce que House Sync commande : détection, sensibilité, zone, cadence des directs.
 import assert from 'node:assert/strict'
-import { writeFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { createControl } from './control.ts'
-import { testContext } from './testing.ts'
+import { putState, testContext } from './testing.ts'
 
 const BASE = 'http://rec1:8080'
 const SQUARE = [[0, 0], [1, 0], [0, 1]]
 
 test('syncDetection : envoie détection, sensibilité, durée minimale et zone, puis seulement quand ça change ou chaque minute', async () => {
   const ctx = testContext(() => new Response('ok'))
-  writeFileSync(`${ctx.dir}/zones.json`, JSON.stringify({ cam: SQUARE }))
+  putState(ctx.db, 'zones', JSON.stringify({ cam: SQUARE }))
   const control = createControl(ctx)
   await control.syncDetection(BASE, ['cam', 'autre'])
   assert.deepEqual(
@@ -32,7 +31,7 @@ test('syncDetection : envoie détection, sensibilité, durée minimale et zone, 
   assert.equal(ctx.calls.length, sent + 4)
   // Un réglage qui change est renvoyé tout de suite.
   ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'off', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 5, minSeconds: 4, seconds: 60, orientation: 'landscape' })
-  writeFileSync(`${ctx.dir}/zones.json`, '{}')
+  putState(ctx.db, 'zones', '{}')
   await control.syncDetection(BASE, ['cam'])
   const last = ctx.calls.slice(sent + 4)
   assert.deepEqual(last.map((c) => c.url.replace(BASE, '')), ['/api/cameras/cam/detection?enabled=0', '/api/cameras/cam/sensitivity?level=5', '/api/cameras/cam/min-seconds?seconds=4', '/api/cameras/cam/zone'])
@@ -44,7 +43,7 @@ test('syncDetection : un enregistreur muet ou qui refuse sera réessayé au tour
     throw new Error('hors ligne')
   }
   const ctx = testContext(() => answer())
-  ctx.config.zonesFile = `${ctx.dir}/absent/zones.json`
+  ctx.db.exec('DROP TABLE house_state')
   const control = createControl(ctx)
   await control.syncDetection(BASE, ['cam'])
   assert.equal(ctx.calls.length, 3)

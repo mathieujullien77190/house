@@ -2,8 +2,8 @@
 // lampe et prise, caméras du plan et leur lien avec les vraies caméras. House Sync l'importe dans la table `plan` de SQLite (onglet Base), une ligne par élément, pour qu'il soit
 // gardé avec le reste des données et lisible à côté d'elles. Le fichier reste la source : la table est refaite quand il change.
 // Les valeurs sont de vraies mesures : `longitude` et `latitude` (degrés), les tailles en mètres, les angles en degrés (cap depuis le nord, sens horaire).
-import { readFile } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
+import { readState } from './houseState.ts'
 
 export const PLAN_TABLE = 'plan'
 const HASH_KEY = 'plan_hash'
@@ -114,10 +114,11 @@ export const planRows = (plan: unknown): PlanRow[] => {
   return rows
 }
 
-/** Lit le fichier du plan. null quand on ne peut pas en être sûr (absent, illisible, abîmé) : la table reste comme elle est. */
-export const readPlan = async (file: string): Promise<unknown> => {
+/** Le document du plan (table `house_state`) ; null s'il manque ou est abîmé. */
+export const readPlan = (db: DatabaseSync): unknown => {
   try {
-    return JSON.parse(await readFile(file, 'utf8')) as unknown
+    const text = readState(db, 'plan')
+    return text === null ? null : (JSON.parse(text) as unknown)
   } catch {
     return null
   }

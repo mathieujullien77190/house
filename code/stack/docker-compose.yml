@@ -108,12 +108,12 @@ services:
       SNAPSHOT_INTERVAL_SECONDS: "60"
       # La durée de garde, en jours (réglable depuis la page, qui prend le dessus). Une fois par jour, vers 4 h (heure de Paris), House Sync efface
       # au-delà : les clips non sauvegardés, les images, le journal des lampes Hue, les événements sans clip et les fusions. Les clips sauvegardés
-      # depuis la WebApp (liste écrite par l'API dans data/house) ne sont jamais effacés, ni leurs événements.
+      # depuis la WebApp (document saved-clips de la table house_state, écrit par l'API) ne sont jamais effacés, ni leurs événements.
       CLIP_RETENTION_DAYS: ${CLIP_RETENTION_DAYS:-15}
-      SAVED_CLIPS_FILE: /house/saved-clips.json
-      ZONES_FILE: /house/zones.json
+      # Les anciens fichiers de House API (data/house, monté en lecture seule), repris une seule fois dans la table house_state au démarrage.
+      HOUSE_DIR: /house
       GUEST_STATE_FILE: /guest/state.json
-      # La configuration des servos du volet salon (bloc « Volet salon (servos) » des réglages) : House Sync l'écrit, House API la relit à chaque ordre.
+      # La configuration des servos des volets (réglages) : le document servos de la table house_state, écrit par House Sync, relu par House API à chaque ordre. Ce fichier n'est plus que l'ancien : repris une seule fois.
       SERVOS_FILE: /servos/servos.json
       # Les visites de la page invité (une ligne JSON par visite, importée toutes les 15 s dans la table guest_visits), lues dans le dossier que la page remplit.
       GUEST_VISITS_FILE: /guest-visits/visits.jsonl
@@ -121,12 +121,9 @@ services:
       # son adresse publique si elle est ouverte à internet (sinon la page prend son propre hôte et le port 8090).
       GUEST_KEY: ${GUEST_KEY:-}
       GUEST_PUBLIC_URL: ${GUEST_PUBLIC_URL:-}
-      # Le journal des activations du chauffage (écrit par House API dans data/house, importé toutes les 30 s dans la table heating_log).
-      HEATING_LOG_FILE: /house/heating-log.jsonl
-      # Le journal des ordres aux volets roulants (écrit par House API dans data/house, importé toutes les 30 s dans la table shutter_log).
-      SHUTTER_LOG_FILE: /house/shutters-log.jsonl
-      # Le journal des connexions des invités de la Freebox (écrit par House API dans data/house, importé toutes les 30 s dans la table box_connections).
-      BOX_LOG_FILE: ${BOX_LOG_FILE:-/house/box-connections.jsonl}
+      # Les anciens fichiers de House API (appareils de la maison, invités de la box), repris une seule fois dans les tables box_known et box_guests ; House Sync surveille la box lui-même.
+      BOX_KNOWN_FILE: ${BOX_KNOWN_FILE:-/house/box-known.json}
+      BOX_GUESTS_FILE: ${BOX_GUESTS_FILE:-/house/box-guests.json}
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
@@ -148,8 +145,8 @@ services:
       # L'interrupteur de la page invité (bouton « En ligne / Coupée » des réglages) : le seul fichier que House Sync écrit pour elle, hors du disque backup.
       # Le dossier data/guest doit exister, créé par l'utilisateur de la machine (sinon Docker le crée pour root et House Sync ne peut pas y écrire).
       - ./data/guest:/guest
-      # Le dossier des servos (data/servos, à créer par l'utilisateur de la machine comme data/guest) : House Sync y écrit servos.json.
-      - ./data/servos:/servos
+      # Le dossier des servos (data/servos) : l'ancien servos.json, repris une seule fois dans la base.
+      - ./data/servos:/servos:ro
       # Le journal des visites que la page invité écrit : lu seulement (le dossier data/guest-visits doit exister, créé par l'utilisateur de la machine).
       - ./data/guest-visits:/guest-visits:ro
       # Le nom et le système de la machine (le conteneur a les siens) : deux fichiers de l'hôte, en lecture seule.
@@ -212,19 +209,19 @@ services:
       SHUTTERS_ESP_URL: ${SHUTTERS_ESP_URL:-}
       # Les volets (leurs numéros) pilotés par les servos de l'ESP32 qui appuient sur une télécommande Nice (voir lib/servoDriver.ts) au lieu de l'ESP32 Somfy ; défaut : 2,5,6 (salon, PC, porte).
       SHUTTERS_SERVO: ${SHUTTERS_SERVO:-2,5,6}
-      # La configuration de ces servos, écrite par House Sync (volume en lecture seule ici) et relue à chaque ordre.
-      SERVOS_FILE: /servos/servos.json
       # Les volets qui ont l'action « ouvrir au lever du soleil, fermer à son coucher » (leurs numéros) : la Vide : tous. Activée ensuite dans la WebApp, volet par volet.
       SHUTTERS_AUTO: ${SHUTTERS_AUTO:-}
       # Le chauffage automatique de la prise (voliere) : la température vient du détecteur Hue nommé ici (par défaut celui de PLUG_MOTION_SENSOR,
-      # « motion interieur »), la nuit se calcule pour la position de la maison (les mêmes valeurs par défaut que House Sync). Les réglages de la règle sont dans data/house/heating.json.
+      # « motion interieur »), la nuit se calcule pour la position de la maison (les mêmes valeurs par défaut que House Sync). Les réglages de la règle sont dans le document heating de la table house_state.
       PLUG_TEMPERATURE_SENSOR: ${PLUG_TEMPERATURE_SENSOR:-}
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
       # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API.
       RECORDER_URL: http://motion:8080
-      # Ce que l'API écrit : les positions des ampoules sur le plan et la liste des clips sauvegardés (data/house, créé par l'utilisateur de la machine).
+      # Le dossier d'état de l'API (data/house, créé par l'utilisateur de la machine) : seulement tv/ (certificat du Player). Les autres documents sont dans la table house_state.
       STATE_DIR: /state
+      # La page de House Sync : l'API lui envoie les lignes de journal (chauffage, volets), que Sync range dans la base.
+      SYNC_URL: https://sync:8081
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem
@@ -233,11 +230,10 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Lecture seule : l'API ne modifie jamais les clips, la base ni les certificats.
-      - ./data/backup:/data:ro
+      # Écriture : la base (actions de l'utilisateur seulement) ; l'API ne modifie jamais les clips ni les certificats.
+      - ./data/backup:/data
       - ./data/certs:/certs:ro
       - ./data/house:/state
-      - ./data/servos:/servos:ro
     healthcheck:
       test: ["CMD", "node", "-e", "require('net').connect(8080, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
       interval: 30s

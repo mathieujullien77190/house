@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { test } from 'node:test'
-import { withTempDir } from '../testing/helpers.ts'
+import { memoryDoc } from '../testing/helpers.ts'
 import { createHeatingSettings, DEFAULT_SETTINGS, HEATER_WATTS, mergeSettings, OFF_PEAK_END, OFF_PEAK_PRICE_KWH, OFF_PEAK_START, PEAK_PRICE_KWH } from './heatingSettings.ts'
 
 test('les valeurs par défaut : 3 °C, 5 min, 20 min ; prix, heures creuses et puissance sont des constantes', () => {
@@ -61,26 +59,22 @@ test('mergeSettings : un prix, une heure ou une puissance envoyé est ignoré (c
   assert.deepEqual(mergeSettings({ priceKwh: 1, peakPriceKwh: 2, offPeakStart: '01:00', offPeakEnd: '02:00', heaterWatts: 1 }, DEFAULT_SETTINGS), DEFAULT_SETTINGS)
 })
 
-test('le fichier : écriture atomique, relecture, défauts si absent ou abîmé', async () => {
-  await withTempDir((dir) => {
-    const file = join(dir, 'sous', 'heating.json')
-    const store = createHeatingSettings(file)
-    assert.deepEqual(store.get(), DEFAULT_SETTINGS)
-    store.set({ ...DEFAULT_SETTINGS, thresholdC: 1 })
-    assert.equal(store.get().thresholdC, 1)
-    assert.equal(JSON.parse(readFileSync(file, 'utf8')).thresholdC, 1)
-    writeFileSync(file, '{"minutes": 500}')
-    assert.deepEqual(store.get(), DEFAULT_SETTINGS)
-    writeFileSync(file, 'pas du json')
-    assert.deepEqual(store.get(), DEFAULT_SETTINGS)
-  })
+test('le document : écriture, relecture, défauts si absent ou abîmé', () => {
+  const doc = memoryDoc()
+  const store = createHeatingSettings(doc)
+  assert.deepEqual(store.get(), DEFAULT_SETTINGS)
+  store.set({ ...DEFAULT_SETTINGS, thresholdC: 1 })
+  assert.equal(store.get().thresholdC, 1)
+  assert.equal(JSON.parse(doc.text() ?? '').thresholdC, 1)
+  doc.write('{"minutes": 500}')
+  assert.deepEqual(store.get(), DEFAULT_SETTINGS)
+  doc.write('pas du json')
+  assert.deepEqual(store.get(), DEFAULT_SETTINGS)
 })
 
-test('disable : la règle est désactivée, les autres réglages restent', async () => {
-  await withTempDir((dir) => {
-    const store = createHeatingSettings(join(dir, 'heating.json'))
-    store.set({ ...DEFAULT_SETTINGS, thresholdC: 1 })
-    store.disable()
-    assert.deepEqual(store.get(), { ...DEFAULT_SETTINGS, thresholdC: 1, enabled: false })
-  })
+test('disable : la règle est désactivée, les autres réglages restent', () => {
+  const store = createHeatingSettings(memoryDoc())
+  store.set({ ...DEFAULT_SETTINGS, thresholdC: 1 })
+  store.disable()
+  assert.deepEqual(store.get(), { ...DEFAULT_SETTINGS, thresholdC: 1, enabled: false })
 })

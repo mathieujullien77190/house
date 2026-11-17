@@ -1,7 +1,6 @@
 // Les repères de caméras : sur l'image d'une caméra, une petite icône de caméra par autre caméra, que l'on place où on veut ; un clic dessus ouvre cette autre caméra. Les positions sont gardées par
 // l'API (STATE_DIR/markers.json), par caméra. Une caméra sans entrée a les positions de départ de la WebApp.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DocStore } from './docStore.ts'
 
 /**
  * Un repère : la caméra qu'il ouvre et sa place par rapport à l'image (parts de l'image : x de 0 à gauche à 1 à droite, y de 0 en haut à 1 en bas). Il peut être **hors de la vidéo**, dans
@@ -36,10 +35,10 @@ export const parseMarkers = (value: unknown): Marker[] | null => {
   return markers
 }
 
-export const createMarkersStore = (file: string) => {
+export const createMarkersStore = (file: DocStore) => {
   const read = (): Markers => {
     try {
-      const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
+      const parsed: unknown = JSON.parse(file.read())
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
       const markers: Markers = {}
       for (const [camera, value] of Object.entries(parsed)) {
@@ -58,10 +57,7 @@ export const createMarkersStore = (file: string) => {
       const next = read()
       if (list) next[camera] = list
       else delete next[camera]
-      mkdirSync(dirname(file), { recursive: true })
-      const partial = `${file}.tmp`
-      writeFileSync(partial, JSON.stringify(next, null, 2))
-      renameSync(partial, file)
+      file.write(JSON.stringify(next, null, 2))
       return next
     },
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { appendFileSync, writeFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { createImports } from './imports.ts'
-import { testContext } from './testing.ts'
+import { putState, testContext } from './testing.ts'
 
 const PLAN = { version: 2, trees: [{ id: 't1', x: 1, y: 2, r: 3 }] }
 const visit = (at: number) => JSON.stringify({ at, kind: 'page', ip: '1.2.3.4', origin: 'maison', device: 'x', key: 'avec clé' })
@@ -11,12 +11,12 @@ const visit = (at: number) => JSON.stringify({ at, kind: 'page', ip: '1.2.3.4', 
 test('syncPlan : importe le plan quand il change, se tait sinon', async () => {
   const ctx = testContext()
   const imports = createImports(ctx)
-  writeFileSync(ctx.config.planFile, JSON.stringify(PLAN))
+  putState(ctx.db, 'plan', JSON.stringify(PLAN))
   await imports.syncPlan()
   assert.deepEqual(ctx.logs, ['Plan de la maison : 1 élément(s) enregistré(s)'])
   await imports.syncPlan()
   assert.equal(ctx.logs.length, 1)
-  writeFileSync(ctx.config.planFile, '{abîmé')
+  putState(ctx.db, 'plan', '{abîmé')
   await imports.syncPlan()
   assert.equal(ctx.logs.length, 1)
 })
@@ -25,7 +25,7 @@ test('syncPlan : une erreur de la base reste dans le journal', async () => {
   const ctx = testContext()
   ctx.db.exec('DROP TABLE plan')
   const imports = createImports(ctx)
-  writeFileSync(ctx.config.planFile, JSON.stringify(PLAN))
+  putState(ctx.db, 'plan', JSON.stringify(PLAN))
   // La table du plan n'existe pas encore : l'import échoue, le service continue.
   await imports.syncPlan()
   assert.match(ctx.logs[0] ?? '', /^Plan de la maison : /)
@@ -59,54 +59,4 @@ test('syncGuestVisits : une erreur de la base reste dans le journal', async () =
   writeFileSync(ctx.config.guestVisitsFile, `${visit(1)}\n`)
   await imports.syncGuestVisits()
   assert.match(ctx.logs[0] ?? '', /^Visites de la page invité : /)
-})
-
-test('syncHeatingLog : importe les activations, se tait quand il n’y a rien de neuf, garde l’erreur dans le journal', async () => {
-  const ctx = testContext()
-  const imports = createImports(ctx)
-  await imports.syncHeatingLog()
-  assert.deepEqual(ctx.logs, [])
-  writeFileSync(ctx.config.heatingLogFile, `${JSON.stringify({ at: 1_800_000_000, origin: 'auto', minutes: 5, temperature: 2, note: null, cost: 0.0265 })}\n`)
-  await imports.syncHeatingLog()
-  assert.deepEqual(ctx.logs, ['Chauffage : 1 activation(s) notée(s)'])
-  await imports.syncHeatingLog()
-  assert.equal(ctx.logs.length, 1)
-  ctx.db.exec('DROP TABLE heating_log')
-  appendFileSync(ctx.config.heatingLogFile, `${JSON.stringify({ at: 1_800_000_100, origin: 'manuel', minutes: 5 })}\n`)
-  await imports.syncHeatingLog()
-  assert.match(ctx.logs[1] ?? '', /^Journal du chauffage : /)
-})
-
-test('syncShutterLog : importe les ordres, se tait quand il n’y a rien de neuf, garde l’erreur dans le journal', async () => {
-  const ctx = testContext()
-  const imports = createImports(ctx)
-  await imports.syncShutterLog()
-  assert.deepEqual(ctx.logs, [])
-  writeFileSync(ctx.config.shutterLogFile, `${JSON.stringify({ at: 1_800_000_000, shutter: '1', name: 'Volet PC', command: 'up', ok: true, note: null })}
-`)
-  await imports.syncShutterLog()
-  assert.deepEqual(ctx.logs, ['Volets : 1 ordre(s) noté(s)'])
-  await imports.syncShutterLog()
-  assert.equal(ctx.logs.length, 1)
-  ctx.db.exec('DROP TABLE shutter_log')
-  appendFileSync(ctx.config.shutterLogFile, `${JSON.stringify({ at: 1_800_000_100, shutter: '1', name: 'Volet PC', command: 'down', ok: true, note: null })}
-`)
-  await imports.syncShutterLog()
-  assert.match(ctx.logs[1] ?? '', /^Journal des volets : /)
-})
-
-test('syncBoxConnections : importe les connexions, se tait quand il n’y a rien de neuf, garde l’erreur dans le journal', async () => {
-  const ctx = testContext()
-  const imports = createImports(ctx)
-  await imports.syncBoxConnections()
-  assert.deepEqual(ctx.logs, [])
-  writeFileSync(ctx.config.boxLogFile, `${JSON.stringify({ at: 1_800_000_000, event: 'connect', mac: 'AA:BB:CC:DD:EE:01', name: 'Tel', ip: null, type: null, vendor: null })}\n`)
-  await imports.syncBoxConnections()
-  assert.deepEqual(ctx.logs, ['Box : 1 connexion(s) notée(s)'])
-  await imports.syncBoxConnections()
-  assert.equal(ctx.logs.length, 1)
-  ctx.db.exec('DROP TABLE box_connections')
-  appendFileSync(ctx.config.boxLogFile, `${JSON.stringify({ at: 1_800_000_100, event: 'disconnect', mac: 'AA:BB:CC:DD:EE:01', name: 'Tel', ip: null, type: null, vendor: null })}\n`)
-  await imports.syncBoxConnections()
-  assert.match(ctx.logs[1] ?? '', /^Journal de la box : /)
 })

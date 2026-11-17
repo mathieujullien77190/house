@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
+import { createHouseStateTable } from './houseState.ts'
+import { putState } from './testing.ts'
 import { readZones, validPolygon } from './zones.ts'
 
 test('un polygone valable', () => {
@@ -29,48 +29,43 @@ test('un polygone valable', () => {
   assert.ok(!validPolygon('x'))
 })
 
-test('les zones : fichier lu, absent = aucune zone, dossier absent ou fichier abîmé = inconnu', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'zones-'))
-  try {
-    const file = join(dir, 'zones.json')
-    assert.deepEqual(await readZones(file), {})
-    writeFileSync(
-      file,
-      JSON.stringify({
-        a: [
-          [0, 0],
-          [1, 0],
-          [0, 1],
-        ],
-        b: [[0, 0]],
-      }),
-    )
-    assert.deepEqual(await readZones(file), {
+const memory = () => {
+  const db = new DatabaseSync(':memory:')
+  createHouseStateTable(db)
+  return db
+}
+
+test('les zones : document lu, absent = aucune zone, base illisible ou document abîmé = inconnu', () => {
+  const db = memory()
+  assert.deepEqual(readZones(db), {})
+  putState(
+    db,
+    'zones',
+    JSON.stringify({
       a: [
         [0, 0],
         [1, 0],
         [0, 1],
       ],
-    })
-    writeFileSync(file, '{abîmé')
-    assert.equal(await readZones(file), null)
-    assert.equal(await readZones(join(dir, 'absent', 'zones.json')), null)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
+      b: [[0, 0]],
+    }),
+  )
+  assert.deepEqual(readZones(db), {
+    a: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ],
+  })
+  putState(db, 'zones', '{abîmé')
+  assert.equal(readZones(db), null)
+  assert.equal(readZones(new DatabaseSync(':memory:')), null)
 })
 
-test('un fichier qui n est pas un objet, ou illisible pour une autre raison, est inconnu', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'zones-'))
-  try {
-    const file = join(dir, 'zones.json')
-    for (const content of ['[]', 'null', '3']) {
-      writeFileSync(file, content)
-      assert.equal(await readZones(file), null)
-    }
-    mkdirSync(join(dir, 'dossier.json'))
-    assert.equal(await readZones(join(dir, 'dossier.json')), null)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
+test('un document qui n’est pas un objet est inconnu', () => {
+  const db = memory()
+  for (const content of ['[]', 'null', '3']) {
+    putState(db, 'zones', content)
+    assert.equal(readZones(db), null)
   }
 })

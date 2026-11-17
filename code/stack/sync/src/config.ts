@@ -22,9 +22,7 @@ export interface Config {
   intervalMs: number
   snapshotIntervalSeconds: number
   housePosition: Position
-  zonesFile: string
   go2rtcUrl: string
-  savedClipsFile: string
   /** CLIP_RETENTION_DAYS tel quel (texte) : sert tant que la page n'a rien réglé. */
   retentionDaysEnv: string | undefined
   guestStateFile: string
@@ -34,13 +32,11 @@ export interface Config {
   guestVisitsDays: number
   /** La page invité (guest/) : sa clé, son port et, si elle est ouverte à internet, son adresse publique ; null sans GUEST_KEY. House Sync en donne le lien dans ses réglages. */
   guest: { key: string; port: number; url: string } | null
-  /** Le journal des activations du chauffage, écrit par House API (HEATING_LOG_FILE). */
-  heatingLogFile: string
-  /** Le journal des ordres aux volets roulants, écrit par House API (SHUTTER_LOG_FILE). */
-  shutterLogFile: string
-  /** Le journal des connexions des invités de la Freebox, écrit par House API (BOX_LOG_FILE). */
-  boxLogFile: string
-  planFile: string
+  /** Les anciens fichiers de House API (appareils de la maison et invités de la box), repris une seule fois dans la base (BOX_KNOWN_FILE, BOX_GUESTS_FILE). */
+  boxKnownFile: string
+  boxGuestsFile: string
+  /** Les anciens fichiers de House API (data/house), repris une seule fois dans la table house_state (HOUSE_DIR). */
+  houseDir: string
   hueAddress: string
   hueKey: string
 }
@@ -70,19 +66,16 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   snapshotIntervalSeconds: Number(env.SNAPSHOT_INTERVAL_SECONDS ?? 60),
   // Le soleil se calcule pour la maison (HOUSE_LATITUDE et HOUSE_LONGITUDE ; par défaut la Seine-et-Marne, à quelques minutes près).
   housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },
-  zonesFile: env.ZONES_FILE ?? '/house/zones.json',
   go2rtcUrl: (env.GO2RTC_URL ?? 'http://go2rtc:1984').replace(/\/$/, ''),
-  savedClipsFile: env.SAVED_CLIPS_FILE ?? '/house/saved-clips.json',
   retentionDaysEnv: env.CLIP_RETENTION_DAYS,
   guestStateFile: env.GUEST_STATE_FILE ?? '/guest/state.json',
   servosFile: env.SERVOS_FILE ?? '/servos/servos.json',
   guestVisitsFile: env.GUEST_VISITS_FILE ?? '/guest-visits/visits.jsonl',
   guestVisitsDays: Number(env.GUEST_VISITS_DAYS ?? 365),
   guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,
-  heatingLogFile: env.HEATING_LOG_FILE ?? '/house/heating-log.jsonl',
-  shutterLogFile: env.SHUTTER_LOG_FILE ?? '/house/shutters-log.jsonl',
-  boxLogFile: env.BOX_LOG_FILE ?? '/house/box-connections.jsonl',
-  planFile: env.PLAN_FILE ?? '/house/plan.json',
+  boxKnownFile: env.BOX_KNOWN_FILE ?? '/house/box-known.json',
+  boxGuestsFile: env.BOX_GUESTS_FILE ?? '/house/box-guests.json',
+  houseDir: env.HOUSE_DIR ?? '/house',
   hueAddress: env.HUE_BRIDGE_IP ?? '',
   hueKey: env.HUE_APP_KEY ?? '',
 })
