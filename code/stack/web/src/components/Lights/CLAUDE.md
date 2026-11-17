@@ -10,10 +10,10 @@ Lampes du pont Hue (`/hue`, 5 s), rendues par `LightsPanel` de `@house/ui`. Pont
 
 ## La liste
 
-- Rangée par **zone** (`ZONES`, `constants.ts`, par identifiant de lampe), ordre fixe : Volière, Salon, Cuisine, Entrée, Chambre 1, Jardin, SdB, WC, Couloir.
+- Rangée par **zone** (`ZONES`, `constants.ts`, par identifiant de lampe), ordre fixe : Volière, Salon, Cuisine, Entrée, Chambre 1, Jardin, SdB (avec la lampe du WC), Couloir.
 - **Une lampe d'aucune zone n'existe pas dans l'application** (ni liste, ni carte, ni consommation de House Sync).
 - Zone repliable, ouverte au départ : compte et boutons ON / OFF pour toute la zone (pas de curseur de zone), grille de cases (3, 4 dès `sm:`, 6 dès `lg:`).
-- Le groupe « Volière » contient aussi les détecteurs de la cage (mouvement, température, luminosité, pile).
+- Le groupe « Volière » contient aussi les détecteurs de la cage, et le groupe « SdB » celui de la salle de bain et du WC (« motion sdb », identifiant 60) : mouvement, température, luminosité, pile.
 - Section « Automatisations » en bas : les règles du pont.
 - Chaque lampe a le même bloc : ON / OFF, bordure jaune allumée qui pâlit avec la luminosité, rond de la carte en haut à droite, curseur dedans.
 
