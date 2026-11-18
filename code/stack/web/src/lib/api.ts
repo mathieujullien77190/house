@@ -1,6 +1,7 @@
 // Le client de House API : chaque appel porte la clé dans l'en-tête X-House-Key.
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
+import type { GuestLanLink } from '@/components/GuestPanel'
 import type { TvKey, TvState, AcPatch, AcUnit, BoxGuests, BoxState, GuestWifi, CameraMarker, CameraPower, CameraRow, EventRow, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
@@ -23,6 +24,8 @@ const request = async (key: string, path: string): Promise<Response> => {
   return res
 }
 
+/** L'adresse de la page invité du réseau (« Chez Matou », clé comprise : la seule route qui rend LAN_KEY) et l'état de ses interrupteurs (House Sync les écrit). */
+export const fetchGuestLan = async (key: string): Promise<GuestLanLink> => (await request(key, '/guest-lan/link')).json()
 export const checkKey = (key: string): Promise<Response> => request(key, '/auth')
 export const fetchLive = async (key: string): Promise<CameraRow[]> => (await request(key, '/direct')).json()
 /** Les 200 derniers événements ; avec une fenêtre (secondes), ceux d'une caméra qui la touchent (1000 au plus). */

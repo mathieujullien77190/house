@@ -78,4 +78,36 @@ describe('AcUnitCard', () => {
     expect(screen.getByText(UNIT_UNREACHABLE_TEXT)).toBeInTheDocument()
     expect(screen.queryByRole('switch')).toBeNull()
   })
+
+  it('withVanes faux : pas de réglage d’ailette', () => {
+    render(<AcUnitCard unit={unit()} busy={false} failed={false} onChange={vi.fn()} withVanes={false} />)
+    expect(screen.queryByRole('button', { name: '5 bas' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Droite' })).toBeNull()
+  })
+
+  it('modes : seuls les modes permis ont un bouton', () => {
+    render(<AcUnitCard unit={unit({ mode: 'dry' })} busy={false} failed={false} onChange={vi.fn()} modes={['heat', 'cool']} />)
+    expect(screen.getByRole('button', { name: '❄ Froid' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Sec/ })).toBeNull()
+  })
+
+  it('range : la consigne reste dans la plage et − / + sont grisés aux bornes', () => {
+    const onChange = vi.fn()
+    const range = { min: 18, max: 24 }
+    const { rerender } = render(<AcUnitCard unit={unit({ targetTemp: 24 })} busy={false} failed={false} onChange={onChange} range={range} />)
+    expect(screen.getByRole('button', { name: '+' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '−' })).not.toBeDisabled()
+    rerender(<AcUnitCard unit={unit({ targetTemp: 18 })} busy={false} failed={false} onChange={onChange} range={range} />)
+    expect(screen.getByRole('button', { name: '−' })).toBeDisabled()
+    rerender(<AcUnitCard unit={unit({ targetTemp: 23.8 })} busy={false} failed={false} onChange={onChange} range={range} />)
+    fireEvent.click(screen.getByRole('button', { name: '+' }))
+    expect(onChange).toHaveBeenLastCalledWith({ temperature: 24 })
+    rerender(<AcUnitCard unit={unit({ targetTemp: 18.2 })} busy={false} failed={false} onChange={onChange} range={range} />)
+    fireEvent.click(screen.getByRole('button', { name: '−' }))
+    expect(onChange).toHaveBeenLastCalledWith({ temperature: 18 })
+    // Une consigne hors plage (26) : « + » grisé, « − » ramène dans la plage.
+    rerender(<AcUnitCard unit={unit({ targetTemp: 26 })} busy={false} failed={false} onChange={onChange} range={range} />)
+    fireEvent.click(screen.getByRole('button', { name: '−' }))
+    expect(onChange).toHaveBeenLastCalledWith({ temperature: 24 })
+  })
 })

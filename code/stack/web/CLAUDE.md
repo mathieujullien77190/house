@@ -13,7 +13,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 - `lib/useBox.ts` : la Freebox (lecture, WiFi), **partagée** entre l'onglet Box et son aperçu.
 - `lib/useTv.ts` : la télécommande du Freebox Player (état, touches, association par code affiché sur la TV), pour l'onglet Box TV.
 - `lib/homeSelection.ts` : la sélection de la carte de Home, **état global** qui survit au démontage de la Home.
-- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), huit onglets (`TABS`, dont Box TV). Ouvre sur **Home** (`DEFAULT_TAB`).
+- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), neuf onglets (`TABS`, dont Box TV et Page invité). Ouvre sur **Home** (`DEFAULT_TAB`).
 
 ## Barre du haut
 
@@ -32,8 +32,13 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 | Onglet Caméras : mosaïque, clips sauvegardés | `CameraMosaic/`, `SavedClips/` |
 | Détail d'une caméra, frise | `CameraCard/`, `Timeline/` |
 | Lumière, Volet, Clim, Prise, Box, Box TV | `Lights/`, `ShuttersPanel/`, `AcPanel/`, `PlugPanel/`, `BoxPanel/`, `TvPanel/` |
+| Page invité (QR code, aperçu) et la page `/chezmatou` | `GuestPanel/`, `ChezMatou/` |
 
 Chemins : `src/components/<nom>/CLAUDE.md`.
+
+## La page « Chez Matou »
+
+`main.tsx` n'affiche que `components/ChezMatou` quand le chemin est `/chezmatou` (la même application, sans clé de la WebApp : la page a sa propre clé `LAN_KEY` dans l'adresse, `lib/lanApi.ts`). L'onglet « Page invité » (`GuestPanel`) donne son QR code et un aperçu. Routes et garde : `../api/src/routes/CLAUDE.md`.
 
 ## Notifications de mouvement
 

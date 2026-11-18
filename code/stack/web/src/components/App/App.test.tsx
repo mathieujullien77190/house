@@ -40,6 +40,7 @@ vi.mock('@/components/ShuttersPanel', () => ({ default: () => <div data-testid="
 vi.mock('@/components/AcPanel', () => ({ default: () => <div data-testid="ac" /> }))
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
 vi.mock('@/components/BoxPanel', () => ({ default: () => <div data-testid="box" /> }))
+vi.mock('@/components/GuestPanel', () => ({ default: () => <div data-testid="guest" /> }))
 vi.mock('@/components/TvPanel', () => ({
   default: (p: { onBack?: () => void }) => (
     <div data-testid="tv">{p.onBack ? <button onClick={p.onBack}>retour tv</button> : null}</div>
@@ -231,6 +232,12 @@ describe('App : onglets', () => {
     tab('Home')
     fireEvent.click(screen.getByText('home box'))
     expect(screen.getByTestId('box')).toBeInTheDocument()
+  })
+
+  it('l’onglet Page invité', () => {
+    render(<App />)
+    tab('Page invité')
+    expect(screen.getByTestId('guest')).toBeInTheDocument()
   })
 
   it('l’onglet Box TV garde la barre sur ordinateur', () => {

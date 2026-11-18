@@ -23,3 +23,4 @@ Toutes par `POST /ac/<id>`, **un seul champ à la fois**.
 - Module muet (`reachable: false`) : seulement « Le module Wi-Fi de cette unité ne répond pas ».
 - `AC_UNITS` absent : 503, l'onglet le dit.
 - Pas de retour du module après une commande à la télécommande : mise à jour à la lecture suivante (10 s).
+- `AcUnitCard` accepte `withVanes` (faux : pas de réglage d'ailette) et `modes` (liste des modes proposés) : la page Chez Matou les utilise (`../ChezMatou/CLAUDE.md`) ; par défaut tout reste comme dans l'onglet.

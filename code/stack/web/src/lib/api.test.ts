@@ -6,6 +6,7 @@ import {
   clearStoredKey,
   fetchAutomations,
   fetchEvents,
+  fetchGuestLan,
   fetchFade,
   fetchLampPositions,
   fetchLights,
@@ -187,6 +188,11 @@ describe('écritures', () => {
     await expect(saveHeating('k', {})).rejects.toMatchObject({ status: 400, message: '/plug/heating : HTTP 400' })
     stubFetch(() => reply({ error: 3 }, 400))
     await expect(saveHeating('k', {})).rejects.toMatchObject({ message: '/plug/heating : HTTP 400' })
+  })
+  it('fetchGuestLan rend l’adresse de la page invité', async () => {
+    const spy = stubFetch(() => reply({ configured: true, url: 'u' }))
+    expect(await fetchGuestLan('k')).toEqual({ configured: true, url: 'u' })
+    expect(spy.mock.calls[0][0]).toBe('/guest-lan/link')
   })
   it('fetchAc rend la liste des unités', async () => {
     const spy = stubFetch(() => reply({ units: [{ id: 'a' }] }))

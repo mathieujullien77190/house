@@ -4,6 +4,7 @@ import AcPanel from '@/components/AcPanel'
 import BoxPanel from '@/components/BoxPanel'
 import CameraCard from '@/components/CameraCard'
 import CameraMosaic from '@/components/CameraMosaic'
+import GuestPanel from '@/components/GuestPanel'
 import Home from '@/components/Home'
 import SavedClips from '@/components/SavedClips'
 import KeyForm from '@/components/KeyForm'
@@ -161,6 +162,7 @@ const AppUI = ({
           {tab === 'plug' ? <PlugPanel apiKey={apiKey} /> : null}
           {tab === 'box' ? <BoxPanel apiKey={apiKey} /> : null}
           {tab === 'tv' ? <TvPanel apiKey={apiKey} /> : null}
+          {tab === 'guest' ? <GuestPanel apiKey={apiKey} /> : null}
         </>
       ) : null}
     </Page>

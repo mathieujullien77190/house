@@ -33,7 +33,7 @@ export const ZONES: { id: string; name: string; lights: string[]; sensors?: stri
   { id: 'cuisine', name: 'Cuisine', lights: ['13', '14', '3', '5'] },
   { id: 'entree', name: 'Entrée', lights: ['27'] },
   { id: 'chambre-1', name: 'Chambre 1', lights: ['15'] },
-  { id: 'jardin', name: 'Jardin', lights: ['2'] },
+  { id: 'chambre-matou', name: 'Chambre Matou', lights: ['2'] },
   // Les lampes du pont qui ne sont dans aucune zone (« SdB 2 », la lampe 1, par exemple) ne sont pas dans l'application.
   // La salle de bain et le WC ne font qu'une zone (la lampe 28 est celle du WC) ; son détecteur de mouvement (« motion sdb », identifiant 60 du pont) allume toutes ses lampes.
   { id: 'sdb', name: 'SdB', lights: ['9', '10', '19', '8', '6', '4', '28'], sensors: ['60'] },

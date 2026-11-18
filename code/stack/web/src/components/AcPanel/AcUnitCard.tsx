@@ -1,5 +1,5 @@
 import { Button, StatusFrame } from '@house/ui'
-import type { AcPatch, AcUnit } from '@/types'
+import type { AcMode, AcPatch, AcUnit } from '@/types'
 import {
   BUTTONS_CLASS,
   CARD_CLASS,
@@ -42,13 +42,21 @@ interface AcUnitCardProps {
   failed: boolean
   /** Un changement (alimentation, mode, consigne, ventilateur, ailette). */
   onChange: (patch: AcPatch) => void
+  /** Montre les réglages d'ailette (vrai par défaut) ; faux pour une page qui ne laisse que la marche, le mode, la consigne et le ventilateur. */
+  withVanes?: boolean
+  /** Les modes qu'on peut choisir (tous par défaut) ; un mode actuel hors de la liste reste affiché dans l'état, sans bouton. */
+  modes?: AcMode[]
+  /** La consigne permise (min et max inclus, en °C) : − et + sont grisés aux bornes ; toute la plage par défaut. */
+  range?: { min: number; max: number }
 }
 
 /** Le bloc d'une climatisation : son nom et l'interrupteur On / Off, son état, le mode, la consigne (− / +), le ventilateur et l'ailette. Le même dans l'onglet Clim et dans l'aperçu de la carte. */
-const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
+const AcUnitCard = ({ unit, busy, failed, onChange, withVanes = true, modes, range }: AcUnitCardProps) => {
   const target = unit.targetTemp
   // Sans consigne connue, − et + sont grisés et n'envoient rien.
-  const step = (direction: -1 | 1) => (target === null ? undefined : () => onChange({ temperature: stepTarget(target, direction) }))
+  const clamp = (value: number): number => (range ? Math.min(range.max, Math.max(range.min, value)) : value)
+  const step = (direction: -1 | 1) => (target === null ? undefined : () => onChange({ temperature: clamp(stepTarget(target, direction)) }))
+  const atLimit = (direction: -1 | 1): boolean => range !== undefined && target !== null && (direction === -1 ? target <= range.min : target >= range.max)
   return (
     <StatusFrame tone={unit.power && unit.reachable ? 'ok' : 'off'}>
     <div className={CARD_CLASS}>
@@ -76,7 +84,7 @@ const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
           <span className={STATE_CLASS}>{stateText(unit)}</span>
           <span className={GROUP_LABEL_CLASS}>{MODE_LABEL}</span>
           <div className={BUTTONS_CLASS}>
-            {MODES.map((mode) => (
+            {MODES.filter((mode) => !modes || modes.includes(mode.id)).map((mode) => (
               <Button
                 key={mode.id}
                 variant={unit.mode === mode.id ? 'active' : 'default'}
@@ -89,11 +97,11 @@ const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
           </div>
           <span className={GROUP_LABEL_CLASS}>{TARGET_LABEL}</span>
           <div className={TARGET_CLASS}>
-            <Button disabled={busy || target === null} onClick={step(-1)}>
+            <Button disabled={busy || target === null || atLimit(-1)} onClick={step(-1)}>
               −
             </Button>
             <span className={TARGET_VALUE_CLASS}>{degrees(unit.targetTemp)}</span>
-            <Button disabled={busy || target === null} onClick={step(1)}>
+            <Button disabled={busy || target === null || atLimit(1)} onClick={step(1)}>
               +
             </Button>
           </div>
@@ -110,40 +118,44 @@ const AcUnitCard = ({ unit, busy, failed, onChange }: AcUnitCardProps) => {
               </Button>
             ))}
           </div>
-          {/* L'ailette dépend de la pièce : haut / bas pour le salon, gauche / droite pour les chambres. */}
-          {HORIZONTAL_VANE_UNITS.includes(unit.id) ? (
+          {withVanes ? (
             <>
-              <span className={GROUP_LABEL_CLASS}>{WIDE_VANE_LABEL}</span>
-              <div className={BUTTONS_CLASS}>
-                {WIDE_VANES.map((vane) => (
-                  <Button
-                    key={vane.id}
-                    variant={unit.wideVane === vane.id ? 'active' : 'default'}
-                    disabled={busy}
-                    onClick={() => onChange({ wideVane: vane.id })}
-                  >
-                    {vane.label}
-                  </Button>
-                ))}
-              </div>
+              {/* L'ailette dépend de la pièce : haut / bas pour le salon, gauche / droite pour les chambres. */}
+              {HORIZONTAL_VANE_UNITS.includes(unit.id) ? (
+                <>
+                  <span className={GROUP_LABEL_CLASS}>{WIDE_VANE_LABEL}</span>
+                  <div className={BUTTONS_CLASS}>
+                    {WIDE_VANES.map((vane) => (
+                      <Button
+                        key={vane.id}
+                        variant={unit.wideVane === vane.id ? 'active' : 'default'}
+                        disabled={busy}
+                        onClick={() => onChange({ wideVane: vane.id })}
+                      >
+                        {vane.label}
+                      </Button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className={GROUP_LABEL_CLASS}>{VANE_LABEL}</span>
+                  <div className={BUTTONS_CLASS}>
+                    {VANES.map((vane) => (
+                      <Button
+                        key={vane.id}
+                        variant={unit.vane === vane.id ? 'active' : 'default'}
+                        disabled={busy}
+                        onClick={() => onChange({ vane: vane.id })}
+                      >
+                        {vane.label}
+                      </Button>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
-          ) : (
-            <>
-              <span className={GROUP_LABEL_CLASS}>{VANE_LABEL}</span>
-              <div className={BUTTONS_CLASS}>
-                {VANES.map((vane) => (
-                  <Button
-                    key={vane.id}
-                    variant={unit.vane === vane.id ? 'active' : 'default'}
-                    disabled={busy}
-                    onClick={() => onChange({ vane: vane.id })}
-                  >
-                    {vane.label}
-                  </Button>
-                ))}
-              </div>
-            </>
-          )}
+          ) : null}
         </>
       ) : (
         <span className={ERROR_CLASS}>{UNIT_UNREACHABLE_TEXT}</span>
