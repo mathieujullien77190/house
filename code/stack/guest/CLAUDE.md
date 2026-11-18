@@ -29,7 +29,7 @@ docker compose logs -f guest          # qui ouvre et ferme quel flux
 
 - `GET /?k=<clé>` : la page (`src/page.ts`), rechargée une minute avant la fin des flux (`<meta refresh>`).
 - `GET /stream?camera=<nom>&k=<clé>` (vignette) et `…&quality=4k` (grand) : MJPEG des flux go2rtc `<nom>_guest_sub_mjpeg` et `<nom>_guest_main_mjpeg`, pour les seules caméras de `GUEST_CAMERAS` (`voliere-exterieur,voliere-interieur`).
-- **Cadence** : réglage de House Sync (« Page invité · images par seconde », un nombre pour tout, 2 par défaut ; voir `../sync/src/CLAUDE.md`).
+- **Cadence** : réglage de House Sync (« Images par seconde des pages invité », dans le bloc « Général (toutes les caméras) » ; un nombre pour tout, 2 par défaut, **le même pour la page du réseau « Chez Matou »** ; voir `../sync/src/CLAUDE.md`).
 - **Coût du 4K** : environ 420 Ko par image, soit 7 Mb/s montants par invité à 2 i/s, plus 0,35 Mb/s par vignette ; un décodage 4K par caméra agrandie, partagé.
 - **Limites** : `GUEST_MAX_VIEWERS` (5, au-delà 503) et `GUEST_MAX_MINUTES` par flux (30). Ouvertures et fermetures dans les logs : c'est la réponse à « qui regarde ».
 - Seul `GET` passe (405 sinon). En-têtes : `no-store`, `nosniff`, `noindex`, pas de référent, CSP stricte (`default-src 'none'`, un seul script, par empreinte `sha256`).

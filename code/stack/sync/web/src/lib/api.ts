@@ -1,5 +1,6 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
 import type { CameraSetting } from '@/components/SettingsSection'
+import type { LanAccessKey, LanAccessSettings } from '@/components/LanAccess'
 import type { ServoPatch, ServoSettings } from '@/components/ServosSettings'
 import { NO_FILTER, filterQuery } from '@/lib/filter'
 import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HeatingEnergy, HueBridge, TemperaturePoint, LampEnergy, MachineEnergy, NetworkInterface, Overview, Page, Row, Specs, System } from '@/types'
@@ -65,6 +66,12 @@ export const fetchGuest = async (): Promise<GuestSettings> => (await request('/a
 
 export const saveGuest = async (patch: Partial<Pick<GuestSettings, 'guest_fps' | 'guest_enabled'>>): Promise<GuestSettings> =>
   (await request('/api/guest', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
+
+/** Ce que la page invité du réseau permet (cinq interrupteurs, tout coupé par défaut) et son adresse sans la clé ; House API relit le document à chaque demande. */
+export const fetchLanAccess = async (): Promise<LanAccessSettings> => (await request('/api/lan-access')).json()
+
+export const saveLanAccess = async (patch: Partial<Record<LanAccessKey, boolean>>): Promise<LanAccessSettings> =>
+  (await request('/api/lan-access', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
 
 /** La configuration des servos des volets salon, PC et porte : l'adresse de l'ESP32 et les trois ordres (House API la relit à chaque ordre). */
 export const fetchServos = async (): Promise<ServoSettings> => (await request('/api/servos')).json()

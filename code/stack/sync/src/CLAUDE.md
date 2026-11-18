@@ -78,7 +78,7 @@ La recherche des yeux qui brillent a été retirée en novembre 2026 (code, rég
 
 ### Page invité
 
-- `guest_fps` (1 à 25, défaut 2) : images par seconde des flux de la page invité (vignettes légères et caméra agrandie 4K) ; `syncLiveFps` règle `<caméra>_guest_sub_mjpeg` et `_guest_main_mjpeg` de go2rtc.
+- `guest_fps` (1 à 25, défaut 2) : images par seconde des flux des **deux pages invité** : la page publique (`guest`) et la page du réseau « Chez Matou » (`/lan/stream`, mêmes flux go2rtc ; vignettes légères et caméra agrandie 4K) ; réglé dans « Général (toutes les caméras) » de la page des réglages ; `syncLiveFps` règle `<caméra>_guest_sub_mjpeg` et `_guest_main_mjpeg` de go2rtc.
 - **Interrupteur** `guest_enabled` : House Sync écrit `{"enabled": bool}` dans `GUEST_STATE_FILE` (`/guest/state.json`, volume `./data/guest`, `guestState.ts`) ; la page invité ferme son port quand c'est faux. Sans fichier : en ligne ; illisible : coupée (`../../guest/CLAUDE.md`).
 - **Lien** `guest_link` `{key, port, url}` dans `GET`/`PUT /api/guest` : vient de `GUEST_KEY`, `GUEST_PORT` (8090), `GUEST_PUBLIC_URL` (`.env`) ; `null` sans `GUEST_KEY`.
 
@@ -87,6 +87,11 @@ La recherche des yeux qui brillent a été retirée en novembre 2026 (code, rég
 - `GET`/`PUT /api/servos` (`servos.ts`) : `{url, shutters: {"2": {up, down, stop}, "5": ..., "6": ...}}` : l'adresse de l'ESP32 des servos (commune, défaut `http://192.168.1.115`) et, par volet (n° dans `SHUTTERS` de l'API : 2 salon, 5 PC, 6 porte), `up` (Monter), `down` (Descendre), `stop` : `{channel, start, end, speed, hold}`. Défauts : salon = réglages validés à la main (canaux 0, 1, 2) ; PC (canaux 3, 4, 5) et porte (6, 7, 8) avec angles à 0 (rien ne bouge tant qu'ils ne sont pas saisis). Le `PUT` accepte un corps partiel (fusionné avec l'existant) ; refus 400 si un volet est inconnu, si l'adresse n'est pas http, le canal n'est pas un entier de 0 à 15, un angle sort de −90..90, ou la vitesse ou l'attente sont négatives ou non finies.
 - `POST /api/servos/test` `{shutter, command, origin?}` (`servoTest.ts` ; `origin: true` met seulement le servo à 0° à la vitesse réglée, bouton « Origine ») : bouton « Tester » des réglages. Joue la séquence de l'ordre avec les réglages enregistrés, **directement** vers l'ESP32 des servos (même séquence que `api/src/lib/servoDriver.ts`, copie assumée : changer les deux) : `/set` vers le départ (vitesse réglée), attente, `/set` vers l'arrivée, attente, attente `hold`, retour au départ à vitesse 0, puis **relâche le servo** (`GET /off?ch=` après `ms + 800` : plus d'impulsion, donc ni ronronnement ni effort sur le bois). Répond 200 après le premier `/set` ; 502 si l'ESP32 ne répond pas, 400 si volet ou ordre inconnu. La suite est en tâche de fond ; un nouveau test sur le même canal l'annule.
 - Stockage : le document `servos` de `house_state` (`servos.ts`), écrit ici, relu par l'API à chaque ordre. Le volume `./data/servos` n'est plus que l'ancien `servos.json`, repris une seule fois au démarrage. Sans document ou document faux : valeurs par défaut ; ancienne forme `{url, up, down, stop}` (salon seul) encore lue ; volets manquants aux défauts.
+
+### Page invité du réseau
+
+- `GET`/`PUT /api/lan-access` (`lanAccess.ts`) : `{enabled, cameras, shutters, lights, ac, address}` : les cinq interrupteurs de la page « Chez Matou » (servie par House API sur `/chezmatou`) et son adresse **sans la clé** (`LAN_PAGE_URL`, `https://chezmatou.local:8080/chezmatou` par défaut). Le `PUT` accepte un corps partiel de booléens (400 sinon, une clé absente garde sa valeur).
+- Stockage : le document `lan-access` de `house_state`, **écrit ici** (action de l'utilisateur sur sa page), **relu par l'API à chaque demande** ; **tout coupé par défaut**. La clé `LAN_KEY` n'est jamais lue ni affichée par Sync (elle reste dans le `.env` du mini PC).
 
 ## Imports des autres services
 

@@ -4,6 +4,7 @@ import {
   fetchClips,
   fetchDocker,
   fetchGuest,
+  fetchLanAccess,
   fetchHeatingEnergy,
   fetchHue,
   fetchNetwork,
@@ -23,6 +24,7 @@ import {
   login,
   logout,
   saveGuest,
+  saveLanAccess,
   saveRetention,
   saveServos,
   saveSetting,
@@ -82,6 +84,7 @@ describe('lectures', () => {
     ['fetchSettings', fetchSettings, '/api/settings'],
     ['fetchGuest', fetchGuest, '/api/guest'],
     ['fetchServos', fetchServos, '/api/servos'],
+    ['fetchLanAccess', fetchLanAccess, '/api/lan-access'],
     ['fetchDocker', fetchDocker, '/api/docker'],
     ['fetchSpecs', fetchSpecs, '/api/specs'],
     ['fetchHue', fetchHue, '/api/hue'],
@@ -165,6 +168,15 @@ describe('écritures', () => {
     answer({ ok: true })
     await testServo('5', 'stop', true)
     expect(lastCall()[1]?.body).toBe('{"shutter":"5","command":"stop","origin":true}')
+  })
+
+  it('saveLanAccess envoie le changement', async () => {
+    const saved = { enabled: true, cameras: false, shutters: false, lights: false, ac: false, address: 'https://x' }
+    answer(saved)
+    expect(await saveLanAccess({ enabled: true })).toEqual(saved)
+    expect(lastCall()[0]).toBe('/api/lan-access')
+    expect(lastCall()[1]?.method).toBe('PUT')
+    expect(lastCall()[1]?.body).toBe('{"enabled":true}')
   })
 
   it('saveGuest envoie le changement', async () => {

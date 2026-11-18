@@ -32,6 +32,8 @@ export interface Config {
   guestVisitsDays: number
   /** La page invité (guest/) : sa clé, son port et, si elle est ouverte à internet, son adresse publique ; null sans GUEST_KEY. House Sync en donne le lien dans ses réglages. */
   guest: { key: string; port: number; url: string } | null
+  /** L'adresse (sans la clé) de la page invité du réseau, servie par House API (`/chezmatou`) : House Sync l'affiche à côté de ses interrupteurs (LAN_PAGE_URL). */
+  lanPageUrl: string
   /** Les anciens fichiers de House API (appareils de la maison et invités de la box), repris une seule fois dans la base (BOX_KNOWN_FILE, BOX_GUESTS_FILE). */
   boxKnownFile: string
   boxGuestsFile: string
@@ -72,6 +74,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   servosFile: env.SERVOS_FILE ?? '/servos/servos.json',
   guestVisitsFile: env.GUEST_VISITS_FILE ?? '/guest-visits/visits.jsonl',
   guestVisitsDays: Number(env.GUEST_VISITS_DAYS ?? 365),
+  lanPageUrl: env.LAN_PAGE_URL ?? 'https://chezmatou.local:8080/chezmatou',
   guest: env.GUEST_KEY ? { key: env.GUEST_KEY, port: Number(env.GUEST_PORT ?? 8090), url: env.GUEST_PUBLIC_URL ?? '' } : null,
   boxKnownFile: env.BOX_KNOWN_FILE ?? '/house/box-known.json',
   boxGuestsFile: env.BOX_GUESTS_FILE ?? '/house/box-guests.json',

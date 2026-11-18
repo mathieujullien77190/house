@@ -320,6 +320,28 @@ test('/api/servos : lecture, fusion, écriture, refus', async () => {
   assert.equal((await put({}, cookie)).status, 500)
 })
 
+test('/api/lan-access : lecture, fusion, écriture, refus', async () => {
+  const { ctx, call, login } = setup()
+  const put = (body: unknown, cookie?: string) => call({ method: 'PUT', url: '/api/lan-access', body, cookie })
+  assert.equal((await put({})).status, 401)
+  assert.equal((await call({ url: '/api/lan-access' })).status, 401)
+  const cookie = await login()
+  const off = { enabled: false, cameras: false, shutters: false, lights: false, ac: false, address: ctx.config.lanPageUrl }
+  assert.deepEqual(json(await call({ url: '/api/lan-access', cookie })), off)
+  assert.equal((await call({ method: 'PUT', url: '/api/lan-access', rawBody: '[', cookie })).status, 400)
+  assert.equal((await put({ enabled: 'oui' }, cookie)).status, 400)
+  assert.equal((await put({}, cookie)).status, 400)
+  assert.deepEqual(json(await put({ enabled: true, ac: true }, cookie)), { ...off, enabled: true, ac: true })
+  assert.deepEqual(json(await call({ url: '/api/lan-access', cookie })), { ...off, enabled: true, ac: true })
+  assert.ok(ctx.logs.includes('Page invité du réseau : activée (caméras non, volets non, lampes non, clim oui)'))
+  assert.deepEqual(json(await put({ enabled: false, cameras: true, shutters: true, lights: true }, cookie)), { ...off, cameras: true, shutters: true, lights: true, ac: true })
+  assert.ok(ctx.logs.includes('Page invité du réseau : coupée (caméras oui, volets oui, lampes oui, clim oui)'))
+  assert.equal((await put({ ac: false }, cookie)).status, 200)
+  assert.ok(ctx.logs.includes('Page invité du réseau : coupée (caméras oui, volets oui, lampes oui, clim non)'))
+  ctx.db.exec('DROP TABLE house_state')
+  assert.equal((await put({ enabled: true }, cookie)).status, 500)
+})
+
 test('POST /api/servos/test : joue la séquence vers l ESP32, refuse le reste', async () => {
   let esp = false
   const { ctx, call, login } = setup({}, (made) => {

@@ -60,6 +60,7 @@ test('les réglages de l\'environnement sont repris', () => {
   assert.equal(config.boxGuestsFile, '/h/guests.json')
   assert.equal(config.houseDir, '/h')
   assert.equal(loadConfig({ SERVOS_FILE: '/s/x.json' }).servosFile, '/s/x.json')
+  assert.equal(loadConfig({ LAN_PAGE_URL: 'https://x/c' }).lanPageUrl, 'https://x/c')
   assert.equal(config.go2rtcUrl, 'http://g:1')
   assert.deepEqual([config.retentionDaysEnv, config.hueAddress, config.hueKey, config.guestVisitsDays, config.dataDir], ['30', '1.2.3.4', 'app', 5, '/d'])
   assert.deepEqual(config.guest, { key: 'g', port: 8091, url: 'https://x' })

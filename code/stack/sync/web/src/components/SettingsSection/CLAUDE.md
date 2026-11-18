@@ -1,10 +1,11 @@
 # SettingsSection – l'onglet Réglages
 
-**Tous** les réglages de House Sync, en blocs repliables : **Général**, **un bloc par caméra** (titre = son nom), **Page invité**, **Volets à servos**. Chaque clic ou curseur relâché est enregistré tout de suite ; un échec s'affiche. Effet côté service : `../../../../src/CLAUDE.md`.
+**Tous** les réglages de House Sync, en blocs repliables : **Général**, **un bloc par caméra** (titre = son nom, **fermé à l'ouverture de la page**, un clic l'ouvre), **Page invité**, **Volets à servos**. Chaque clic ou curseur relâché est enregistré tout de suite ; un échec s'affiche. Effet côté service : `../../../../src/CLAUDE.md`.
 
 ## Général
 
 - Durée de garde : 7, 15, 30, 60, 90 ou 180 jours (`RETENTION_OPTIONS`, `GET`/`PUT /api/retention`).
+- **Images par seconde des pages invité** : un curseur de 1 à 25 (`GET`/`PUT /api/guest`, `guest_fps`), le même pour toutes les caméras, pour la page invité publique **et** pour la page du réseau « Chez Matou » (mêmes flux go2rtc `<caméra>_guest_*`).
 
 ## Un bloc par caméra
 
@@ -33,6 +34,5 @@
 
 ## Page invité
 
-- Un curseur de 1 à 25 images/s (vignettes et 4K, PC et téléphone) ; `GET`/`PUT /api/guest`.
 - Bouton « En ligne / Coupée » (interrupteur de la page).
 - Dessous, `GuestLink` (`../GuestLink/CLAUDE.md`), seulement si `guest_link` n'est pas null.

@@ -11,6 +11,8 @@ vi.mock('@/lib/api', () => ({
   saveRetention: vi.fn(),
   saveGuest: vi.fn(),
   saveSetting: vi.fn(),
+  fetchLanAccess: vi.fn(),
+  saveLanAccess: vi.fn(),
   fetchServos: vi.fn(),
   saveServos: vi.fn(),
   testServo: vi.fn(),
@@ -38,6 +40,7 @@ beforeEach(() => {
   m.fetchRetention.mockResolvedValue(15)
   m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: null })
   m.fetchSettings.mockResolvedValue([camera()])
+  m.fetchLanAccess.mockReturnValue(new Promise(() => undefined))
   m.fetchServos.mockReturnValue(new Promise(() => undefined))
 })
 
@@ -260,7 +263,7 @@ describe('curseurs', () => {
 })
 
 describe('page invité', () => {
-  const GUEST_FPS = 'Page invité · images par seconde (toutes les caméras, PC et téléphone)'
+  const GUEST_FPS = 'Images par seconde des pages invité (page publique et Chez Matou)'
 
   it('l’interrupteur coupe puis remet la page', async () => {
     m.saveGuest.mockResolvedValueOnce({ guest_fps: 2, guest_enabled: false, guest_link: null }).mockResolvedValueOnce({ guest_fps: 2, guest_enabled: true, guest_link: null })

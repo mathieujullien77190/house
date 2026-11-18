@@ -13,7 +13,7 @@ Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépend
 `web/dist` est public. Le reste exige la session (clé et cookie : `../docs/securite.md`).
 
 - `POST /login` avec `HOUSE_KEY` = `API_KEY` : clé de moins de 8 caractères = aucune session ; 10 essais ratés par adresse en 15 min puis 429 (`attempts.ts`, `session.ts`).
-- `GET`/`PUT /api/settings`, `/api/retention`, `/api/guest`, `/api/servos` : réglages (`src/CLAUDE.md`).
+- `GET`/`PUT /api/settings`, `/api/retention`, `/api/guest`, `/api/servos`, `/api/lan-access` : réglages (`src/CLAUDE.md`).
 - `/api/overview` (`?part=database` : sans parcourir le disque), `/api/system`, `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (fiche publique du pont), `/api/hue-log`.
 - `/api/camera-energy`, `/api/lamp-energy`, `/api/machine-energy`, `/api/heating-energy` : alimentent l'arbre de consommation de la page Machine.
 - `/api/table?name=&page=&size=`, `/api/clips?page=&size=`, `/files/…` (`Range` : 206, `range.ts`).

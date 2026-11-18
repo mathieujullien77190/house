@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Collapsible, Notice, Tabs } from '@house/ui'
 import GuestLink from '@/components/GuestLink'
+import LanAccess from '@/components/LanAccess'
 import ServosSettings from '@/components/ServosSettings'
 import { fetchGuest, fetchRetention, fetchSettings, saveGuest, saveRetention, saveSetting } from '@/lib/api'
 import {
@@ -30,6 +31,7 @@ import {
   SECTION_GUEST,
   SECTION_LIVE,
   SECTION_RECORDING,
+  SECTION_LAN,
   SECTION_SERVOS,
   MIN_SECONDS_LABEL,
   MIN_SECONDS_MAX,
@@ -169,6 +171,29 @@ const SettingsSection = () => {
             </div>
           </div>
         ) : null}
+        {guest !== null ? (
+          <div className={ROW_CLASS}>
+            <div className={SLIDERS_CLASS}>
+              <div className={SLIDER_GROUP_CLASS}>
+                <div className={SLIDER_HEAD_CLASS}>
+                  <span className={LABEL_CLASS}>{GUEST_FPS_LABEL}</span>
+                  <span className={VALUE_CLASS}>{`${guestDraft ?? guest.guest_fps}${FPS_UNIT}`}</span>
+                </div>
+                <input
+                  type="range"
+                  min={FPS_MIN}
+                  max={FPS_MAX}
+                  value={guestDraft ?? guest.guest_fps}
+                  aria-label={GUEST_FPS_LABEL}
+                  className={SLIDER_CLASS}
+                  onChange={(event) => setGuestDraft(Number(event.target.value))}
+                  onPointerUp={(event) => commitGuest(Number(event.currentTarget.value))}
+                  onKeyUp={(event) => commitGuest(Number(event.currentTarget.value))}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </Collapsible>
 
       {settings.map((setting) => {
@@ -180,6 +205,7 @@ const SettingsSection = () => {
           <Collapsible
             key={setting.camera}
             title={setting.camera}
+            defaultOpen={false}
             detail={
               cloud ? (
                 <span title={RAIN_CLOUD_HINT[cloud]} role="img" aria-label={RAIN_CLOUD_HINT[cloud]}>
@@ -330,34 +356,15 @@ const SettingsSection = () => {
             </div>
           </div>
         ) : null}
-        {guest !== null ? (
-          <div className={ROW_CLASS}>
-            <div className={SLIDERS_CLASS}>
-              <div className={SLIDER_GROUP_CLASS}>
-                <div className={SLIDER_HEAD_CLASS}>
-                  <span className={LABEL_CLASS}>{GUEST_FPS_LABEL}</span>
-                  <span className={VALUE_CLASS}>{`${guestDraft ?? guest.guest_fps}${FPS_UNIT}`}</span>
-                </div>
-                <input
-                  type="range"
-                  min={FPS_MIN}
-                  max={FPS_MAX}
-                  value={guestDraft ?? guest.guest_fps}
-                  aria-label={GUEST_FPS_LABEL}
-                  className={SLIDER_CLASS}
-                  onChange={(event) => setGuestDraft(Number(event.target.value))}
-                  onPointerUp={(event) => commitGuest(Number(event.currentTarget.value))}
-                  onKeyUp={(event) => commitGuest(Number(event.currentTarget.value))}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
         {guest?.guest_link ? (
           <div className={ROW_CLASS}>
             <GuestLink info={guest.guest_link} />
           </div>
         ) : null}
+      </Collapsible>
+
+      <Collapsible title={SECTION_LAN}>
+        <LanAccess />
       </Collapsible>
 
       <Collapsible title={SECTION_SERVOS}>

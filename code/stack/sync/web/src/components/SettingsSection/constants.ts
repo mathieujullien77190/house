@@ -5,6 +5,7 @@ export const SECTION_DETECTION = 'Détection du mouvement'
 export const SECTION_LIVE = 'Direct dans la WebApp'
 export const SECTION_GUEST = 'Page invité'
 export const SECTION_SERVOS = 'Volets à servos'
+export const SECTION_LAN = 'Page invité du réseau'
 export const CLIPS_LABEL = 'Clips vidéo'
 /** La durée de garde, pour toutes les caméras : au-delà, un clip non sauvegardé, les images, le journal des lampes, les événements sans clip et les fusions sont effacés (une fois par jour). */
 export const RETENTION_LABEL = 'Durée de garde (clips, images, journal des lampes, événements)'
@@ -61,7 +62,7 @@ export const GUEST_POWER_OPTIONS = [
   { id: 'off', label: 'Coupée' },
 ] as const
 /** Le curseur de la page invité : un seul réglage pour les vignettes et la caméra agrandie (4K), PC et téléphone confondus. */
-export const GUEST_FPS_LABEL = 'Page invité · images par seconde (toutes les caméras, PC et téléphone)'
+export const GUEST_FPS_LABEL = 'Images par seconde des pages invité (page publique et Chez Matou)'
 export const SAVE_ERROR_TEXT = 'Ce réglage n’a pas pu être enregistré : House Sync ne répond pas. Réessaie.'
 export const LOAD_ERROR_TEXT = 'Les réglages n’ont pas pu être lus.'
 export const FPS_MIN = 1

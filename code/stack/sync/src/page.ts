@@ -15,6 +15,7 @@ import { clipCameras, clipFilterParams, filterClips, filterParams, groupClips, l
 import { ORIENTATIONS } from './database.ts'
 import { readDocker } from './docker.ts'
 import { readGuestEnabled, writeGuestEnabled } from './guestState.ts'
+import { mergeLanAccess, readLanAccess, writeLanAccess } from './lanAccess.ts'
 import { mergeServos, readServos, SERVO_COMMANDS, writeServos } from './servos.ts'
 import { createServoTester } from './servoTest.ts'
 import { readHueBridge } from './hue.ts'
@@ -152,6 +153,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: settings.clipRetentionDays() })
     if (pathname === '/api/guest') return sendJson(res, 200, await guestBody(settings.guestFps()))
     if (pathname === '/api/servos') return sendJson(res, 200, readServos(db))
+    if (pathname === '/api/lan-access') return sendJson(res, 200, { ...readLanAccess(db), address: config.lanPageUrl })
     if (pathname === '/api/settings') return sendJson(res, 200, settings.knownCameras().map((camera) => settings.cameraSettings(camera)))
     if (pathname === '/api/overview') return sendJson(res, 200, await overview(params.get('part') !== 'database'))
     if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(config.dockerFile, config.composeFile))
@@ -284,6 +286,21 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       resetLiveFpsCheck()
       if (body.guest_fps !== undefined) ctx.log(`Page invité : ${fps} images/s`)
       return sendJson(res, 200, await guestBody(fps))
+    }
+    // PUT /api/lan-access : { enabled?, cameras?, shutters?, lights?, ac? } (des booléens) : ce que la page invité du réseau permet (le document `lan-access`, que House API relit à chaque demande) ; une clé absente garde sa valeur. L'adresse de la page ne porte jamais la clé (LAN_KEY reste dans le .env).
+    if (req.method === 'PUT' && pathname === '/api/lan-access') {
+      if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+      const body = await readJsonObject(req)
+      if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+      const merged = mergeLanAccess(readLanAccess(db), body)
+      if (!merged) return sendJson(res, 400, { error: 'invalid lan-access: booleans enabled, cameras, shutters, lights, ac' })
+      try {
+        writeLanAccess(db, merged, seconds(ctx))
+      } catch {
+        return sendJson(res, 500, { error: 'lan-access not written' })
+      }
+      ctx.log(`Page invité du réseau : ${merged.enabled ? 'activée' : 'coupée'} (caméras ${merged.cameras ? 'oui' : 'non'}, volets ${merged.shutters ? 'oui' : 'non'}, lampes ${merged.lights ? 'oui' : 'non'}, clim ${merged.ac ? 'oui' : 'non'})`)
+      return sendJson(res, 200, { ...merged, address: config.lanPageUrl })
     }
     // PUT /api/servos : { url?, shutters?: { <volet>: { up?, down?, stop? } } } (chaque ordre : { channel?, start?, end?, speed?, hold? }) : la configuration des servos des volets salon, PC et porte, que House API relit à chaque ordre.
     if (req.method === 'PUT' && pathname === '/api/servos') {
