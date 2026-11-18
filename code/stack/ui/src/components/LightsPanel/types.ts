@@ -59,4 +59,6 @@ export interface LightsPanelProps {
   onLight: (lightId: string, change: LightsChange) => void
   /** Le curseur bouge : le parent garde la valeur en attendant le relâchement. */
   onDraft: (key: string, percent: number) => void
+  /** Montre la rangée « Tout allumer » / « Tout éteindre » (vrai par défaut) ; faux pour une page qui ne laisse que les zones et les lampes. */
+  showAll?: boolean
 }

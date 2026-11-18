@@ -34,7 +34,7 @@ import { BULB_PATH, briOf, countText, MAX_BRI, orangeShare, percentOf } from './
 import type { LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
 /** Les lumières : un rectangle par zone, une petite case ON / OFF par lampe (allumer = puissance max) avec **un curseur de luminosité dans le bloc de la lampe** (la petite ampoule en haut à droite dit l'état : sa couleur pâlit quand la luminosité baisse). */
-const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lampExtra }: LightsPanelProps) => {
+const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lampExtra, showAll = true }: LightsPanelProps) => {
   // Une case : un bouton qui bascule la lampe. Allumer envoie toujours la puissance max.
   const tile = (light: LightsLamp) => {
     const key = `light:${light.id}`
@@ -153,14 +153,16 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
 
   return (
     <div className={LIST_CLASS}>
-      <div className={ALL_ROW_CLASS}>
-        <Button className={ALL_BUTTON_CLASS} variant="active" disabled={busy === ALL_KEY} onClick={() => onAll(true)}>
-          {ALL_ON_LABEL}
-        </Button>
-        <Button className={ALL_BUTTON_CLASS} variant="danger" disabled={busy === ALL_KEY} onClick={() => onAll(false)}>
-          {ALL_OFF_LABEL}
-        </Button>
-      </div>
+      {showAll ? (
+        <div className={ALL_ROW_CLASS}>
+          <Button className={ALL_BUTTON_CLASS} variant="active" disabled={busy === ALL_KEY} onClick={() => onAll(true)}>
+            {ALL_ON_LABEL}
+          </Button>
+          <Button className={ALL_BUTTON_CLASS} variant="danger" disabled={busy === ALL_KEY} onClick={() => onAll(false)}>
+            {ALL_OFF_LABEL}
+          </Button>
+        </div>
+      ) : null}
       {rooms.map(room)}
     </div>
   )

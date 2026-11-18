@@ -38,7 +38,7 @@ const CameraTile = ({ name, media, overlay, caption = '', footer, alert = false,
           <div className={FOOTER_CLASS}>{footer}</div>
         )
       ) : null}
-      <button type="button" className={BUTTON_CLASS} aria-label={`${OPEN_PREFIX}${name}`} onClick={onOpen} />
+      {onOpen ? <button type="button" className={BUTTON_CLASS} aria-label={`${OPEN_PREFIX}${name}`} onClick={onOpen} /> : null}
     </div>
   )
 }

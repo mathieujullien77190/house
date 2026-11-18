@@ -241,3 +241,11 @@ describe('LightsPanel : détecteurs', () => {
     expect(within(a).getByText('Mouvement').className).not.toBe(within(b).getByText('Calme depuis 15:44').className)
   })
 })
+
+describe('showAll', () => {
+  it('faux : pas de rangée « Tout allumer » / « Tout éteindre »', () => {
+    renderPanel({ showAll: false })
+    expect(screen.queryByText(ALL_ON_LABEL)).toBeNull()
+    expect(screen.queryByText(ALL_OFF_LABEL)).toBeNull()
+  })
+})

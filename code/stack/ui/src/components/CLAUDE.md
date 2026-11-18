@@ -31,7 +31,7 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 
 ## Caméras et lumières
 
-- `CameraTile` : `overlay` en bas à gauche, `footer` sous le nom, `alert` (bordure rouge si éteinte), bouton transparent couvrant tout.
+- `CameraTile` : `onOpen` facultatif (sans lui, pas de bouton), `overlay` en bas à gauche, `footer` sous le nom, `alert` (bordure rouge si éteinte), bouton transparent couvrant tout.
 - `CameraCard` :
   - **Taille unique** des boutons sur la vidéo : carré de 32 px (`size-8`, `rounded-md`), y compris « L / 4K » (`Tabs` `tiny`). Les blocs et ronds posés dessus font aussi 32 px (`ValueChips` en `h-8`, `MapIcon` en `size-8`).
   - `screen` (téléphone) : vidéo 16/9 pleine largeur (un média portrait garde la moitié haute), `actions`, `details`, « ⛶ » dessus, `timeline` dessous, `onBack` en bouton fixe en haut à gauche (`backLabel`), sans titre ni légende.
@@ -42,7 +42,7 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 - `Timeline` : `vertical` (téléphone, récent en haut) et `fill` pour remplir la hauteur du parent ; positions en % (`pointStyle`, `spanStyle` les retournent).
 - `LampDot` : orange allumée, gris éteinte, contour rouge pâle injoignable ; `brightness` = opacité. `PlugSquare` : vert allumée, rouge éteinte.
 - `StatusDot` : pastille d'état de 9 px (verte `on`, rouge `off`, grise `missing`, liseré noir de 1 px). `CameraTile` la reçoit en prop `dot` devant le nom ; le plan (`MapPlan/icons.ts`) reprend `STATUS_DOT_DIAMETER` et `STATUS_DOT_RING` pour dessiner la même.
-- `LightsPanel` : lumières par zone.
+- `LightsPanel` : lumières par zone (`showAll={false}` cache « Tout allumer / éteindre », pour la page Chez Matou).
   - Un rectangle repliable par zone (nom, compte, ON / OFF de la zone), grille de cases (3 colonnes téléphone, 4 dès `sm:`, 6 dès `lg:`), une par lampe. Les zones gardent l'ordre du parent, les lampes ne bougent pas. Détecteurs de mouvement en lignes sous la grille.
   - Case d'une lampe : fond neutre, bordure jaune quand allumée (pâlit avec la luminosité), rond ON / OFF en haut à droite (comme sur la carte), curseur de luminosité (bleu) si la lampe varie (`bri` non nul). `lampExtra` : bouton d'action sous la case.
   - **ON = puissance max** (`{ on: true, bri: MAX_BRI }`, 254).

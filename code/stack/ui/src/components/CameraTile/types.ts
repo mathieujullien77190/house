@@ -16,6 +16,6 @@ export interface CameraTileProps {
   footer?: ReactNode
   /** Appelé au clic sur le pied de la vignette ; sans lui, le pied n'est pas cliquable à part. */
   onOpenFooter?: () => void
-  /** Appelé au clic : le parent ouvre le détail de la caméra. */
-  onOpen: () => void
+  /** Appelé au clic : le parent ouvre le détail de la caméra. Sans lui, la vignette n'est pas cliquable (une page qui ne fait que montrer le direct). */
+  onOpen?: () => void
 }

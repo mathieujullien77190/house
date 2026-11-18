@@ -59,4 +59,9 @@ describe('CameraTile', () => {
     expect(onOpenFooter).toHaveBeenCalledTimes(1)
     expect(onOpen).not.toHaveBeenCalled()
   })
+
+  it('sans onOpen, la vignette n’est pas cliquable', () => {
+    renderTile({ onOpen: undefined })
+    expect(screen.queryByRole('button')).toBeNull()
+  })
 })
