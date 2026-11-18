@@ -30,6 +30,10 @@ Variables : `DEPLOY_HOST` (`mathieu@192.168.1.139` par défaut), `DEPLOY_DIR` (`
 
 **Retour arrière** : `git checkout <commit>` puis `./deploy.sh --all --skip-checks`. Les données (`data/`) ne sont jamais touchées ; une migration de base (colonne ajoutée par `sync`) n'est pas annulée.
 
+## Le nom `chezmatou.local`
+
+Le lien de la page « Chez Matou » (`LAN_HOST`, `chezmatou.local`) est un **alias mDNS** : le service systemd `chezmatou-mdns` du mini PC annonce ce nom sur le réseau (même adresse que `mini.local`). Il faut que le certificat de la maison le contienne (`CERT_HOSTS` de `certs/`, puis redémarrer les services qui le lisent). Les appareils qui ne résolvent pas le mDNS ouvrent la page par l'adresse IP du mini PC.
+
 ## GitHub : seulement les vérifications
 
 `.github/workflows/stack.yml` lance typecheck, lint, tests et build de chaque paquet sur les serveurs de GitHub à chaque push et pull request sous `code/stack/`. Il ne touche pas au mini PC.

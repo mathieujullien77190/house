@@ -28,6 +28,8 @@ Depuis le 7 novembre 2026 : `/etc/ssh/sshd_config.d/00-house-hardening.conf` (`P
 
 **Swagger** : `/docs` (Swagger UI) et `/openapi.json` sont derrière la même clé ou session que le reste (401 sinon) ; aucun fichier ne vient d'internet.
 
+**Page « Chez Matou »** (`https://chezmatou.local:8080/chezmatou?k=<LAN_KEY>`, QR code de l'onglet « Page invité » de la WebApp) : une **troisième clé**, `LAN_KEY` (`.env` du mini PC, 16 caractères au moins, distincte d'`API_KEY` et de `GUEST_KEY`), plus un filtre **réseau local** sur l'adresse de la connexion TCP (jamais `X-Forwarded-For`) : la page n'est pas joignable depuis internet (le Funnel Tailscale ne proxifie que la page invité des caméras). Tout est coupé par défaut : House Sync (Réglages, « Page invité du réseau ») active la page puis chaque fonction. Le nom `chezmatou.local` est un **alias mDNS** du mini PC (service systemd `chezmatou-mdns`, `docs/deploiement.md`) : le certificat de la maison doit le contenir (`CERT_HOSTS`). Détail : `api/src/routes/CLAUDE.md`.
+
 ## HTTPS
 
 Certificat de la CA de la maison (`data/certs/rootCA.pem`, à installer une fois par appareil ; créé par `certs/`). Pour un téléphone, l'API propose le certificat **public** au téléchargement : `https://<adresse>:8080/rootCA.crt` (jamais la clé `rootCA-key.pem`). La WebApp marche sur n'importe quel hôte du certificat (IP du PC ou `localhost`).
