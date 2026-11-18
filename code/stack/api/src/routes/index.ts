@@ -40,6 +40,8 @@ import { recordRouter } from './record.ts'
 import { markersRouter } from './markers.ts'
 import { zonesRouter } from './zones.ts'
 import { docsRouter } from '../openapi/docs.ts'
+import { guestLanRouter } from './guestLan.ts'
+import { lanRouter, type LanDeps } from './lan.ts'
 
 export interface Services {
   cameras: CamerasService
@@ -102,11 +104,26 @@ export const SECURED_PATHS = [
   '/markers',
   '/plan',
   '/record',
+  '/guest-lan',
   '/openapi.json',
   '/docs',
 ]
 
-export const createRoutes = (apiKey: string, services: Services, caCert = ''): Router => {
+/** Sans configuration : toutes les routes `/lan` sont montées mais répondent 503 (pas de LAN_KEY). */
+export const NO_LAN: LanDeps = {
+  key: '',
+  prefixes: [],
+  host: 'chezmatou.local',
+  port: 8080,
+  doc: {
+    read: () => {
+      throw Object.assign(new Error('document lan-access absent'), { code: 'ENOENT' })
+    },
+    write: () => undefined,
+  },
+}
+
+export const createRoutes = (apiKey: string, services: Services, caCert = '', lan: LanDeps = NO_LAN): Router => {
   const router = Router()
   router.use(welcomeRouter())
   router.use(caRouter(caCert))
@@ -129,5 +146,8 @@ export const createRoutes = (apiKey: string, services: Services, caCert = ''): R
   router.use(markersRouter(services.markers))
   router.use(planRouter(services.plan))
   router.use(recordRouter(services.recorderUrl, services.savedClips))
+  // La page invité du réseau : sa propre garde (réseau local + LAN_KEY, `middleware/lanGuard.ts`), pas la clé de la WebApp ; seule `/guest-lan/link` (qui rend la clé de la page) est derrière celle-ci.
+  router.use(guestLanRouter(lan.key, lan.doc, lan.host, lan.port))
+  router.use(lanRouter({ hue: services.hue, shutters: services.shutters, ac: services.ac, live: services.live, cameras: services.cameras }, lan))
   return router
 }

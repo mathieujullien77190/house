@@ -1,5 +1,6 @@
 // L'application Express : les services JSON derrière la clé, la WebApp en statique, les erreurs en JSON.
 import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import express, { type Express } from 'express'
 import type { Config } from './config.ts'
 import { openDatabase } from './db/database.ts'
@@ -140,7 +141,16 @@ export const createApp = (config: Config): Express => {
   app.disable('x-powered-by')
   // La base reste accessible à qui assemble l'application (les tests la ferment pour supprimer leurs dossiers temporaires).
   app.locals.database = db
-  app.use(createRoutes(config.apiKey, services, config.caCert))
+  app.use(createRoutes(config.apiKey, services, config.caCert, { key: config.lanKey, prefixes: config.lanIpv6Prefixes, host: config.lanHost, port: config.port, doc: createDocStore(db, 'lan-access') }))
+  // La page invité du réseau (« Chez Matou ») est la WebApp elle-même (`/chezmatou`, sans clé de la WebApp) : même fichier, pas de cache (l'adresse porte la clé de la page), jamais envoyée en référent.
+  // Aucun en-tête n'interdit le cadre : l'onglet « Page invité » l'aperçoit dans un iframe de même origine.
+  app.get('/chezmatou', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    res.setHeader('Referrer-Policy', 'no-referrer')
+    res.sendFile(resolve(config.webDir, 'index.html'))
+  })
+  // L'ancien nom : redirigé en gardant la query (`?k=`).
+  app.get('/invite', (req, res) => res.redirect(302, `/chezmatou${req.url.slice('/invite'.length)}`))
   // La WebApp compilée : index.html à la racine, les scripts et styles dans assets/.
   app.use(express.static(config.webDir, { index: 'index.html' }))
   app.use(notFound)

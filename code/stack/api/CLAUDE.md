@@ -11,7 +11,7 @@ Express 5 en TypeScript, Node 24 (pas de compilation). Sert aussi la WebApp comp
 - Lit `events.db` et le disque backup. **N'écrit dans la base que pour une action de l'utilisateur** (tables d'actions, `Database.run`) ; jamais le disque backup, jamais une observation (c'est House Sync).
 - Relaie go2rtc pour le direct : `GO2RTC_URLS` (un par enregistreur, le premier par défaut, `http://go2rtc:1984`, réseau `sync_net`).
 - Pilote le PoE du switch, le pont Hue, la prise Kasa, les climatisations, les volets, la Freebox (WiFi, appareils) et la télécommande du Player ; relaie l'enregistreur pour les clips à la main.
-- Ses seules écritures : les ordres aux équipements, la table `house_state` (les documents de l'utilisateur, `lib/docStore.ts`), l'ajout d'un appareil à la maison et le dossier `STATE_DIR` (`/state`, volume `data/house`) pour `tv/`.
+- Ses seules écritures : les ordres aux équipements (dont ceux de la page « Chez Matou », qui n'écrit jamais la base), la table `house_state` (les documents de l'utilisateur, `lib/docStore.ts`), l'ajout d'un appareil à la maison et le dossier `STATE_DIR` (`/state`, volume `data/house`) pour `tv/`.
 - `data/house` est à créer avec l'utilisateur qui lance Docker : le conteneur écrit en `node` (uid 1000).
 - Contenu de `STATE_DIR` : seulement `tv/` (certificat client et clé privée du Player appairé, **secret**, droits `0700` / `0600`). Tous les autres documents sont dans `house_state` (positions des ampoules, clips sauvegardés, notes et emoji des clips, zones, repères, plan, garde de la prise, `heating`, volets automatiques, `servos`).
 
@@ -20,6 +20,7 @@ Express 5 en TypeScript, Node 24 (pas de compilation). Sert aussi la WebApp comp
 - `config.ts` : environnement validé (`API_KEY` de 8 caractères au moins) ; seul endroit qui lit les variables.
 - `routes/index.ts` : monte les routes ; `SECURED_PATHS` liste ce qui exige la clé (`/openapi.json` et `/docs` compris).
 - `openapi/` : `routes.ts` (liste de toutes les routes, source), `spec.ts` (document OpenAPI 3), `docs.ts` (`GET /openapi.json` et Swagger UI sur `GET /docs`, fichiers du paquet `swagger-ui-dist` servis par l'API, aucun CDN).
+- `routes/lan.ts`, `routes/guestLan.ts`, `middleware/lanGuard.ts`, `lib/lanNetwork.ts`, `lib/lanAccess.ts`, `lib/lanToken.ts` : la page invité du réseau (`/lan/*`, réseau local **et** `LAN_KEY`, interrupteurs `lan-access` lus à chaque demande) ; `LAN_KEY`, `LAN_HOST`, `LAN_IPV6_PREFIXES` dans `config.ts`. Détail : `src/routes/CLAUDE.md`.
 - `middleware/requireKey` : `X-House-Key` en temps constant, ou la session ; 10 clés fausses par adresse en 15 min, puis 429.
 - `db/database.ts` : SQLite (lecture, et écriture des actions de l'utilisateur, `run`) ; base pas prête : 503.
 - `services/poe` : caméra vers port du switch, état en cache 3 s.

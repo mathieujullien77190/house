@@ -15,6 +15,7 @@ const TAGS: Record<Group, string> = {
   Clim: 'Climatisations Mitsubishi',
   Box: 'Freebox',
   TV: 'Télécommande du Freebox Player',
+  'Page du réseau': 'La page invité du réseau local (/invite) : leur propre garde (réseau local et LAN_KEY), interrupteurs dans House Sync',
 }
 
 const ERRORS: Record<number, string> = {

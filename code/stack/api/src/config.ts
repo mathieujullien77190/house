@@ -48,6 +48,12 @@ export interface Config {
   syncUrl: string
   /** Le nom que le certificat de House Sync porte (SYNC_SERVERNAME, `localhost` par défaut). */
   syncServername: string
+  /** La clé de la page invité du réseau (LAN_KEY, 16 caractères au moins) ; absente ou trop courte : les routes `/lan` répondent 503. Distincte de API_KEY et de GUEST_KEY. */
+  lanKey: string
+  /** Le nom d'hôte de l'adresse de la page (LAN_HOST, `chezmatou.local` par défaut : un alias mDNS du mini PC, `docs/deploiement.md`) ; le certificat de la maison doit le contenir. */
+  lanHost: string
+  /** Les préfixes IPv6 (/64) du réseau de la maison (LAN_IPV6_PREFIXES, séparés par des virgules) que le filtre « réseau local » de `/lan` accepte en plus des adresses privées. */
+  lanIpv6Prefixes: string[]
   /** Le certificat public de l'autorité de la maison, que l'API propose au téléchargement (/rootCA.crt) ; vide : pas de téléchargement. */
   caCert: string
 }
@@ -123,5 +129,11 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     caCert: env.CA_CERT ?? '',
     syncUrl: env.SYNC_URL ? env.SYNC_URL.replace(/\/+$/, '') : '',
     syncServername: env.SYNC_SERVERNAME ?? 'localhost',
+    lanKey: env.LAN_KEY ?? '',
+    lanHost: env.LAN_HOST || 'chezmatou.local',
+    lanIpv6Prefixes: (env.LAN_IPV6_PREFIXES ?? '')
+      .split(',')
+      .map((prefix) => prefix.trim())
+      .filter((prefix) => prefix !== ''),
   }
 }

@@ -58,6 +58,9 @@ const baseConfig = (dir: string): Config => ({
   recorderUrl: null,
   tls: null,
   caCert: '',
+  lanKey: '',
+  lanHost: 'chezmatou.local',
+  lanIpv6Prefixes: [],
 })
 
 /** Ferme la base de l'application (sous Windows, un fichier ouvert empêche de supprimer le dossier). */
@@ -248,4 +251,18 @@ test('les ordres des volets partent au journal de House Sync quand SYNC_URL et l
   } finally {
     log.mock.restore()
   }
+})
+
+test('la page « Chez Matou » est la WebApp sans cache ni référent ; /invite y redirige en gardant la clé', async () => {
+  await withTempDir(async (dir) => {
+    await serveApp(prepare(dir), async (url) => {
+      const page = await call(`${url}/chezmatou?k=abc`)
+      assert.equal(page.body, '<h1>House</h1>')
+      assert.equal(page.headers.get('cache-control'), 'no-store')
+      assert.equal(page.headers.get('referrer-policy'), 'no-referrer')
+      const redirect = await fetch(`${url}/invite?k=abc`, { redirect: 'manual' })
+      assert.equal(redirect.status, 302)
+      assert.equal(redirect.headers.get('location'), '/chezmatou?k=abc')
+    })
+  })
 })

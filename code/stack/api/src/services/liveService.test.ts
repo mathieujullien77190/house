@@ -101,3 +101,22 @@ test('le son est relayé depuis go2rtc : la piste audio du flux léger', async (
     },
   )
 })
+
+test('le direct de la page invité : flux _guest_sub_mjpeg, ou _main_mjpeg en 4K ; sans flux, null', async () => {
+  const seen: string[] = []
+  await withServer(
+    (req: IncomingMessage, res) => {
+      seen.push(decodeURIComponent(req.url ?? ''))
+      res.writeHead(200)
+      res.end('data')
+    },
+    async (url) => {
+      const live = createLiveService([url], repository([{ camera: 'a', url: `${url}/stream.html?src=cam_sub` }]))
+      const abort = new AbortController()
+      await (await live.stream('a', abort.signal, false, true, true))?.body?.cancel()
+      await (await live.stream('a', abort.signal, true, false, true))?.body?.cancel()
+      assert.equal(await live.stream('absente', abort.signal, false, false, true), null)
+      assert.deepEqual(seen, ['/api/stream.mjpeg?src=cam_guest_sub_mjpeg', '/api/stream.mjpeg?src=cam_guest_main_mjpeg'])
+    },
+  )
+})

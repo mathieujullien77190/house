@@ -122,6 +122,8 @@ services:
       GUEST_KEY: ${GUEST_KEY:-}
       GUEST_PUBLIC_URL: ${GUEST_PUBLIC_URL:-}
       # Les anciens fichiers de House API (appareils de la maison, invités de la box), repris une seule fois dans les tables box_known et box_guests ; House Sync surveille la box lui-même.
+      # L'adresse (sans la clé) de la page invité du réseau, que House Sync affiche à côté de ses interrupteurs.
+      LAN_PAGE_URL: ${LAN_PAGE_URL:-https://chezmatou.local:8080/chezmatou}
       BOX_KNOWN_FILE: ${BOX_KNOWN_FILE:-/house/box-known.json}
       BOX_GUESTS_FILE: ${BOX_GUESTS_FILE:-/house/box-guests.json}
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
@@ -222,6 +224,11 @@ services:
       STATE_DIR: /state
       # La page de House Sync : l'API lui envoie les lignes de journal (chauffage, volets), que Sync range dans la base.
       SYNC_URL: https://sync:8081
+      # La page invité du réseau (`/chezmatou`) : sa clé (dans le .env du mini PC, jamais dans le dépôt) et le préfixe IPv6 /64 du réseau de la maison (la Freebox donne une adresse publique à chaque machine) que le filtre « réseau local » accepte.
+      LAN_KEY: ${LAN_KEY:-}
+      # Le nom d'hôte du lien de la page (alias mDNS du mini PC, service systemd chezmatou-mdns) : le certificat de la maison doit le contenir (CERT_HOSTS).
+      LAN_HOST: ${LAN_HOST:-chezmatou.local}
+      LAN_IPV6_PREFIXES: ${LAN_IPV6_PREFIXES:-2a01:e0a:a16:58d0::/64}
       # Le certificat de la maison : HTTPS pour la WebApp.
       TLS_CERT: /certs/cert.pem
       TLS_KEY: /certs/key.pem

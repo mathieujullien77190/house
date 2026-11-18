@@ -4,6 +4,7 @@ import type { CamerasRepository } from '../repositories/camerasRepository.ts'
 
 const MJPEG_SUFFIX = '_mjpeg'
 const MOBILE_SUFFIX = '_m'
+const GUEST_INFIX = '_guest_'
 
 export interface Upstream {
   status: number
@@ -45,8 +46,13 @@ export const createLiveService = (go2rtcUrls: string[], cameras: CamerasReposito
   return {
     baseOf,
     /** Le flux MJPEG d'une caméra (multipart/x-mixed-replace), tant que le client reste connecté ; `hd` : le 4K au lieu du léger. */
-    stream: (camera: string, signal: AbortSignal, hd = false, mobile = false): Promise<Upstream | null> => {
+    stream: (camera: string, signal: AbortSignal, hd = false, mobile = false, guest = false): Promise<Upstream | null> => {
       const light = streamOf(camera)
+      // `guest` : les flux de la page invité (`<caméra>_guest_sub_mjpeg` et `_guest_main_mjpeg`), à la cadence « pages invité » réglée dans House Sync ; la page invité publique et la page du réseau « Chez Matou » partagent ces flux (jamais la variante téléphone).
+      if (guest) {
+        const base = light?.replace(/_sub$/, '')
+        return base ? open(camera, `/api/stream.mjpeg?src=${encodeURIComponent(`${base}${GUEST_INFIX}${hd ? 'main' : 'sub'}${MJPEG_SUFFIX}`)}`, signal) : Promise.resolve(null)
+      }
       // Le léger est `<nom>_sub`, le 4K `<nom>_main` : même caméra, autre flux.
       const src = light && hd ? light.replace(/_sub$/, '_main') : light
       // go2rtc ne sert du MJPEG que pour un flux déclaré en transcodage : <flux>_mjpeg, ou <flux>_mjpeg_m pour un écran de moins

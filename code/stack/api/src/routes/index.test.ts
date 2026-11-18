@@ -10,7 +10,7 @@ import type { EventsService } from '../services/eventsService.ts'
 import type { LiveService } from '../services/liveService.ts'
 import type { SnapshotsService } from '../services/snapshotsService.ts'
 import { call, routerApp, withServer } from '../testing/helpers.ts'
-import { createRoutes, SECURED_PATHS, type Services } from './index.ts'
+import { createRoutes, NO_LAN, SECURED_PATHS, type Services } from './index.ts'
 
 const KEY = 'une-cle-assez-longue'
 
@@ -49,4 +49,10 @@ test('les chemins protégés exigent la clé, welcome et logout non', async () =
       assert.notEqual((await call(`${url}${path}`, 'GET', undefined, { 'X-House-Key': KEY })).status, 401, path)
     }
   }).finally(() => log.mock.restore())
+})
+
+test('sans configuration de la page du réseau : document absent, écriture sans effet', () => {
+  assert.throws(() => NO_LAN.doc.read(), { code: 'ENOENT' })
+  assert.equal(NO_LAN.doc.write('{}'), undefined)
+  assert.equal(NO_LAN.key, '')
 })

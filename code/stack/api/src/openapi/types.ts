@@ -3,7 +3,7 @@
 export type Method = 'get' | 'post' | 'put' | 'delete'
 
 /** Le tag (le groupe) d'une route dans Swagger UI. */
-export type Group = 'Général' | 'Caméra' | 'Lumière' | 'Volet' | 'Prise' | 'Clim' | 'Box' | 'TV' | 'Plan'
+export type Group = 'Général' | 'Caméra' | 'Lumière' | 'Volet' | 'Prise' | 'Clim' | 'Box' | 'TV' | 'Plan' | 'Page du réseau'
 
 
 /** Un morceau de JSON Schema, juste ce que le document utilise. */

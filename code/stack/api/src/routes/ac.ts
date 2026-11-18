@@ -9,7 +9,7 @@ import { UnknownAcUnit, type AcService } from '../services/acService.ts'
 const BODY_ERROR = `body must be {"on": true|false}, {"mode": ${AC_MODES.join('|')}}, {"temperature": ${MIN_TEMPERATURE} to ${MAX_TEMPERATURE} by 0.5} {"fan": ${FAN_SPEEDS.join('|')}} {"vane": ${VANE_POSITIONS.join('|')}} and/or {"wideVane": ${WIDE_VANE_POSITIONS.join('|')}}`
 
 /** Le corps de la requête en changement, ou null s'il est vide ou faux (champ inconnu, valeur hors plage). */
-const toPatch = (body: Record<string, unknown>): AcPatch | null => {
+export const toPatch = (body: Record<string, unknown>): AcPatch | null => {
   const patch: AcPatch = {}
   for (const [key, value] of Object.entries(body)) {
     if (key === 'on' && typeof value === 'boolean') patch.power = value
