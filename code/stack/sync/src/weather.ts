@@ -46,7 +46,7 @@ export const createWeather = (ctx: Context) => {
         last = level
         settings.setWeatherRain(level)
         const wind = typeof body.current?.wind_speed_10m === 'number' ? body.current.wind_speed_10m : 0
-        if (wind >= config.windThresholdKmh !== lastWind >= config.windThresholdKmh) ctx.log(`Météo : vent ${Math.round(wind)} km/h (${wind >= config.windThresholdKmh ? 'au-dessus' : 'sous'} le seuil de ${config.windThresholdKmh} km/h)`)
+        if (wind >= config.windThresholdKmh !== lastWind >= config.windThresholdKmh) ctx.log(`Météo : vent ${Math.round(wind)} km/h (${wind >= config.windThresholdKmh ? 'au-dessus du' : 'sous le'} seuil de ${config.windThresholdKmh} km/h)`)
         lastWind = wind
         settings.setWeatherWind(wind)
       } catch (error) {

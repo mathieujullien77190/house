@@ -64,7 +64,7 @@ test('poll : le vent va aux réglages, et le passage du seuil est noté une fois
   const weather = createWeather(ctx)
   await weather.poll()
   assert.equal(ctx.settings.cameraSettings('cam').rain_now, 'wind')
-  assert.deepEqual(ctx.logs, ['Météo : vent 32 km/h (au-dessus le seuil de 20 km/h)'])
+  assert.deepEqual(ctx.logs, ['Météo : vent 32 km/h (au-dessus du seuil de 20 km/h)'])
   await weather.poll()
   assert.equal(ctx.logs.length, 1)
   body = { current: { weather_code: 3, wind_speed_10m: 5 } }
