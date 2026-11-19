@@ -14,8 +14,8 @@ test('les caméras : orientation réglée ou paysage, pluie en cours, dernières
     try {
       const cameras = createCamerasRepository(db)
       assert.deepEqual(plain(cameras.liveStreams()), [
-        { camera: 'cam-a', url: 'http://go2rtc:1984/stream.html?src=cam-a_sub', orientation: 'portrait', rain: 'heavy' },
-        { camera: 'cam-b', url: 'pas une adresse', orientation: 'landscape', rain: 'off' },
+        { camera: 'cam-a', url: 'http://go2rtc:1984/stream.html?src=cam-a_sub', orientation: 'portrait', rain: 'heavy', eyes: 1 },
+        { camera: 'cam-b', url: 'pas une adresse', orientation: 'landscape', rain: 'off', eyes: 0 },
       ])
       assert.deepEqual(plain(cameras.lastImages()).length, 2)
       assert.deepEqual(plain(cameras.lastImages()), [
@@ -46,14 +46,14 @@ test('les caméras : rangées dans l’ordre d’arrivée, les inconnues après 
   })
 })
 
-test('les caméras : une pluie faible, et une caméra sans réglage (paysage, pas de pluie)', async () => {
+test('les caméras : un vent, et une caméra sans réglage (paysage, pas de pluie)', async () => {
   await withTempDir((dir) => {
-    const rows = `${FIXTURE_ROWS} INSERT INTO live_streams VALUES ('cam-c', 'x'), ('cam-d', 'y'); INSERT INTO settings VALUES ('cam-c', 'landscape', 'rain');`
+    const rows = `${FIXTURE_ROWS} INSERT INTO live_streams VALUES ('cam-c', 'x'), ('cam-d', 'y'); INSERT INTO settings VALUES ('cam-c', 'landscape', 'wind', 0);`
     const db = openFixture(dir, rows)
     try {
       assert.deepEqual(plain(createCamerasRepository(db).liveStreams()).slice(2), [
-        { camera: 'cam-c', url: 'x', orientation: 'landscape', rain: 'rain' },
-        { camera: 'cam-d', url: 'y', orientation: 'landscape', rain: 'off' },
+        { camera: 'cam-c', url: 'x', orientation: 'landscape', rain: 'wind', eyes: 0 },
+        { camera: 'cam-d', url: 'y', orientation: 'landscape', rain: 'off', eyes: 0 },
       ])
     } finally {
       db.close()
