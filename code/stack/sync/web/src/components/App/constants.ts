@@ -17,6 +17,9 @@ export const TABS: { id: TabId; label: string }[] = [
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification…'
 export const LOGOUT_LABEL = 'Quitter'
+/** Le bouton du thème montre celui où il mène : 🌙 en clair, ☀️ en sombre. */
+export const THEME_LABEL = { light: '🌙', dark: '☀️' } as const
+export const THEME_TITLE = { light: 'Passer en thème sombre', dark: 'Passer en thème clair' } as const
 export const DATABASE_TITLE = 'Base SQLite'
 export const BACKUP_TITLE = 'Disque backup'
 export const DISK_TITLE = 'Place sur le disque'

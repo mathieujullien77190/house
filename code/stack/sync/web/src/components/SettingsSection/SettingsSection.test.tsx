@@ -35,8 +35,8 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
   foliage_zones: 0,
   ...patch,
 })
-const RAIN_GROUP = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
-const WIND_GROUP = 'Mode vent (si le vent dépasse 20 km/h : pas de clips, une image toutes les 5 s)'
+const RAIN_GROUP = 'Mode pluie'
+const WIND_GROUP = 'Mode vent'
 const EYES_GROUP = 'Recherche des yeux (la nuit)'
 const SAVE_ERROR = /n’a pas pu être enregistré/
 

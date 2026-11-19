@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTheme } from '@/lib/useTheme'
 import { EMPTY_HISTORY, addSystemSample, type LiveHistory } from '@/lib/live'
 import { fetchCameraEnergy, fetchHeatingEnergy, fetchLampEnergy, fetchMachineEnergy, fetchOverview, fetchDocker, fetchHue, fetchNetwork, fetchSpecs, fetchSystem, isLoginRequired, login, logout } from '@/lib/api'
 import type { CameraEnergy, Media, Docker, HeatingEnergy, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Specs, System } from '@/types'
@@ -20,6 +21,7 @@ const soft = <T,>(request: Promise<T>): Promise<T | null> =>
  * propres requêtes quand on les ouvre, et toutes les 15 s seule la page affichée est relue (sauf quand un média est ouvert dans le panneau).
  */
 const App = () => {
+  const theme = useTheme()
   const [status, setStatus] = useState<Status>('checking')
   const [message, setMessage] = useState('')
   const [overview, setOverview] = useState<Overview | null>(null)
@@ -180,6 +182,8 @@ const App = () => {
       onTab={changeTab}
       onConnect={connect}
       onLogout={quit}
+      theme={theme.theme}
+      onTheme={theme.toggle}
       onOpen={setMedia}
       onClose={() => setMedia(null)}
     />

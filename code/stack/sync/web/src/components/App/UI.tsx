@@ -62,6 +62,8 @@ import {
   SPECS_MISSING_TEXT,
   SPECS_TITLE,
   LOGOUT_LABEL,
+  THEME_LABEL,
+  THEME_TITLE,
   ADDRESS_COLUMNS,
   ADDRESS_ROWS,
   ADDRESSES_DETAIL,
@@ -75,7 +77,7 @@ import {
 } from './constants'
 import type { AppUIProps } from './types'
 
-const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEnergy, heatingEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, onOpen, onClose }: AppUIProps) => {
+const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEnergy, heatingEnergy, system, specs, docker, history, network, bridge, specsOpen, loadedAt, media, refreshTick, tab, onTab, onConnect, onLogout, theme, onTheme, onOpen, onClose }: AppUIProps) => {
   const ready = status === 'ready'
   const memoryChart = system ? buildMemoryChart(system) : null
   const cpuChart = system ? buildCpuChart(system) : null
@@ -93,6 +95,11 @@ const AppUI = ({ status, message, overview, cameraEnergy, lampEnergy, machineEne
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
         tabs={ready ? { label: TABS_LABEL, options: TABS, value: tab, onChange: onTab } : undefined}
+        barActions={
+          <Button aria-label={THEME_TITLE[theme]} title={THEME_TITLE[theme]} onClick={onTheme}>
+            {THEME_LABEL[theme]}
+          </Button>
+        }
         actions={ready ? <Button onClick={onLogout}>{LOGOUT_LABEL}</Button> : undefined}
       />
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { overview } from '@/lib/fixtures'
 import { EMPTY_HISTORY } from '@/lib/live'
@@ -30,6 +30,8 @@ const props = (patch: Partial<AppUIProps> = {}): AppUIProps => ({
   onTab: () => undefined,
   onConnect: () => undefined,
   onLogout: () => undefined,
+  theme: 'light',
+  onTheme: () => undefined,
   onOpen: () => undefined,
   onClose: () => undefined,
   ...patch,
@@ -41,6 +43,16 @@ describe('AppUI', () => {
     expect(screen.queryByText(/mis à jour/)).toBeNull()
     expect(screen.getByText('Thread 0')).toBeTruthy()
     expect(screen.getAllByText('12 %').length).toBeGreaterThan(0)
+  })
+
+  it('le bouton du thème montre celui où il mène et le bascule', () => {
+    const onTheme = vi.fn()
+    const { rerender } = render(<AppUI {...props({ theme: 'light', onTheme })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Passer en thème sombre' }))
+    expect(onTheme).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Passer en thème sombre' }).textContent).toBe('🌙')
+    rerender(<AppUI {...props({ theme: 'dark', onTheme })} />)
+    expect(screen.getByRole('button', { name: 'Passer en thème clair' }).textContent).toBe('☀️')
   })
 
   it('en vérification : le texte d’attente', () => {

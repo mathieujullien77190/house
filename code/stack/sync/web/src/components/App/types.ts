@@ -1,4 +1,5 @@
 import type { LiveHistory } from '@/lib/live'
+import type { Theme } from '@/lib/useTheme'
 import type { CameraEnergy, Media, Docker, HeatingEnergy, HueBridge, LampEnergy, MachineEnergy, NetworkInterface, Overview, Specs, System } from '@/types'
 
 export type Status = 'locked' | 'checking' | 'ready'
@@ -38,6 +39,9 @@ export interface AppUIProps {
   onTab: (tab: TabId) => void
   onConnect: (key: string) => void
   onLogout: () => void
+  /** Le thème de la page (clair par défaut) et le bouton qui le bascule. */
+  theme: Theme
+  onTheme: () => void
   onOpen: (media: Media) => void
   onClose: () => void
 }

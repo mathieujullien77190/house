@@ -5,7 +5,8 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (`../..
 ## Structure
 
 - `lib/api.ts` : services de House Sync, session par cookie.
-- `components/App` : `TopBar` toujours visible (titre, onglets, heure de mise à jour, « Quitter » ; sur téléphone, un menu « sandwich »), la clé, puis cinq onglets.
+- `components/App` : `TopBar` toujours visible (titre, onglets, heure de mise à jour, bouton 🌙 / ☀️ du thème, « Quitter » ; sur téléphone, un menu « sandwich »), la clé, puis cinq onglets.
+- **Thème** : clair par défaut, choisi par le bouton de la barre (pas le réglage du système), gardé dans `localStorage` (`house-theme`, `lib/useTheme.ts`) et posé en `data-theme` sur la page, comme la WebApp (`../web/CLAUDE.md`).
 - Tous les blocs se replient (`Collapsible`) ; « Caractéristiques » l'est au départ.
 
 ## Onglets

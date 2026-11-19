@@ -3,6 +3,12 @@
 @import '@house/ui/tokens.css';
 @source '../../../ui/src';
 
+/* Le thème est celui du bouton de la barre (attribut data-theme de la page) ; fond clair un peu plus foncé pour que les cartes blanches ressortent. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+:root[data-theme='light'] {
+  --bg: #e9ecf1;
+}
+
 body {
   margin: 0;
   background: var(--bg);

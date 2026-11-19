@@ -37,7 +37,6 @@ import {
   SECTION_RECORDING,
   SECTION_SUNSET,
   EYES_LABEL,
-  EYES_HINT,
   EYES_OPTIONS,
   SECTION_SERVOS,
   MIN_SECONDS_LABEL,
@@ -194,7 +193,6 @@ const SettingsSection = () => {
                     value={setting.eyes_mode ?? 'off'}
                     onChange={(id) => change(setting.camera, { eyes_mode: id })}
                   />
-                  <span className={LABEL_CLASS}>{EYES_HINT}</span>
                 </div>
                 <div className={GROUP_CLASS}>
                   <span className={LABEL_CLASS}>{ORIENTATION_LABEL}</span>

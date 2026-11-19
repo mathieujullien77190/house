@@ -30,14 +30,13 @@ export const ORIENTATION_OPTIONS = [
 /** Le mode pluie : la pluie fait trop bouger l'image pour la détection. Sur ON, quand la météo dit pluie ou pluie forte, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent. Sur OFF, on ne fait rien. La WebApp montre le symbole sur la caméra. */
 /** La recherche des yeux qui brillent : la nuit, des reflets d'yeux comptent comme un mouvement et sont entourés en rouge sur la vidéo. */
 export const EYES_LABEL = 'Recherche des yeux (la nuit)'
-export const EYES_HINT = 'De 30 min après le coucher du soleil à 30 min avant son lever, la caméra cherche les reflets des yeux (infrarouge) dans sa zone de surveillance. Des yeux vus comptent comme un mouvement, entourés en rouge sur la vidéo, et l’événement est violet dans la frise.'
 export const EYES_OPTIONS = [
   { id: 'off', label: 'OFF' },
   { id: 'on', label: 'ON' },
 ] as const
 /** Le mode vent : comme le mode pluie, quand le vent dépasse 20 km/h (la météo de House Sync) : pas de clips, une image toutes les 5 s. */
-export const WIND_LABEL = 'Mode vent (si le vent dépasse 20 km/h : pas de clips, une image toutes les 5 s)'
-export const RAIN_LABEL = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
+export const WIND_LABEL = 'Mode vent'
+export const RAIN_LABEL = 'Mode pluie'
 export const RAIN_OPTIONS = [
   { id: 'off', label: 'OFF' },
   { id: 'on', label: 'ON' },
