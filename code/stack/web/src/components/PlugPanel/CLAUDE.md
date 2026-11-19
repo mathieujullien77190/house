@@ -4,7 +4,7 @@ La prise connectée (`/plug`, 5 s). Ce que fait l'API et le minuteur de la prise
 
 ## Bloc
 
-- Même forme qu'une clim (`AcPanel`) : nom et **interrupteur On / Off** (`role="switch"`) dans l'en-tête, puis tableau d'état et réglages.
+- Même forme qu'une clim (`AcPanel`) : nom et **interrupteur On / Off** (`Toggle` de `@house/ui`) dans l'en-tête, puis tableau d'état et réglages.
 - Tableau : État, S'éteint dans, Allumée depuis, Éteinte au mouvement. Les durées défilent chaque seconde entre deux lectures.
 - Interrupteur sur On : éteint. Sur Off : allume pour la durée du curseur (**jamais d'allumage sans fin**).
 - Curseur de 1 à 30 min (5 au départ) et bouton « Allumer pendant N min ».

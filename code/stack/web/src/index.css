@@ -3,6 +3,11 @@
 @import '@house/ui/tokens.css';
 @source '../../ui/src';
 
+/* Le fond du thème clair de la WebApp, un peu plus foncé que celui du site pour que les cartes blanches ressortent. */
+:root[data-theme='light'] {
+  --bg: #e9ecf1;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -26,10 +31,10 @@ body {
 .maplibregl-ctrl-group button:hover {
   background-color: var(--bg);
 }
-@media (prefers-color-scheme: dark) {
-  .maplibregl-ctrl button .maplibregl-ctrl-icon {
-    filter: invert(1);
-  }
+/* Le sombre de la WebApp suit son bouton (attribut data-theme de la page), pas le système. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+:root[data-theme='dark'] .maplibregl-ctrl button .maplibregl-ctrl-icon {
+  filter: invert(1);
 }
 .maplibregl-ctrl-scale {
   background: var(--card);

@@ -9,7 +9,7 @@ Climatisations Mitsubishi (`/ac`, 10 s). Un bloc par unité : nom, état en une 
 
 Toutes par `POST /ac/<id>`, **un seul champ à la fois**.
 
-- On / Off : interrupteur (`role="switch"`) à droite du nom.
+- On / Off : `Toggle` de `@house/ui` (deux onglets) à droite du nom.
 - Cinq modes : Chaud, Froid, Sec, Ventilation, Auto.
 - Consigne : - / + par 0,5 °C, de 16 à 31 °C (`stepTarget`).
 - Ventilateur : Auto, Silence, 1 à 4.

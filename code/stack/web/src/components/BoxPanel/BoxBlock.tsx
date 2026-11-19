@@ -1,14 +1,6 @@
 import { useState } from 'react'
-import { Button, SimpleTable, SpecList, StatusDot, StatusFrame } from '@house/ui'
+import { Button, SimpleTable, SpecList, StatusDot, StatusFrame, Toggle } from '@house/ui'
 import DeviceIcon from '@/components/DeviceIcon'
-import {
-  KNOB_OFF_CLASS,
-  KNOB_ON_CLASS,
-  TOGGLE_OFF_CLASS,
-  TOGGLE_ON_CLASS,
-  TOGGLE_TEXT_CLASS,
-  TOGGLE_WRAP_CLASS,
-} from '@/components/AcPanel/constants'
 import {
   BLOCK_CLASS,
   BLOCK_TITLE_CLASS,
@@ -120,20 +112,14 @@ const BoxBlock = ({ box, busy, failed, compact = false, onWifi, wifiExtra }: Box
           <div className={BLOCK_CLASS}>
             <div className={HEAD_CLASS}>
               <span className={BLOCK_TITLE_CLASS}>{WIFI_TITLE}</span>
-              <div className={TOGGLE_WRAP_CLASS}>
-                <span className={TOGGLE_TEXT_CLASS}>{wifi.enabled ? WIFI_ON_TEXT : WIFI_OFF_TEXT}</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={wifi.enabled}
-                  aria-label={WIFI_SWITCH_LABEL}
-                  className={wifi.enabled ? TOGGLE_ON_CLASS : TOGGLE_OFF_CLASS}
-                  disabled={busy}
-                  onClick={() => (wifi.enabled ? setConfirming(true) : onWifi(true))}
-                >
-                  <span className={wifi.enabled ? KNOB_ON_CLASS : KNOB_OFF_CLASS} />
-                </button>
-              </div>
+              <Toggle
+                label={WIFI_SWITCH_LABEL}
+                checked={wifi.enabled}
+                disabled={busy}
+                onText={WIFI_ON_TEXT}
+                offText={WIFI_OFF_TEXT}
+                onChange={(on) => (on ? onWifi(true) : setConfirming(true))}
+              />
             </div>
             <span className={STATE_CLASS}>{busy ? WIFI_BUSY_TEXT : wifi.enabled ? WIFI_ON_STATE : WIFI_OFF_STATE}</span>
             <span className={STATE_CLASS}>{WIFI_HELP}</span>

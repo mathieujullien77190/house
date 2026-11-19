@@ -3,7 +3,7 @@ import { LuHeater } from 'react-icons/lu'
 import { ValueChips } from '@house/ui'
 import MapIcon from '@/components/MapIcon'
 import IndicatorHint from '@/components/IndicatorHint'
-import { EYES_CHIP, EYES_HINT, RAIN_CHIP, RAIN_HINT, ROW_CLASS } from './constants'
+import { EYES_CHIP, EYES_HINT, RAIN_CHIP, RAIN_HINT, ROW_CLASS, SYMBOL_CLASS } from './constants'
 import { lampColor, lampHint, lampLabel, plugHint, plugLabel, temperatureHint } from './helpers'
 import type { CameraIndicatorsProps } from './types'
 
@@ -12,12 +12,12 @@ const CameraIndicators = ({ temperatures, lamp, plug, rain = 'off', eyes = false
   <div className={ROW_CLASS}>
     {rain === 'off' ? null : (
       <IndicatorHint text={RAIN_HINT[rain]}>
-        <ValueChips values={[RAIN_CHIP[rain]]} />
+        <span className={SYMBOL_CLASS}>{RAIN_CHIP[rain]}</span>
       </IndicatorHint>
     )}
     {eyes ? (
       <IndicatorHint text={EYES_HINT}>
-        <ValueChips values={[EYES_CHIP]} />
+        <span className={SYMBOL_CLASS}>{EYES_CHIP}</span>
       </IndicatorHint>
     ) : null}
     {temperatures.length > 0 ? (

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { flip, isOn } from '@/test/toggle'
 import { flush } from '@/test/fetch'
 import type { ShutterInfo } from '@/types'
 import ShutterPreview from './ShutterPreview'
@@ -104,15 +105,15 @@ describe('ShutterPreview', () => {
     vi.mocked(api.setShutterAuto).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('x'))
     render(<ShutterPreview apiKey="k" shutterId="1" />)
     await act(flush)
-    const open = screen.getByRole('checkbox', { name: 'Ouvrir au lever du soleil' })
-    fireEvent.click(open)
+    const open = screen.getByRole('tablist', { name: 'Ouvrir au lever du soleil' })
+    flip(open)
     await act(flush)
     expect(api.setShutterAuto).toHaveBeenCalledWith('k', '1', { open: true })
-    expect(open).toBeChecked()
-    const close = screen.getByRole('checkbox', { name: 'Fermer au coucher du soleil' })
-    fireEvent.click(close)
+    expect(isOn(open)).toBe(true)
+    const close = screen.getByRole('tablist', { name: 'Fermer au coucher du soleil' })
+    flip(close)
     await act(flush)
-    expect(close).toBeChecked()
+    expect(isOn(close)).toBe(true)
     expect(screen.getByText(/Le réglage n’a pas été enregistré/)).toBeInTheDocument()
   })
 
@@ -133,9 +134,9 @@ describe('ShutterPreview', () => {
     vi.mocked(api.sendShutter).mockResolvedValue(shutter({ lastCommand: 'up', lastAt: 1_700_000_000 }))
     render(<ShutterPreview apiKey="k" shutterId="1" />)
     await act(flush)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Ouvrir au lever du soleil' }))
+    flip(screen.getByRole('tablist', { name: 'Ouvrir au lever du soleil' }))
     await act(flush)
-    expect(screen.getByRole('checkbox', { name: 'Ouvrir au lever du soleil' })).toBeChecked()
+    expect(isOn(screen.getByRole('tablist', { name: 'Ouvrir au lever du soleil' }))).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: '▲ Monter' }))
     await act(flush)
     expect(screen.getByText(/Dernier ordre : Monter/)).toBeInTheDocument()

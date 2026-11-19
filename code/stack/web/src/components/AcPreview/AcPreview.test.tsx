@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { flip, isOn } from '@/test/toggle'
 import { flush } from '@/test/fetch'
 import type { AcUnit } from '@/types'
 import AcPreview from './AcPreview'
@@ -88,11 +89,11 @@ describe('AcPreview', () => {
       .mockRejectedValueOnce(new Error('x'))
     render(<AcPreview apiKey="k" unitId="salon" />)
     await settle()
-    fireEvent.click(screen.getByRole('switch'))
+    flip(screen.getByRole('tablist'))
     await settle()
     expect(api.setAc).toHaveBeenCalledWith('k', 'salon', { on: false })
-    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
-    fireEvent.click(screen.getByRole('switch'))
+    expect(isOn(screen.getByRole('tablist'))).toBe(false)
+    flip(screen.getByRole('tablist'))
     await settle()
     expect(screen.getByText(/L’ordre n’est pas parti/)).toBeInTheDocument()
   })

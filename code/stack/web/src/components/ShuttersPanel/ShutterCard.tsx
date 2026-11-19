@@ -1,4 +1,4 @@
-import { Button, Checkbox, StatusFrame } from '@house/ui'
+import { Button, StatusFrame, ToggleField } from '@house/ui'
 import type { ShutterAuto, ShutterCommand, ShutterInfo } from '@/types'
 import {
   AUTO_CLOSE_LABEL,
@@ -48,8 +48,8 @@ const ShutterCard = ({ shutter, busy, failed, onSend, onHalf, onAuto }: ShutterC
     <span className={LAST_CLASS}>{lastText(shutter)}</span>
     {shutter.auto !== null ? (
       <>
-        <Checkbox label={AUTO_OPEN_LABEL} checked={shutter.auto.open} onChange={(value) => onAuto('open', value)} />
-        <Checkbox label={AUTO_CLOSE_LABEL} checked={shutter.auto.close} onChange={(value) => onAuto('close', value)} />
+        <ToggleField label={AUTO_OPEN_LABEL} checked={shutter.auto.open} onChange={(value) => onAuto('open', value)} />
+        <ToggleField label={AUTO_CLOSE_LABEL} checked={shutter.auto.close} onChange={(value) => onAuto('close', value)} />
       </>
     ) : null}
     {failed === 'auto' ? <span className={ERROR_CLASS}>{AUTO_ERROR_TEXT}</span> : null}

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { flip, isDisabled, isOn } from '@/test/toggle'
 import { flush } from '@/test/fetch'
 import type { AcUnit } from '@/types'
 import AcPanel from './AcPanel'
@@ -101,16 +102,16 @@ describe('AcPanel', () => {
     vi.mocked(api.setAc).mockReturnValueOnce(new Promise((resolve) => (done = resolve)))
     render(<AcPanel apiKey="k" />)
     await settle()
-    const [toggle] = screen.getAllByRole('switch', { name: 'Marche / arrêt' })
-    fireEvent.click(toggle)
+    const [toggle] = screen.getAllByRole('tablist', { name: 'Marche / arrêt' })
+    flip(toggle)
     expect(api.setAc).toHaveBeenCalledWith('k', 'salon', { on: false })
-    expect(toggle).toBeDisabled()
+    expect(isDisabled(toggle)).toBe(true)
     await act(async () => {
       done(unit({ power: false }))
       await flush()
     })
-    expect(toggle).toBeEnabled()
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(isDisabled(toggle)).toBe(false)
+    expect(isOn(toggle)).toBe(false)
     expect(screen.getByText('Chambre')).toBeInTheDocument()
   })
 
@@ -150,6 +151,6 @@ describe('AcPanel', () => {
     render(<AcPanel apiKey="k" />)
     await settle()
     expect(screen.getByText(UNIT_UNREACHABLE_TEXT)).toBeInTheDocument()
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
   })
 })

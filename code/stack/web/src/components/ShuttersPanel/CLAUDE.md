@@ -12,7 +12,7 @@ Volets roulants Somfy RTS (`/shutters`, 10 s). Quatre par défaut (PC, salon, po
 
 ## Action automatique
 
-- Deux cases par volet : « Ouvrir au lever du soleil » et « Fermer au coucher du soleil » (`auto`, `PUT /shutters/<id>/auto`).
+- Deux interrupteurs Oui / Non (`ToggleField`) par volet : « Ouvrir au lever du soleil » et « Fermer au coucher du soleil » (`auto`, `PUT /shutters/<id>/auto`).
 - La case change tout de suite, et revient en arrière si l'API refuse.
 - Un volet absent de `SHUTTERS_AUTO` n'a pas de case.
 

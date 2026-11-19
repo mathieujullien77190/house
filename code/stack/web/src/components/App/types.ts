@@ -1,5 +1,6 @@
 import type { Status } from '@/lib/useHouse'
 import type { NotifyState } from '@/lib/useMotionNotifications'
+import type { Theme } from '@/lib/useTheme'
 import type { Camera, EventRow, TabId } from '@/types'
 
 export interface AppUIProps {
@@ -13,6 +14,9 @@ export interface AppUIProps {
   /** Les notifications de mouvement : non prises en charge, bloquées par le navigateur, coupées ou activées. */
   notify: NotifyState
   onNotify: () => void
+  /** Le thème de la page (clair par défaut) et le bouton qui le bascule. */
+  theme: Theme
+  onTheme: () => void
   tab: TabId
   /** Le nom de la caméra ouverte en détail, ou null pour la mosaïque. */
   openCamera: string | null

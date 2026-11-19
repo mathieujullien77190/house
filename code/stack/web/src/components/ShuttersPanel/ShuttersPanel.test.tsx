@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { flip, isOn } from '@/test/toggle'
 import { flush } from '@/test/fetch'
 import type { ShutterInfo, ShuttersState } from '@/types'
 import ShuttersPanel from './ShuttersPanel'
@@ -76,8 +77,8 @@ describe('ShuttersPanel', () => {
     expect(screen.getByText('Volet salon')).toBeInTheDocument()
     // seul le volet qui a l'action automatique a ses deux cases
     expect(screen.getAllByLabelText(AUTO_OPEN_LABEL)).toHaveLength(1)
-    expect(screen.getByLabelText(AUTO_CLOSE_LABEL)).toBeChecked()
-    expect(screen.getByLabelText(AUTO_OPEN_LABEL)).not.toBeChecked()
+    expect(isOn(screen.getByLabelText(AUTO_CLOSE_LABEL))).toBe(true)
+    expect(isOn(screen.getByLabelText(AUTO_OPEN_LABEL))).toBe(false)
   })
 
   it('sans simulation, pas d’avertissement', async () => {
@@ -243,13 +244,13 @@ describe('ShuttersPanel', () => {
     vi.mocked(api.setShutterAuto).mockResolvedValue(undefined)
     render(<ShuttersPanel apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getAllByLabelText(AUTO_OPEN_LABEL)[0])
+    flip(screen.getAllByLabelText(AUTO_OPEN_LABEL)[0])
     expect(api.setShutterAuto).toHaveBeenCalledWith('k', '1', { open: true })
-    expect(screen.getAllByLabelText(AUTO_OPEN_LABEL)[0]).toBeChecked()
-    fireEvent.click(screen.getAllByLabelText(AUTO_CLOSE_LABEL)[1])
+    expect(isOn(screen.getAllByLabelText(AUTO_OPEN_LABEL)[0])).toBe(true)
+    flip(screen.getAllByLabelText(AUTO_CLOSE_LABEL)[1])
     expect(api.setShutterAuto).toHaveBeenCalledWith('k', '2', { close: false })
     await settle()
-    expect(screen.getAllByLabelText(AUTO_CLOSE_LABEL)[1]).not.toBeChecked()
+    expect(isOn(screen.getAllByLabelText(AUTO_CLOSE_LABEL)[1])).toBe(false)
     expect(screen.queryByText(AUTO_ERROR_TEXT)).toBeNull()
   })
 
@@ -258,9 +259,9 @@ describe('ShuttersPanel', () => {
     vi.mocked(api.setShutterAuto).mockRejectedValue(new Error('404'))
     render(<ShuttersPanel apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getByLabelText(AUTO_OPEN_LABEL))
+    flip(screen.getByLabelText(AUTO_OPEN_LABEL))
     await settle()
-    expect(screen.getByLabelText(AUTO_OPEN_LABEL)).not.toBeChecked()
+    expect(isOn(screen.getByLabelText(AUTO_OPEN_LABEL))).toBe(false)
     expect(screen.getByText(AUTO_ERROR_TEXT)).toBeInTheDocument()
   })
 
@@ -272,7 +273,7 @@ describe('ShuttersPanel', () => {
     vi.mocked(api.setShutterAuto).mockReturnValue(new Promise((_resolve, reject) => (fail = reject)))
     render(<ShuttersPanel apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getByLabelText(AUTO_OPEN_LABEL))
+    flip(screen.getByLabelText(AUTO_OPEN_LABEL))
     await settle(POLL_MS)
     fail(new Error('404'))
     await settle()

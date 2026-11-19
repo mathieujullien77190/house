@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { flip, isDisabled } from '@/test/toggle'
 import type { BoxDevice, BoxState } from '@/types'
 import BoxBlock from './BoxBlock'
 import { CONFIRM_NO, CONFIRM_YES, NO_DEVICE_TEXT, SEND_ERROR_TEXT, UNREACHABLE_TEXT, WIFI_BUSY_TEXT, WIFI_OFF_STATE, WIFI_ON_STATE, WIFI_SWITCH_LABEL } from './constants'
@@ -88,14 +89,14 @@ describe('BoxBlock', () => {
     const onWifi = vi.fn()
     const { rerender } = render(<BoxBlock box={box({ wifi: { enabled: false } })} {...props} onWifi={onWifi} />)
     expect(screen.getByText(WIFI_OFF_STATE)).toBeTruthy()
-    fireEvent.click(screen.getByRole('switch', { name: WIFI_SWITCH_LABEL }))
+    flip(screen.getByRole('tablist', { name: WIFI_SWITCH_LABEL }))
     expect(onWifi).toHaveBeenCalledWith(true)
     rerender(<BoxBlock box={box()} {...props} onWifi={onWifi} />)
-    fireEvent.click(screen.getByRole('switch', { name: WIFI_SWITCH_LABEL }))
+    flip(screen.getByRole('tablist', { name: WIFI_SWITCH_LABEL }))
     expect(onWifi).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: CONFIRM_NO }))
     expect(screen.queryByRole('button', { name: CONFIRM_YES })).toBeNull()
-    fireEvent.click(screen.getByRole('switch', { name: WIFI_SWITCH_LABEL }))
+    flip(screen.getByRole('tablist', { name: WIFI_SWITCH_LABEL }))
     fireEvent.click(screen.getByRole('button', { name: CONFIRM_YES }))
     expect(onWifi).toHaveBeenCalledWith(false)
     expect(screen.queryByRole('button', { name: CONFIRM_YES })).toBeNull()
@@ -103,7 +104,7 @@ describe('BoxBlock', () => {
 
   it('en cours d’envoi : interrupteur grisé et texte ; échec : message', () => {
     render(<BoxBlock box={box()} busy failed onWifi={vi.fn()} wifiExtra={<span>extra</span>} />)
-    expect((screen.getByRole('switch', { name: WIFI_SWITCH_LABEL }) as HTMLButtonElement).disabled).toBe(true)
+    expect(isDisabled(screen.getByRole('tablist', { name: WIFI_SWITCH_LABEL }))).toBe(true)
     expect(screen.getByText(WIFI_BUSY_TEXT)).toBeTruthy()
     expect(screen.getByText(SEND_ERROR_TEXT)).toBeTruthy()
     expect(screen.getByText('extra')).toBeTruthy()
@@ -111,7 +112,7 @@ describe('BoxBlock', () => {
 
   it('sans état du WiFi, pas de bloc WiFi', () => {
     render(<BoxBlock box={box({ wifi: null })} {...props} />)
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
     fireEvent.click(screen.getByText('État de la box · Freebox Pop'))
   })
 
@@ -126,7 +127,7 @@ describe('BoxBlock', () => {
   it('box muette : message, ni WiFi ni appareils', () => {
     render(<BoxBlock box={box({ reachable: false })} {...props} />)
     expect(screen.getByText(UNREACHABLE_TEXT)).toBeTruthy()
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByText(/Appareils du réseau/)).toBeNull()
   })
 })

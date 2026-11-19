@@ -4,6 +4,7 @@ import { useHouse } from '@/lib/useHouse'
 import { useMobile } from '@/lib/useMobile'
 import { useReadClips } from '@/lib/useReadClips'
 import { useMotionNotifications } from '@/lib/useMotionNotifications'
+import { useTheme } from '@/lib/useTheme'
 import type { EventRow, TabId } from '@/types'
 import AppUI from './UI'
 import { DEFAULT_TAB, TABS } from './constants'
@@ -13,6 +14,7 @@ const App = () => {
   const house = useHouse()
   const mobile = useMobile()
   const notify = useMotionNotifications(house.events, house.status === 'ready')
+  const theme = useTheme()
   const [tab, setTab] = useState<TabId>(DEFAULT_TAB)
   // La caméra dont on voit le détail (avec sa frise) ; null : la mosaïque du direct de toutes les caméras.
   const [openCamera, setOpenCamera] = useState<string | null>(null)
@@ -54,6 +56,8 @@ const App = () => {
       mobile={mobile}
       notify={notify.state}
       onNotify={notify.toggle}
+      theme={theme.theme}
+      onTheme={theme.toggle}
       tab={tab}
       openCamera={openCamera}
       openEvent={openEvent}

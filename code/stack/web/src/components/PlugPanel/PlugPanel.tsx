@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Button, Checkbox, Notice, SectionTitle, SpecList, StatusFrame } from '@house/ui'
+import { Button, Notice, SectionTitle, SpecList, StatusFrame, Toggle, ToggleField } from '@house/ui'
 import { ApiError, fetchPlug, setPlug } from '@/lib/api'
 import HeatingSection from '@/components/HeatingSection'
 import {
   CARD_CLASS,
-  KNOB_OFF_CLASS,
-  KNOB_ON_CLASS,
   TOGGLE_LABEL,
-  TOGGLE_OFF_CLASS,
   TOGGLE_OFF_TEXT,
-  TOGGLE_ON_CLASS,
   TOGGLE_ON_TEXT,
-  TOGGLE_TEXT_CLASS,
-  TOGGLE_WRAP_CLASS,
 } from '@/components/AcPanel/constants'
 import type { PlugState } from '@/types'
 import {
@@ -147,20 +141,7 @@ const PlugPanel = ({ apiKey, embedded = false }: PlugPanelProps) => {
           <div className={CARD_CLASS}>
             <div className={HEAD_CLASS}>
               <span className={NAME_CLASS}>{plug.alias}</span>
-              <div className={TOGGLE_WRAP_CLASS}>
-                <span className={TOGGLE_TEXT_CLASS}>{plug.on ? TOGGLE_ON_TEXT : TOGGLE_OFF_TEXT}</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={plug.on}
-                  aria-label={TOGGLE_LABEL}
-                  className={plug.on ? TOGGLE_ON_CLASS : TOGGLE_OFF_CLASS}
-                  disabled={busy}
-                  onClick={plug.on ? turnOff : startTimer}
-                >
-                  <span className={plug.on ? KNOB_ON_CLASS : KNOB_OFF_CLASS} />
-                </button>
-              </div>
+              <Toggle label={TOGGLE_LABEL} checked={plug.on} disabled={busy} onText={TOGGLE_ON_TEXT} offText={TOGGLE_OFF_TEXT} onChange={(on) => (on ? startTimer() : turnOff())} />
             </div>
             <SpecList
               items={[
@@ -170,7 +151,7 @@ const PlugPanel = ({ apiKey, embedded = false }: PlugPanelProps) => {
                 ...(plug.on && plug.offOnMotion ? [{ id: 'motion', label: MOTION_ARMED_LABEL, value: MOTION_ARMED_TEXT }] : []),
               ]}
             />
-            <Checkbox label={MOTION_LABEL} checked={offOnMotion} onChange={setOffOnMotion} />
+            <ToggleField label={MOTION_LABEL} checked={offOnMotion} onChange={setOffOnMotion} />
             <div className={TIMER_BOX_CLASS}>
               <div className={SLIDER_HEAD_CLASS}>
                 <span>{TIMER_LABEL}</span>

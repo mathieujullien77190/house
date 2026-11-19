@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import type { HueLight, PlugState } from '@/types'
 import CameraIndicators from './CameraIndicators'
 import { lampColor } from './helpers'
+import { SYMBOL_CLASS } from './constants'
 
 const lamp: HueLight = { id: '26', name: 'P', on: true, bri: 100, reachable: true }
 const plug = { on: true } as PlugState
@@ -28,6 +29,8 @@ describe('CameraIndicators', () => {
   it('la pluie : 🌧️ pour la pluie, ☔ pour la forte pluie, rien sinon', () => {
     const { rerender } = render(<CameraIndicators temperatures={[]} lamp={null} plug={null} rain="rain" />)
     expect(screen.getByText('🌧️')).toBeInTheDocument()
+    // le dessin est seul, sans boîte autour
+    expect(screen.getByText('🌧️').className).toBe(SYMBOL_CLASS)
     fireEvent.click(screen.getByRole('button', { name: /Il pleut/ }))
     expect(screen.getByRole('tooltip')).toHaveTextContent('une image est gardée toutes les 5 secondes')
     rerender(<CameraIndicators temperatures={[]} lamp={null} plug={null} rain="heavy" />)

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { flip, isDisabled } from '@/test/toggle'
 import type { AcUnit } from '@/types'
 import AcUnitCard from './AcUnitCard'
 import { SEND_ERROR_TEXT, UNIT_UNREACHABLE_TEXT } from './constants'
@@ -21,7 +22,7 @@ describe('AcUnitCard', () => {
   it('chaque bouton envoie son changement', () => {
     const onChange = vi.fn()
     render(<AcUnitCard unit={unit()} busy={false} failed={false} onChange={onChange} />)
-    fireEvent.click(screen.getByRole('switch'))
+    flip(screen.getByRole('tablist'))
     expect(onChange).toHaveBeenLastCalledWith({ on: false })
     fireEvent.click(screen.getByRole('button', { name: '❄ Froid' }))
     expect(onChange).toHaveBeenLastCalledWith({ mode: 'cool' })
@@ -53,13 +54,13 @@ describe('AcUnitCard', () => {
     const onChange = vi.fn()
     render(<AcUnitCard unit={unit({ power: false })} busy={false} failed={false} onChange={onChange} />)
     expect(screen.getByText('Off')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('switch'))
+    flip(screen.getByRole('tablist'))
     expect(onChange).toHaveBeenCalledWith({ on: true })
   })
 
   it('occupée : les boutons sont grisés ; échec : le message s’affiche', () => {
     render(<AcUnitCard unit={unit()} busy failed onChange={vi.fn()} />)
-    expect(screen.getByRole('switch')).toBeDisabled()
+    expect(isDisabled(screen.getByRole('tablist'))).toBe(true)
     expect(screen.getByRole('button', { name: '+' })).toBeDisabled()
     expect(screen.getByText(SEND_ERROR_TEXT)).toBeInTheDocument()
   })
@@ -76,7 +77,7 @@ describe('AcUnitCard', () => {
   it('injoignable : le message remplace les commandes', () => {
     render(<AcUnitCard unit={unit({ reachable: false })} busy={false} failed={false} onChange={vi.fn()} />)
     expect(screen.getByText(UNIT_UNREACHABLE_TEXT)).toBeInTheDocument()
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
   })
 
   it('withVanes faux : pas de réglage d’ailette', () => {

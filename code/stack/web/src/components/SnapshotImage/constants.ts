@@ -7,8 +7,8 @@ export const FRAME_CLASS = 'relative'
  * L'identifiant de l'image fond lui aussi : l'ancien s'efface (`snapshot-fade-out`) pendant que le nouveau apparaît, au même endroit. Mêmes classes que celles de
  * `@house/ui` (`SnapshotImage`), qui ne dessine plus l'identifiant quand deux images sont superposées.
  */
-export const LABEL_CLASS = 'pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-white'
+export const LABEL_CLASS = 'pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-card px-1.5 py-0.5 font-mono text-[0.7rem] text-fg'
 export const UPRIGHT_LABEL_CLASS =
-  'pointer-events-none absolute bottom-1.5 left-full origin-bottom-left -translate-x-1.5 -rotate-90 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-white'
+  'pointer-events-none absolute bottom-1.5 left-full origin-bottom-left -translate-x-1.5 -rotate-90 rounded bg-card px-1.5 py-0.5 font-mono text-[0.7rem] text-fg'
 export const LABEL_FADE_IN_CLASS = 'animate-[snapshot-fade_250ms_ease-out]'
 export const LABEL_FADE_OUT_CLASS = 'animate-[snapshot-fade-out_250ms_ease-out] [animation-fill-mode:forwards]'

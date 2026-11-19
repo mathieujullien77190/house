@@ -329,7 +329,7 @@ const CameraCard = ({
         options={power ? [...LIVE_QUALITY_OPTIONS_SHORT, LIVE_OFF_OPTION] : [...LIVE_QUALITY_OPTIONS_SHORT]}
         value={power && !power.on ? 'off' : liveQuality}
         onChange={changeLiveChoice}
-        compact
+        block
         tiny
       />
     )

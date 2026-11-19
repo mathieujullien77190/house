@@ -22,7 +22,8 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 - Suivie de « · 🏠 22° » : la température du salon lue par sa clim (`lib/useHomeTemperature.ts`, `/ac`, toutes les 30 s ; rien si inconnue).
 - Elle donne aussi le vent (km/h, `wind_speed_10m`) : « 💨 X km/h » par heure dans la prévision et dans l'infobulle.
 - Un clic sur la météo ouvre la prévision des 24 h ; un clic ailleurs ou Échap la ferme.
-- Sur téléphone, un menu « sandwich » regroupe les onglets ; météo et bouton des notifications restent dans la barre.
+- Sur téléphone, un menu « sandwich » regroupe les onglets ; météo, bouton du thème et bouton des notifications restent dans la barre.
+- **Thème** : clair par défaut (fond `#e9ecf1`), le réglage du système n'est **pas** suivi. Le bouton 🌙 / ☀️ de la barre (à côté de 🔔) bascule clair/sombre ; le choix est gardé sur l'appareil (`localStorage` `house-theme`, `lib/useTheme.ts`) et posé en attribut `data-theme` sur la page : les jetons de `@house/ui/tokens.css` et le variant Tailwind `dark:` (`@custom-variant` de `src/index.css`) le suivent.
 
 ## Détail par composant
 

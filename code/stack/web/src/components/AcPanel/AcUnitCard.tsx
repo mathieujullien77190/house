@@ -1,4 +1,4 @@
-import { Button, StatusFrame } from '@house/ui'
+import { Button, StatusFrame, Toggle } from '@house/ui'
 import type { AcMode, AcPatch, AcUnit } from '@/types'
 import {
   BUTTONS_CLASS,
@@ -8,8 +8,6 @@ import {
   FAN_LABEL,
   GROUP_LABEL_CLASS,
   HEAD_CLASS,
-  KNOB_OFF_CLASS,
-  KNOB_ON_CLASS,
   MODES,
   MODE_LABEL,
   NAME_CLASS,
@@ -19,12 +17,8 @@ import {
   TARGET_LABEL,
   TARGET_VALUE_CLASS,
   TOGGLE_LABEL,
-  TOGGLE_OFF_CLASS,
   TOGGLE_OFF_TEXT,
-  TOGGLE_ON_CLASS,
   TOGGLE_ON_TEXT,
-  TOGGLE_TEXT_CLASS,
-  TOGGLE_WRAP_CLASS,
   UNIT_UNREACHABLE_TEXT,
   VANES,
   HORIZONTAL_VANE_UNITS,
@@ -63,20 +57,7 @@ const AcUnitCard = ({ unit, busy, failed, onChange, withVanes = true, modes, ran
       <div className={HEAD_CLASS}>
         <span className={NAME_CLASS}>{unit.name}</span>
         {unit.reachable ? (
-          <div className={TOGGLE_WRAP_CLASS}>
-            <span className={TOGGLE_TEXT_CLASS}>{unit.power ? TOGGLE_ON_TEXT : TOGGLE_OFF_TEXT}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={unit.power}
-              aria-label={TOGGLE_LABEL}
-              className={unit.power ? TOGGLE_ON_CLASS : TOGGLE_OFF_CLASS}
-              disabled={busy}
-              onClick={() => onChange({ on: !unit.power })}
-            >
-              <span className={unit.power ? KNOB_ON_CLASS : KNOB_OFF_CLASS} />
-            </button>
-          </div>
+          <Toggle label={TOGGLE_LABEL} checked={unit.power} disabled={busy} onText={TOGGLE_ON_TEXT} offText={TOGGLE_OFF_TEXT} onChange={(on) => onChange({ on })} />
         ) : null}
       </div>
       {unit.reachable ? (

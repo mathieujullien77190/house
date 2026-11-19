@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { flip, isDisabled, isOn } from '@/test/toggle'
 import { flush } from '@/test/fetch'
 import type { PlugState } from '@/types'
 import PlugPanel from './PlugPanel'
@@ -72,7 +73,7 @@ describe('PlugPanel', () => {
     vi.mocked(api.fetchPlug).mockResolvedValue(plug({ on: false, timerSeconds: null }))
     render(<PlugPanel apiKey="k" />)
     await settle()
-    expect(screen.getByRole('switch', { name: 'Marche / arrêt' })).toHaveAttribute('aria-checked', 'false')
+    expect(isOn(screen.getByRole('tablist', { name: 'Marche / arrêt' }))).toBe(false)
     expect(screen.getByText('Off')).toBeInTheDocument()
     expect(screen.queryByText(/S’éteint dans/)).toBeNull()
   })
@@ -129,22 +130,22 @@ describe('PlugPanel', () => {
     render(<PlugPanel apiKey="k" />)
     await settle()
     // Un bloc comme celui d'une clim : le nom et l'interrupteur On / Off dans l'en-tête.
-    const toggle = screen.getByRole('switch', { name: 'Marche / arrêt' })
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    const toggle = screen.getByRole('tablist', { name: 'Marche / arrêt' })
+    expect(isOn(toggle)).toBe(true)
     expect(screen.getByText('On')).toBeInTheDocument()
-    fireEvent.click(toggle)
+    flip(toggle)
     // pendant l'appel, l'interrupteur est désactivé : un second clic ne fait rien
-    expect(toggle).toBeDisabled()
-    fireEvent.click(toggle)
+    expect(isDisabled(toggle)).toBe(true)
+    flip(toggle)
     await settle()
     expect(api.setPlug).toHaveBeenCalledTimes(1)
     expect(api.setPlug).toHaveBeenCalledWith('k', false)
     // le chauffage automatique est sous la commande, et relu après la commande
     expect(screen.getByTestId('heating')).toHaveTextContent('1')
-    expect(screen.getByRole('switch', { name: 'Marche / arrêt' })).toHaveAttribute('aria-checked', 'false')
+    expect(isOn(screen.getByRole('tablist', { name: 'Marche / arrêt' }))).toBe(false)
     // Off → On : la prise s'allume pour la durée du curseur (5 min au départ), avec la case du mouvement
     vi.mocked(api.setPlug).mockResolvedValue(plug())
-    fireEvent.click(screen.getByRole('switch', { name: 'Marche / arrêt' }))
+    flip(screen.getByRole('tablist', { name: 'Marche / arrêt' }))
     await settle()
     expect(api.setPlug).toHaveBeenLastCalledWith('k', true, 5, true)
   })
@@ -154,7 +155,7 @@ describe('PlugPanel', () => {
     vi.mocked(api.setPlug).mockRejectedValue(new Error('x'))
     render(<PlugPanel apiKey="k" />)
     await settle()
-    fireEvent.click(screen.getByRole('switch', { name: 'Marche / arrêt' }))
+    flip(screen.getByRole('tablist', { name: 'Marche / arrêt' }))
     await settle()
     expect(screen.getByText(UNAVAILABLE_TEXT)).toBeInTheDocument()
   })
@@ -167,7 +168,7 @@ describe('PlugPanel', () => {
     expect(screen.getByRole('button', { name: /Allumer pendant 5 min/ })).toBeInTheDocument()
     expect(screen.getByTestId('heating')).toHaveTextContent('0')
     fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } })
-    fireEvent.click(screen.getByRole('checkbox'))
+    flip(screen.getByRole('tablist', { name: 'Éteindre si le détecteur intérieur voit un mouvement' }))
     fireEvent.click(screen.getByRole('button', { name: /Allumer pendant 12 min/ }))
     fireEvent.click(screen.getByRole('button', { name: /Allumer pendant 12 min/ }))
     await settle()

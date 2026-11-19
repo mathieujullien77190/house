@@ -72,15 +72,6 @@ export const BOX_CLASS = 'mt-4 flex flex-col gap-3'
 export const LIST_CLASS = 'grid grid-cols-1 gap-3 lg:grid-cols-3'
 export const CARD_CLASS = 'flex flex-col gap-3 p-3'
 export const HEAD_CLASS = 'flex items-center justify-between gap-2'
-export const TOGGLE_WRAP_CLASS = 'flex items-center gap-2'
-export const TOGGLE_TEXT_CLASS = 'min-w-7 font-mono text-[0.9rem]'
-/** L'interrupteur : une piste et une pastille qui glisse ; une classe complète par état (jamais deux classes pour la même propriété). */
-export const TOGGLE_ON_CLASS =
-  'relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border border-line bg-accent transition-colors disabled:cursor-default disabled:opacity-60'
-export const TOGGLE_OFF_CLASS =
-  'relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border border-line bg-line transition-colors disabled:cursor-default disabled:opacity-60'
-export const KNOB_ON_CLASS = 'inline-block h-5 w-5 translate-x-6 rounded-full bg-white shadow transition-transform'
-export const KNOB_OFF_CLASS = 'inline-block h-5 w-5 translate-x-1 rounded-full bg-white shadow transition-transform'
 export const NAME_CLASS = 'text-[1.05rem] font-semibold'
 export const STATE_CLASS = 'text-[0.85rem] text-muted'
 export const BUTTONS_CLASS = 'flex flex-wrap gap-2'

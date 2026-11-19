@@ -16,6 +16,8 @@ import {
   BACK_CLASS,
   NOTIFY_LABEL,
   NOTIFY_TITLE,
+  THEME_LABEL,
+  THEME_TITLE,
   BACK_LABEL,
   CHECKING_TEXT,
   LOCKED_TEXT,
@@ -35,6 +37,8 @@ const AppUI = ({
   mobile,
   notify,
   onNotify,
+  theme,
+  onTheme,
   tab,
   openCamera,
   openEvent,
@@ -90,19 +94,24 @@ const AppUI = ({
         tone={message ? 'error' : 'muted'}
         info={ready ? <Weather apiKey={apiKey} /> : undefined}
         tabs={ready ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
-        // Le bouton des notifications reste dans la barre (sur téléphone : juste à gauche du sandwich).
+        // Les boutons du thème et des notifications restent dans la barre (sur téléphone : juste à gauche du sandwich).
         barActions={
-          ready && notify !== 'unsupported' ? (
-            <Button
-              variant={notify === 'on' ? 'active' : 'default'}
-              disabled={notify === 'denied'}
-              aria-label={NOTIFY_TITLE[notify]}
-              title={NOTIFY_TITLE[notify]}
-              onClick={onNotify}
-            >
-              {NOTIFY_LABEL[notify]}
+          <>
+            <Button aria-label={THEME_TITLE[theme]} title={THEME_TITLE[theme]} onClick={onTheme}>
+              {THEME_LABEL[theme]}
             </Button>
-          ) : undefined
+            {ready && notify !== 'unsupported' ? (
+              <Button
+                variant={notify === 'on' ? 'active' : 'default'}
+                disabled={notify === 'denied'}
+                aria-label={NOTIFY_TITLE[notify]}
+                title={NOTIFY_TITLE[notify]}
+                onClick={onNotify}
+              >
+                {NOTIFY_LABEL[notify]}
+              </Button>
+            ) : null}
+          </>
         }
       />
 

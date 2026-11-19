@@ -1,4 +1,6 @@
 export const ROW_CLASS = 'flex items-center gap-1'
+/** Le dessin de la pluie, du vent ou des yeux : seul, sans boîte autour (les températures gardent la leur). */
+export const SYMBOL_CLASS = 'flex h-8 items-center text-[1.3rem] leading-none'
 export const LAMP_NAME = 'Perruche'
 export const LAMP_ON_TEXT = 'allumée'
 export const LAMP_OFF_TEXT = 'éteinte'

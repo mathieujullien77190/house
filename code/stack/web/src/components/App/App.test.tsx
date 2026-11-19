@@ -163,6 +163,28 @@ describe('App : barre', () => {
   })
 })
 
+describe('App : le thème', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    delete document.documentElement.dataset.theme
+  })
+  it('clair par défaut ; le bouton de la barre bascule en sombre puis revient, et le dit à la page', () => {
+    render(<App />)
+    expect(document.documentElement.dataset.theme).toBe('light')
+    fireEvent.click(screen.getByRole('button', { name: 'Passer en thème sombre' }))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(screen.getByRole('button', { name: 'Passer en thème clair' })).toHaveTextContent('☀️')
+    fireEvent.click(screen.getByRole('button', { name: 'Passer en thème clair' }))
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(screen.getByRole('button', { name: 'Passer en thème sombre' })).toHaveTextContent('🌙')
+  })
+  it('le bouton du thème reste dans la barre quand les notifications ne sont pas gérées', () => {
+    h.notify = { state: 'unsupported', toggle: vi.fn() }
+    render(<App />)
+    expect(screen.getByRole('button', { name: 'Passer en thème sombre' })).toBeInTheDocument()
+  })
+})
+
 describe('App : barre sur téléphone', () => {
   it('le bouton des notifications est dans la barre, à gauche du sandwich', () => {
     h.mobile = true

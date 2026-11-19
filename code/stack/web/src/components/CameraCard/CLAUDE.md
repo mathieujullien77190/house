@@ -67,6 +67,7 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
 - **À côté, pour `voliere-interieur`** (`CameraIndicators`) :
   - le rond de la lampe « Perruche » (`CAMERA_LAMP` = 26, `lib/useLamp.ts`, 5 s) ;
   - le carré de la prise (`PlugSquare`, vert allumée, rouge éteinte) ;
+  - Les symboles 🌧️ / ☔ / 💨 / 👁️ sont posés seuls (`SYMBOL_CLASS`, sans boîte) ; seules les températures gardent leur boîte.
   - 🌧️ / ☔ si le champ `rain` de `GET /direct` est vrai (mode pluie allumé et il pleut) ; 💨 pour le mode vent (au-dessus de 20 km/h) ;
 - Chaque indicateur est cliquable (`components/IndicatorHint`) : infobulle fermée par un autre clic, Échap ou 6 s ; le clic n'ouvre pas la caméra.
 - **Heure** (`lib/useClock.ts`, `clock`) : en vue en grand, en bas à droite, secondes sans date ; direct = maintenant, sinon l'heure du curseur. Hors vue en grand, la frise a un bloc heure après les durées.

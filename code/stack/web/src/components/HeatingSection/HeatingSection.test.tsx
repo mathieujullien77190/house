@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { flip, isOn } from '@/test/toggle'
 import { flush } from '@/test/fetch'
 import type { HeatingStatus } from '@/types'
 import HeatingSection from './HeatingSection'
@@ -44,7 +45,7 @@ describe('HeatingSection', () => {
   it('montre les réglages et leurs valeurs', async () => {
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
-    expect(screen.getByRole('checkbox', { name: 'Activer la règle' })).toBeChecked()
+    expect(isOn(screen.getByRole('tablist', { name: 'Activer la règle' }))).toBe(true)
     expect(screen.getByLabelText('Température (°C)', { selector: 'input' })).toHaveValue('3')
     expect(screen.getByLabelText('Durée (min)', { selector: 'input' })).toHaveValue(5)
     expect(screen.getByLabelText(/Délai avant réactivation/, { selector: 'input' })).toHaveValue(20)
@@ -79,7 +80,7 @@ describe('HeatingSection', () => {
     vi.mocked(api.saveHeating).mockResolvedValue(status({ thresholdC: 2.5, enabled: false }))
     render(<HeatingSection apiKey="k" version={0} />)
     await settle()
-    fireEvent.click(screen.getByRole('checkbox'))
+    flip(screen.getByRole('tablist', { name: 'Activer la règle' }))
     fireEvent.change(screen.getByLabelText('Température (°C)', { selector: 'input' }), { target: { value: '2,5' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await settle()
@@ -90,7 +91,7 @@ describe('HeatingSection', () => {
       cooldownMinutes: 20,
         })
     expect(screen.getByLabelText('Température (°C)', { selector: 'input' })).toHaveValue('2,5')
-    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(isOn(screen.getByRole('tablist', { name: 'Activer la règle' }))).toBe(false)
   })
 
   it('un champ illisible n’envoie rien', async () => {

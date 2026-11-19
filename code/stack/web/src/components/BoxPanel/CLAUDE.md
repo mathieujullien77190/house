@@ -3,7 +3,7 @@
 La Freebox (`GET /box`, `PUT /box/wifi`, relue toutes les 12 s par `lib/useBox.ts`). Ce que fait l'API, les variables `FREEBOX_*` et le secret : `../../../../api/src/routes/CLAUDE.md` (« Freebox »).
 
 - `BoxBlock.tsx` est **partagé** par l'onglet (`BoxPanel`) et l'aperçu de la carte (`BoxPreview`, en `compact`).
-- Bloc : nom et modèle, **interrupteur WiFi** (`role="switch"`), état de la ligne (débits en Mb/s, adresse IP, durée d'allumage, firmware), tableau « Appareils du réseau » (ceux de la maison et les baux DHCP statiques, connectés ou non : pastille d'état, nom, IP, bail, icône du type) ; un invité n'y figure pas. Chaque bloc a son liseré d'état (`StatusFrame`).
+- Bloc : nom et modèle, **interrupteur WiFi** (`Toggle` de `@house/ui`), état de la ligne (débits en Mb/s, adresse IP, durée d'allumage, firmware), tableau « Appareils du réseau » (ceux de la maison et les baux DHCP statiques, connectés ou non : pastille d'état, nom, IP, bail, icône du type) ; un invité n'y figure pas. Chaque bloc a son liseré d'état (`StatusFrame`).
 - **Couper le WiFi demande une confirmation** (« Couper » / « Annuler ») ; l'allumer est direct. Interrupteur grisé et « Envoi à la box… » pendant l'ordre ; la réponse de l'API remplace l'état.
 - **WiFi invité** (`GuestWifi`, en bas du bloc WiFi) : nom du réseau et mot de passe lus à la demande (`GET /box/guest-wifi`), copiables, jamais gardés une fois masqués.
 - Jeton absent côté API (`configured: false`) : l'onglet l'écrit. Box muette (`reachable: false`) : « La box ne répond pas. »
