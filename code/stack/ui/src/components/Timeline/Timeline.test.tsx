@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import Timeline from './Timeline'
 import { markerClass, pointStyle, spanStyle } from './helpers'
 import type { TimelineMarker, TimelineProps } from './types'
-import { CLIP_SPAN_TITLE, MARKER_IDLE_CLASS, MARKER_ONGOING_CLASS, MARKER_SELECTED_CLASS, NOW_LABEL, RANGE_LABEL } from './constants'
+import { CLIP_SPAN_TITLE, MARKER_EYES_CLASS, MARKER_EYES_SELECTED_CLASS, MARKER_FOLIAGE_CLASS, MARKER_FOLIAGE_SELECTED_CLASS, MARKER_IDLE_CLASS, MARKER_ONGOING_CLASS, MARKER_SELECTED_CLASS, NOW_LABEL, RANGE_LABEL } from './constants'
 
 const marker = (extra: Partial<TimelineMarker> = {}): TimelineMarker => ({
   id: 'm1',
@@ -40,6 +40,14 @@ describe('helpers', () => {
     expect(markerClass(marker({ ongoing: true, selected: true }))).toContain(MARKER_ONGOING_CLASS)
     expect(markerClass(marker({ selected: true }))).toContain(MARKER_SELECTED_CLASS)
     expect(markerClass(marker())).toContain(MARKER_IDLE_CLASS)
+  })
+
+  it('markerClass : violet pour les yeux, vert pour le feuillage, choisi ou non', () => {
+    expect(markerClass(marker({ eyes: true }))).toContain(MARKER_EYES_CLASS)
+    expect(markerClass(marker({ eyes: true, selected: true }))).toContain(MARKER_EYES_SELECTED_CLASS)
+    expect(markerClass(marker({ foliage: true }))).toContain(MARKER_FOLIAGE_CLASS)
+    expect(markerClass(marker({ foliage: true, selected: true }))).toContain(MARKER_FOLIAGE_SELECTED_CLASS)
+    expect(markerClass(marker({ eyes: true, foliage: true }))).toContain(MARKER_EYES_CLASS)
   })
 
   it('markerClass : une classe de base différente à la verticale', () => {

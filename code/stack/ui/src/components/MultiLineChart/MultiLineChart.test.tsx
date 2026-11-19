@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import MultiLineChart from './MultiLineChart'
-import { extentOf, formatTick, pathOf } from './helpers'
+import { barsOf, extentOf, formatTick, pathOf } from './helpers'
 import type { ChartSeries } from './types'
 
 const series: ChartSeries[] = [
@@ -25,6 +25,13 @@ describe('MultiLineChart', () => {
     expect(container.querySelector('path')?.getAttribute('d')).toContain('150.0')
   })
 
+  it('une série en bâtons trace un trait par point, même à un seul point', () => {
+    const bars: ChartSeries = { id: 'v', label: 'Vent', tone: 'muted', bars: true, points: [{ x: 5, y: 12 }] }
+    const { container } = render(<MultiLineChart series={[series[0], bars]} label="x" emptyText="rien" />)
+    expect(container.querySelectorAll('path')).toHaveLength(2)
+    expect(container.querySelectorAll('path')[1].getAttribute('d')).toContain(' V')
+  })
+
   it('montre le texte vide sans série de deux points', () => {
     render(<MultiLineChart series={[series[2]]} label="x" emptyText="rien" />)
     expect(screen.getByText('rien')).toBeInTheDocument()
@@ -41,6 +48,12 @@ describe('helpers', () => {
   it('pathOf : vide sous deux points, une abscisse unique ne divise pas par zéro', () => {
     expect(pathOf(series[2], { minX: 0, maxX: 1, minY: 0, maxY: 1 })).toBe('')
     expect(pathOf({ id: 'p', label: 'p', tone: 'muted', points: [{ x: 3, y: 0 }, { x: 3, y: 1 }] }, { minX: 3, maxX: 3, minY: 0, maxY: 1 })).toBe('M0.0,120.0 L0.0,0.0')
+  })
+  it('barsOf : un bâton par point dans le cadre, les autres sont ignorés, une abscisse unique ne divise pas par zéro', () => {
+    const extent = { minX: 0, maxX: 10, minY: 0, maxY: 10 }
+    const bars: ChartSeries = { id: 'v', label: 'v', tone: 'muted', bars: true, points: [{ x: -1, y: 5 }, { x: 0, y: 10 }, { x: 10, y: 0 }, { x: 11, y: 5 }] }
+    expect(barsOf(bars, extent)).toBe('M0.0,120 V0.0 M300.0,120 V120.0')
+    expect(barsOf({ ...bars, points: [{ x: 3, y: 1 }] }, { minX: 3, maxX: 3, minY: 0, maxY: 1 })).toBe('M0.0,120 V0.0')
   })
   it('formatTick', () => {
     expect(formatTick(12.4, '°C')).toBe('12 °C')

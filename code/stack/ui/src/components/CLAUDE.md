@@ -16,7 +16,7 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 ## Données
 
 - `SimpleTable` (une fiche par ligne sur téléphone), `DataTable` (`details`, `openKey`, `onRowClick`, `filters`), `TableFilters`, `StackedDate`.
-- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `MultiLineChart` (plusieurs courbes sur une échelle, légende), `SpecList`, `ValueChips` (`stretch` : collé à droite de sa ligne, 40 px comme un `Button` ; l'heure de la frise sur téléphone).
+- `CodeBlock`, `Totals`, `PieChart`, `LineChart`, `MultiLineChart` (plusieurs courbes sur une échelle, légende ; une série `bars` est dessinée en bâtons : un trait vertical du bas du graphique à chaque valeur, comme la météo du graphique des températures de House Sync), `SpecList`, `ValueChips` (`stretch` : collé à droite de sa ligne, 40 px comme un `Button` ; l'heure de la frise sur téléphone).
 
 ## Médias
 

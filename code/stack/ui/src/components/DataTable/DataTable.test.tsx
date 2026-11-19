@@ -33,6 +33,11 @@ describe('DataTable de base', () => {
     expect(screen.getByText('1 à 2 sur 2')).toBeInTheDocument()
   })
 
+  it('sans description, pas de paragraphe de description', () => {
+    renderTable({ description: undefined })
+    expect(screen.queryByText('Les mouvements détectés')).toBeNull()
+  })
+
   it('sans onToggle, il n y a pas de bouton de repli et le tableau est ouvert', () => {
     renderTable({ collapsed: true })
     expect(screen.queryByRole('button', { name: COLLAPSE_ARIA })).toBeNull()

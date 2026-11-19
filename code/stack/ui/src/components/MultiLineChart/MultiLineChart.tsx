@@ -18,7 +18,7 @@ import {
   WIDTH,
   WRAP_CLASS,
 } from './constants'
-import { extentOf, formatTick, pathOf } from './helpers'
+import { barsOf, extentOf, formatTick, pathOf } from './helpers'
 import type { MultiLineChartProps } from './types'
 
 /** Plusieurs courbes sur la même échelle, avec leur légende : le plus ancien à gauche, le plus récent à droite. */
@@ -46,7 +46,11 @@ const MultiLineChart = ({ series, unit = '', label, startLabel, endLabel, timeLa
             <line key={fraction} x1={0} x2={WIDTH} y1={HEIGHT * fraction} y2={HEIGHT * fraction} strokeWidth={1} strokeDasharray="3 4" className={`${GRID_CLASS} [vector-effect:non-scaling-stroke]`} />
           ))}
           {series.map((s) =>
-            s.points.length >= 2 ? <path key={s.id} d={pathOf(s, extent)} strokeWidth={1.5} strokeLinejoin="round" className={`${LINE_CLASS} ${STROKE_CLASS[s.tone]}`} /> : null,
+            s.bars ? (
+              <path key={s.id} d={barsOf(s, extent)} strokeWidth={2} strokeOpacity={0.55} className={`${LINE_CLASS} ${STROKE_CLASS[s.tone]}`} />
+            ) : s.points.length >= 2 ? (
+              <path key={s.id} d={pathOf(s, extent)} strokeWidth={1.5} strokeLinejoin="round" className={`${LINE_CLASS} ${STROKE_CLASS[s.tone]}`} />
+            ) : null,
           )}
         </svg>
       </div>

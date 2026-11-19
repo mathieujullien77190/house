@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 export interface DataTableProps {
   title: string
   /** Ce que contient la table, en une phrase. */
-  description: string
+  /** Une phrase sous le titre ; rien si absente. */
+  description?: string
   /** Chemin ou détail en petit, à côté du titre. */
   detail: string
   columns: string[]

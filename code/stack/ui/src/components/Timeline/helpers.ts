@@ -1,8 +1,8 @@
-import { MARKER_CLASS, MARKER_IDLE_CLASS, MARKER_ONGOING_CLASS, MARKER_SELECTED_CLASS, MARKER_VERTICAL_CLASS } from './constants'
+import { MARKER_CLASS, MARKER_EYES_CLASS, MARKER_FOLIAGE_CLASS, MARKER_FOLIAGE_SELECTED_CLASS, MARKER_EYES_SELECTED_CLASS, MARKER_IDLE_CLASS, MARKER_ONGOING_CLASS, MARKER_SELECTED_CLASS, MARKER_VERTICAL_CLASS } from './constants'
 import type { TimelineMarker } from './types'
 
 export const markerClass = (marker: TimelineMarker, vertical = false): string =>
-  `${vertical ? MARKER_VERTICAL_CLASS : MARKER_CLASS} ${marker.ongoing ? MARKER_ONGOING_CLASS : marker.selected ? MARKER_SELECTED_CLASS : MARKER_IDLE_CLASS}`
+  `${vertical ? MARKER_VERTICAL_CLASS : MARKER_CLASS} ${marker.ongoing ? MARKER_ONGOING_CLASS : marker.eyes ? (marker.selected ? MARKER_EYES_SELECTED_CLASS : MARKER_EYES_CLASS) : marker.foliage ? (marker.selected ? MARKER_FOLIAGE_SELECTED_CLASS : MARKER_FOLIAGE_CLASS) : marker.selected ? MARKER_SELECTED_CLASS : MARKER_IDLE_CLASS}`
 
 /**
  * Où poser un point de l'axe (position `x` en %, du plus ancien au plus récent) : à gauche sur l'axe horizontal ;

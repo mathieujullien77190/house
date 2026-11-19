@@ -13,6 +13,8 @@ export interface ChartSeries {
   tone: SliceTone
   /** Les points, du plus ancien au plus récent. */
   points: ChartPoint[]
+  /** Des bâtons à la place de la courbe : un trait vertical du bas du graphique jusqu'à la valeur de chaque point. */
+  bars?: boolean
 }
 
 export interface MultiLineChartProps {

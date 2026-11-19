@@ -54,7 +54,7 @@ const DataTable = ({ title, description, detail, columns, rows, keys, page, size
           head
         )}
       </div>
-      <p className={DESCRIPTION_CLASS}>{description}</p>
+      {description ? <p className={DESCRIPTION_CLASS}>{description}</p> : null}
       {open && filters ? <div className={FILTERS_CLASS}>{filters}</div> : null}
       {!open ? null : total === 0 ? (
         <p className={EMPTY_CLASS}>{EMPTY_TEXT}</p>

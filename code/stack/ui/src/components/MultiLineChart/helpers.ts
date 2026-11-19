@@ -28,5 +28,15 @@ export const pathOf = (series: ChartSeries, extent: Extent): string => {
   return `M${points.join(' L')}`
 }
 
+/** Les bâtons d'une série : un trait vertical par point, du bas du cadre à sa valeur. */
+export const barsOf = (series: ChartSeries, extent: Extent): string => {
+  const width = extent.maxX - extent.minX || 1
+  const height = extent.maxY - extent.minY
+  return series.points
+    .filter((p) => p.x >= extent.minX && p.x <= extent.maxX)
+    .map((p) => `M${(((p.x - extent.minX) / width) * WIDTH).toFixed(1)},${HEIGHT} V${(HEIGHT - ((p.y - extent.minY) / height) * HEIGHT).toFixed(1)}`)
+    .join(' ')
+}
+
 /** Un repère de l'échelle : la valeur arrondie et son unité (« 12 °C »). */
 export const formatTick = (value: number, unit: string): string => `${Math.round(value)}${unit ? ` ${unit}` : ''}`
