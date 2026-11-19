@@ -20,7 +20,7 @@ export const buildSeries = (points: TemperaturePoint[]): ChartSeries[] => {
   for (const point of points) {
     let series = byName.get(point.name)
     if (!series) {
-      series = { id: point.name, label: labelOf(point.name), tone: TONES[byName.size % TONES.length], points: [] }
+      series = { id: point.name, label: labelOf(point.name), tone: TONES[byName.size % TONES.length], points: [], bars: point.name === WEATHER_COLUMN }
       byName.set(point.name, series)
     }
     series.points.push({ x: point.at, y: point.celsius })

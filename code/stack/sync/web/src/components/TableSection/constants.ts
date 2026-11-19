@@ -1,11 +1,4 @@
 export const PAGE_SIZE = 20
-/** Ce que contient chaque table, en une phrase. */
-export const DESCRIPTIONS: Record<string, string> = {
-  last_images: 'Pour chaque caméra, l’adresse de sa dernière image chez l’enregistreur.',
-  live_streams: 'Pour chaque caméra, le flux go2rtc du direct, que l’API relaie.',
-  snapshots: 'Une image par caméra et par minute, gardée quelques jours : ce que la frise de la WebApp montre entre deux événements.',
-}
-
 /** Les tables dont la ligne ne montre que les colonnes principales : le reste est dans le détail qui s'ouvre au clic. */
 export const MAIN_COLUMNS: Record<string, string[]> = {
   plan: ['kind', 'id', 'longitude', 'latitude', 'data'],
@@ -26,6 +19,7 @@ export const CAMERA_CLASS = 'whitespace-nowrap font-semibold text-accent'
 export const BADGE_CLASS = 'inline-block whitespace-nowrap rounded-full bg-green/15 px-2 font-semibold text-green'
 export const MUTED_CLASS = 'whitespace-normal text-muted lg:whitespace-nowrap'
 /** Une adresse IP (même une IPv6 longue) ne passe jamais à la ligne : le tableau défile dans son bloc si besoin. */
+/** Une adresse ou un identifiant (`id` des événements) : sur une seule ligne, jamais coupé. */
 export const IP_CLASS = 'whitespace-nowrap font-mono'
 export const NUM_CLASS = 'whitespace-normal tabular-nums lg:whitespace-nowrap'
 export const MEDIA_CLASS = 'inline-flex flex-wrap items-center gap-2'

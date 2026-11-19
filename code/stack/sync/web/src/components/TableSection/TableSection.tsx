@@ -6,7 +6,7 @@ import { useFilter } from '@/lib/useFilter'
 import type { FilteredPage, Row } from '@/types'
 import { sumsText } from './helpers'
 import { renderCell } from './UI'
-import { CLEAR_LABEL, DATE_LABEL, DESCRIPTIONS, DETAIL_LABEL_CLASS, DETAIL_VALUE_CLASS, DETAILS_CLASS, MAIN_COLUMNS, MATCH_ALL, MATCH_LABELS, PAGE_SIZE } from './constants'
+import { CLEAR_LABEL, DATE_LABEL, DETAIL_LABEL_CLASS, DETAIL_VALUE_CLASS, DETAILS_CLASS, MAIN_COLUMNS, MATCH_ALL, MATCH_LABELS, PAGE_SIZE } from './constants'
 import type { TableSectionProps } from './types'
 
 /**
@@ -51,7 +51,6 @@ const TableSection = ({ table, refreshTick, onOpen }: TableSectionProps) => {
   return (
     <DataTable
       title={table.name}
-      description={DESCRIPTIONS[table.name] ?? ''}
       detail={`${data?.total ?? table.count} ligne(s)${sumsText(data?.sums ?? table.sums)}`}
       columns={columns}
       rows={rows.map((row) => columns.map((column) => renderCell(column, row[column] ?? null, onOpen)))}

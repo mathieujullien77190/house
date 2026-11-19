@@ -1,6 +1,6 @@
 # TableSection – une table de la base
 
-Une table de `events.db`, **repliée par défaut** (la page ne se charge qu'une fois dépliée), paginée (20 lignes). Descriptions dans `constants.ts` (`DESCRIPTIONS`).
+Une table de `events.db`, **repliée par défaut** (la page ne se charge qu'une fois dépliée), paginée (20 lignes).
 
 ## Filtres
 

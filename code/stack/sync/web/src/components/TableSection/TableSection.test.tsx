@@ -4,7 +4,7 @@ import * as api from '@/lib/api'
 import type { FilteredPage, Row, TableSummary } from '@/types'
 import TableSection from '@/components/TableSection'
 import { renderCell } from './UI'
-import { isTimestamp, mediaOf, sumsText } from './helpers'
+import { euroAmount, isTimestamp, mediaOf, sumsText } from './helpers'
 
 vi.mock('@/lib/api', () => ({ fetchTable: vi.fn() }))
 const fetchTable = vi.mocked(api.fetchTable)
@@ -36,10 +36,18 @@ describe('helpers', () => {
   })
 })
 
+describe('euroAmount', () => {
+  it('toujours deux décimales', () => {
+    expect(euroAmount(1.5)).toBe('1,50')
+    expect(euroAmount(0.5265)).toBe('0,53')
+    expect(euroAmount(0)).toBe('0,00')
+  })
+})
+
 describe('sumsText', () => {
   it('heures et minutes, ou minutes seules, avec le coût en euros', () => {
     expect(sumsText({ minutes: 125, cost: 1.5 })).toBe(' · activé 2 h 05 · 1,50 €')
-    expect(sumsText({ minutes: 35, cost: 0.5265 })).toBe(' · activé 35 min · 0,5265 €')
+    expect(sumsText({ minutes: 35, cost: 0.5265 })).toBe(' · activé 35 min · 0,53 €')
   })
 
   it('vide sans sommes ou sans les deux colonnes', () => {
@@ -134,11 +142,10 @@ describe('TableSection', () => {
     await waitFor(() => expect(fetchTable).toHaveBeenLastCalledWith('events', 0, 20, { match: '', day: '' }))
   })
 
-  it('une table sans filtre, sans description connue, sans id : clés de repli', async () => {
+  it('une table sans filtre, sans id : clés de repli', async () => {
     fetchTable.mockResolvedValue(page([{ camera: 'cam', taken_at: 7 }, { url: 'u' }]))
     const table: TableSummary = { name: 'snapshots', columns: ['camera', 'taken_at', 'url'], count: 2 }
     render(<TableSection table={table} refreshTick={0} onOpen={() => undefined} />)
-    expect(screen.getByText(/Une image par caméra et par minute/)).toBeTruthy()
     open()
     await screen.findByText('cam')
     expect(document.querySelector('input[type="date"]')).toBeNull()

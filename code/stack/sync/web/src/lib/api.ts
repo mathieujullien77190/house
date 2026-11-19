@@ -1,6 +1,7 @@
 // Le client de House Sync : la session est un cookie posé par /login, envoyé tout seul par le navigateur.
 import type { CameraSetting } from '@/components/SettingsSection'
 import type { LanAccessKey, LanAccessSettings } from '@/components/LanAccess'
+import type { SunsetLightsSettings } from '@/components/SunsetLights'
 import type { ServoPatch, ServoSettings } from '@/components/ServosSettings'
 import { NO_FILTER, filterQuery } from '@/lib/filter'
 import type { CameraEnergy, ClipGroup, Docker, Filter, FilteredPage, HeatingEnergy, HueBridge, TemperaturePoint, LampEnergy, MachineEnergy, NetworkInterface, Overview, Page, Row, Specs, System } from '@/types'
@@ -72,6 +73,12 @@ export const fetchLanAccess = async (): Promise<LanAccessSettings> => (await req
 
 export const saveLanAccess = async (patch: Partial<Record<LanAccessKey, boolean>>): Promise<LanAccessSettings> =>
   (await request('/api/lan-access', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })).json()
+
+/** L'allumage des lampes au coucher du soleil : l'interrupteur, les lampes, le décalage et la prochaine heure prévue. */
+export const fetchSunsetLights = async (): Promise<SunsetLightsSettings> => (await request('/api/sunset-lights')).json()
+
+export const saveSunsetLights = async (enabled: boolean): Promise<SunsetLightsSettings> =>
+  (await request('/api/sunset-lights', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) })).json()
 
 /** La configuration des servos des volets salon, PC et porte : l'adresse de l'ESP32 et les trois ordres (House API la relit à chaque ordre). */
 export const fetchServos = async (): Promise<ServoSettings> => (await request('/api/servos')).json()

@@ -1,13 +1,13 @@
 # SettingsSection – l'onglet Réglages
 
-**Tous** les réglages de House Sync, en blocs repliables : **Général**, **un bloc par caméra** (titre = son nom, **fermé à l'ouverture de la page**, un clic l'ouvre), **Page invité**, **Volets à servos**. Chaque clic ou curseur relâché est enregistré tout de suite ; un échec s'affiche. Effet côté service : `../../../../src/CLAUDE.md`.
-
-## Général
-
-- Durée de garde : 7, 15, 30, 60, 90 ou 180 jours (`RETENTION_OPTIONS`, `GET`/`PUT /api/retention`).
-- **Images par seconde des pages invité** : un curseur de 1 à 25 (`GET`/`PUT /api/guest`, `guest_fps`), le même pour toutes les caméras, pour la page invité publique **et** pour la page du réseau « Chez Matou » (mêmes flux go2rtc `<caméra>_guest_*`).
+**Tous** les réglages de House Sync, en blocs repliables, **tous fermés à l'ouverture de la page** (un clic ouvre) : **un bloc par caméra** (titre = son nom), **Page invité** (interrupteur, lien, et accès du réseau « Chez Matou » dans le même bloc), **Allumage au coucher du soleil**, **Volets**. Chaque clic ou curseur relâché est enregistré tout de suite ; un échec s'affiche. Effet côté service : `../../../../src/CLAUDE.md`.
 
 ## Un bloc par caméra
+
+- **Durée de garde** (7, 15, 30, 60, 90 ou 180 jours, `clip_retention_days`) et **images par seconde de la page invité** (curseur de 1 à 25, `guest_fps`, pour la page publique **et** « Chez Matou ») sont **propres à chaque caméra** (`PUT /api/settings`) ; plus de bloc « Général ».
+- **Mode vent** (`wind_mode`, OFF par défaut) sous le mode pluie : au-dessus de 20 km/h (`WIND_THRESHOLD_KMH`), pas de clips et une image toutes les 5 s, comme la pluie ; symbole 💨 à côté du nom de la caméra quand il s'applique.
+- **Feuillage** : curseur de 0 (coupé) à 60 zones (`foliage_zones`), dans le bloc « Détection du mouvement » : un mouvement qui fait au moins ce nombre de zones sur 30 % de ses images est étiqueté feuillage, vert dans la frise.
+- **Recherche des yeux** (`eyes_mode`, OFF par défaut) à côté du mode pluie : `../../../../src/CLAUDE.md`.
 
 **Enregistrement : clips et images**
 
@@ -28,9 +28,9 @@
 
 **Pictogramme du titre** : 🌧️ pluie et mode actif, ☔ pluie forte ; rien sinon.
 
-## Volets à servos
+## Volets
 
-- Bloc repliable : adresse de l'ESP32 des servos, puis trois sous-blocs repliables (Salon, PC, Porte) avec, pour Monter / Descendre / Stop, canal, départ, arrivée, vitesse, attente (`GET`/`PUT /api/servos`). Détail : `../ServosSettings/CLAUDE.md`.
+- Un seul bloc « Volets » : adresse de l'ESP32 des servos, puis trois sous-titres (Salon, PC, Porte), sans sous-blocs repliables, avec, pour Monter / Descendre / Stop, canal, départ, arrivée, vitesse, attente (`GET`/`PUT /api/servos`). Détail : `../ServosSettings/CLAUDE.md`.
 
 ## Page invité
 

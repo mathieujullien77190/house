@@ -13,6 +13,7 @@ import {
   fetchLampEnergy,
   fetchMachineEnergy,
   fetchRetention,
+  fetchSunsetLights,
   fetchServos,
   fetchSettings,
   fetchSpecs,
@@ -26,6 +27,7 @@ import {
   saveGuest,
   saveLanAccess,
   saveRetention,
+  saveSunsetLights,
   saveServos,
   saveSetting,
   testServo,
@@ -145,6 +147,18 @@ describe('écritures', () => {
     answer({ camera: 'cam', live_fps: 5 })
     expect(await saveSetting('cam', { live_fps: 5 })).toEqual({ camera: 'cam', live_fps: 5 })
     expect(lastCall()).toEqual(['/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"camera":"cam","live_fps":5}' }])
+  })
+
+  it('fetchSunsetLights lit /api/sunset-lights', async () => {
+    answer({ enabled: true, lights: ['3'], offset_minutes: 0, next_run: null, catch_up_minutes: 60 })
+    expect((await fetchSunsetLights()).enabled).toBe(true)
+    expect(lastCall()[0]).toBe('/api/sunset-lights')
+  })
+
+  it('saveSunsetLights envoie l’interrupteur', async () => {
+    answer({ enabled: false, lights: [], offset_minutes: 0, next_run: null, catch_up_minutes: 60 })
+    expect((await saveSunsetLights(false)).enabled).toBe(false)
+    expect(lastCall()).toEqual(['/api/sunset-lights', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"enabled":false}' }])
   })
 
   it('saveRetention rend les jours enregistrés', async () => {

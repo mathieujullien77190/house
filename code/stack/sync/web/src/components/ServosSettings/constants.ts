@@ -8,6 +8,7 @@ export const SAVE_ERROR_TEXT = 'Ce réglage n’a pas pu être enregistré (vale
 export const LOAD_ERROR_TEXT = 'Les réglages des servos n’ont pas pu être lus.'
 
 /** Les volets à servos (leur numéro dans SHUTTERS de l'API) : Salon, PC, porte. */
+export const SUBTITLE_CLASS = 'mt-4 mb-1 border-b border-line pb-1 text-[0.95rem] font-semibold text-fg'
 export const SHUTTERS: readonly { id: string; label: string }[] = [
   { id: '2', label: 'Salon' },
   { id: '5', label: 'PC' },

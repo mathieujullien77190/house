@@ -18,7 +18,7 @@ export const DAY_SECONDS = 86_400
 export const WEATHER_COLUMN = 'meteo'
 export const WEATHER_LABEL = 'Météo'
 export const UNIT = '°C'
-export const CHART_LABEL = 'Températures : météo, pompes à chaleur et détecteurs Hue'
+export const CHART_LABEL = 'Températures : météo (bâtons), pompes à chaleur et détecteurs Hue'
 export const EMPTY_TEXT = 'Pas encore assez de relevés (un par heure).'
 /** Les couleurs des séries, dans l'ordre : la météo en premier, puis les pompes à chaleur et les détecteurs. */
 export const TONES: SliceTone[] = ['accent', 'orange', 'green', 'danger', 'muted']

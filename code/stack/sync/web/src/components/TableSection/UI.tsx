@@ -3,7 +3,7 @@ import { Button, StackedDate } from '@house/ui'
 import { splitSeconds } from '@/lib/format'
 import type { Cell, Media } from '@/types'
 import { BADGE_CLASS, CAMERA_CLASS, IP_CLASS, LINK_CLASS, MEDIA_CLASS, MUTED_CLASS, NULL_TEXT, OPEN_LABEL } from './constants'
-import { isTimestamp, mediaOf } from './helpers'
+import { euroAmount, isTimestamp, mediaOf } from './helpers'
 
 /** Une cellule : les médias deviennent un bouton, les adresses des liens, les horodatages une date (sans le nombre de secondes), les étiquettes des pastilles. */
 export const renderCell = (column: string, value: Cell, onOpen: (media: Media) => void): ReactNode => {
@@ -27,8 +27,9 @@ export const renderCell = (column: string, value: Cell, onOpen: (media: Media) =
       </a>
     )
   }
+  if (column === 'cost' && typeof value === 'number') return euroAmount(value)
   if (column === 'label') return <span className={BADGE_CLASS}>{value}</span>
   if (column === 'camera') return <span className={CAMERA_CLASS}>{value}</span>
-  if (column === 'ip') return <span className={IP_CLASS}>{value}</span>
+  if (column === 'ip' || column === 'id') return <span className={IP_CLASS}>{value}</span>
   return String(value)
 }

@@ -1,14 +1,13 @@
 /** Les blocs de la page Réglages : un bloc général, un bloc par caméra (titre = son nom) dont les rangées portent ces titres, puis la page invité. */
-export const SECTION_GENERAL = 'Général (toutes les caméras)'
 export const SECTION_RECORDING = 'Enregistrement : clips et images'
 export const SECTION_DETECTION = 'Détection du mouvement'
 export const SECTION_LIVE = 'Direct dans la WebApp'
 export const SECTION_GUEST = 'Page invité'
-export const SECTION_SERVOS = 'Volets à servos'
-export const SECTION_LAN = 'Page invité du réseau'
+export const SECTION_SERVOS = 'Volets'
+export const SECTION_SUNSET = 'Allumage au coucher du soleil'
 export const CLIPS_LABEL = 'Clips vidéo'
 /** La durée de garde, pour toutes les caméras : au-delà, un clip non sauvegardé, les images, le journal des lampes, les événements sans clip et les fusions sont effacés (une fois par jour). */
-export const RETENTION_LABEL = 'Durée de garde (clips, images, journal des lampes, événements)'
+export const RETENTION_LABEL = 'Durée de garde (clips, images, événements de la caméra)'
 export const RETENTION_OPTIONS = [
   { id: '7', label: '7 jours' },
   { id: '15', label: '15 jours' },
@@ -29,16 +28,25 @@ export const ORIENTATION_OPTIONS = [
   { id: 'portrait', label: 'Portrait' },
 ] as const
 /** Le mode pluie : la pluie fait trop bouger l'image pour la détection. Sur ON, quand la météo dit pluie ou pluie forte, les clips s'arrêtent (la détection est coupée) et une image est gardée toutes les 5 s ; quand il ne pleut plus, les réglages ci-dessus reviennent. Sur OFF, on ne fait rien. La WebApp montre le symbole sur la caméra. */
+/** La recherche des yeux qui brillent : la nuit, des reflets d'yeux comptent comme un mouvement et sont entourés en rouge sur la vidéo. */
+export const EYES_LABEL = 'Recherche des yeux (la nuit)'
+export const EYES_HINT = 'De 30 min après le coucher du soleil à 30 min avant son lever, la caméra cherche les reflets des yeux (infrarouge) dans sa zone de surveillance. Des yeux vus comptent comme un mouvement, entourés en rouge sur la vidéo, et l’événement est violet dans la frise.'
+export const EYES_OPTIONS = [
+  { id: 'off', label: 'OFF' },
+  { id: 'on', label: 'ON' },
+] as const
+/** Le mode vent : comme le mode pluie, quand le vent dépasse 20 km/h (la météo de House Sync) : pas de clips, une image toutes les 5 s. */
+export const WIND_LABEL = 'Mode vent (si le vent dépasse 20 km/h : pas de clips, une image toutes les 5 s)'
 export const RAIN_LABEL = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
 export const RAIN_OPTIONS = [
   { id: 'off', label: 'OFF' },
   { id: 'on', label: 'ON' },
 ] as const
 /** Ce qui est actif maintenant, écrit sous le choix. */
-export const RAIN_NOW_TEXT = { rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif', fog: '🌫️ Brouillard en ce moment : mode pluie actif' } as const
+export const RAIN_NOW_TEXT = { wind: '💨 Vent fort en ce moment : mode vent actif', rain: '🌧️ Pluie en ce moment : mode pluie actif', heavy: '☔ Pluie forte en ce moment : mode pluie actif', fog: '🌫️ Brouillard en ce moment : mode pluie actif' } as const
 /** Le petit icône à côté du nom d'une caméra **en mode pluie** (il pleut et le mode s'applique) : 🌧️ pluie, ☔ pluie forte. Rien quand le mode est allumé sans pluie. */
-export const RAIN_CLOUD = { rain: '🌧️', heavy: '☔', fog: '🌫️' } as const
-export const RAIN_CLOUD_HINT = { rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte', fog: 'Mode pluie actif : brouillard' } as const
+export const RAIN_CLOUD = { wind: '💨', rain: '🌧️', heavy: '☔', fog: '🌫️' } as const
+export const RAIN_CLOUD_HINT = { wind: 'Mode vent actif : vent fort', rain: 'Mode pluie actif : il pleut', heavy: 'Mode pluie actif : pluie forte', fog: 'Mode pluie actif : brouillard' } as const
 /** Les curseurs de cadence : le direct 4K et le léger, sur un écran de 1024 px et plus (PC) puis en dessous (téléphone). */
 export const FPS_SLIDERS = [
   { key: 'live_fps', label: 'Direct 4K · PC' },
@@ -47,6 +55,11 @@ export const FPS_SLIDERS = [
   { key: 'light_fps_mobile', label: 'Direct léger · téléphone' },
 ] as const
 /** Le curseur de sensibilité du mouvement : de 1 (les petits mouvements sont ignorés) à 5 (très sensible : un chat, un oiseau, la nuit). */
+/** Le feuillage : à partir de ce nombre de zones vues sur au moins 30 % des images, le mouvement est étiqueté « feuillage » (vert dans la frise de la WebApp). */
+export const FOLIAGE_LABEL = 'Feuillage : nombre de zones à partir duquel le mouvement est du feuillage'
+export const FOLIAGE_MIN = 0
+export const FOLIAGE_MAX = 60
+export const foliageText = (zones: number): string => (zones === 0 ? 'coupé' : `${zones} zones ou plus`)
 export const SENSITIVITY_LABEL = 'Sensibilité du mouvement'
 export const SENSITIVITY_MIN = 1
 export const SENSITIVITY_MAX = 5
@@ -62,7 +75,7 @@ export const GUEST_POWER_OPTIONS = [
   { id: 'off', label: 'Coupée' },
 ] as const
 /** Le curseur de la page invité : un seul réglage pour les vignettes et la caméra agrandie (4K), PC et téléphone confondus. */
-export const GUEST_FPS_LABEL = 'Images par seconde des pages invité (page publique et Chez Matou)'
+export const GUEST_FPS_LABEL = 'Images par seconde (page publique et Chez Matou)'
 export const SAVE_ERROR_TEXT = 'Ce réglage n’a pas pu être enregistré : House Sync ne répond pas. Réessaie.'
 export const LOAD_ERROR_TEXT = 'Les réglages n’ont pas pu être lus.'
 export const FPS_MIN = 1

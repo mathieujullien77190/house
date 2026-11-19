@@ -6,7 +6,7 @@ export type Orientation = 'landscape' | 'portrait'
 export type RainMode = 'off' | 'on'
 
 /** Le niveau de pluie qui s'applique maintenant : off, rain ou heavy. */
-export type RainLevel = 'off' | 'rain' | 'heavy' | 'fog'
+export type RainLevel = 'off' | 'rain' | 'heavy' | 'fog' | 'wind'
 
 export interface CameraSetting {
   camera: string
@@ -31,4 +31,14 @@ export interface CameraSetting {
   rain_mode?: RainMode
   /** Le niveau de pluie qui s'applique maintenant (le mode et la météo). */
   rain_now?: RainLevel
+  /** La recherche des yeux qui brillent, la nuit : off (par défaut) ou on. */
+  eyes_mode?: RainMode
+  /** Le mode vent : allumé, le vent au-dessus du seuil agit comme la pluie (pas de clips, une image toutes les 5 s). */
+  wind_mode?: RainMode
+  /** La durée de garde (jours) des clips non sauvegardés, des images et des événements de la caméra. */
+  clip_retention_days: number
+  /** Les images par seconde de la page invité (public et Chez Matou) pour cette caméra, de 1 à 25. */
+  guest_fps: number
+  /** À partir de ce nombre de zones (sur 30 % des images du mouvement), le mouvement est étiqueté feuillage : 0 = coupé. */
+  foliage_zones: number
 }

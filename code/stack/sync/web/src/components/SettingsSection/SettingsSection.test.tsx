@@ -5,10 +5,10 @@ import SettingsSection from '@/components/SettingsSection'
 import type { CameraSetting } from '@/components/SettingsSection'
 
 vi.mock('@/lib/api', () => ({
-  fetchRetention: vi.fn(),
+  fetchSunsetLights: vi.fn(),
   fetchGuest: vi.fn(),
   fetchSettings: vi.fn(),
-  saveRetention: vi.fn(),
+  saveSunsetLights: vi.fn(),
   saveGuest: vi.fn(),
   saveSetting: vi.fn(),
   fetchLanAccess: vi.fn(),
@@ -30,14 +30,19 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
   motion_sensitivity: 3,
   motion_min_seconds: 1,
   snapshot_seconds: 60,
+  clip_retention_days: 15,
+  guest_fps: 2,
+  foliage_zones: 0,
   ...patch,
 })
 const RAIN_GROUP = 'Mode pluie (si la météo dit pluie : pas de clips, une image toutes les 5 s)'
+const WIND_GROUP = 'Mode vent (si le vent dépasse 20 km/h : pas de clips, une image toutes les 5 s)'
+const EYES_GROUP = 'Recherche des yeux (la nuit)'
 const SAVE_ERROR = /n’a pas pu être enregistré/
 
 beforeEach(() => {
   vi.resetAllMocks()
-  m.fetchRetention.mockResolvedValue(15)
+  m.fetchSunsetLights.mockReturnValue(new Promise(() => undefined))
   m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: null })
   m.fetchSettings.mockResolvedValue([camera()])
   m.fetchLanAccess.mockReturnValue(new Promise(() => undefined))
@@ -59,7 +64,7 @@ describe('chargement', () => {
   it('montre les réglages lus : durée de garde, caméras, page invité', async () => {
     await loaded()
     expect(screen.getAllByText('voliere-exterieur')[0]).toBeTruthy()
-    expect(tab('Durée de garde (clips, images, journal des lampes, événements)', '15 jours').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Durée de garde (clips, images, événements de la caméra)', '15 jours').getAttribute('aria-selected')).toBe('true')
     expect(tab('Clips vidéo', 'Toujours').getAttribute('aria-selected')).toBe('true')
     expect(tab('Orientation', 'Paysage').getAttribute('aria-selected')).toBe('true')
     expect(tab('Une image toutes les', '1 min').getAttribute('aria-selected')).toBe('true')
@@ -76,7 +81,6 @@ describe('chargement', () => {
   })
 
   it('des réglages illisibles : un message', async () => {
-    m.fetchRetention.mockRejectedValue(new Error('x'))
     m.fetchGuest.mockRejectedValue(new Error('x'))
     m.fetchSettings.mockRejectedValue(new Error('x'))
     render(<SettingsSection />)
@@ -90,40 +94,37 @@ describe('chargement', () => {
       const promise = new Promise<T>((done, fail) => ((resolve = done), (reject = fail)))
       return { promise, resolve, reject }
     }
-    const retention = later<number>()
     const guest = later<api.GuestSettings>()
     const settings = later<CameraSetting[]>()
-    m.fetchRetention.mockReturnValue(retention.promise)
     m.fetchGuest.mockReturnValue(guest.promise)
     m.fetchSettings.mockReturnValue(settings.promise)
     const { unmount } = render(<SettingsSection />)
     unmount()
     await act(async () => {
-      retention.resolve(30)
       guest.resolve({ guest_fps: 3, guest_enabled: true, guest_link: null })
       settings.resolve([])
     })
-    const again = later<number>()
-    m.fetchRetention.mockReturnValue(again.promise)
+    const failing = later<CameraSetting[]>()
+    m.fetchSettings.mockReturnValue(failing.promise)
     const second = render(<SettingsSection />)
     second.unmount()
-    await act(async () => again.reject(new Error('tard')))
+    await act(async () => failing.reject(new Error('tard')))
   })
 })
 
 describe('durée de garde', () => {
   it('un clic l’enregistre', async () => {
-    m.saveRetention.mockResolvedValue(30)
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
     await loaded()
-    fireEvent.click(tab('Durée de garde (clips, images, journal des lampes, événements)', '30 jours'))
-    await waitFor(() => expect(tab('Durée de garde (clips, images, journal des lampes, événements)', '30 jours').getAttribute('aria-selected')).toBe('true'))
-    expect(m.saveRetention).toHaveBeenCalledWith(30)
+    fireEvent.click(tab('Durée de garde (clips, images, événements de la caméra)', '30 jours'))
+    await waitFor(() => expect(tab('Durée de garde (clips, images, événements de la caméra)', '30 jours').getAttribute('aria-selected')).toBe('true'))
+    expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { clip_retention_days: 30 })
   })
 
   it('un échec le dit', async () => {
-    m.saveRetention.mockRejectedValue(new Error('x'))
+    m.saveSetting.mockRejectedValue(new Error('x'))
     await loaded()
-    fireEvent.click(tab('Durée de garde (clips, images, journal des lampes, événements)', '30 jours'))
+    fireEvent.click(tab('Durée de garde (clips, images, événements de la caméra)', '30 jours'))
     expect(await screen.findByText(SAVE_ERROR)).toBeTruthy()
   })
 })
@@ -157,6 +158,41 @@ describe('réglages par caméra', () => {
     expect(await screen.findByText(/Pluie en ce moment/)).toBeTruthy()
     expect(screen.getByText(/Pluie forte en ce moment/)).toBeTruthy()
     expect(screen.getAllByText(/en ce moment/)).toHaveLength(2)
+  })
+
+  it('le mode vent et la recherche des yeux s’allument et s’éteignent au clic, éteints tant que la caméra ne dit rien', async () => {
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
+    await loaded()
+    expect(tab(WIND_GROUP, 'OFF').getAttribute('aria-selected')).toBe('true')
+    expect(tab(EYES_GROUP, 'OFF').getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(tab(WIND_GROUP, 'ON'))
+    await waitFor(() => expect(tab(WIND_GROUP, 'ON').getAttribute('aria-selected')).toBe('true'))
+    fireEvent.click(tab(EYES_GROUP, 'ON'))
+    await waitFor(() => expect(tab(EYES_GROUP, 'ON').getAttribute('aria-selected')).toBe('true'))
+    expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { wind_mode: 'on' })
+    expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { eyes_mode: 'on' })
+  })
+
+  it('le mode vent et le brouillard disent aussi ce qui est actif', async () => {
+    m.fetchSettings.mockResolvedValue([camera({ wind_mode: 'on', rain_now: 'wind' }), camera({ camera: 'b', rain_mode: 'on', rain_now: 'fog' })])
+    render(<SettingsSection />)
+    expect(await screen.findByText(/Vent fort en ce moment/)).toBeTruthy()
+    expect(screen.getByText(/Brouillard en ce moment/)).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Mode vent actif : vent fort' }).textContent).toBe('💨')
+  })
+
+  it('le feuillage : « coupé » à 0, envoyé au relâchement', async () => {
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
+    await loaded()
+    const input = slider('Feuillage : nombre de zones à partir duquel le mouvement est du feuillage · voliere-exterieur')
+    expect(screen.getByText('coupé')).toBeTruthy()
+    fireEvent.change(input, { target: { value: '12' } })
+    expect(screen.getByText('12 zones ou plus')).toBeTruthy()
+    fireEvent.pointerUp(input)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { foliage_zones: 12 }))
+    fireEvent.change(input, { target: { value: '20' } })
+    fireEvent.keyUp(input)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { foliage_zones: 20 }))
   })
 
   it('l’enregistrement d’un autre appareil laisse les autres caméras intactes', async () => {
@@ -263,7 +299,7 @@ describe('curseurs', () => {
 })
 
 describe('page invité', () => {
-  const GUEST_FPS = 'Images par seconde des pages invité (page publique et Chez Matou)'
+  const GUEST_FPS = 'Images par seconde (page publique et Chez Matou) · voliere-exterieur'
 
   it('l’interrupteur coupe puis remet la page', async () => {
     m.saveGuest.mockResolvedValueOnce({ guest_fps: 2, guest_enabled: false, guest_link: null }).mockResolvedValueOnce({ guest_fps: 2, guest_enabled: true, guest_link: null })
@@ -296,29 +332,29 @@ describe('page invité', () => {
   })
 
   it('le curseur est envoyé au relâchement s’il a changé', async () => {
-    m.saveGuest.mockResolvedValue({ guest_fps: 8, guest_enabled: true, guest_link: null })
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
     await loaded()
     const input = slider(GUEST_FPS)
     fireEvent.change(input, { target: { value: '8' } })
     expect(screen.getByText('8 images/s')).toBeTruthy()
     fireEvent.pointerUp(input)
-    await waitFor(() => expect(m.saveGuest).toHaveBeenCalledWith({ guest_fps: 8 }))
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { guest_fps: 8 }))
     await waitFor(() => expect(slider(GUEST_FPS).value).toBe('8'))
   })
 
   it('le curseur se relâche aussi au clavier', async () => {
-    m.saveGuest.mockResolvedValue({ guest_fps: 6, guest_enabled: true, guest_link: null })
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
     await loaded()
     fireEvent.change(slider(GUEST_FPS), { target: { value: '6' } })
     fireEvent.keyUp(slider(GUEST_FPS))
-    await waitFor(() => expect(m.saveGuest).toHaveBeenCalledWith({ guest_fps: 6 }))
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { guest_fps: 6 }))
   })
 
   it('relâché sans changement : rien n’est envoyé ; en cas d’échec il revient à la valeur gardée', async () => {
     await loaded()
     release(slider(GUEST_FPS), '2')
-    expect(m.saveGuest).not.toHaveBeenCalled()
-    m.saveGuest.mockRejectedValue(new Error('x'))
+    expect(m.saveSetting).not.toHaveBeenCalled()
+    m.saveSetting.mockRejectedValue(new Error('x'))
     release(slider(GUEST_FPS), '9')
     expect(await screen.findByText(SAVE_ERROR)).toBeTruthy()
     await waitFor(() => expect(slider(GUEST_FPS).value).toBe('2'))

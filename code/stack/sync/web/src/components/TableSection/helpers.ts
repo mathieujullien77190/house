@@ -8,6 +8,9 @@ export const mediaOf = (column: string, value: unknown): Media | null => {
   return null
 }
 
+/** Un prix en euros, toujours arrondi à deux chiffres après la virgule (« 0,53 »). */
+export const euroAmount = (euros: number): string => euros.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 /** Les colonnes dont la valeur est un horodatage, en secondes. */
 export const isTimestamp = (column: string, value: unknown): value is number => typeof value === 'number' && column.endsWith('_at')
 
@@ -16,6 +19,6 @@ export const sumsText = (sums: Record<string, number> | undefined): string => {
   if (!sums || sums.minutes === undefined || sums.cost === undefined) return ''
   const hours = Math.floor(sums.minutes / 60)
   const duration = hours > 0 ? `${hours} h ${String(sums.minutes % 60).padStart(2, '0')}` : `${sums.minutes} min`
-  const euros = sums.cost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+  const euros = euroAmount(sums.cost)
   return ` · activé ${duration} · ${euros} €`
 }

@@ -1,4 +1,4 @@
-import { Button, Collapsible } from '@house/ui'
+import { Button } from '@house/ui'
 import {
   COMMANDS,
   ERROR_CLASS,
@@ -12,6 +12,7 @@ import {
   ORDER_CLASS,
   SAVE_ERROR_TEXT,
   SHUTTERS,
+  SUBTITLE_CLASS,
   TEST_CELL_CLASS,
   TEST_ERROR_TEXT,
   TEST_LABEL,
@@ -37,7 +38,8 @@ const ServosSettingsUI = ({ settings, drafts, failed, testing, testFailed, onDra
       </label>
     </div>
     {SHUTTERS.map((shutter) => (
-      <Collapsible key={shutter.id} title={shutter.label}>
+      <section key={shutter.id} aria-label={shutter.label}>
+        <h3 className={SUBTITLE_CLASS}>{shutter.label}</h3>
     {COMMANDS.map((command) => (
       <div key={command.id} className={ORDER_CLASS}>
         <span className={NAME_CLASS}>{command.label}</span>
@@ -74,7 +76,7 @@ const ServosSettingsUI = ({ settings, drafts, failed, testing, testFailed, onDra
         {testFailed === `${shutter.id}.${command.id}` ? <span className={ERROR_CLASS}>{TEST_ERROR_TEXT}</span> : null}
       </div>
     ))}
-      </Collapsible>
+      </section>
     ))}
   </div>
 )
