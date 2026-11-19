@@ -16,6 +16,7 @@ import { ORIENTATIONS } from './database.ts'
 import { readDocker } from './docker.ts'
 import { readGuestEnabled, writeGuestEnabled } from './guestState.ts'
 import { mergeLanAccess, readLanAccess, writeLanAccess } from './lanAccess.ts'
+import { CATCH_UP_SECONDS } from './sunsetLights.ts'
 import { mergeServos, readServos, SERVO_COMMANDS, writeServos } from './servos.ts'
 import { createServoTester } from './servoTest.ts'
 import { readHueBridge } from './hue.ts'
@@ -32,7 +33,7 @@ import type { ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
-import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_MOTION_SECONDS, MAX_SENSITIVITY, MIN_MOTION_SECONDS, MIN_RETENTION_DAYS, MIN_SENSITIVITY, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
+import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_MOTION_SECONDS, MAX_FOLIAGE_ZONES, MAX_SENSITIVITY, MIN_MOTION_SECONDS, MIN_RETENTION_DAYS, MIN_SENSITIVITY, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
 import { readSpecs } from './specs.ts'
 import { readSystem } from './system.ts'
 
@@ -65,9 +66,12 @@ export interface CurrentWatts {
   machine: () => number | null
 }
 
-export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; resetLiveFpsCheck: () => void; watts: CurrentWatts }) => {
+const CLIPS_LISTING_MS = 30_000
+const SNAPSHOTS_LISTING_MS = 5 * 60_000
+
+export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; resetLiveFpsCheck: () => void; watts: CurrentWatts; sunsetNext: () => number | null }) => {
   const { db, config, settings } = ctx
-  const { hueLog, resetLiveFpsCheck, watts } = deps
+  const { hueLog, resetLiveFpsCheck, watts, sunsetNext } = deps
   const testServo = createServoTester({ fetch: ctx.fetch })
   const dataDir = config.dataDir
   const webDir = config.webDir
@@ -126,12 +130,22 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     }
   }
 
+  // Les listes du disque backup (des milliers de fichiers à parcourir et à mesurer : 2 à 3 s) sont gardées un moment : les clips 30 s, les images 5 min.
+  // Les clips et les images sont listés à part (le parcours de `clips/` ne touche pas aux 130 000 images).
+  const listings = new Map<string, { at: number; files: Awaited<ReturnType<typeof listBackup>> }>()
+  const listing = async (folder: 'clips' | 'snapshots', ttlMs: number) => {
+    const kept = listings.get(folder)
+    if (kept && ctx.now() - kept.at < ttlMs) return kept.files
+    const files = await listBackup(`${dataDir}/${folder}`, `${folder}/`)
+    listings.set(folder, { at: ctx.now(), files })
+    return files
+  }
+
   // Ce que la page affiche : la base (tables, nombre de lignes, taille) et le disque backup (clips, images par minute). Sans `full`, le disque backup
   // n'est pas parcouru (des milliers de fichiers) : seuls le chemin et la base sont rendus, les chiffres du disque sont à zéro.
   const overview = async (full = true) => {
-    const files = full ? await listBackup(dataDir) : []
-    const clips = files.filter((f) => f.path.startsWith('clips/'))
-    const snapshots = files.filter((f) => f.path.startsWith('snapshots/'))
+    const clips = full ? await listing('clips', CLIPS_LISTING_MS) : []
+    const snapshots = full ? await listing('snapshots', SNAPSHOTS_LISTING_MS) : []
     const dbSize = await stat(`${dataDir}/events.db`).then((s) => s.size).catch(() => 0)
     const disk = full ? await readDiskSpace(dataDir) : { total: 0, free: 0, reserved: 0 }
     return {
@@ -148,12 +162,19 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
   // Les réglages de la page invité : cadence, interrupteur et de quoi bâtir son lien (clé, port, adresse publique ; null sans GUEST_KEY).
   const guestBody = async (fps: number) => ({ guest_fps: fps, guest_enabled: await readGuestEnabled(config.guestStateFile), guest_link: config.guest })
 
+  // L'allumage au coucher du soleil : l'interrupteur, les lampes, le décalage et la prochaine heure prévue (null : coupé ; ISO UTC).
+  const sunsetBody = () => {
+    const next = sunsetNext()
+    return { enabled: settings.sunsetLightsEnabled(), lights: config.sunsetLights, offset_minutes: config.sunsetOffsetMinutes, next_run: next === null ? null : new Date(next * 1000).toISOString(), catch_up_minutes: CATCH_UP_SECONDS / 60 }
+  }
+
   // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
   const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
     if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: settings.clipRetentionDays() })
     if (pathname === '/api/guest') return sendJson(res, 200, await guestBody(settings.guestFps()))
     if (pathname === '/api/servos') return sendJson(res, 200, readServos(db))
     if (pathname === '/api/lan-access') return sendJson(res, 200, { ...readLanAccess(db), address: config.lanPageUrl })
+    if (pathname === '/api/sunset-lights') return sendJson(res, 200, sunsetBody())
     if (pathname === '/api/settings') return sendJson(res, 200, settings.knownCameras().map((camera) => settings.cameraSettings(camera)))
     if (pathname === '/api/overview') return sendJson(res, 200, await overview(params.get('part') !== 'database'))
     if (pathname === '/api/docker') return sendJson(res, 200, await readDocker(config.dockerFile, config.composeFile))
@@ -182,7 +203,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
     }
     if (pathname === '/api/clips') {
       const { page, size } = pageParams(params)
-      const all = groupClips((await listBackup(dataDir)).filter((f) => f.path.startsWith('clips/')))
+      const all = groupClips(await listing('clips', CLIPS_LISTING_MS))
       const wanted = clipFilterParams(params)
       // Sauvegardés ou non : la liste écrite par l'API ; illisible, elle compte pour vide (rien n'est montré comme sauvegardé).
       const saved = wanted.saved ? { ids: (readSavedIds(db)) ?? new Set<string>(), keep: wanted.saved === 'saved' } : undefined
@@ -249,8 +270,18 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (typeof orientation !== 'string' || !ORIENTATIONS.includes(orientation)) return sendJson(res, 400, { error: `orientation must be one of ${ORIENTATIONS.join(', ')}` })
       const rain = body.rain_mode === undefined ? current.rain_mode : body.rain_mode
       if (typeof rain !== 'string' || !RAIN_MODES.includes(rain)) return sendJson(res, 400, { error: `rain_mode must be one of ${RAIN_MODES.join(', ')}` })
+      const wind = body.wind_mode === undefined ? current.wind_mode : body.wind_mode
+      if (typeof wind !== 'string' || !RAIN_MODES.includes(wind)) return sendJson(res, 400, { error: `wind_mode must be one of ${RAIN_MODES.join(', ')}` })
+      const eyes = body.eyes_mode === undefined ? current.eyes_mode : body.eyes_mode
+      if (typeof eyes !== 'string' || !RAIN_MODES.includes(eyes)) return sendJson(res, 400, { error: `eyes_mode must be one of ${RAIN_MODES.join(', ')}` })
+      const retention = intSetting(body.clip_retention_days, current.clip_retention_days, MIN_RETENTION_DAYS, MAX_RETENTION_DAYS)
+      if (retention === null) return sendJson(res, 400, { error: `clip_retention_days must be an integer from ${MIN_RETENTION_DAYS} to ${MAX_RETENTION_DAYS}` })
+      const guestFps = intSetting(body.guest_fps, current.guest_fps, 1, MAX_LIVE_FPS)
+      if (guestFps === null) return sendJson(res, 400, { error: `guest_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
+      const foliage = intSetting(body.foliage_zones, current.foliage_zones, 0, MAX_FOLIAGE_ZONES)
+      if (foliage === null) return sendJson(res, 400, { error: `foliage_zones must be an integer from 0 to ${MAX_FOLIAGE_ZONES}` })
       // « night », l'ancienne valeur, vaut « on ».
-      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain })
+      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain, wind, eyes, retention, guestFps, foliage })
       ctx.log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, un mouvement compte après ${minSeconds} s, une image toutes les ${secs} s`)
       resetLiveFpsCheck()
       return sendJson(res, 200, settings.cameraSettings(camera))
@@ -301,6 +332,16 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       }
       ctx.log(`Page invité du réseau : ${merged.enabled ? 'activée' : 'coupée'} (caméras ${merged.cameras ? 'oui' : 'non'}, volets ${merged.shutters ? 'oui' : 'non'}, lampes ${merged.lights ? 'oui' : 'non'}, clim ${merged.ac ? 'oui' : 'non'})`)
       return sendJson(res, 200, { ...merged, address: config.lanPageUrl })
+    }
+    // PUT /api/sunset-lights : { enabled } (un booléen) : l'interrupteur de l'allumage au coucher du soleil (sunsetLights.ts), relu à chaque tour.
+    if (req.method === 'PUT' && pathname === '/api/sunset-lights') {
+      if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
+      const body = await readJsonObject(req)
+      if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
+      if (typeof body.enabled !== 'boolean' || Object.keys(body).length !== 1) return sendJson(res, 400, { error: 'the body must be {"enabled": true|false}' })
+      settings.saveSunsetLightsEnabled(body.enabled)
+      ctx.log(`Allumage au coucher du soleil : ${body.enabled ? 'activé' : 'coupé'}`)
+      return sendJson(res, 200, sunsetBody())
     }
     // PUT /api/servos : { url?, shutters?: { <volet>: { up?, down?, stop? } } } (chaque ordre : { channel?, start?, end?, speed?, hold? }) : la configuration des servos des volets salon, PC et porte, que House API relit à chaque ordre.
     if (req.method === 'PUT' && pathname === '/api/servos') {

@@ -5,7 +5,7 @@ import https from 'node:https'
 import { syncBuiltinESMExports } from 'node:module'
 import { writeFileSync } from 'node:fs'
 import { afterEach, mock, test } from 'node:test'
-import { fetchCameraPower, fetchLampPower, parseCameras, parseLamps, parseCpuPower, readCpuPower, type ApiTarget } from './power.ts'
+import { fetchCameraPower, fetchLampPower, parseCameras, parseLamps, parseCpuPower, readCpuPower, sendApi, type ApiTarget } from './power.ts'
 import { tempDir } from './testing.ts'
 
 afterEach(() => {
@@ -25,7 +25,7 @@ const fakeApi = (script: (req: EventEmitter & { destroy: (error?: Error) => void
       destroy: (error?: Error) => void (error && req.emit('error', error)),
       end: () =>
         script(req, (status, body) => {
-          const res = Object.assign(new EventEmitter(), { statusCode: status, setEncoding: () => undefined })
+          const res = Object.assign(new EventEmitter(), { statusCode: status, setEncoding: () => undefined, resume: () => undefined })
           callback(res)
           res.emit('data', body)
           res.emit('end')
@@ -107,4 +107,26 @@ test('fetchCameraPower : erreur réseau et délai dépassé', async () => {
   mock.restoreAll()
   fakeApi((req) => req.emit('timeout'))
   await assert.rejects(fetchCameraPower(target), /pas de réponse/)
+})
+
+test('sendApi : un ordre JSON avec la clé, réussi pour tout code 2xx', async () => {
+  const calls = fakeApi((_req, answer) => answer(204, ''))
+  await sendApi(target, 'PUT', '/hue/lights/3', { on: true })
+  assert.equal(calls[0]?.[0], 'https://api:8080/hue/lights/3')
+  const options = calls[0]?.[1] as { method: string; headers: Record<string, string | number>; ca: string }
+  assert.deepEqual([options.method, options.headers['X-House-Key'], options.headers['Content-Type'], options.headers['Content-Length'], options.ca], ['PUT', 'k', 'application/json', 11, 'CA'])
+})
+
+test('sendApi : code refusé, erreur réseau et délai dépassé', async () => {
+  fakeApi((_req, answer) => answer(500, ''))
+  await assert.rejects(sendApi(target, 'POST', '/x', {}), /réponse 500/)
+  mock.restoreAll()
+  fakeApi((_req, answer) => answer(302, ''))
+  await assert.rejects(sendApi(target, 'POST', '/x', {}), /réponse 302/)
+  mock.restoreAll()
+  fakeApi((req) => req.emit('error', new Error('refusé')))
+  await assert.rejects(sendApi(target, 'PUT', '/x', {}), /API : refusé/)
+  mock.restoreAll()
+  fakeApi((req) => req.emit('timeout'))
+  await assert.rejects(sendApi(target, 'PUT', '/x', {}), /pas de réponse/)
 })

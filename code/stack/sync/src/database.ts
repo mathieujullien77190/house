@@ -73,6 +73,17 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   addColumn(db, 'settings', 'rain_mode', 'TEXT')
   // Le niveau de pluie qui s'applique vraiment à la caméra (off, rain, heavy) : le mode pluie et la météo ; écrit par House Sync, lu par l'API pour le symbole.
   addColumn(db, 'settings', 'rain_now', 'TEXT')
+  // Le mode vent de la caméra (off ou on) : allumé, quand le vent dépasse le seuil, il agit comme le mode pluie (pas de clips, une image toutes les 5 s) ; le niveau `wind` se range dans `rain_now`.
+  addColumn(db, 'settings', 'wind_mode', 'TEXT')
+  // La recherche des yeux est-elle en route sur la caméra (réglage allumé et nuit) ? Écrit par House Sync, lu par l'API pour l'œil du direct.
+  addColumn(db, 'settings', 'eyes_now', 'INTEGER')
+  // Le réglage de la caméra : chercher les yeux qui brillent la nuit (off ou on, éteint par défaut).
+  addColumn(db, 'settings', 'eyes_mode', 'TEXT')
+  // La durée de garde des clips, des images et des événements de la caméra (jours) et les images par seconde de sa page invité : sans valeur, celle de `app_settings` (réglage d'avant, par défaut 15 jours et 2 images/s).
+  addColumn(db, 'settings', 'retention_days', 'INTEGER')
+  addColumn(db, 'settings', 'guest_fps', 'INTEGER')
+  // Le feuillage : à partir de ce nombre de zones (sur assez d'images), un mouvement est étiqueté « feuillage » (vert dans la frise) ; 0 ou vide : jamais.
+  addColumn(db, 'settings', 'foliage_zones', 'INTEGER')
   // Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
   addColumn(db, 'events', 'clip_started_at', 'INTEGER')
   // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).

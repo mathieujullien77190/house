@@ -27,6 +27,8 @@ import { createShutterLogTable } from './shutterLog.ts'
 import { createHouseStateTable, migrateHouseState } from './houseState.ts'
 import { createBoxTables, createBoxWatcher, migrateBoxFiles, WATCH_INTERVAL_MS } from './boxWatcher.ts'
 import { createPlanTable } from './plan.ts'
+import { createSunsetLights } from './sunsetLights.ts'
+import type { ApiTarget } from './power.ts'
 
 export interface AppDeps {
   env: NodeJS.ProcessEnv
@@ -74,13 +76,15 @@ export const startApp = async (deps: AppDeps) => {
   const rec = createRecorder(ctx)
   const clips = createClips(ctx, rec)
   const events = createEvents(ctx, rec, clips)
+  // L'adresse et la clé de House API (lues à chaque appel).
+  const apiTarget = (): ApiTarget | null => apiTargetOf(config)
   const control = createControl(ctx)
   const snapshots = createSnapshots(ctx, rec)
   const imports = createImports(ctx)
-  const cameraEnergy = createCameraEnergy(ctx, () => apiTargetOf(config))
-  const lampEnergy = createLampEnergy(ctx, () => apiTargetOf(config))
+  const cameraEnergy = createCameraEnergy(ctx, apiTarget)
+  const lampEnergy = createLampEnergy(ctx, apiTarget)
   const machineEnergy = createMachineEnergy(ctx)
-  const temperatures = createTemperatureLog(ctx, () => apiTargetOf(config))
+  const temperatures = createTemperatureLog(ctx, apiTarget)
   const poller = createPoller(ctx, { rec, events, clips, control, snapshots })
   // Les images toutes les 5, 10 ou 15 s : un minuteur à part (chaque seconde, pour tomber à une seconde près), car le tour de polling est de 30 s.
   const snapshotTimer = setInterval(() => void snapshots.again(), 1_000)
@@ -88,14 +92,15 @@ export const startApp = async (deps: AppDeps) => {
   const weather = createWeather(ctx)
   void weather.poll()
   const weatherTimer = setInterval(() => void weather.poll(), WEATHER_POLL_MS)
-  const page = createPage(ctx, { hueLog, resetLiveFpsCheck: control.resetLiveFpsCheck, watts: { cameras: cameraEnergy.current, lamps: lampEnergy.current, machine: machineEnergy.current } })
+  const sunset = createSunsetLights(ctx, apiTarget)
+  const page = createPage(ctx, { hueLog, resetLiveFpsCheck: control.resetLiveFpsCheck, watts: { cameras: cameraEnergy.current, lamps: lampEnergy.current, machine: machineEnergy.current }, sunsetNext: sunset.next })
 
   void imports.syncPlan()
   const planTimer = setInterval(() => void imports.syncPlan(), 30_000)
   void imports.syncGuestVisits()
   const visitsTimer = setInterval(() => void imports.syncGuestVisits(), 15_000)
   // La surveillance de la box : les appareils connus et invités, leurs connexions (via GET /box de House API).
-  const boxWatcher = createBoxWatcher(ctx, () => apiTargetOf(config))
+  const boxWatcher = createBoxWatcher(ctx, apiTarget)
   void boxWatcher.poll()
   const boxTimer = setInterval(() => void boxWatcher.poll(), WATCH_INTERVAL_MS)
 
@@ -115,6 +120,10 @@ export const startApp = async (deps: AppDeps) => {
     void temperatures.sample()
   }, 60_000)
 
+  // L'allumage des lampes au coucher du soleil : un tour par minute (l'heure prévue, une fois par jour).
+  void sunset.tick()
+  const sunsetTimer = setInterval(() => void sunset.tick(), 60_000)
+
   // ---- Le polling ----
   deps.log(`House Sync démarré (${config.dataDir}/events.db, toutes les ${config.intervalMs / 1000} s)`)
   hueLog.start()
@@ -130,6 +139,7 @@ export const startApp = async (deps: AppDeps) => {
     clearInterval(visitsTimer)
     clearInterval(boxTimer)
     clearInterval(energyTimer)
+    clearInterval(sunsetTimer)
     hueLog.stop()
     server.closeAllConnections()
     server.close()

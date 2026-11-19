@@ -164,7 +164,10 @@ export const readTable = (
 export const listBackup = async (dir: string, prefix = ''): Promise<BackupFile[]> => {
   const out: BackupFile[] = []
   for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-    if (entry.isDirectory()) out.push(...(await listBackup(`${dir}/${entry.name}`, `${prefix}${entry.name}/`)))
+    if (entry.isDirectory()) {
+      // Une boucle et non `push(...liste)` : plus de ~125 000 arguments font dépasser la pile.
+      for (const file of await listBackup(`${dir}/${entry.name}`, `${prefix}${entry.name}/`)) out.push(file)
+    }
     else if (entry.isFile() && !entry.name.startsWith('events.db') && !entry.name.endsWith('-journal')) {
       const info = await stat(`${dir}/${entry.name}`)
       out.push({ path: `${prefix}${entry.name}`, size: info.size, modifiedMs: info.mtimeMs })
@@ -189,6 +192,8 @@ const LIGHT_SUFFIX = '.h264.mp4'
 export const groupClips = (files: BackupFile[]): ClipGroup[] => {
   const groups = new Map<string, ClipGroup>()
   for (const file of files) {
+    // Seules les vidéos font un clip : les contours (.shapes.json) et le son (.aac) ne sont pas des clips.
+    if (!file.path.endsWith('.mp4')) continue
     const isLight = file.path.endsWith(LIGHT_SUFFIX)
     const id = file.path.slice(0, file.path.length - (isLight ? LIGHT_SUFFIX.length : '.mp4'.length))
     const group = groups.get(id) ?? { id, original: null, light: null, modifiedMs: 0 }

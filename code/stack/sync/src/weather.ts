@@ -24,26 +24,31 @@ export const rainLevelOf = (code: number, millimetres: number): WeatherRain => {
 }
 
 export const weatherUrl = (latitude: number, longitude: number): string =>
-  `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,precipitation&timezone=auto`
+  `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,precipitation,wind_speed_10m&timezone=auto`
 
 const RAIN_TEXT: Record<WeatherRain, string> = { none: 'plus de pluie', rain: 'pluie', heavy: 'pluie forte', fog: 'brouillard' }
 
 export const createWeather = (ctx: Context) => {
   const { config, settings } = ctx
   let last: WeatherRain = 'none'
+  let lastWind = 0
   return {
     /** Lit la météo et donne le niveau de pluie aux réglages (qui en tirent le niveau de pluie de chaque caméra dont le mode pluie est allumé). */
     poll: async (): Promise<WeatherRain> => {
       try {
         const res = await ctx.fetch(weatherUrl(config.housePosition.latitude, config.housePosition.longitude), { signal: AbortSignal.timeout(10_000) })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const body = (await res.json()) as { current?: { weather_code?: number; precipitation?: number } }
+        const body = (await res.json()) as { current?: { weather_code?: number; precipitation?: number; wind_speed_10m?: number } }
         const code = body.current?.weather_code
         if (typeof code !== 'number') throw new Error('réponse inattendue')
         const level = rainLevelOf(code, typeof body.current?.precipitation === 'number' ? body.current.precipitation : 0)
         if (level !== last) ctx.log(`Météo : ${RAIN_TEXT[level]}`)
         last = level
         settings.setWeatherRain(level)
+        const wind = typeof body.current?.wind_speed_10m === 'number' ? body.current.wind_speed_10m : 0
+        if (wind >= config.windThresholdKmh !== lastWind >= config.windThresholdKmh) ctx.log(`Météo : vent ${Math.round(wind)} km/h (${wind >= config.windThresholdKmh ? 'au-dessus' : 'sous'} le seuil de ${config.windThresholdKmh} km/h)`)
+        lastWind = wind
+        settings.setWeatherWind(wind)
       } catch (error) {
         ctx.log(`Météo : ${messageOf(error)}`)
       }

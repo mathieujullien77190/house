@@ -31,10 +31,12 @@ const setup = (env: Record<string, string> = {}, prepare: (ctx: TestContext) => 
   prepare(ctx)
   const resets: string[] = []
   const hueCalls: string[] = []
+  const sunset: { next: number | null } = { next: null }
   const page = createPage(ctx, {
     hueLog: { list: (params) => (hueCalls.push(params.toString()), { status: { configured: false, listening: false, lastEventAt: null }, entries: [] }) },
     resetLiveFpsCheck: () => void resets.push('reset'),
     watts: { cameras: () => new Map([['cam', 6.5]]), lamps: () => new Map([['Spot', 4]]), machine: () => 12.5 },
+    sunsetNext: () => sunset.next,
   })
   const call = async (spec: Call): Promise<FakeResponse> => {
     const headers: Record<string, string> = {}
@@ -51,7 +53,7 @@ const setup = (env: Record<string, string> = {}, prepare: (ctx: TestContext) => 
     const res = await call({ method: 'POST', url: '/login', body: { key: 'secret-key-123' } })
     return String(res.sentHeaders['Set-Cookie']).split(';')[0] ?? ''
   }
-  return { ctx, page, call, login, resets, hueCalls }
+  return { ctx, page, call, login, resets, hueCalls, sunset }
 }
 
 const json = (res: FakeResponse): unknown => JSON.parse(res.text())
@@ -245,12 +247,22 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
     { orientation: 1 },
     { rain_mode: 'auto' },
     { rain_mode: 1 },
+    { wind_mode: 'auto' },
+    { wind_mode: 1 },
+    { eyes_mode: 'auto' },
+    { eyes_mode: 1 },
+    { clip_retention_days: 0 },
+    { clip_retention_days: 3651 },
+    { guest_fps: 0 },
+    { guest_fps: 26 },
+    { foliage_zones: -1 },
+    { foliage_zones: 61 },
   ]
   for (const patch of refused) assert.equal((await call({ ...putSettings({ camera: 'cam', ...patch }), cookie })).status, 400, JSON.stringify(patch))
   assert.equal(resets.length, 0)
   const res = await call({ ...putSettings({ camera: 'cam', clips_mode: 'night', snapshot_seconds: 120, live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, orientation: 'portrait' }), cookie })
   assert.equal(res.status, 200)
-  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off' })
+  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off', wind_mode: 'off', eyes_mode: 'off', clip_retention_days: 15, guest_fps: 2, foliage_zones: 0 })
   assert.equal(resets.length, 1)
   assert.match(ctx.logs.at(-1) ?? '', /Réglages de cam : clips night, direct 4K à 10 images\/s/)
   // Un second envoi partiel garde le reste.
@@ -259,6 +271,34 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
   // Le mode pluie : allumé, puis gardé par un envoi qui n'en parle pas.
   assert.equal((json(await call({ ...putSettings({ camera: 'cam', rain_mode: 'on' }), cookie })) as { rain_mode: string }).rain_mode, 'on')
   assert.equal((json(await call({ ...putSettings({ camera: 'cam', live_fps: 9 }), cookie })) as { rain_mode: string }).rain_mode, 'on')
+  // Le vent, les yeux, la durée de garde, les images par seconde invité et le feuillage : propres à la caméra, gardés par un envoi qui n'en parle pas.
+  const own = json(await call({ ...putSettings({ camera: 'cam', wind_mode: 'on', eyes_mode: 'on', clip_retention_days: 30, guest_fps: 6, foliage_zones: 12 }), cookie })) as Record<string, unknown>
+  assert.deepEqual([own.wind_mode, own.eyes_mode, own.clip_retention_days, own.guest_fps, own.foliage_zones], ['on', 'on', 30, 6, 12])
+  const kept = json(await call({ ...putSettings({ camera: 'cam', live_fps: 7 }), cookie })) as Record<string, unknown>
+  assert.deepEqual([kept.wind_mode, kept.eyes_mode, kept.clip_retention_days, kept.guest_fps, kept.foliage_zones], ['on', 'on', 30, 6, 12])
+})
+
+test('/api/sunset-lights : lecture, interrupteur, refus', async () => {
+  const { ctx, call, login, sunset } = setup()
+  const put = (body: unknown, cookie?: string) => call({ method: 'PUT', url: '/api/sunset-lights', body, cookie })
+  assert.equal((await call({ url: '/api/sunset-lights' })).status, 401)
+  assert.equal((await put({ enabled: false })).status, 401)
+  const cookie = await login()
+  const before = json(await call({ url: '/api/sunset-lights', cookie })) as Record<string, unknown>
+  assert.deepEqual([before.enabled, before.next_run, before.catch_up_minutes, before.offset_minutes], [true, null, 60, 0])
+  assert.deepEqual(before.lights, ctx.config.sunsetLights)
+  sunset.next = Date.UTC(2026, 10, 18, 16, 30, 0) / 1000
+  assert.equal((json(await call({ url: '/api/sunset-lights', cookie })) as { next_run: string }).next_run, '2026-11-18T16:30:00.000Z')
+  assert.equal((await call({ method: 'PUT', url: '/api/sunset-lights', rawBody: '[', cookie })).status, 400)
+  assert.equal((await put({ enabled: 'non' }, cookie)).status, 400)
+  assert.equal((await put({ enabled: false, autre: 1 }, cookie)).status, 400)
+  const off = await put({ enabled: false }, cookie)
+  assert.equal(off.status, 200)
+  assert.equal((json(off) as { enabled: boolean }).enabled, false)
+  assert.equal(ctx.settings.sunsetLightsEnabled(), false)
+  assert.match(ctx.logs.at(-1) ?? '', /coupé/)
+  await put({ enabled: true }, cookie)
+  assert.match(ctx.logs.at(-1) ?? '', /activé/)
 })
 
 test('PUT /api/retention : de 1 à 3650 jours', async () => {

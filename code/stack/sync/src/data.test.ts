@@ -229,6 +229,10 @@ test('listBackup : les fichiers du disque, du plus récent au plus ancien, sans 
     assert.equal(merged[0]?.original?.size, 4)
     assert.equal(merged[0]?.light?.size, 2)
     assert.equal(merged[0]?.modifiedMs, 3_000_000)
+    // Les contours (.shapes.json) et le son (.aac) ne sont pas des clips.
+    writeFileSync(`${dir}/clips/cam/new.shapes.json`, '[]')
+    writeFileSync(`${dir}/clips/cam/new.aac`, 'x')
+    assert.equal(groupClips((await listBackup(dir)).filter((file) => file.path.startsWith('clips/'))).length, 2)
     // La place du disque : un dossier réel, puis un dossier absent.
     const space = await readDiskSpace(dir)
     assert.ok(space.total > 0 && space.free >= 0 && space.reserved >= 0)

@@ -129,6 +129,9 @@ services:
       # La position de la maison (par défaut la Seine-et-Marne) : le lever et le coucher du soleil du mode « La nuit » des clips.
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
+      # L'allumage au coucher du soleil : les lampes allumées (identifiants du pont : salon, cuisine, entrée) et le décalage en minutes (négatif : avant). L'interrupteur est sur la page des réglages.
+      SUNSET_LIGHTS: ${SUNSET_LIGHTS:-11,16,18,22,13,14,3,5,27}
+      SUNSET_LIGHTS_OFFSET_MINUTES: ${SUNSET_LIGHTS_OFFSET_MINUTES:-0}
       # go2rtc : House Sync y change la cadence des directs (curseurs de sa page).
       GO2RTC_URL: http://go2rtc:1984
       # La consommation : la puissance du processeur (fichier de power/house-power.sh) et le PoE des caméras (House API).

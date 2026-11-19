@@ -13,8 +13,8 @@ Script TypeScript Node 24 (`src/index.ts`, simple point d'entrée), sans dépend
 `web/dist` est public. Le reste exige la session (clé et cookie : `../docs/securite.md`).
 
 - `POST /login` avec `HOUSE_KEY` = `API_KEY` : clé de moins de 8 caractères = aucune session ; 10 essais ratés par adresse en 15 min puis 429 (`attempts.ts`, `session.ts`).
-- `GET`/`PUT /api/settings`, `/api/retention`, `/api/guest`, `/api/servos`, `/api/lan-access` : réglages (`src/CLAUDE.md`).
-- `/api/overview` (`?part=database` : sans parcourir le disque), `/api/system`, `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (fiche publique du pont), `/api/hue-log`.
+- `GET`/`PUT /api/settings` (dont, par caméra, durée de garde, images/s de la page invité et recherche des yeux), `/api/retention` (durée de départ), `/api/guest`, `/api/servos`, `/api/lan-access`, `/api/sunset-lights` : réglages (`src/CLAUDE.md`).
+- `/api/overview` (`?part=database` : sans parcourir le disque ; sinon `clips/` et `snapshots/` sont listés à part, gardés 30 s et 5 min : le parcours des ~140 000 fichiers prenait 2 à 4 s à chaque affichage ; `/api/clips` ne liste que `clips/`), `/api/system`, `/api/specs`, `/api/docker`, `/api/network`, `/api/hue` (fiche publique du pont), `/api/hue-log`.
 - `/api/camera-energy`, `/api/lamp-energy`, `/api/machine-energy`, `/api/heating-energy` : alimentent l'arbre de consommation de la page Machine.
 - `/api/table?name=&page=&size=`, `/api/clips?page=&size=`, `/files/…` (`Range` : 206, `range.ts`).
 - Une erreur de requête répond 500 sans arrêter le service. Pagination bornée à 100 (`data.ts`).

@@ -19,6 +19,10 @@ export const createControl = (ctx: Context) => {
   // La durée minimale d'un mouvement : envoyée de la même façon.
   const minSecondsSent = new Map<string, { seconds: number; at: number }>()
   const zoneSent = new Map<string, { zone: string; at: number }>()
+  // La recherche des yeux (la nuit, si le réglage est allumé et que la détection de la caméra tourne) : envoyée de la même façon.
+  const eyesSent = new Map<string, { enabled: boolean; at: number }>()
+  // Le seuil de zones du feuillage : envoyé de la même façon.
+  const foliageSent = new Map<string, { zones: number; at: number }>()
 
   const syncDetection = async (base: string, cameras: string[]): Promise<void> => {
     const now = seconds(ctx)
@@ -30,6 +34,21 @@ export const createControl = (ctx: Context) => {
       if (!sent || sent.enabled !== enabled || now - sent.at >= DETECTION_REFRESH_SECONDS) {
         const res = await ctx.fetch(`${base}/api/cameras/${camera}/detection?enabled=${enabled ? 1 : 0}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
         if (res?.ok) detectionSent.set(camera, { enabled, at: now })
+      }
+      const eyes = enabled && settings.eyesDetectionEnabled(camera) && settings.eyesNight(now)
+      const eyesAt = eyesSent.get(camera)
+      if (!eyesAt || eyesAt.enabled !== eyes || now - eyesAt.at >= DETECTION_REFRESH_SECONDS) {
+        const res = await ctx.fetch(`${base}/api/cameras/${camera}/eyes?enabled=${eyes ? 1 : 0}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+        if (res?.ok) {
+          eyesSent.set(camera, { enabled: eyes, at: now })
+          settings.saveEyesNow(camera, eyes)
+        }
+      }
+      const foliageZones = settings.cameraSettings(camera).foliage_zones
+      const foliageAt = foliageSent.get(camera)
+      if (!foliageAt || foliageAt.zones !== foliageZones || now - foliageAt.at >= DETECTION_REFRESH_SECONDS) {
+        const res = await ctx.fetch(`${base}/api/cameras/${camera}/foliage?zones=${foliageZones}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+        if (res?.ok) foliageSent.set(camera, { zones: foliageZones, at: now })
       }
       const level = settings.cameraSettings(camera).motion_sensitivity
       const levelSent = sensitivitySent.get(camera)
@@ -78,8 +97,8 @@ export const createControl = (ctx: Context) => {
         { name: `${camera}_main_mjpeg_m`, source: `${camera}_main`, fps: camSettings.live_fps_mobile, label: 'Direct 4K (téléphone)' },
         { name: `${camera}_sub_mjpeg_m`, source: `${camera}_sub`, fps: camSettings.light_fps_mobile, label: 'Direct léger (téléphone)' },
         // Les flux de la page invité : une seule cadence pour tous (PC et téléphone), voir plus bas.
-        { name: `${camera}_guest_main_mjpeg`, source: `${camera}_main`, fps: settings.guestFps(), label: 'Page invité 4K' },
-        { name: `${camera}_guest_sub_mjpeg`, source: `${camera}_sub`, fps: settings.guestFps(), label: 'Page invité léger' },
+        { name: `${camera}_guest_main_mjpeg`, source: `${camera}_main`, fps: camSettings.guest_fps, label: 'Page invité 4K' },
+        { name: `${camera}_guest_sub_mjpeg`, source: `${camera}_sub`, fps: camSettings.guest_fps, label: 'Page invité léger' },
       ]) {
         try {
           const info = await ctx.fetch(`${config.go2rtcUrl}/api/streams?src=${name}`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })

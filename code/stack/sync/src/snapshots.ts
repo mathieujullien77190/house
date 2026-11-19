@@ -10,10 +10,12 @@ import { insertSnapshot } from './snapshotCodes.ts'
 
 const SNAPSHOT_HEIGHT = 720
 
-/** Supprime les images plus vieilles que `limit` (secondes depuis 1970) : fichier puis ligne. Rend leur nombre. */
-export const purgeSnapshots = async (ctx: Context, limit: number): Promise<number> => {
+/** Supprime les images plus vieilles que `limit` (secondes depuis 1970) : fichier puis ligne. Avec `camera`, seulement les siennes. Rend leur nombre. */
+export const purgeSnapshots = async (ctx: Context, limit: number, camera?: string): Promise<number> => {
   const { db, config } = ctx
-  const rows = db.prepare('SELECT camera, taken_at, path FROM snapshots WHERE taken_at < ?').all(limit) as { camera: string; taken_at: number; path: string }[]
+  const rows = (camera === undefined
+    ? db.prepare('SELECT camera, taken_at, path FROM snapshots WHERE taken_at < ?').all(limit)
+    : db.prepare('SELECT camera, taken_at, path FROM snapshots WHERE taken_at < ? AND camera = ?').all(limit, camera)) as { camera: string; taken_at: number; path: string }[]
   const remove = db.prepare('DELETE FROM snapshots WHERE camera = ? AND taken_at = ?')
   for (const row of rows) {
     await unlink(`${config.dataDir}/${row.path}`).catch(() => undefined)

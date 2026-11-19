@@ -112,6 +112,23 @@ export const fetchApi = <T>(target: ApiTarget, path: string, parse: (data: unkno
     req.end()
   })
 
+/** Envoie un ordre à House API (même clé, même CA) : `method` sur `path` avec un corps JSON ; échoue (message lisible) si la réponse n'est pas 2xx. */
+export const sendApi = (target: ApiTarget, method: 'PUT' | 'POST', path: string, body: unknown): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const text = JSON.stringify(body)
+    const req = request(
+      `${target.url}${path}`,
+      { method, headers: { 'X-House-Key': target.key, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(text) }, ca: target.ca, servername: target.servername, timeout: 8000 },
+      (res) => {
+        res.resume()
+        res.on('end', () => (res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 300 ? resolve() : reject(new Error(`API : réponse ${res.statusCode}`))))
+      },
+    )
+    req.on('error', (error) => reject(new Error(`API : ${error.message}`)))
+    req.on('timeout', () => req.destroy(new Error('pas de réponse')))
+    req.end(text)
+  })
+
 /** L'état PoE des caméras, lu chez House API (`GET /poe`). */
 export const fetchCameraPower = (target: ApiTarget): Promise<CameraPower[]> => fetchApi(target, '/poe', parseCameras)
 

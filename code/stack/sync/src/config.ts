@@ -22,6 +22,8 @@ export interface Config {
   intervalMs: number
   snapshotIntervalSeconds: number
   housePosition: Position
+  /** Le vent (km/h) à partir duquel le mode vent des caméras s'active (WIND_THRESHOLD_KMH, 20 par défaut). */
+  windThresholdKmh: number
   go2rtcUrl: string
   /** CLIP_RETENTION_DAYS tel quel (texte) : sert tant que la page n'a rien réglé. */
   retentionDaysEnv: string | undefined
@@ -41,6 +43,10 @@ export interface Config {
   houseDir: string
   hueAddress: string
   hueKey: string
+  /** Les lampes (identifiants du pont) que l'allumage du coucher du soleil allume : le salon, la cuisine et l'entrée de la WebApp (SUNSET_LIGHTS, séparées par des virgules). */
+  sunsetLights: string[]
+  /** Décalage de l'allumage par rapport au coucher du soleil, en minutes (SUNSET_LIGHTS_OFFSET_MINUTES ; négatif : avant). */
+  sunsetOffsetMinutes: number
 }
 
 /** La configuration d'un environnement (les valeurs par défaut sont celles du compose de la maison). */
@@ -68,6 +74,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   snapshotIntervalSeconds: Number(env.SNAPSHOT_INTERVAL_SECONDS ?? 60),
   // Le soleil se calcule pour la maison (HOUSE_LATITUDE et HOUSE_LONGITUDE ; par défaut la Seine-et-Marne, à quelques minutes près).
   housePosition: { latitude: Number(env.HOUSE_LATITUDE ?? 48.52), longitude: Number(env.HOUSE_LONGITUDE ?? 2.64) },
+  windThresholdKmh: Number(env.WIND_THRESHOLD_KMH ?? 20) || 20,
   go2rtcUrl: (env.GO2RTC_URL ?? 'http://go2rtc:1984').replace(/\/$/, ''),
   retentionDaysEnv: env.CLIP_RETENTION_DAYS,
   guestStateFile: env.GUEST_STATE_FILE ?? '/guest/state.json',
@@ -81,4 +88,9 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => ({
   houseDir: env.HOUSE_DIR ?? '/house',
   hueAddress: env.HUE_BRIDGE_IP ?? '',
   hueKey: env.HUE_APP_KEY ?? '',
+  sunsetLights: (env.SUNSET_LIGHTS ?? '11,16,18,22,13,14,3,5,27')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean),
+  sunsetOffsetMinutes: Number(env.SUNSET_LIGHTS_OFFSET_MINUTES ?? 0) || 0,
 })

@@ -66,7 +66,7 @@ export const createClips = (ctx: Context, rec: Recorder) => {
   const updateAudioClip = db.prepare('UPDATE events SET clip_audio_path = ? WHERE id = ?')
   const clipsWithoutShapes = db.prepare('SELECT id, camera, clip_path FROM events WHERE clip_path IS NOT NULL AND clip_web_path IS NOT NULL AND clip_shapes_path IS NULL AND started_at > ?')
   const updateShapesClip = db.prepare('UPDATE events SET clip_shapes_path = ? WHERE id = ?')
-  const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path, clip_audio_path, clip_shapes_path FROM events WHERE clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
+  const expiredClips = db.prepare('SELECT id, clip_path, clip_web_path, clip_audio_path, clip_shapes_path FROM events WHERE camera = ? AND clip_path IS NOT NULL AND ended_at IS NOT NULL AND ended_at < ?')
   const clearClipPaths = db.prepare('UPDATE events SET clip_path = NULL, clip_web_path = NULL, clip_audio_path = NULL, clip_shapes_path = NULL WHERE id = ?')
 
   // Un événement lancé à la main ? Dit par l'enregistreur (le champ manual) ; l'événement relu dans la base n'a pas ce champ, on le demande une fois et on s'en souvient.
@@ -202,14 +202,15 @@ export const createClips = (ctx: Context, rec: Recorder) => {
   }
 
   // ---- La durée de garde ----
-  // Une seule durée (réglable depuis la page : table app_settings, pour toutes les caméras), un seul ménage par jour. Il efface, au-delà de la durée :
+  // Une durée de garde par caméra (réglage de la caméra), un seul ménage par jour. Il efface, au-delà de la durée de la caméra :
   // les clips non sauvegardés (ceux que la WebApp a marqués « sauvegardé », liste écrite par l'API, ne le sont jamais) ; les images ; les lignes du journal Hue ;
   // les événements dont le clip n'est pas gardé (un événement au clip sauvegardé garde son clip_path et reste) ; les lignes de fusions.
   // Rien n'est effacé, de rien, si la liste des clips sauvegardés n'est pas lisible.
   let lastPurgeAt = 0
   const purgedOn = db.prepare('SELECT value FROM app_settings WHERE key = ?')
   const markPurged = db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
-  const oldEvents = db.prepare('DELETE FROM events WHERE started_at < ? AND clip_path IS NULL')
+  const oldEvents = db.prepare('DELETE FROM events WHERE camera = ? AND started_at < ? AND clip_path IS NULL')
+  const camerasToPurge = db.prepare('SELECT camera FROM events UNION SELECT camera FROM snapshots')
   const oldMerges = db.prepare('DELETE FROM merges WHERE merged_at < ?')
   const purgeOldClips = async (): Promise<Purged> => {
     const now = seconds(ctx)
@@ -224,29 +225,40 @@ export const createClips = (ctx: Context, rec: Recorder) => {
       ctx.log('Ménage des clips sauté : la liste des clips sauvegardés est illisible')
       return NOTHING_PURGED
     }
+    // Chaque caméra a sa durée de garde (réglage de la caméra) : ses clips, ses images et ses événements sans clip ; le journal des lampes et les fusions suivent la plus longue.
     let purged = 0
-    const limit = now - settings.clipRetentionDays() * 86400
-    for (const row of expiredClips.all(limit) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null; clip_shapes_path: string | null }[]) {
-      if (saved.has(row.id)) continue
-      let failed = false
-      for (const path of [row.clip_path, row.clip_web_path, row.clip_audio_path, row.clip_shapes_path]) {
-        if (!path || !/^clips\/[\w-]+\/[\w.-]+\.(mp4|aac|json)$/.test(path)) continue
-        await unlink(`${dataDir}/${path}`).catch((error: NodeJS.ErrnoException) => {
-          if (error.code !== 'ENOENT') failed = true
-        })
+    let snapshots = 0
+    let events = 0
+    let longest = 0
+    for (const { camera } of camerasToPurge.all() as { camera: string }[]) {
+      const days = settings.cameraSettings(camera).clip_retention_days
+      longest = Math.max(longest, days)
+      const limit = now - days * 86400
+      for (const row of expiredClips.all(camera, limit) as { id: string; clip_path: string; clip_web_path: string | null; clip_audio_path: string | null; clip_shapes_path: string | null }[]) {
+        if (saved.has(row.id)) continue
+        let failed = false
+        for (const path of [row.clip_path, row.clip_web_path, row.clip_audio_path, row.clip_shapes_path]) {
+          if (!path || !/^clips\/[\w-]+\/[\w.-]+\.(mp4|aac|json)$/.test(path)) continue
+          await unlink(`${dataDir}/${path}`).catch((error: NodeJS.ErrnoException) => {
+            if (error.code !== 'ENOENT') failed = true
+          })
+        }
+        // Un fichier qui ne s'efface pas garde sa ligne : le prochain ménage réessaiera.
+        if (failed) continue
+        clearClipPaths.run(row.id)
+        purged += 1
       }
-      // Un fichier qui ne s'efface pas garde sa ligne : le prochain ménage réessaiera.
-      if (failed) continue
-      clearClipPaths.run(row.id)
-      purged += 1
+      // Après les clips : un événement dont le clip vient d'être effacé (clip_path NULL) part avec eux, un clip sauvegardé garde le sien.
+      snapshots += await purgeSnapshots(ctx, limit, camera)
+      events += Number(oldEvents.run(camera, limit).changes)
     }
-    // Après les clips : un événement dont le clip vient d'être effacé (clip_path NULL) part avec eux, un clip sauvegardé garde le sien.
+    const commonLimit = now - (longest || settings.clipRetentionDays()) * 86400
     const result: Purged = {
       clips: purged,
-      snapshots: await purgeSnapshots(ctx, limit),
-      journal: purgeHueLog(db, limit),
-      events: Number(oldEvents.run(limit).changes),
-      merges: Number(oldMerges.run(limit).changes),
+      snapshots,
+      journal: purgeHueLog(db, commonLimit),
+      events,
+      merges: Number(oldMerges.run(commonLimit).changes),
     }
     markPurged.run(PURGE_DONE_KEY, day)
     return result

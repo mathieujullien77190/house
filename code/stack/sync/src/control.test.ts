@@ -16,6 +16,8 @@ test('syncDetection : envoie détection, sensibilité, durée minimale et zone, 
     ctx.calls.filter((c) => c.url.includes('/cam/')).map((c) => [c.method, c.url.replace(BASE, ''), c.body]),
     [
       ['PUT', '/api/cameras/cam/detection?enabled=1', undefined],
+      ['PUT', '/api/cameras/cam/eyes?enabled=0', undefined],
+      ['PUT', '/api/cameras/cam/foliage?zones=0', undefined],
       ['PUT', '/api/cameras/cam/sensitivity?level=3', undefined],
       ['PUT', '/api/cameras/cam/min-seconds?seconds=1', undefined],
       ['PUT', '/api/cameras/cam/zone', JSON.stringify({ points: SQUARE })],
@@ -28,12 +30,12 @@ test('syncDetection : envoie détection, sensibilité, durée minimale et zone, 
   // Après une minute, tout est renvoyé.
   ctx.time.advance(60_000)
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, sent + 4)
+  assert.equal(ctx.calls.length, sent + 6)
   // Un réglage qui change est renvoyé tout de suite.
   ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'off', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 5, minSeconds: 4, seconds: 60, orientation: 'landscape' })
   putState(ctx.db, 'zones', '{}')
   await control.syncDetection(BASE, ['cam'])
-  const last = ctx.calls.slice(sent + 4)
+  const last = ctx.calls.slice(sent + 6)
   assert.deepEqual(last.map((c) => c.url.replace(BASE, '')), ['/api/cameras/cam/detection?enabled=0', '/api/cameras/cam/sensitivity?level=5', '/api/cameras/cam/min-seconds?seconds=4', '/api/cameras/cam/zone'])
   assert.equal(last[3]?.body, '{"points":null}')
 })
@@ -46,15 +48,15 @@ test('syncDetection : un enregistreur muet ou qui refuse sera réessayé au tour
   ctx.db.exec('DROP TABLE house_state')
   const control = createControl(ctx)
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 3)
+  assert.equal(ctx.calls.length, 5)
   answer = () => new Response('', { status: 500 })
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 6)
+  assert.equal(ctx.calls.length, 10)
   answer = () => new Response('ok')
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 9)
+  assert.equal(ctx.calls.length, 15)
   await control.syncDetection(BASE, ['cam'])
-  assert.equal(ctx.calls.length, 9)
+  assert.equal(ctx.calls.length, 15)
 })
 
 test('syncDetection : une zone dont l\'envoi échoue est renvoyée', async () => {
@@ -76,6 +78,40 @@ test('syncDetection : une zone dont l\'envoi échoue est renvoyée', async () =>
   await control.syncDetection(BASE, ['cam'])
   await control.syncDetection(BASE, ['cam'])
   assert.equal(zoneCalls(), 3)
+})
+
+test('syncDetection : la recherche des yeux ne tourne que la nuit, réglage allumé et détection en route ; le feuillage suit son réglage', async () => {
+  const failing = new Set<string>()
+  const ctx = testContext((url) => (Array.from(failing).some((part) => url.includes(part)) ? new Response('', { status: 500 }) : new Response('ok')))
+  const control = createControl(ctx)
+  const save = (extra: object) => ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 3, seconds: 60, orientation: 'landscape', ...extra })
+  const urls = () => ctx.calls.map((c) => c.url.replace(BASE, ''))
+  const eyesNow = () => ctx.db.prepare('SELECT eyes_now FROM settings WHERE camera = ?').get('cam')?.eyes_now
+  // de jour, même allumée : pas de recherche
+  save({ eyes: 'on', foliage: 8 })
+  await control.syncDetection(BASE, ['cam'])
+  assert.ok(urls().includes('/api/cameras/cam/eyes?enabled=0'))
+  assert.ok(urls().includes('/api/cameras/cam/foliage?zones=8'))
+  // la nuit : elle part, et se range pour l'API ; l'échec n'est pas retenu
+  ctx.time.set(Date.UTC(2026, 10, 9, 22, 0, 0))
+  failing.add('/eyes')
+  failing.add('/foliage')
+  ctx.calls.length = 0
+  await control.syncDetection(BASE, ['cam'])
+  assert.ok(urls().includes('/api/cameras/cam/eyes?enabled=1'))
+  assert.equal(eyesNow(), 0)
+  failing.clear()
+  ctx.calls.length = 0
+  await control.syncDetection(BASE, ['cam'])
+  assert.ok(urls().includes('/api/cameras/cam/eyes?enabled=1'))
+  assert.ok(urls().includes('/api/cameras/cam/foliage?zones=8'))
+  assert.equal(eyesNow(), 1)
+  // les clips coupés : la détection s'arrête, les yeux aussi
+  save({ mode: 'off', eyes: 'on', foliage: 8 })
+  ctx.calls.length = 0
+  await control.syncDetection(BASE, ['cam'])
+  assert.ok(urls().includes('/api/cameras/cam/eyes?enabled=0'))
+  assert.equal(eyesNow(), 0)
 })
 
 const streamUrl = (name: string) => `http://go2rtc:1984/api/streams?src=${name}`

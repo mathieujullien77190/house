@@ -33,7 +33,7 @@ test('rainLevelOf : aucune pluie, pluie, pluie forte (code météo et cumul de l
 })
 
 test('weatherUrl : la position de la maison, le code météo et le cumul', () => {
-  assert.equal(weatherUrl(48.6, 2.7), 'https://api.open-meteo.com/v1/forecast?latitude=48.6&longitude=2.7&current=weather_code,precipitation&timezone=auto')
+  assert.equal(weatherUrl(48.6, 2.7), 'https://api.open-meteo.com/v1/forecast?latitude=48.6&longitude=2.7&current=weather_code,precipitation,wind_speed_10m&timezone=auto')
 })
 
 test('poll : le niveau va aux réglages, et un changement est noté une fois', async () => {
@@ -55,6 +55,26 @@ test('poll : le niveau va aux réglages, et un changement est noté une fois', a
   assert.equal(await weather.poll(), 'none')
   assert.deepEqual(ctx.logs, ['Météo : pluie', 'Météo : pluie forte', 'Météo : plus de pluie'])
   assert.equal(ctx.settings.cameraSettings('cam').rain_now, 'off')
+})
+
+test('poll : le vent va aux réglages, et le passage du seuil est noté une fois', async () => {
+  let body: unknown = { current: { weather_code: 3, wind_speed_10m: 31.6 } }
+  const ctx = testContext(() => Response.json(body))
+  ctx.settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 3, seconds: 60, orientation: 'landscape', wind: 'on' })
+  const weather = createWeather(ctx)
+  await weather.poll()
+  assert.equal(ctx.settings.cameraSettings('cam').rain_now, 'wind')
+  assert.deepEqual(ctx.logs, ['Météo : vent 32 km/h (au-dessus le seuil de 20 km/h)'])
+  await weather.poll()
+  assert.equal(ctx.logs.length, 1)
+  body = { current: { weather_code: 3, wind_speed_10m: 5 } }
+  await weather.poll()
+  assert.equal(ctx.settings.cameraSettings('cam').rain_now, 'off')
+  assert.equal(ctx.logs[1], 'Météo : vent 5 km/h (sous le seuil de 20 km/h)')
+  // sans vent lisible : 0, rien à dire
+  body = { current: { weather_code: 3 } }
+  await weather.poll()
+  assert.equal(ctx.logs.length, 2)
 })
 
 test('poll : une lecture qui échoue garde le dernier niveau et le dit', async () => {
