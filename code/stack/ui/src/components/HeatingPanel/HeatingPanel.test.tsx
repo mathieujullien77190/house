@@ -20,7 +20,8 @@ const props = (over: Partial<HeatingPanelProps> = {}): HeatingPanelProps => ({
 describe('HeatingPanel', () => {
   it('montre la case, les champs et leur aide', () => {
     render(<HeatingPanel {...props()} />)
-    expect(screen.getByRole('checkbox', { name: 'Activer la règle' })).toBeChecked()
+    expect(screen.getByRole('tab', { name: 'Oui' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tablist', { name: 'Activer la règle' })).toBeInTheDocument()
     expect(screen.getByLabelText('Température (°C)', { selector: 'input' })).toHaveValue(3)
     expect(screen.getByLabelText('Prix', { selector: 'input' })).toHaveValue('0,1589')
     expect(screen.getByText('TTC')).toBeInTheDocument()
@@ -30,7 +31,7 @@ describe('HeatingPanel', () => {
   it('renvoie les changements et l’enregistrement', () => {
     const p = props()
     render(<HeatingPanel {...p} />)
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('tab', { name: 'Non' }))
     expect(p.onEnabledChange).toHaveBeenCalledWith(false)
     fireEvent.change(screen.getByLabelText('Température (°C)', { selector: 'input' }), { target: { value: '4' } })
     expect(p.fields[0].onChange).toHaveBeenCalledWith('4')

@@ -2,7 +2,7 @@
 
 Composants **dumb** des deux apps (`web/` et `sync/web/`) : aucun état métier ni appel réseau, tout par props. Consommé **en source** (`"@house/ui": "file:../ui"`) : pas de build ni de `dist`. Conventions de dossier : `../../../CLAUDE.md`.
 
-- `src/index.ts` : barrel public. `src/tokens.css` : couleurs de la maison (`@theme`), importé par chaque app après Tailwind, avec `@source` vers `ui/src`.
+- `src/index.ts` : barrel public. `src/tokens.css` : couleurs de la maison (`@theme`), clairs ou sombres selon le système, sauf si la page porte un attribut `data-theme` (la WebApp et la page de House Sync imposent leur thème avec leur bouton ; sombre via `:root:not([data-theme])` ou `:root[data-theme='dark']`), importé par chaque app après Tailwind, avec `@source` vers `ui/src`.
 - `src/components/<Nom>/` : même structure que le reste du projet. **Imports relatifs entre composants** (`../Button`) : seule exception à « jamais `../` », le paquet n'a pas d'alias résolu par ses consommateurs.
 - Liste des composants et options : `src/components/CLAUDE.md`.
 - `src/plan.ts` : types du plan de la maison (`PlanLamp`, `PlanRoom`, `PlanWall`, `PlanTree`, `PlanHedge`, `PlanGate`, `PlanCamera`, `PlanPlug`, `PlanRect`), de simples données. Le plan est dessiné par la WebApp (`../web/src/components/MapPlan/CLAUDE.md`).

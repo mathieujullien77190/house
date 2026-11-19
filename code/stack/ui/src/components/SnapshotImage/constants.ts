@@ -7,7 +7,7 @@ export const BOX_CLASS =
 export const UPRIGHT_BOX_CLASS = `${BOX_CLASS} [container-type:size]`
 export const FRAME_CLASS = 'relative'
 export const LABEL_CLASS =
-  'pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-white'
+  'pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-card px-1.5 py-0.5 font-mono text-[0.7rem] text-fg'
 export const LOADING_TEXT = 'Chargement…'
 export const LOADING_CLASS =
   'pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-black text-[0.85rem] text-muted'
@@ -22,6 +22,6 @@ export const UPRIGHT_CLASS = 'block max-w-[calc(100cqh-1.5rem)] -rotate-90 white
  * droit du cadre non tourné. Posé juste à droite du cadre puis tourné de -90° autour de son coin bas gauche, il vient se ranger dans ce coin.
  */
 export const UPRIGHT_LABEL_CLASS =
-  'pointer-events-none absolute bottom-1.5 left-full origin-bottom-left -translate-x-1.5 -rotate-90 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-white'
+  'pointer-events-none absolute bottom-1.5 left-full origin-bottom-left -translate-x-1.5 -rotate-90 rounded bg-card px-1.5 py-0.5 font-mono text-[0.7rem] text-fg'
 /** Une image vide (1 pixel) : posée à la place d'un flux avant de retirer l'image, elle coupe la requête. */
 export const EMPTY_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='

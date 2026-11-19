@@ -32,7 +32,7 @@ describe('Button', () => {
 
   it('prend l apparence par défaut sans variante', () => {
     render(<Button>Ok</Button>)
-    expect(screen.getByRole('button')).toHaveClass('bg-bg')
+    expect(screen.getByRole('button')).toHaveClass('bg-card')
   })
 
   it('appelle onClick, sauf désactivé', () => {

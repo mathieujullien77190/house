@@ -16,15 +16,17 @@ export const DESKTOP_ACTIONS_CLASS = 'flex items-center gap-2 max-lg:hidden'
 export const END_CLASS = 'ml-auto flex shrink-0 items-center gap-2'
 /** Le bouton sandwich, en haut à droite, sur téléphone seulement. */
 export const BURGER_CLASS =
-  'flex size-11 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-bg lg:hidden focus-visible:outline-2 focus-visible:outline-accent'
+  'flex size-11 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-card lg:hidden focus-visible:outline-2 focus-visible:outline-accent'
 export const BURGER_LINE_CLASS = 'block h-0.5 w-5 rounded bg-fg transition-transform'
 export const BURGER_LINE_TOP_OPEN_CLASS = 'translate-y-2 rotate-45'
 export const BURGER_LINE_BOTTOM_OPEN_CLASS = '-translate-y-2 -rotate-45'
 export const BURGER_LINE_MIDDLE_OPEN_CLASS = 'opacity-0'
 /** Le menu qui s'ouvre sous la barre sur téléphone. */
 export const PANEL_CLASS = 'absolute inset-x-0 top-full flex flex-col gap-1 border-b border-line bg-card px-4 py-3 shadow-lg lg:hidden'
+/** Les pages du menu : un seul bloc à bords arrondis, dont les boutons remplissent tout l'espace, rectangulaires et séparés par un trait. */
+export const ITEMS_CLASS = 'flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line'
 export const ITEM_CLASS =
-  'cursor-pointer rounded-lg border-0 px-3 py-3 text-left text-[1rem] focus-visible:outline-2 focus-visible:outline-accent'
+  'w-full cursor-pointer rounded-none border-0 px-3 py-3 text-left text-[1rem] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
 export const ITEM_ACTIVE_CLASS = 'bg-accent/15 font-semibold text-accent'
 export const ITEM_IDLE_CLASS = 'bg-transparent text-fg'
 export const PANEL_STATUS_CLASS = 'm-0 mt-1 border-t border-line px-3 pt-2 text-[0.85rem] text-muted'

@@ -1,6 +1,6 @@
 export const WRAP_CLASS = 'relative inline-block'
 export const TRIGGER_CLASS =
-  'flex h-10 min-w-40 cursor-pointer items-center justify-between gap-2 rounded-lg border border-line bg-bg px-3 text-[0.9rem] text-fg lg:h-9 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'flex h-10 min-w-40 cursor-pointer items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 text-[0.9rem] text-fg lg:h-8 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 export const TRIGGER_OPEN_CLASS = 'border-accent'
 export const VALUE_CLASS = 'truncate'
 export const PLACEHOLDER_CLASS = 'truncate text-muted'

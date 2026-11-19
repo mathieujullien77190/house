@@ -25,7 +25,7 @@ export const BIG_MEDIA_CLASS = 'w-[min(var(--big-w),calc(var(--big-h)*16/9))]'
 export const ZOOM_AREA_CLASS = 'touch-none select-none'
 /** Tous les boutons posés sur une vidéo sont des carrés de 32 px (`size-8`, coins `rounded-md`) : réduire, agrandir, retour, son, repères, et « L / 4K » (`Tabs` `tiny`). */
 export const COLLAPSE_CLASS =
-  'absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md border border-white/30 bg-black/60 text-[1rem] leading-none text-white focus-visible:outline-2 focus-visible:outline-accent'
+  'absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-card text-[1rem] leading-none text-fg focus-visible:outline-2 focus-visible:outline-accent'
 
 /**
  * L'écran du téléphone (sous 1024 px, vue d'une caméra) : un écran fixe sans défilement, la vidéo sur la moitié du haut,
@@ -41,7 +41,7 @@ export const SCREEN_MEDIA_WIDE_CLASS = 'w-full'
 export const SCREEN_TIMELINE_CLASS = 'min-h-0 flex-1 overflow-hidden px-3 pb-3'
 /** Le bouton retour : un petit carré de la taille du bouton du son (32 px) avec un petit triangle centré dedans ; le nom de la caméra reste son étiquette pour les lecteurs d'écran. */
 export const BACK_CLASS =
-  'fixed left-2 top-2 z-50 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-bg/80 text-fg focus-visible:outline-2 focus-visible:outline-accent'
+  'fixed left-2 top-2 z-50 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-card text-fg focus-visible:outline-2 focus-visible:outline-accent'
 /** Le triangle du bouton retour (pointe à gauche) : un dessin, pas un caractère, pour qu'il soit exactement centré. */
 export const BACK_ICON_CLASS = 'size-3 fill-current'
 export const BACK_ICON_PATH = 'M6.5 1 L2.5 5 L6.5 9 Z'
@@ -63,12 +63,12 @@ export const SOUND_SCREEN_CLASS = 'absolute bottom-2 right-12 z-10'
 export const SOUND_EXPANDED_CLASS = 'absolute bottom-12 right-3 z-10'
 /** En bas à droite : « Afficher en grand ». */
 export const SCREEN_EXPAND_CLASS =
-  'absolute bottom-2 right-2 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-bg/80 text-[1rem] leading-none text-fg focus-visible:outline-2 focus-visible:outline-accent'
+  'absolute bottom-2 right-2 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-card text-[1rem] leading-none text-fg focus-visible:outline-2 focus-visible:outline-accent'
 /** « Afficher en grand » sur grand écran : posé sur la vidéo, **en bas à droite** comme sur téléphone. */
 export const EXPAND_OVERLAY_CLASS =
-  'absolute bottom-2 right-2 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-bg/80 text-[1rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
+  'absolute bottom-2 right-2 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md border border-line bg-card text-[1rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
 /** Le bloc de la vidéo (bouton et indicateurs posés dessus) ; un média en portrait est un bloc étroit centré. */
 export const MEDIA_BLOCK_CLASS = 'relative'
 export const MEDIA_BLOCK_PORTRAIT_CLASS = 'relative mx-auto w-[min(100%,298px)]'
 export const SCREEN_EXPAND_ICON = '⛶'
-export const SCREEN_WARNING_CLASS = 'absolute inset-x-2 bottom-10 z-10 rounded-md bg-bg/80 px-2 py-1 text-center text-[0.8rem] text-danger'
+export const SCREEN_WARNING_CLASS = 'absolute inset-x-2 bottom-10 z-10 rounded-md bg-card px-2 py-1 text-center text-[0.8rem] text-danger'

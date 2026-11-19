@@ -1,5 +1,5 @@
 import Button from '../Button'
-import Checkbox from '../Checkbox'
+import ToggleField from '../ToggleField'
 import {
   ACTIONS_CLASS,
   BOX_CLASS,
@@ -34,7 +34,7 @@ const HeatingPanel = ({ enabledLabel, enabled, onEnabledChange, fields, saveLabe
         onSave()
       }}
     >
-      <Checkbox label={enabledLabel} checked={enabled} onChange={onEnabledChange} />
+      <ToggleField label={enabledLabel} checked={enabled} onChange={onEnabledChange} />
       <div className={compact ? FIELDS_COMPACT_CLASS : FIELDS_CLASS}>
         {fields.map((field) => {
           const { kind } = field

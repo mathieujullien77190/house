@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import TopBar from './TopBar'
-import { BURGER_LABEL, ERROR_CLASS, MOBILE_ERROR_CLASS, PANEL_ERROR_CLASS, PANEL_STATUS_CLASS, STATUS_CLASS } from './constants'
+import { BURGER_LABEL, ERROR_CLASS, ITEMS_CLASS, MOBILE_ERROR_CLASS, PANEL_ERROR_CLASS, PANEL_STATUS_CLASS, STATUS_CLASS } from './constants'
 
 const tabs = (onChange = vi.fn(), value: 'a' | 'b' | '' = 'a') => ({
   label: 'Pages',
@@ -103,6 +103,14 @@ describe('TopBar avec menu', () => {
     expect(within(nav).getByText('à jour').className).toBe(PANEL_STATUS_CLASS)
     rerender(<TopBar title="M" tabs={tabs()} status="panne" tone="error" />)
     expect(within(screen.getByRole('navigation')).getByText('panne').className).toBe(PANEL_ERROR_CLASS)
+  })
+
+  it('les pages du menu forment un seul bloc groupé', () => {
+    render(<TopBar title="M" tabs={tabs()} />)
+    fireEvent.click(burger())
+    const items = screen.getByRole('button', { name: 'Accueil' }).parentElement as HTMLElement
+    expect(items.className).toBe(ITEMS_CLASS)
+    expect(within(items).getAllByRole('button')).toHaveLength(2)
   })
 
   it('le menu sans état ni boutons ne montre que les pages', () => {

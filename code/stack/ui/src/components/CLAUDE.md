@@ -5,12 +5,14 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 ## Page
 
 - `Page`, `PageHeader` (`onTitle` rend le titre cliquable), `PageFrame`, `SectionTitle`, `Notice`, `Collapsible`.
-- `TopBar` : barre collée en haut (titre, onglets `tabs`, état, boutons). Sous 1024 px : titre + bouton « sandwich » qui ouvre un menu.
-- `Tabs` : `compact` (haut comme un `Button`), `tiny` (32 px, pour « L / 4K » sur téléphone). Aussi `Button`, `KeyForm`, `Pager`.
+- `TopBar` : barre collée en haut (titre, onglets `tabs` en `Tabs block`, état, boutons). Sous 1024 px : titre + bouton « sandwich » qui ouvre un menu dont les pages forment un seul bloc groupé.
+- `Tabs` : `compact` (haut comme un `Button`), `tiny` (32 px, pour « L / 4K » sur téléphone), `block` (un seul rectangle arrondi, onglets carrés séparés par un trait ; avec `tiny`, de la taille d'un bouton de la vidéo), `disabled` (tous grisés). Hauteurs alignées : `Button` `min-h-10` (`lg:min-h-8`), onglets 2,125 rem (`lg:` 1,625 rem), en bloc 2,375 rem (`lg:` 1,875 rem). Aussi `Button` (défaut et danger sur fond `bg-card`, pas de variante `card`), `KeyForm`, `Pager`.
+- `Toggle` : interrupteur Marche / Arrêt (textes `onText` / `offText`) fait d'un `Tabs block` ; `onChange` n'est appelé que si l'état change. `ToggleField` : texte à gauche et `Toggle` Oui / Non à droite (remplace `Checkbox` partout sauf sur la carte de la Home).
 
 ## Formulaires
 
-- `Checkbox`, `Select` (remplace le `<select>` natif, clavier compris).
+- `Checkbox` (case native, gardée pour les calques de la carte de la Home), `Select` (remplace le `<select>` natif, clavier compris). `ToggleField` : voir plus haut.
+- Curseurs (`input[type=range]`) : barre blanche, remplie d'accent jusqu'à la poignée (variable CSS `--p`, `tokens.css`) ; `watchRangeFill()` (`src/rangeFill.ts`, à appeler une fois au démarrage de l'app) la tient à jour pour tous les curseurs, au doigt comme par le code.
 - `HeatingPanel` : règle de chauffage automatique de la prise. Champs `number` / `decimal` / `time` en texte, le parent convertit. `number` et `decimal` ont un « − » et un « + » de part et d'autre (pas de 1, ou de 0,5 ; l'entier ne passe pas sous 0 ; `helpers.ts`). Sans titre, état ni journal. `compact` : bloc étroit (320 px), deux colonnes, plus petit.
 
 ## Données
@@ -43,6 +45,6 @@ Règles du paquet : `../../CLAUDE.md`. Ici, les options non évidentes. Liste ex
 - `LampDot` : orange allumée, gris éteinte, contour rouge pâle injoignable ; `brightness` = opacité. `PlugSquare` : vert allumée, rouge éteinte.
 - `StatusDot` : pastille d'état de 9 px (verte `on`, rouge `off`, grise `missing`, liseré noir de 1 px). `CameraTile` la reçoit en prop `dot` devant le nom ; le plan (`MapPlan/icons.ts`) reprend `STATUS_DOT_DIAMETER` et `STATUS_DOT_RING` pour dessiner la même.
 - `LightsPanel` : lumières par zone (`showAll={false}` cache « Tout allumer / éteindre », pour la page Chez Matou).
-  - Un rectangle repliable par zone (nom, compte, ON / OFF de la zone), grille de cases (3 colonnes téléphone, 4 dès `sm:`, 6 dès `lg:`), une par lampe. Les zones gardent l'ordre du parent, les lampes ne bougent pas. Détecteurs de mouvement en lignes sous la grille.
-  - Case d'une lampe : fond neutre, bordure jaune quand allumée (pâlit avec la luminosité), rond ON / OFF en haut à droite (comme sur la carte), curseur de luminosité (bleu) si la lampe varie (`bri` non nul). `lampExtra` : bouton d'action sous la case.
+  - Un rectangle repliable par zone (nom, compte, `Tabs block` ON / OFF de la zone : ON si toutes les lampes joignables sont allumées, OFF si aucune, aucun des deux si mixte, `groupState`), grille de cases (3 colonnes téléphone, 4 dès `sm:`, 6 dès `lg:`), une par lampe. Les zones gardent l'ordre du parent, les lampes ne bougent pas. Détecteurs de mouvement en lignes sous la grille.
+  - Case d'une lampe : fond neutre, bordure jaune quand allumée (pâlit avec la luminosité), rond en haut à droite (comme sur la carte), `Toggle` ON / OFF sous le nom (« injoignable » en texte pour une lampe perdue), curseur de luminosité (bleu) si la lampe varie (`bri` non nul). `lampExtra` : bouton d'action sous la case.
   - **ON = puissance max** (`{ on: true, bri: MAX_BRI }`, 254).

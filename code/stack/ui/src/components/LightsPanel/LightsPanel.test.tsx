@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import LightsPanel from './LightsPanel'
-import { briOf, countText, MAX_BRI, orangeShare, percentOf } from './helpers'
+import { briOf, countText, groupState, MAX_BRI, orangeShare, percentOf } from './helpers'
 import type { LightsPanelProps, LightsRoom } from './types'
-import { ALL_OFF_LABEL, ALL_ON_LABEL, BRIGHTNESS_LABEL, BUSY_LABEL, UNREACHABLE_TEXT } from './constants'
+import { ALL_OFF_LABEL, ALL_ON_LABEL, BRIGHTNESS_LABEL, UNREACHABLE_TEXT } from './constants'
 
 const salon: LightsRoom = {
   id: 'g1',
@@ -23,7 +23,8 @@ const renderPanel = (extra: Partial<LightsPanelProps> = {}) => {
   return h
 }
 const summary = () => screen.getByText('Salon').closest('summary') as HTMLElement
-const tile = (name: string, state: 'ON' | 'OFF') => screen.getByRole('button', { name: `${name} ${state}` })
+const tile = (name: string, state: 'ON' | 'OFF') => within(screen.getByRole('tablist', { name })).getByRole('tab', { name: state })
+const tileBox = (name: string) => (screen.getByRole('tablist', { name }).parentElement as HTMLElement).parentElement as HTMLElement
 
 describe('helpers', () => {
   it('percentOf convertit 1 à 254 en 1 à 100, jamais sous 1', () => {
@@ -45,6 +46,16 @@ describe('helpers', () => {
 
   it('countText compte les lampes allumées', () => {
     expect(countText(salon)).toBe('1/3 allumée(s)')
+  })
+
+  it('groupState : on si toutes les lampes joignables sont allumées, off si aucune, rien si mixte', () => {
+    const lamp = (on: boolean, reachable = true) => ({ id: 'x', name: 'x', on, bri: null, reachable })
+    expect(groupState([lamp(true), lamp(true)])).toBe('on')
+    expect(groupState([lamp(true), lamp(false, false)])).toBe('on')
+    expect(groupState([lamp(false), lamp(false)])).toBe('off')
+    expect(groupState([lamp(true), lamp(false)])).toBe('')
+    expect(groupState([])).toBe('off')
+    expect(groupState([lamp(true, false)])).toBe('off')
   })
 })
 
@@ -72,28 +83,36 @@ describe('LightsPanel', () => {
 
   it('une case allumée est pressée et l éteint ; une éteinte l allume à puissance max', () => {
     const h = renderPanel()
-    expect(tile('Plafonnier', 'ON')).toHaveAttribute('aria-pressed', 'true')
-    expect(tile('Lampadaire', 'OFF')).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(tile('Plafonnier', 'ON'))
+    expect(tile('Plafonnier', 'ON')).toHaveAttribute('aria-selected', 'true')
+    expect(tile('Lampadaire', 'OFF')).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(tile('Plafonnier', 'OFF'))
     expect(h.onLight).toHaveBeenLastCalledWith('l1', { on: false })
-    fireEvent.click(tile('Lampadaire', 'OFF'))
+    fireEvent.click(tile('Lampadaire', 'ON'))
     expect(h.onLight).toHaveBeenLastCalledWith('l2', { on: true, bri: 254 })
   })
 
   it('les boutons ON et OFF de la zone commandent le groupe, ON à puissance max', () => {
     const h = renderPanel()
-    fireEvent.click(within(summary()).getByRole('button', { name: 'ON' }))
+    fireEvent.click(within(summary()).getByRole('tab', { name: 'ON' }))
     expect(h.onRoom).toHaveBeenLastCalledWith('g1', { on: true, bri: 254 })
-    fireEvent.click(within(summary()).getByRole('button', { name: 'OFF' }))
+    fireEvent.click(within(summary()).getByRole('tab', { name: 'OFF' }))
     expect(h.onRoom).toHaveBeenLastCalledWith('g1', { on: false })
   })
 
-  it('une lampe injoignable est signalée et sa case désactivée', () => {
+  it('l état de la zone : ON si toutes les lampes joignables sont allumées, OFF si aucune, sinon aucun des deux', () => {
     renderPanel()
-    const button = tile('Veilleuse', 'OFF')
-    expect(button).toBeDisabled()
-    expect(button).toHaveTextContent(UNREACHABLE_TEXT)
-    expect(tile('Plafonnier', 'ON')).not.toHaveTextContent(UNREACHABLE_TEXT)
+    expect(within(summary()).getByRole('tab', { name: 'ON' })).toHaveAttribute('aria-selected', 'false')
+    expect(within(summary()).getByRole('tab', { name: 'OFF' })).toHaveAttribute('aria-selected', 'false')
+    const allOn = { ...salon, lights: salon.lights.map((light) => ({ ...light, on: true })) }
+    render(<LightsPanel rooms={[{ ...allOn, id: 'g2', name: 'Cuisine' }]} busy="" drafts={{}} {...handlers()} />)
+    expect(within(screen.getByText('Cuisine').closest('summary') as HTMLElement).getByRole('tab', { name: 'ON' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('une lampe injoignable est signalée, sans interrupteur', () => {
+    renderPanel()
+    expect(screen.queryByRole('tablist', { name: 'Veilleuse' })).toBeNull()
+    expect(screen.getByText('Veilleuse').closest('li')).toHaveTextContent(UNREACHABLE_TEXT)
+    expect(screen.getByText('Plafonnier').closest('li')).not.toHaveTextContent(UNREACHABLE_TEXT)
   })
 
   it('chaque case dont la lampe varie a un curseur de luminosité sous elle ; la case garde son bouton', () => {
@@ -106,7 +125,7 @@ describe('LightsPanel', () => {
     // Le curseur reste bleu (couleur d'accent), allumée ou non : c'est la petite ampoule qui dit l'état.
     expect(slider.className).toContain('accent-accent')
     expect(screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Veilleuse` }).className).toContain('accent-accent')
-    expect(within(slider.closest('li') as HTMLElement).getByRole('button', { name: 'Plafonnier ON' })).toBeInTheDocument()
+    expect(within(slider.closest('li') as HTMLElement).getByRole('tablist', { name: 'Plafonnier' })).toBeInTheDocument()
     expect(screen.queryByRole('slider', { name: `${BRIGHTNESS_LABEL} Lampadaire` })).toBeNull()
     fireEvent.change(slider, { target: { value: '30' } })
     expect(h.onDraft).toHaveBeenCalledWith('light:l1', 30)
@@ -122,25 +141,24 @@ describe('LightsPanel', () => {
     expect(screen.getByRole('slider', { name: `${BRIGHTNESS_LABEL} Veilleuse` })).toBeDisabled()
   })
 
-  it('pendant l action d une lampe, sa case montre « … » et est désactivée', () => {
+  it('pendant l action d une lampe, son interrupteur est désactivé', () => {
     renderPanel({ busy: 'light:l1' })
-    const button = tile('Plafonnier', 'ON')
-    expect(button).toHaveTextContent(BUSY_LABEL)
-    expect(button).toBeDisabled()
+    expect(tile('Plafonnier', 'ON')).toBeDisabled()
+    expect(tile('Plafonnier', 'OFF')).toBeDisabled()
     expect(tile('Lampadaire', 'OFF')).toBeEnabled()
   })
 
   it('pendant l action d une zone, seuls ses boutons ON et OFF sont désactivés', () => {
     renderPanel({ busy: 'room:g1' })
-    expect(within(summary()).getByRole('button', { name: 'ON' })).toBeDisabled()
-    expect(within(summary()).getByRole('button', { name: 'OFF' })).toBeDisabled()
+    expect(within(summary()).getByRole('tab', { name: 'ON' })).toBeDisabled()
+    expect(within(summary()).getByRole('tab', { name: 'OFF' })).toBeDisabled()
     expect(tile('Plafonnier', 'ON')).toBeEnabled()
   })
 
   it('lampExtra s affiche sous le bloc de la lampe, avec son curseur dedans', () => {
     renderPanel({ lampExtra: (light) => <button>Régler {light.name}</button> })
     const item = screen.getByRole('button', { name: 'Régler Plafonnier' }).closest('li') as HTMLElement
-    expect(within(item).getByRole('button', { name: 'Plafonnier ON' })).toBeInTheDocument()
+    expect(within(item).getByRole('tablist', { name: 'Plafonnier' })).toBeInTheDocument()
   })
 
   it('une zone sans lampe ni détecteur reste affichée', () => {
@@ -166,8 +184,8 @@ describe('LightsPanel : l’ordre des zones', () => {
     const zones = screen.getAllByText(/^Zone \d$/).map((element) => element.textContent)
     expect(zones).toEqual(['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4'])
     // dans la zone 2, la lampe éteinte « a » reste avant l'allumée « b »
-    const lamps = within(screen.getByText('Zone 2').closest('details') as HTMLElement).getAllByRole('button', { name: /Lampe 2/ })
-    expect(lamps.map((button) => button.getAttribute('aria-label'))).toEqual(['Lampe 2a OFF', 'Lampe 2b ON'])
+    const lamps = within(screen.getByText('Zone 2').closest('details') as HTMLElement).getAllByRole('tablist', { name: /Lampe 2/ })
+    expect(lamps.map((list) => list.getAttribute('aria-label'))).toEqual(['Lampe 2a', 'Lampe 2b'])
   })
 })
 
@@ -186,7 +204,7 @@ describe('LightsPanel : la petite ampoule', () => {
   it('le bloc reste neutre ; l’ampoule en haut à droite est orange allumée, son jaune pâlit avec la luminosité (le curseur en cours compte tout de suite)', () => {
     const { rerender } = render(<LightsPanel rooms={[salon]} busy="" drafts={{}} {...handlers()} />)
     const bulb = () => bulbStyle('bulb-l1')
-    const box = () => screen.getByRole('button', { name: 'Plafonnier ON' }).parentElement as HTMLElement
+    const box = () => tileBox('Plafonnier')
     // 127/254 = 50 % : 62,5 % d'orange, le reste blanc
     expect(bulb()).toContain('color-mix')
     expect(bulb()).toContain('62.5%')
@@ -212,7 +230,7 @@ describe('LightsPanel : la petite ampoule', () => {
   it('éteinte : ampoule grise ; injoignable : rouge', () => {
     renderPanel()
     // la bordure du bloc ne change que pour une lampe allumée
-    expect((screen.getByRole('button', { name: 'Lampadaire OFF' }).parentElement as HTMLElement).style.borderColor).toBe('')
+    expect(tileBox('Lampadaire').style.borderColor).toBe('')
     expect(bulbStyle('bulb-l2')).toContain('--color-muted')
     expect(bulbStyle('bulb-l3')).toContain('--color-danger')
   })

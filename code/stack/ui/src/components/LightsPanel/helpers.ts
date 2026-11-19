@@ -1,5 +1,5 @@
 import { COUNT_SUFFIX } from './constants'
-import type { LightsRoom } from './types'
+import type { LightsLamp, LightsRoom } from './types'
 
 /** La puissance max du pont : « allumer » envoie toujours cette luminosité. */
 export const MAX_BRI = 254
@@ -12,6 +12,14 @@ export const briOf = (percent: number): number => Math.min(MAX_BRI, Math.max(1, 
 
 /** « 2/7 allumée(s) » à côté du titre d'une pièce. */
 export const countText = (room: LightsRoom): string => `${room.lights.filter((light) => light.on).length}/${room.lights.length}${COUNT_SUFFIX}`
+
+/** L'état d'un groupe de lampes pour son ON / OFF : « on » si toutes les lampes joignables sont allumées, « off » si aucune ne l'est, sinon rien (état mixte : les deux restent à cliquer). */
+export const groupState = (lights: LightsLamp[]): 'on' | 'off' | '' => {
+  const reachable = lights.filter((light) => light.reachable)
+  if (reachable.length === 0) return 'off'
+  const on = reachable.filter((light) => light.on).length
+  return on === reachable.length ? 'on' : on === 0 ? 'off' : ''
+}
 
 /** La part de la couleur orange d'un bloc de lampe allumée selon sa luminosité (en %, de 1 à 100) : de 25 % (presque blanc) à 100 % ; le reste est le fond. Plus la lampe est basse, plus le jaune s'éclaircit. */
 export const orangeShare = (percent: number): number => 25 + (75 * Math.min(100, Math.max(0, percent))) / 100

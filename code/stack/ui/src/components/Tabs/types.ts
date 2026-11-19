@@ -14,4 +14,8 @@ export interface TabsProps<T extends string> {
   compact?: boolean
   /** De la taille d'un petit bouton rond (32 px) : pour deux mots très courts posés sur la vidéo. Prend le pas sur `compact`. */
   tiny?: boolean
+  /** Un seul bloc arrondi dont les onglets remplissent tout l'espace, rectangulaires, sans marge ni écart : le menu de la barre du haut. Prend le pas sur `compact` ; avec `tiny`, à la taille d un bouton de la vidéo. */
+  block?: boolean
+  /** Tous les onglets sont grisés et ne répondent plus. */
+  disabled?: boolean
 }

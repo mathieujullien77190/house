@@ -1,5 +1,7 @@
 import Button from '../Button'
 import Collapsible from '../Collapsible'
+import Tabs from '../Tabs'
+import Toggle from '../Toggle'
 import {
   ALL_BUTTON_CLASS,
   ALL_KEY,
@@ -7,7 +9,6 @@ import {
   ALL_ON_LABEL,
   ALL_ROW_CLASS,
   BRIGHTNESS_LABEL,
-  BUSY_LABEL,
   GRID_CLASS,
   GROUP_CLASS,
   LIST_CLASS,
@@ -20,7 +21,7 @@ import {
   ROW_CLASS,
   SENSORS_CLASS,
   TILE_BOX_CLASS,
-  TILE_BUTTON_CLASS,
+  TILE_HEAD_CLASS,
   TILE_CLASS,
   TILE_NAME_CLASS,
   TILE_SLIDER_CLASS,
@@ -28,9 +29,8 @@ import {
   TILE_BULB_CLASS,
   TILE_STATE_CLASS,
   UNREACHABLE_TEXT,
-  ZONE_BUTTON_CLASS,
 } from './constants'
-import { BULB_PATH, briOf, countText, MAX_BRI, orangeShare, percentOf } from './helpers'
+import { BULB_PATH, briOf, countText, groupState, MAX_BRI, orangeShare, percentOf } from './helpers'
 import type { LightsLamp, LightsPanelProps, LightsRoom, LightsSensor } from './types'
 
 /** Les lumières : un rectangle par zone, une petite case ON / OFF par lampe (allumer = puissance max) avec **un curseur de luminosité dans le bloc de la lampe** (la petite ampoule en haut à droite dit l'état : sa couleur pâlit quand la luminosité baisse). */
@@ -61,21 +61,23 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
               <rect x="9" y="19" width="6" height="2.2" rx="1" fill="currentColor" stroke="#000" strokeWidth={1.6} />
             </g>
           </svg>
-          <button
-            type="button"
-            className={TILE_BUTTON_CLASS}
-            aria-pressed={light.on}
-            aria-label={`${light.name} ${light.on ? ON_LABEL : OFF_LABEL}`}
-            disabled={!light.reachable || busy === key}
-            onClick={() => onLight(light.id, light.on ? { on: false } : { on: true, bri: MAX_BRI })}
-          >
+          <div className={TILE_HEAD_CLASS}>
             <span className={TILE_NAME_CLASS} title={light.name}>
               {light.name}
             </span>
-            <span className={TILE_STATE_CLASS}>
-              {busy === key ? BUSY_LABEL : light.reachable ? (light.on ? ON_LABEL : OFF_LABEL) : UNREACHABLE_TEXT}
-            </span>
-          </button>
+            {light.reachable ? (
+              <Toggle
+                label={light.name}
+                checked={light.on}
+                disabled={busy === key}
+                onText={ON_LABEL}
+                offText={OFF_LABEL}
+                onChange={(on) => onLight(light.id, on ? { on: true, bri: MAX_BRI } : { on: false })}
+              />
+            ) : (
+              <span className={TILE_STATE_CLASS}>{UNREACHABLE_TEXT}</span>
+            )}
+          </div>
           {light.bri === null ? null : (
             <input
               type="range"
@@ -116,19 +118,18 @@ const LightsPanel = ({ rooms, busy, drafts, onAll, onRoom, onLight, onDraft, lam
   const zoneButtons = (item: LightsRoom) => {
     const key = `room:${item.id}`
     return (
-      <>
-        <Button
-          className={ZONE_BUTTON_CLASS}
-          variant="active"
-          disabled={busy === key}
-          onClick={() => onRoom(item.id, { on: true, bri: MAX_BRI })}
-        >
-          {ON_LABEL}
-        </Button>
-        <Button className={ZONE_BUTTON_CLASS} variant="danger" disabled={busy === key} onClick={() => onRoom(item.id, { on: false })}>
-          {OFF_LABEL}
-        </Button>
-      </>
+      <Tabs
+        block
+        compact
+        label={item.name}
+        options={[
+          { id: 'on', label: ON_LABEL },
+          { id: 'off', label: OFF_LABEL },
+        ]}
+        value={groupState(item.lights)}
+        disabled={busy === key}
+        onChange={(id) => onRoom(item.id, id === 'on' ? { on: true, bri: MAX_BRI } : { on: false })}
+      />
     )
   }
 

@@ -16,6 +16,7 @@ import {
   ITEM_ACTIVE_CLASS,
   ITEM_CLASS,
   ITEM_IDLE_CLASS,
+  ITEMS_CLASS,
   MOBILE_ERROR_CLASS,
   PANEL_ACTIONS_CLASS,
   PANEL_CLASS,
@@ -77,7 +78,7 @@ const TopBar = <T extends string>({
         </h1>
         {tabs ? (
           <div className={DESKTOP_TABS_CLASS}>
-            <Tabs label={tabs.label} options={tabs.options} value={tabs.value} onChange={tabs.onChange} />
+            <Tabs block label={tabs.label} options={tabs.options} value={tabs.value} onChange={tabs.onChange} />
           </div>
         ) : null}
         {status ? <p className={tone === 'error' ? ERROR_CLASS : STATUS_CLASS}>{status}</p> : <span className={SPACER_CLASS} />}
@@ -105,20 +106,24 @@ const TopBar = <T extends string>({
       {status && tone === 'error' ? <p className={MOBILE_ERROR_CLASS}>{status}</p> : null}
       {open && hasMenu ? (
         <nav className={PANEL_CLASS} aria-label={tabs?.label ?? BURGER_LABEL}>
-          {tabs?.options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-current={option.id === tabs.value ? 'page' : undefined}
-              className={`${ITEM_CLASS} ${option.id === tabs.value ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS}`}
-              onClick={() => {
-                tabs.onChange(option.id)
-                setOpen(false)
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
+          {tabs ? (
+            <div className={ITEMS_CLASS}>
+              {tabs.options.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-current={option.id === tabs.value ? 'page' : undefined}
+                  className={`${ITEM_CLASS} ${option.id === tabs.value ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS}`}
+                  onClick={() => {
+                    tabs.onChange(option.id)
+                    setOpen(false)
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {status && tone !== 'error' ? <p className={PANEL_STATUS_CLASS}>{status}</p> : null}
           {status && tone === 'error' ? <p className={PANEL_ERROR_CLASS}>{status}</p> : null}
           {actions ? (

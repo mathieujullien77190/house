@@ -17,7 +17,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --bg: #12151b;
     --card: #1a1e26;
     --text: #e8ebf1;
@@ -30,6 +30,63 @@
     --vpn: #3ccbe0;
     --switch: #a07df0;
   }
+}
+
+/* Le thème imposé par l'app (WebApp : le bouton clair/sombre de la barre) : mêmes couleurs que le sombre du système. */
+:root[data-theme='dark'] {
+  --bg: #12151b;
+  --card: #1a1e26;
+  --text: #e8ebf1;
+  --muted: #98a1b1;
+  --line: #3a4150;
+  --accent: #5b9bf0;
+  --green: #3fc590;
+  --orange: #f0a940;
+  --danger: #f06a6a;
+  --vpn: #3ccbe0;
+  --switch: #a07df0;
+  color-scheme: dark;
+}
+
+/* Les curseurs (input range) : une barre blanche à bordure fine, la partie choisie en couleur d'accent jusqu'à la poignée (`--p`, de 0 à 1, posé par `watchRangeFill`), et la boule d'accent. */
+input[type='range'] {
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  --fill: calc((100% - 1.1rem) * var(--p, 0) + 0.55rem);
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--card) var(--fill));
+}
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: -0.4rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+input[type='range']::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+input[type='range']::-moz-range-progress {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+input[type='range']::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
 }
 
 @theme inline {

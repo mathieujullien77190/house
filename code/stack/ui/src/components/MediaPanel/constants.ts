@@ -12,7 +12,7 @@ export const ROTATED_MEDIA_CLASS = 'absolute left-1/2 top-1/2 h-[100cqw] w-[100c
 /** Les commandes d'une vidéo tournée, droites, sous le cadre (les commandes natives tourneraient avec la vidéo) : lecture ou pause et barre de temps. */
 export const BAR_CLASS = 'mt-2 flex w-full max-w-[405px] items-center gap-2'
 export const PLAY_BUTTON_CLASS =
-  'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line bg-bg/80 text-[0.75rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
+  'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line bg-card text-[0.75rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
 export const SEEK_CLASS = 'h-3 min-w-0 flex-1 cursor-pointer accent-accent'
 export const PLAY_LABEL = 'Lecture'
 export const PAUSE_LABEL = 'Pause'

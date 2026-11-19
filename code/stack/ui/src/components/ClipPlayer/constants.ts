@@ -22,7 +22,7 @@ export const SOUND_CLASS = 'mt-1.5'
 export const CONTROLS_CLASS = 'flex items-center gap-2 px-2 py-1.5'
 /** Lecture / pause : un carré de 32 px (`size-8`, `rounded-md`), comme tous les boutons posés sur une vidéo (retour, son, repères, réduire). */
 export const PLAY_BUTTON_CLASS =
-  'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line bg-bg/80 text-[0.75rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
+  'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line bg-card text-[0.75rem] leading-none text-fg hover:border-accent focus-visible:outline-2 focus-visible:outline-accent'
 export const PLAY_LABEL = 'Lecture'
 export const PAUSE_LABEL = 'Pause'
 export const PLAY_ICON = '▶'
