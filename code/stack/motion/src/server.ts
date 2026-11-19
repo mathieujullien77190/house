@@ -31,6 +31,10 @@ export interface Detection {
   setMinSeconds: (camera: string, seconds: number) => void
   /** La zone surveillée de la caméra : un polygone (parts de l'image), ou null pour toute l'image. */
   setZone: (camera: string, points: Point[] | null) => void
+  /** La recherche des yeux qui brillent (la nuit) de la caméra : allumée ou éteinte par House Sync. */
+  setEyes: (camera: string, enabled: boolean) => void
+  /** Le feuillage : nombre de zones à partir duquel un mouvement est étiqueté « feuillage » ; 0 = jamais. */
+  setFoliage: (camera: string, zones: number) => void
 }
 
 /** L'enregistrement lancé à la main, caméra par caméra : un mouvement fictif qu'on ouvre puis qu'on ferme, dont le clip se fait comme les autres. */
@@ -97,6 +101,22 @@ export const startServer = (
       if (!isSensitivity(level)) return json(res, 400, { error: `level must be an integer from ${MIN_SENSITIVITY} to ${MAX_SENSITIVITY}` })
       detection.setSensitivity(sensitivity[1], level)
       return json(res, 200, { camera: sensitivity[1], level })
+    }
+    // PUT /api/cameras/<caméra>/eyes?enabled=0|1 : allume ou éteint la recherche des yeux qui brillent (House Sync l'allume la nuit seulement).
+    const eyes = /^\/api\/cameras\/([\w-]+)\/eyes$/.exec(pathname)
+    if (req.method === 'PUT' && eyes) {
+      if (!config.cameras.includes(eyes[1])) return json(res, 404, { error: 'unknown camera' })
+      detection.setEyes(eyes[1], searchParams.get('enabled') === '1')
+      return json(res, 200, { camera: eyes[1], enabled: searchParams.get('enabled') === '1' })
+    }
+    // PUT /api/cameras/<caméra>/foliage?zones=0..60 : à partir de ce nombre de zones (sur assez d'images du mouvement), l'événement est étiqueté « feuillage » ; 0 : jamais.
+    const foliage = /^\/api\/cameras\/([\w-]+)\/foliage$/.exec(pathname)
+    if (req.method === 'PUT' && foliage) {
+      if (!config.cameras.includes(foliage[1])) return json(res, 404, { error: 'unknown camera' })
+      const zones = Number(searchParams.get('zones'))
+      if (!Number.isInteger(zones) || zones < 0 || zones > 60) return json(res, 400, { error: 'zones must be an integer from 0 to 60' })
+      detection.setFoliage(foliage[1], zones)
+      return json(res, 200, { camera: foliage[1], zones })
     }
     // PUT /api/cameras/<caméra>/min-seconds?seconds=0..30 : la durée minimale d'un mouvement (en secondes) pour ouvrir un événement.
     const minSeconds = /^\/api\/cameras\/([\w-]+)\/min-seconds$/.exec(pathname)

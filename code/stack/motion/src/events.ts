@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path'
 
 /** Pourquoi l'événement existe. Un mouvement vu par le détecteur ; les anciens événements « eyes » (yeux qui brillent, fonction retirée) restent lisibles dans le fichier. */
-export type MotionLabel = 'motion' | 'eyes'
+export type MotionLabel = 'motion' | 'eyes' | 'foliage'
 
 export interface MotionRecord {
   id: string
@@ -79,6 +79,14 @@ export const createEventStore = (file: string) => {
       events.push(record)
       save()
       return record
+    },
+    /** Change l'étiquette d'un événement (des yeux vus pendant un mouvement : `eyes`). */
+    setLabel: (id: string, label: MotionLabel, onlyFrom?: MotionLabel) => {
+      const record = events.find((e) => e.id === id)
+      if (record && record.label !== label && (onlyFrom === undefined || record.label === onlyFrom)) {
+        record.label = label
+        save()
+      }
     },
     close: (id: string, endTime: number) => {
       const record = events.find((e) => e.id === id)

@@ -11,7 +11,7 @@ Pour chaque caméra de `CAMERAS` :
 1. Enregistre le flux principal en segments de 10 s, copie sans transcodage, gardés 6 h.
 2. Détecte le mouvement sur le flux léger.
 3. Fait le clip de chaque événement fini, puis fusionne les clips qui se recouvrent.
-4. Obéit à House Sync : détection, sensibilité, zone, enregistrement manuel, son.
+4. Obéit à House Sync : détection, sensibilité, zone, recherche des yeux (la nuit), enregistrement manuel, son.
 5. Répond à House Sync dans la forme de l'ancienne API de Frigate.
 
 Détail, routes, seuils : `src/CLAUDE.md`.
@@ -20,6 +20,7 @@ Détail, routes, seuils : `src/CLAUDE.md`.
 
 - `index.ts` : assemblage (une boucle par caméra, tick de 5 s pour les clips, nettoyage).
 - `detector.ts`, `watcher.ts` : détecteur (pur) ; ffmpeg du flux léger, relancé s'il s'arrête.
+- `eyes.ts` : les reflets d'yeux la nuit (`findEyes` pur, ffmpeg des images clés du flux principal) ; un reflet compte comme un mouvement.
 - `segments.ts`, `clips.ts`, `merge.ts` : enregistrement, assemblage d'un clip, groupes à fusionner.
 - `events.ts` : magasin d'événements (`data/clips/events.json`). `closeOrphans` ferme au démarrage les événements restés ouverts, sinon ils seraient « en cours » pour toujours.
 - `audio.ts`, `sensitivity.ts`, `zone.ts` : son à part, seuils par niveau, masque de zone.

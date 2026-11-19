@@ -3,18 +3,21 @@
 //   2. il surveille le flux léger et ouvre un événement au début d'un mouvement, le ferme à sa fin ;
 //   3. quand un événement est fini et que ses segments sont écrits, il en fait un clip MP4.
 // Une petite API (server.ts) rend tout cela à House Sync, sous la forme que Frigate offrait.
-import { existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { audioClipPath, buildAudioClip, pruneAudio, recordAudio } from './audio.ts'
 import { buildClip, buildWebClip, webClipPath } from './clips.ts'
 import { loadConfig } from './config.ts'
 import { createEventStore } from './events.ts'
 import { findMergeGroups } from './merge.ts'
 import { pruneSegments, recordSegments } from './segments.ts'
-import { detectorForLevel, DEFAULT_SENSITIVITY } from './sensitivity.ts'
-import { clipToZone, polygonMask, type Point } from './zone.ts'
+import { detectorForLevel, DEFAULT_SENSITIVITY, isSensitivity } from './sensitivity.ts'
+import { clipToZone, parsePolygon, polygonMask, type Point } from './zone.ts'
+import { isMotionSeconds, MAX_SHAPES } from './detector.ts'
 import { appendShapes, buildShapesClip, pruneShapes, shapesClipPath } from './shapes.ts'
 import { startServer } from './server.ts'
 import { watchMotion } from './watcher.ts'
+import { watchEyes, type EyePoint } from './eyes.ts'
 
 const config = loadConfig()
 const store = createEventStore(config.stateFile)
@@ -37,6 +40,68 @@ const detectors = new Map<string, typeof config.detector>(config.cameras.map((ca
 // La zone surveillée de chaque caméra : son polygone (pour comparer) et son masque sur l'image analysée (absent = toute l'image).
 // House Sync l'envoie à chaque minute ; en mémoire, comme la sensibilité.
 const zones = new Map<string, { points: Point[] | null; mask: Uint8Array | null }>()
+
+// La recherche des yeux (eyes.ts) : allumée la nuit par House Sync ; le masque de la zone sur l'image 1280×720 analysée, et les derniers cadres vus.
+const EYES_WIDTH = 1280
+const EYES_HEIGHT = 720
+// Des yeux vus comptent comme un mouvement, et leur cadre reste dessiné, pendant ce temps (les images clés arrivent toutes les 2 s).
+const EYES_HOLD_SECONDS = 1.5
+const eyesOn = new Map<string, boolean>()
+// Le feuillage : un mouvement est étiqueté ainsi quand au moins `zones` zones sont vues sur au moins FOLIAGE_SHARE de ses images (0 : jamais). Compté dans la zone surveillée, sur les images de l'événement ouvert.
+const FOLIAGE_SHARE = 0.3
+const FOLIAGE_MIN_FRAMES = 5
+const foliageZones = new Map<string, number>()
+// Les images en mouvement depuis le début du mouvement (même avant l'ouverture de l'événement : il s'ouvre après la durée minimale) ; un calme de plus de FOLIAGE_GAP_SECONDS les remet à zéro.
+const FOLIAGE_GAP_SECONDS = 2
+const foliageStats = new Map<string, { frames: number; leafy: number; lastAt: number }>()
+const eyesMasks = new Map<string, Uint8Array | null>()
+const lastEyes = new Map<string, { at: number; boxes: EyePoint[][] }>()
+const eyesSeen = (camera: string): EyePoint[][] => {
+  const last = lastEyes.get(camera)
+  return last && Date.now() / 1000 - last.at <= EYES_HOLD_SECONDS ? last.boxes : []
+}
+
+// Zone, sensibilité et durée minimale de chaque caméra, gardées dans un petit fichier à côté de `events.json` : House Sync les renvoie, mais au plus une minute après un redémarrage ;
+// sans cela, la détection repartirait sur toute l'image (le feuillage hors zone déclenchait des mouvements).
+const detectionStateFile = `${dirname(config.stateFile)}/detection.json`
+const sensitivities = new Map<string, number>()
+const saveDetectionState = () => {
+  try {
+    const state = {
+      zones: Object.fromEntries([...zones].map(([camera, zone]) => [camera, zone.points])),
+      sensitivity: Object.fromEntries(sensitivities),
+      foliage: Object.fromEntries(foliageZones),
+      minSeconds: Object.fromEntries([...detectors].map(([camera, seuils]) => [camera, seuils.minSeconds])),
+    }
+    writeFileSync(`${detectionStateFile}.tmp`, JSON.stringify(state))
+    renameSync(`${detectionStateFile}.tmp`, detectionStateFile)
+  } catch (error) {
+    log(`réglages de détection non écrits : ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+try {
+  const saved = JSON.parse(readFileSync(detectionStateFile, 'utf-8')) as { zones?: Record<string, unknown>; sensitivity?: Record<string, number>; minSeconds?: Record<string, number>; foliage?: Record<string, number> }
+  for (const camera of config.cameras) {
+    const points = parsePolygon(saved.zones?.[camera])
+    if (points) {
+      zones.set(camera, { points, mask: polygonMask(points, config.width, config.height) })
+      eyesMasks.set(camera, polygonMask(points, EYES_WIDTH, EYES_HEIGHT))
+    }
+    const seuils = detectors.get(camera)
+    const level = saved.sensitivity?.[camera]
+    if (seuils && level !== undefined && isSensitivity(level)) {
+      sensitivities.set(camera, level)
+      Object.assign(seuils, { pixelThreshold: detectorForLevel(config.detector, level).pixelThreshold, areaThreshold: detectorForLevel(config.detector, level).areaThreshold })
+    }
+    const leafy = saved.foliage?.[camera]
+    if (leafy !== undefined && Number.isInteger(leafy) && leafy >= 0 && leafy <= 60) foliageZones.set(camera, leafy)
+    const minSeconds = saved.minSeconds?.[camera]
+    if (seuils && minSeconds !== undefined && isMotionSeconds(minSeconds)) seuils.minSeconds = minSeconds
+  }
+  log('réglages de détection repris du dernier arrêt (zone, sensibilité, durée minimale)')
+} catch {
+  // Pas de fichier (première fois) ou illisible : les défauts, House Sync renvoie tout.
+}
 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
@@ -70,7 +135,7 @@ for (const camera of config.cameras) {
     (event) => {
       if (event.type === 'start') {
         // Le flux léger arrive `shapesDelaySeconds` après la vidéo : l'événement (la barre bleue de la frise) commence à l'instant où le mouvement apparaît dans la vidéo, comme le premier contour.
-        const record = store.open(camera, event.at - config.shapesDelaySeconds)
+        const record = store.open(camera, event.at - config.shapesDelaySeconds, false, eyesSeen(camera).length > 0 ? 'eyes' : 'motion')
         open.set(camera, record.id)
         log(`${camera} : mouvement ${record.id}`)
       } else {
@@ -78,6 +143,7 @@ for (const camera of config.cameras) {
         if (id) {
           store.close(id, event.startedAt - config.shapesDelaySeconds + event.durationSeconds)
           open.delete(camera)
+          foliageStats.delete(camera)
           log(`${camera} : fin de mouvement ${id} (${event.durationSeconds.toFixed(1)} s)`)
         }
       }
@@ -97,8 +163,42 @@ for (const camera of config.cameras) {
       // Chaque contour est découpé par la zone : rien n'est montré hors de ce qui est surveillé.
       const zone = zones.get(camera)?.points ?? null
       const clipped = hulls.map((hull) => clipToZone(hull, zone)).filter((shape): shape is Point[] => shape !== null)
-      appendShapes(shapesDirOf(camera), Date.now() / 1000, clipped)
+      // Les cadres des yeux vus à l'instant s'ajoutent aux contours : la vidéo les montre comme le mouvement.
+      appendShapes(shapesDirOf(camera), Date.now() / 1000, [...clipped.slice(0, MAX_SHAPES), ...eyesSeen(camera)])
+      // Le feuillage : on compte les zones de chaque image en mouvement de l'événement ouvert.
+      const id = open.get(camera)
+      const threshold = foliageZones.get(camera) ?? 0
+      if (threshold > 0 && clipped.length > 0) {
+        const now = Date.now() / 1000
+        let stats = foliageStats.get(camera)
+        if (!stats || now - stats.lastAt > FOLIAGE_GAP_SECONDS) {
+          stats = { frames: 0, leafy: 0, lastAt: now }
+          foliageStats.set(camera, stats)
+        }
+        stats.lastAt = now
+        stats.frames += 1
+        if (clipped.length >= threshold) stats.leafy += 1
+        // Les yeux l'emportent : un événement `eyes` reste violet (setLabel ne change que `motion`).
+        if (id && stats.frames >= FOLIAGE_MIN_FRAMES && stats.leafy / stats.frames >= FOLIAGE_SHARE) store.setLabel(id, 'foliage', 'motion')
+      }
     },
+    () => eyesSeen(camera).length > 0,
+  )
+  void watchEyes(
+    `${config.go2rtcRtsp}/${camera}_main`,
+    { width: EYES_WIDTH, height: EYES_HEIGHT },
+    // Pas de recherche tant que la zone n'est pas connue (reprise du fichier ou envoi de House Sync) : sinon des reflets hors zone seraient pris pour des yeux.
+    () => eyesOn.get(camera) === true && zones.has(camera),
+    () => eyesMasks.get(camera) ?? null,
+    (boxes) => {
+      if (boxes.length === 0) return
+      lastEyes.set(camera, { at: Date.now() / 1000, boxes })
+      // Un événement où des yeux sont vus prend l'étiquette `eyes` : la frise le montre en violet.
+      const id = open.get(camera)
+      if (id) store.setLabel(id, 'eyes')
+      log(`${camera} : ${boxes.length} reflet(s) d’yeux`)
+    },
+    (m) => log(`${camera} : ${m}`),
   )
 }
 
@@ -121,9 +221,22 @@ startServer(
     },
     setZone: (camera, points) => {
       const current = zones.get(camera)
-      if (JSON.stringify(current?.points ?? null) === JSON.stringify(points)) return
+      if (current && JSON.stringify(current.points) === JSON.stringify(points)) return
       zones.set(camera, { points, mask: points ? polygonMask(points, config.width, config.height) : null })
+      eyesMasks.set(camera, points ? polygonMask(points, EYES_WIDTH, EYES_HEIGHT) : null)
       log(`${camera} : zone surveillée ${points ? `${points.length} sommets` : 'toute l’image'}`)
+      saveDetectionState()
+    },
+    setFoliage: (camera, zones) => {
+      if ((foliageZones.get(camera) ?? 0) === zones) return
+      log(`${camera} : feuillage à partir de ${zones} zones${zones === 0 ? ' (coupé)' : ''}`)
+      foliageZones.set(camera, zones)
+      saveDetectionState()
+    },
+    setEyes: (camera, enabled) => {
+      if (eyesOn.get(camera) !== enabled) log(`${camera} : recherche des yeux ${enabled ? 'allumée' : 'éteinte'}`)
+      eyesOn.set(camera, enabled)
+      if (!enabled) lastEyes.delete(camera)
     },
     setSensitivity: (camera, level) => {
       const seuils = detectors.get(camera)
@@ -137,12 +250,17 @@ startServer(
       // Seuls l'écart de gris et la surface changent : la durée minimale du mouvement est réglée à part.
       seuils.pixelThreshold = next.pixelThreshold
       seuils.areaThreshold = next.areaThreshold
+      if (sensitivities.get(camera) !== level) {
+        sensitivities.set(camera, level)
+        saveDetectionState()
+      }
     },
     setMinSeconds: (camera, seconds) => {
       const seuils = detectors.get(camera)
       if (!seuils || seuils.minSeconds === seconds) return
       log(`${camera} : un mouvement doit durer ${seconds} s pour compter`)
       seuils.minSeconds = seconds
+      saveDetectionState()
     },
   },
   {

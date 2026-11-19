@@ -36,7 +36,7 @@ Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
 - **Zone** (`zone.ts`) : `PUT .../zone` avec `{"points": [[x, y], ...]}` (3 à 1000 sommets, parts de 0 à 1) ou `{"points": null}` (toute l'image).
   - Polygone converti en masque sur l'image 160×90 ; la part de pixels changés ne se calcule que dans la zone.
   - Un polygone qui couvre tout ou rien ne met pas de masque.
-- Sensibilité et zone sont en mémoire : House Sync les remet chaque minute, retour aux défauts (3, toute l'image) au redémarrage en attendant.
+- Zone, sensibilité et durée minimale sont gardées dans `detection.json` (à côté de `events.json`, `/data/detection.json`) et reprises au démarrage ; House Sync les renvoie chaque minute. Sans ce fichier (premier démarrage), retour aux défauts (3, toute l'image) jusqu'au premier envoi : un mouvement de feuillage hors zone pouvait alors ouvrir un événement (vu le 19 nov. 2026 à 2 h 48).
 
 ## 6. Enregistrement manuel
 
@@ -58,9 +58,26 @@ Forme de l'ancienne API Frigate, gardée pour que House Sync n'ait pas changé.
 - `/clip.mp4` (original), `/clip.h264.mp4` (copie légère, 404 tant que non faite), `/clip.aac` (404 sans son).
 - `GET /api/<caméra>/latest.jpg?h=` : image du flux principal prise par go2rtc.
 
-## 9 et 10. Retirés
+## 9. Recherche des yeux (`eyes.ts`)
 
-La recherche des yeux qui brillent (`eyes.ts`, `POST /api/eyes`) et le déclenchement d'événement de l'extérieur (`trigger.ts`, `POST …/trigger`) ont été retirés en novembre 2026. Les numéros de section sont gardés pour que les renvois ne bougent pas. Les anciens événements de `label` `eyes` restent lisibles dans le fichier.
+- **Réglage de House Sync** (réglage « Recherche des yeux » de chaque caméra, à côté du mode pluie, éteint par défaut) : `PUT /api/cameras/<caméra>/eyes?enabled=0|1`, répété chaque minute. House Sync ne l'allume que **de 30 min après le coucher du soleil à 30 min avant son lever**, quand la détection de la caméra tourne.
+- Allumée, un ffmpeg lit le flux principal `<caméra>_main` en **images clés seulement** (`-skip_frame nokey`, une toutes les 2 s : peu de processeur), réduites à 1280×720 en gris. Chacune est comparée à la précédente (au moins 1,5 s avant).
+- Un pixel est un reflet s'il est **dans la zone surveillée**, clair (≥ 235) et d'au moins 150 plus clair que tous les pixels voisins (±2 px) de l'image d'avant. Les pixels voisins (2 px) sont groupés ; une tache de 2 à 150 pixels donne un cadre (`findEyes`). Plus petite : bruit ; plus grande : le corps du chat.
+- **Un reflet compte comme un mouvement** (le détecteur est forcé tant que des yeux ont été vus depuis 1,5 s) et son cadre est ajouté aux contours (§11) : la vidéo des clips le dessine en rouge comme le mouvement.
+- L'événement où des yeux sont vus prend l'étiquette `eyes` (`store.setLabel`) : la frise de la WebApp le montre en violet.
+- Les yeux n'apparaissent que quand le chat regarde la caméra : à 1 image toutes les 2 s, certains passages ne donnent qu'un ou deux reflets.
+- La suppression de l'ancienne recherche (`POST /api/eyes`, `trigger.ts`) date de novembre 2026 ; les anciens événements de `label` `eyes` restent lisibles.
+
+## 10. Feuillage
+
+- Réglage par caméra de House Sync (`PUT /api/cameras/<caméra>/foliage?zones=0..60`, 0 = coupé, par défaut) : un feuillage agité donne beaucoup de petites zones, un chat quelques-unes.
+- À chaque image avec mouvement de l'événement ouvert, on compte les contours **dans la zone surveillée** (jusqu'à 60 cherchés par image, `COUNTED_SHAPES` ; seuls les 8 plus grands sont écrits dans le clip). Quand au moins `zones` contours sont vus sur **30 % des images** du mouvement (`FOLIAGE_SHARE`, au moins 5 images, comptées **dès le début du mouvement**, avant même l'ouverture de l'événement ; un calme de plus de 2 s remet le compte à zéro), l'événement prend l'étiquette `foliage` (vert dans la frise).
+- Priorité : `eyes` (violet) > `foliage` (vert) > `motion` : `setLabel(id, 'foliage', 'motion')` ne change que `motion`, les yeux écrasent le vert.
+- Gardé dans `detection.json` avec la zone et la sensibilité.
+
+## 10 bis. Retiré
+
+Le déclenchement d'événement de l'extérieur (`trigger.ts`, `POST …/trigger`) a été retiré en novembre 2026. Les numéros de section sont gardés pour que les renvois ne bougent pas. Les anciens événements de `label` `eyes` restent lisibles dans le fichier.
 
 ## 11. Contours du mouvement (`shapes.ts`)
 

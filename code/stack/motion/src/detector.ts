@@ -73,7 +73,7 @@ export const convexHull = (points: ShapePoint[]): ShapePoint[] => {
 /** Deux pixels changés à cette distance (en pixels de l'image analysée) ou moins sont du même mouvement. */
 const GROUP_DISTANCE = 3
 /** Au plus ce nombre de contours par image (les plus grands) : un feuillage agité n'en fait pas des dizaines. */
-const MAX_SHAPES = 8
+export const MAX_SHAPES = 8
 
 /**
  * Les contours du mouvement entre deux images de largeur `width` : les pixels changés (avec un `mask`, seuls les pixels surveillés comptent) sont regroupés
@@ -86,6 +86,7 @@ export const changedShapes = (
   width: number,
   pixelThreshold: number,
   mask: Uint8Array | null = null,
+  limit: number = MAX_SHAPES,
 ): ShapePoint[][] => {
   if (previous.length !== current.length || current.length === 0 || width <= 0 || (mask && mask.length !== current.length)) return []
   const height = current.length / width
@@ -140,7 +141,7 @@ export const changedShapes = (
   }
   return groups
     .sort((a, b) => b.size - a.size)
-    .slice(0, MAX_SHAPES)
+    .slice(0, limit)
     .map((group) => convexHull(group.points))
     .filter((hull) => hull.length >= 3)
 }
