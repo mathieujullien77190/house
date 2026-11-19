@@ -63,7 +63,7 @@ La recherche des yeux qui brillent a été retirée en novembre 2026 (code, rég
 
 ### Durée de garde
 
-- **Une durée par caméra** : réglage `clip_retention_days` de la caméra (`PUT /api/settings`, de 1 à 3650 ; la page propose 7, 15, 30, 60, 90, 180). Sans valeur propre, la caméra prend la durée de départ : `GET`/`PUT /api/retention` (`app_settings`), sinon `CLIP_RETENTION_DAYS` (15 par défaut). Le ménage applique à chaque caméra sa durée à ses clips, ses images et ses événements sans clip ; le journal des lampes et les fusions suivent la **plus longue** durée.
+- **Une durée par caméra** : réglage `clip_retention_days` de la caméra (`PUT /api/settings`, de 1 à 3650 ; la page propose 7, 15, 30, 60, 90, 180). Sans valeur propre, la caméra prend la durée de départ : la valeur gardée en base (`app_settings`, plus de route pour la changer), sinon `CLIP_RETENTION_DAYS` (15 par défaut). Le ménage applique à chaque caméra sa durée à ses clips, ses images et ses événements sans clip ; le journal des lampes et les fusions suivent la **plus longue** durée.
 - **Ménage une fois par jour à 04:00 Paris** (`purgeOldClips`, `PURGE_AT`), ou dès que possible si House Sync était arrêté ; jour fait noté dans `app_settings.clips_purged_on`. Un élément vit donc N jours plus presque 24 h : voulu.
 - Il efface, au-delà de maintenant − N jours :
   - **clips non sauvegardés** (original, copie légère, son) dont `ended_at` est dépassé ; un fichier qui ne s'efface pas garde sa ligne (réessayé) ;

@@ -18,7 +18,6 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   fetchSystem: vi.fn(),
   fetchTable: vi.fn(),
   fetchClips: vi.fn(),
-  fetchRetention: vi.fn(),
   fetchGuest: vi.fn(),
   fetchSettings: vi.fn(),
   login: vi.fn(),
@@ -62,7 +61,6 @@ beforeEach(() => {
   m.fetchSystem.mockResolvedValue(system())
   m.fetchTable.mockResolvedValue(tablePage([{ id: 'e1', camera: 'cam', started_at: 5, clip_path: 'clips/cam/e1.mp4' }]))
   m.fetchClips.mockResolvedValue({ items: [], total: 0, page: 0, size: 20, options: [] })
-  m.fetchRetention.mockResolvedValue(15)
   m.fetchGuest.mockResolvedValue({ guest_fps: 2, guest_enabled: true, guest_link: null })
   m.fetchSettings.mockResolvedValue([])
   m.login.mockResolvedValue(undefined)

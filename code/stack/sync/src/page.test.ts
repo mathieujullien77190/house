@@ -126,7 +126,6 @@ test('les services de données', async () => {
   const cookie = await login()
   const get = async (url: string) => call({ url, cookie })
   withCamera(ctx)
-  assert.deepEqual(json(await get('/api/retention')), { clip_retention_days: 15 })
   assert.deepEqual(json(await get('/api/guest')), { guest_fps: 2, guest_enabled: true, guest_link: null })
   const settings = json(await get('/api/settings')) as { camera: string }[]
   assert.deepEqual(settings.map((s) => s.camera), ['cam'])
@@ -299,19 +298,6 @@ test('/api/sunset-lights : lecture, interrupteur, refus', async () => {
   assert.match(ctx.logs.at(-1) ?? '', /coupé/)
   await put({ enabled: true }, cookie)
   assert.match(ctx.logs.at(-1) ?? '', /activé/)
-})
-
-test('PUT /api/retention : de 1 à 3650 jours', async () => {
-  const { call, login } = setup()
-  const put = (body: unknown, cookie?: string) => call({ method: 'PUT', url: '/api/retention', body, cookie })
-  assert.equal((await put({ clip_retention_days: 30 })).status, 401)
-  const cookie = await login()
-  assert.equal((await call({ method: 'PUT', url: '/api/retention', rawBody: '[', cookie })).status, 400)
-  assert.equal((await put({ clip_retention_days: 0 }, cookie)).status, 400)
-  assert.equal((await put({ clip_retention_days: 3651 }, cookie)).status, 400)
-  assert.deepEqual(json(await put({ clip_retention_days: 30 }, cookie)), { clip_retention_days: 30 })
-  assert.deepEqual(json(await put({}, cookie)), { clip_retention_days: 30 })
-  assert.deepEqual(json(await call({ url: '/api/retention', cookie })), { clip_retention_days: 30 })
 })
 
 test('GET et PUT /api/guest donnent le lien de la page invité quand GUEST_KEY est réglée', async () => {

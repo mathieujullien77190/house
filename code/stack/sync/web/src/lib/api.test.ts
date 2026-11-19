@@ -12,7 +12,6 @@ import {
   fetchCameraEnergy,
   fetchLampEnergy,
   fetchMachineEnergy,
-  fetchRetention,
   fetchSunsetLights,
   fetchServos,
   fetchSettings,
@@ -26,7 +25,6 @@ import {
   logout,
   saveGuest,
   saveLanAccess,
-  saveRetention,
   saveSunsetLights,
   saveServos,
   saveSetting,
@@ -117,11 +115,6 @@ describe('lectures', () => {
     expect(lastCall()[0]).toBe('/api/overview?part=database')
   })
 
-  it('fetchRetention rend le nombre de jours', async () => {
-    answer({ clip_retention_days: 30 })
-    expect(await fetchRetention()).toBe(30)
-  })
-
   it('fetchTable : nom encodé, page, taille et filtre', async () => {
     answer({ items: [] })
     await fetchTable('hue events', 2, 20)
@@ -159,12 +152,6 @@ describe('écritures', () => {
     answer({ enabled: false, lights: [], offset_minutes: 0, next_run: null, catch_up_minutes: 60 })
     expect((await saveSunsetLights(false)).enabled).toBe(false)
     expect(lastCall()).toEqual(['/api/sunset-lights', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"enabled":false}' }])
-  })
-
-  it('saveRetention rend les jours enregistrés', async () => {
-    answer({ clip_retention_days: 60 })
-    expect(await saveRetention(60)).toBe(60)
-    expect(lastCall()[1]?.body).toBe('{"clip_retention_days":60}')
   })
 
   it('saveServos envoie le changement', async () => {

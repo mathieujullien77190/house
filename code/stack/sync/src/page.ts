@@ -170,7 +170,6 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
 
   // Les services derrière la session : vue d'ensemble, une page d'une table, une page des clips, un fichier.
   const service = async (res: ServerResponse, pathname: string, params: URLSearchParams, rangeHeader: string | undefined) => {
-    if (pathname === '/api/retention') return sendJson(res, 200, { clip_retention_days: settings.clipRetentionDays() })
     if (pathname === '/api/guest') return sendJson(res, 200, await guestBody(settings.guestFps()))
     if (pathname === '/api/servos') return sendJson(res, 200, readServos(db))
     if (pathname === '/api/lan-access') return sendJson(res, 200, { ...readLanAccess(db), address: config.lanPageUrl })
@@ -285,17 +284,6 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       ctx.log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, un mouvement compte après ${minSeconds} s, une image toutes les ${secs} s`)
       resetLiveFpsCheck()
       return sendJson(res, 200, settings.cameraSettings(camera))
-    }
-    // PUT /api/retention : { clip_retention_days } (de 1 à 3650), la durée de garde des clips non sauvegardés, pour toutes les caméras.
-    if (req.method === 'PUT' && pathname === '/api/retention') {
-      if (!hasSession(sessionOf(req))) return sendJson(res, 401, { error: 'login required' })
-      const body = await readJsonObject(req)
-      if (!body) return sendJson(res, 400, { error: 'invalid JSON' })
-      const days = intSetting(body.clip_retention_days, settings.clipRetentionDays(), MIN_RETENTION_DAYS, MAX_RETENTION_DAYS)
-      if (days === null) return sendJson(res, 400, { error: `clip_retention_days must be an integer from ${MIN_RETENTION_DAYS} to ${MAX_RETENTION_DAYS}` })
-      settings.saveRetention(days)
-      ctx.log(`Durée de garde des clips : ${days} jours`)
-      return sendJson(res, 200, { clip_retention_days: days })
     }
     // PUT /api/guest : { guest_fps?, guest_enabled? } : les images par seconde de la page invité (de 1 à 25 ; vignettes et 4K, PC et téléphone, toutes les caméras) et son interrupteur (false : elle ferme son port).
     if (req.method === 'PUT' && pathname === '/api/guest') {

@@ -120,7 +120,6 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
   let weatherWind = 0
   const knownCameras = db.prepare(`SELECT camera FROM last_images ORDER BY ${cameraOrderSql()}`)
   const retentionRow = db.prepare("SELECT value FROM app_settings WHERE key = 'clip_retention_days'")
-  const saveRetention = db.prepare("INSERT INTO app_settings (key, value) VALUES ('clip_retention_days', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
   const guestFpsRow = db.prepare("SELECT value FROM app_settings WHERE key = 'guest_fps'")
   const saveGuestFps = db.prepare("INSERT INTO app_settings (key, value) VALUES ('guest_fps', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
   const sunsetEnabledRow = db.prepare("SELECT value FROM app_settings WHERE key = 'sunset_lights_enabled'")
@@ -205,7 +204,6 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
     },
     /** La durée de garde de départ (celle des caméras sans la leur). */
     clipRetentionDays: defaultRetentionDays,
-    saveRetention: (days: number): void => void saveRetention.run(String(days)),
     guestFps: defaultGuestFps,
     saveGuestFps: (fps: number): void => void saveGuestFps.run(String(fps)),
     /** La recherche des yeux est-elle demandée pour cette caméra (réglage de la caméra, éteint par défaut) ? */

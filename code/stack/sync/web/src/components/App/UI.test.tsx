@@ -6,7 +6,7 @@ import { EMPTY_TEXT } from '@/components/TemperatureChart/constants'
 import AppUI from './UI'
 import type { AppUIProps } from './types'
 
-vi.mock('@/lib/api', () => ({ fetchTable: vi.fn(async () => ({ items: [], total: 0, page: 0, size: 20, options: [] })), fetchClips: vi.fn(), fetchRetention: vi.fn(), fetchGuest: vi.fn(), fetchSettings: vi.fn(), fetchTemperatures: vi.fn(async () => []) }))
+vi.mock('@/lib/api', () => ({ fetchTable: vi.fn(async () => ({ items: [], total: 0, page: 0, size: 20, options: [] })), fetchClips: vi.fn(), fetchGuest: vi.fn(), fetchSettings: vi.fn(), fetchTemperatures: vi.fn(async () => []) }))
 
 const props = (patch: Partial<AppUIProps> = {}): AppUIProps => ({
   status: 'ready',

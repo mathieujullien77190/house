@@ -39,16 +39,6 @@ export const fetchSettings = async (): Promise<CameraSetting[]> => (await reques
 export const saveSetting = async (camera: string, patch: Partial<Omit<CameraSetting, 'camera'>>): Promise<CameraSetting> =>
   (await request('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera, ...patch }) })).json()
 
-/** La durée de garde des clips non sauvegardés, en jours (la même pour toutes les caméras). */
-export const fetchRetention = async (): Promise<number> => ((await (await request('/api/retention')).json()) as { clip_retention_days: number }).clip_retention_days
-
-export const saveRetention = async (days: number): Promise<number> =>
-  (
-    (await (
-      await request('/api/retention', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clip_retention_days: days }) })
-    ).json()) as { clip_retention_days: number }
-  ).clip_retention_days
-
 /** De quoi bâtir le lien de la page invité : sa clé, son port et son adresse publique (vide tant qu'elle n'est pas ouverte à internet). */
 export interface GuestLinkInfo {
   key: string
