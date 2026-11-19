@@ -35,6 +35,15 @@ describe('CameraIndicators', () => {
     rerender(<CameraIndicators temperatures={[]} lamp={null} plug={null} rain="off" />)
     expect(screen.queryByText('☔')).toBeNull()
   })
+  it('le vent : 💨 ; les yeux : 👁️ avec son explication au clic', () => {
+    const { rerender } = render(<CameraIndicators temperatures={[]} lamp={null} plug={null} rain="wind" eyes />)
+    expect(screen.getByText('💨')).toBeInTheDocument()
+    expect(screen.getByText('👁️')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Recherche des yeux/ }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('reflets des yeux')
+    rerender(<CameraIndicators temperatures={[]} lamp={null} plug={null} eyes={false} />)
+    expect(screen.queryByText('👁️')).toBeNull()
+  })
 })
 
 describe('CameraIndicators : les ronds de la carte', () => {

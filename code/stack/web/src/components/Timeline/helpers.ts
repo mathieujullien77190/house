@@ -115,6 +115,8 @@ export const buildMarkers = (events: EventRow[], seconds: number, end: number, s
       text: describeEvent(event),
       selected: event.id === selectedId,
       ongoing: event.ended_at === null,
+      eyes: event.label === 'eyes',
+      foliage: event.label === 'foliage',
     }
   })
   return { markers }

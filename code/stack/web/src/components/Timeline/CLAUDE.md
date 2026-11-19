@@ -41,3 +41,6 @@ Frise **verticale, le plus récent en haut**, vue d'une caméra en écran fixe :
 - bouton retour fixe en haut à gauche (carré de 32 px) ; `AppUI` ne rend que `CameraCard`.
 
 Gestes identiques sur grand écran mais lus le long de l'axe (`alongOf`, `fractionAlong`, `shiftSeconds`) ; positions rendues en % (`vertical`).
+
+- **Bloc violet** : un événement d'étiquette `eyes` (des yeux qui brillent vus pendant le mouvement, `motion/src/CLAUDE.md` §9) est violet à la place du bleu (`TimelineMarker.eyes`, `MARKER_EYES_CLASS` de `@house/ui`). Un événement en cours reste rayé rouge.
+- **Bloc vert** : étiquette `foliage` (beaucoup de zones sur le mouvement, réglage de la caméra dans House Sync, `motion/src/CLAUDE.md` § 10). Priorité : violet (`eyes`) > vert > bleu.

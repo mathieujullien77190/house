@@ -11,7 +11,7 @@ export interface CameraMarker {
 }
 
 /** Le mode pluie d'une caméra (réglé dans House Sync) : éteint, pluie ou pluie forte. */
-export type RainMode = 'off' | 'rain' | 'heavy' | 'fog'
+export type RainMode = 'off' | 'rain' | 'heavy' | 'fog' | 'wind'
 
 export interface CameraRow {
   camera: string
@@ -19,6 +19,8 @@ export interface CameraRow {
   orientation: Orientation
   /** Le niveau de pluie qui s'applique à la caméra (le mode pluie de House Sync et la météo). */
   rain?: RainMode
+  /** 1 quand la recherche des yeux tourne sur la caméra. */
+  eyes?: number
 }
 
 export interface EventRow {
@@ -333,5 +335,7 @@ export interface Camera {
   orientation: Orientation
   /** Le mode pluie (éteint, pluie, pluie forte) : allumé, la détection est coupée et une image est gardée toutes les 5 s. */
   rain?: RainMode
+  /** La recherche des yeux (la nuit) tourne sur la caméra : la vidéo montre un œil. */
+  eyes?: boolean
 }
 

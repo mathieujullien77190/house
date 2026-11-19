@@ -38,4 +38,8 @@ export interface Marker {
   text: string
   selected: boolean
   ongoing: boolean
+  /** Des yeux qui brillent ont été vus pendant l'événement (étiquette `eyes`) : bloc violet. */
+  eyes: boolean
+  /** Un mouvement de feuillage (étiquette `foliage`) : bloc vert. */
+  foliage: boolean
 }

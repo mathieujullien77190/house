@@ -36,6 +36,11 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
   - Le clip est copié par House Sync quel que soit le réglage « Clips vidéo », visible dans la frise en environ 1 min, **sauvegardé d'office**.
   - Une page rouverte retrouve un enregistrement en cours.
 
+## Œil de la recherche des yeux
+
+- 👁️ dans les indicateurs (`CameraIndicators`, à gauche de la vidéo comme 🌧️ et 💨), quand la recherche des yeux tourne sur la caméra (`camera.eyes`, champ `eyes` de `GET /direct`, rangé par House Sync). Réglage et heures : `../../../../sync/src/CLAUDE.md`. Cliquable (infobulle).
+- Les cadres des yeux sont dans les contours du clip (même polygones rouges que le mouvement).
+
 ## Son du direct
 
 - `components/LiveAudio` : haut-parleur sur la vidéo, en bas à droite (slot `sound`) ; caméra allumée, pas pendant un clip.
@@ -62,7 +67,7 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
 - **À côté, pour `voliere-interieur`** (`CameraIndicators`) :
   - le rond de la lampe « Perruche » (`CAMERA_LAMP` = 26, `lib/useLamp.ts`, 5 s) ;
   - le carré de la prise (`PlugSquare`, vert allumée, rouge éteinte) ;
-  - 🌧️ / ☔ si le champ `rain` de `GET /direct` est vrai (mode pluie allumé et il pleut) ;
+  - 🌧️ / ☔ si le champ `rain` de `GET /direct` est vrai (mode pluie allumé et il pleut) ; 💨 pour le mode vent (au-dessus de 20 km/h) ;
 - Chaque indicateur est cliquable (`components/IndicatorHint`) : infobulle fermée par un autre clic, Échap ou 6 s ; le clic n'ouvre pas la caméra.
 - **Heure** (`lib/useClock.ts`, `clock`) : en vue en grand, en bas à droite, secondes sans date ; direct = maintenant, sinon l'heure du curseur. Hors vue en grand, la frise a un bloc heure après les durées.
 
