@@ -3,6 +3,7 @@ import { countsOf } from '@/catalog'
 import CameraDialog from '@/components/CameraDialog'
 import Diagram from '@/components/Diagram'
 import Domain from '@/components/Domain'
+import FeederWiring from '@/components/FeederWiring'
 import GlossarySheet from '@/components/GlossarySheet'
 import InfoPanel from '@/components/InfoPanel'
 import Legend from '@/components/Legend'
@@ -20,6 +21,7 @@ import type { TabId } from './types'
 // Three.js est lourd : on ne le charge que lorsqu'on ouvre l'onglet qui montre une vue 3D.
 const ShutterWiring3D = lazy(() => import('@/components/ShutterWiring3D'))
 const ServoWiring3D = lazy(() => import('@/components/ServoWiring3D'))
+const FeederWiring3D = lazy(() => import('@/components/FeederWiring3D'))
 
 const App = () => {
   const d = useDiagram()
@@ -86,7 +88,7 @@ const App = () => {
         tabs={TABS}
         tab={tab}
         onTab={setTab}
-        domain={tab === 'architecture' ? null : <Domain id={tab} />}
+        domain={tab === 'architecture' || tab === 'feeder' ? null : <Domain id={tab} />}
         detail={
           tab === 'shutters' ? (
             <div className="flex flex-col gap-4">
@@ -96,6 +98,13 @@ const App = () => {
               </Suspense>
               <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
                 <ServoWiring3D />
+              </Suspense>
+            </div>
+          ) : tab === 'feeder' ? (
+            <div className="flex flex-col gap-4">
+              <FeederWiring />
+              <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
+                <FeederWiring3D />
               </Suspense>
             </div>
           ) : null

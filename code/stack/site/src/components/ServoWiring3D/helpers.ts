@@ -46,11 +46,11 @@ const headerPin = (name: string): THREE.Vector3 => {
 }
 
 /** Un fil : un tube qui suit une courbe lisse par ces points. */
-const wire = (points: THREE.Vector3[], color: number, radius = 0.5): THREE.Mesh =>
+export const wire = (points: THREE.Vector3[], color: number, radius = 0.5): THREE.Mesh =>
   new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.4), 64, radius, 8, false), material(color, { roughness: 0.45 }))
 
 /** Un petit boîtier de connecteur à un bout de fil. */
-const housing = (at: THREE.Vector3, color: number): THREE.Mesh => {
+export const housing = (at: THREE.Vector3, color: number): THREE.Mesh => {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3, 2.4), material(color))
   mesh.position.copy(at)
   return mesh
@@ -73,9 +73,8 @@ const hornShape = (): THREE.Shape => {
   return new THREE.Shape(points)
 }
 
-/** Un servo debout (Miuzei MF90), le grand côté vers z : corps, oreilles, embase, axe et corne noire, avec le nom de sa touche devant. */
-const buildServo = (root: THREE.Group, servo: ServoSpec, i: number) => {
-  const { x, z } = servoAt(i)
+/** Le corps d'un servo debout (Miuzei MF90) centré en (x, z), le grand côté vers z : corps, oreilles, embase, axe et corne noire. */
+export const drawServo = (root: THREE.Group, x: number, z: number) => {
   const { length, width, height, earsLength, earsAt, earsThickness, shaftFromEnd, bossR, bossH, shaftR, shaftH } = SERVO
   root.add(box(width, height, length, COLORS.servo, x, height / 2, z))
   root.add(box(width, earsThickness, earsLength, COLORS.servo, x, earsAt + earsThickness / 2, z))
@@ -86,6 +85,12 @@ const buildServo = (root: THREE.Group, servo: ServoSpec, i: number) => {
   horn.rotation.x = Math.PI / 2
   horn.position.set(x, height + bossH + 0.5 + HORN.thickness, axisZ)
   root.add(horn)
+}
+
+/** Un servo debout avec le nom de sa touche devant. */
+const buildServo = (root: THREE.Group, servo: ServoSpec, i: number) => {
+  const { x, z } = servoAt(i)
+  drawServo(root, x, z)
   root.add(textPlane(servo.action, COLORS.titleText, 'center', x, z + 26, 15, 2.2, true, 0.3))
   if (i % 3 === 0) root.add(textPlane(servo.remote, textColor(servo), 'center', x + SERVO_ROW.dx, z + 31, 20, 3, true, 0.3))
 }

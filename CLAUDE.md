@@ -27,6 +27,7 @@ Téléphone, hors de la maison
 | Accès distant, pare-feu, SSH, HTTPS | `code/stack/docs/securite.md` |
 | Un service | `CLAUDE.md` de son dossier (`site/`, `api/`, `web/`, `sync/`, `sync/web/`, `motion/`, `go2rtc/`, `certs/`, `power/`, `ui/`, `guest/`) |
 | Lumières Hue | `code/stack/docs/hue.md` |
+| Mangeoire de la volière (projet : montage, broches) | `code/stack/docs/mangeoire.md` |
 | Session Claude du mini PC | `code/stack/remote/README.md` |
 
 ## Règles

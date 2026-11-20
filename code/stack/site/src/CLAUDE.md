@@ -4,7 +4,7 @@ Commandes : `../CLAUDE.md` (ce dossier). Conventions de code : `../../../../CLAU
 
 ## Onglets
 
-Cinq onglets (`components/App`) : Caméra, Lumière, Volet, Prise, Architecture.
+Six onglets (`components/App`) : Caméra, Lumière, Volet, Prise, Mangeoire, Architecture.
 
 - Les quatre domaines commencent par le bloc `components/Domain` : **en place**, puis **en préparation** (avec budget). Contenu dans `domotics.ts` (une entrée par élément, `price` en euros, absent tant que non relevé). Un chantier fait passe de « préparation » à « en place ».
 - **Lumière**, **Prise** : ce bloc seulement.
@@ -14,6 +14,7 @@ Cinq onglets (`components/App`) : Caméra, Lumière, Volet, Prise, Architecture.
   - dessous, schéma 3D des 9 servos des volets Nice (`ServoWiring3D`) : ESP32, carte PCA9685, 9 servos MF90 (canaux 0 à 8), 4 fils ESP32 vers carte, 3 fils par servo ;
   - sous ce schéma, la liste d'achats (`PURCHASES` dans `ServoWiring3D/constants.ts`, prix Amazon du 12 nov 2026) : à tenir à jour. `domotics.ts` ne porte que le total de la boîte (83,93 €), la liste détaillée n'est qu'ici.
   - Cotes du servo : projet `cnc`, `scripts/models/boite-volets-nice.mjs`. La carte ESP32 des deux schémas : `lib/esp32Board.ts`.
+- **Mangeoire** (projet, rien n'est commandé) : pas de bloc de domaine, le schéma de câblage `FeederWiring` (SVG 2D : chargeur USB-C, carte Freenove ESP32-S3 CAM, deux servos, tableau des broches) et dessous sa scène 3D `FeederWiring3D` (carte, 2 servos MF90, câbles Dupont sertis dont un Y pour le 5V et un pour le GND, chargeur ; les textes du courant viennent de `FeederWiring/constants.ts`). Source : `../../docs/mangeoire.md`, à garder alignée.
 - **Caméra** : le bloc, le plan SVG interactif (deux étages, zoom, composants déplaçables), le panneau de détail, le dessin Reolink 2D/3D, le badge ⚡ secteur, le tableau des prix.
 - **Architecture** : six vues, voir son CLAUDE.md.
 
@@ -63,7 +64,7 @@ lib/           classes Tailwind, GlossaryContext, three.ts, esp32Board.ts
 
 - **Couleurs** : le plan suit la page ; seuls composants et liaisons ont un accent, un par liaison (PoE bleu, VPN bleu-vert à longs tirets, `--vpn` dans `index.css`).
 - **Caméras** : un clic (ou Entrée) ouvre `CameraDialog` ; un glissement de plus de 4 unités déplace (`DRAG_THRESHOLD`).
-- **Three.js** : `React.lazy`, millimètres, scène construite une fois, démontage avec `forceContextLoss`, rendu arrêté hors écran. Ctrl + molette = zoom, sauf `ShutterWiring3D` et `ServoWiring3D` (molette seule).
+- **Three.js** : `React.lazy`, millimètres, scène construite une fois, démontage avec `forceContextLoss`, rendu arrêté hors écran. Ctrl + molette = zoom, sauf `ShutterWiring3D`, `ServoWiring3D` et `FeederWiring3D` (molette seule).
 
 ## Pièges
 

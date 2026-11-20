@@ -14,5 +14,6 @@ export const TABS: SegmentedOption<TabId>[] = [
   { id: 'lights', label: 'Lumière' },
   { id: 'shutters', label: 'Volet' },
   { id: 'plugs', label: 'Prise' },
+  { id: 'feeder', label: 'Mangeoire' },
   { id: 'architecture', label: 'Architecture' },
 ]
