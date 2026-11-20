@@ -218,6 +218,7 @@ Somfy RTS via ESP32 + CC1101 (firmware ESPSomfy-RTS ; onglet Architecture, vue �
 
 - Pour les volets de `SHUTTERS_AUTO` (défaut tous) : **ouvrir au lever**, **fermer au coucher**, deux options séparées, volet par volet.
 - `auto` de `GET /shutters` : `null` (pas d'action) ou `{open, close}`. `PUT /shutters/<id>/auto` `{"open"?, "close"?}` ; 404 / 400.
+- **Décalage** : le volet n° i de `SHUTTERS_AUTO` (à partir de 0) part i minutes après le lever ou le coucher (`STAGGER_SECONDS`), pour ne pas tous les envoyer d'un coup.
 - Un tour par minute (`crossedEvents`, `lib/sun.ts`) ; notes de journal « auto : lever du soleil » / « coucher ».
 - Un lever manqué (API arrêtée) est joué s'il date de moins de 2 h. **Activer après un lever ne l'ouvre pas.**
 - Ancien document avec une seule case `enabled` : vaut pour les deux options.

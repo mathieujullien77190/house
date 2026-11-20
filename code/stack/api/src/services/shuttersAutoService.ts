@@ -9,6 +9,8 @@ import type { ShuttersService } from './shuttersService.ts'
 
 /** Un lever ou un coucher joué plus de deux heures après son heure est ignoré. */
 export const MAX_LATE_SECONDS = 7200
+/** Le décalage entre deux volets consécutifs : une minute. */
+export const STAGGER_SECONDS = 60
 /** Le rythme du tour. */
 const TICK_MS = 60_000
 const DAY = 86400
@@ -38,13 +40,16 @@ export const createShuttersAuto = ({ ids, shutters, store, position, now = () =>
   const tick = async (): Promise<void> => {
     const until = now()
     const states = store.get()
-    for (const id of ids) {
+    for (const [index, id] of ids.entries()) {
       const state = states[id]
       if (!state || (!state.open && !state.close)) continue
+      // Chaque volet est décalé d'une minute de plus que le précédent (dans l'ordre de SHUTTERS_AUTO), au lever comme au coucher.
+      const offset = index * STAGGER_SECONDS
       // Les plus anciens d'abord. `since` avance à chaque ordre joué ou sauté (trop vieux) ; s'il échoue, on s'arrête là et on réessaie au prochain tour.
       let since = state.since
       let failed = false
-      for (const event of crossedEvents(since, until, position)) {
+      for (const shifted of crossedEvents(since - offset, until - offset, position)) {
+        const event = { ...shifted, at: shifted.at + offset }
         // Un ordre dont l'option est coupée est sauté, mais compté comme traité.
         const wanted = event.command === 'up' ? state.open : state.close
         if (wanted && until - event.at <= MAX_LATE_SECONDS) {

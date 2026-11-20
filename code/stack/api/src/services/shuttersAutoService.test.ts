@@ -94,6 +94,16 @@ test('un volet sans réglage, sans option ou sans événement n’est pas touch�
   assert.equal(same.states()['1'].since, TIMES.rise + 20)
 })
 
+test('chaque volet est décalé d’une minute de plus que le précédent', async () => {
+  const both = { open: true, close: true, since: TIMES.set - 600 }
+  const early = setup({ '1': both, '2': both }, TIMES.set + 30)
+  await early.auto.tick()
+  assert.deepEqual(early.sent, ['1 down auto : coucher du soleil'])
+  const later = setup({ '1': { ...both, since: TIMES.set + 30 }, '2': both }, TIMES.set + 61)
+  await later.auto.tick()
+  assert.deepEqual(later.sent, ['2 down auto : coucher du soleil'])
+})
+
 test('state et setOptions', () => {
   const { auto, states } = setup({ '1': { open: true, close: false, since: 1 } }, 1000)
   assert.deepEqual(auto.ids, ['1', '2'])
