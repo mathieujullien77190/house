@@ -28,8 +28,9 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
 ## Clips : sauvegarde, partage, enregistrement
 
 - Interrupteur **Sauvegardé / Non sauvegardé** (`PUT /clips/<id>/saved`), grand écran seulement. Un clip sauvegardé n'est jamais effacé ; les autres le sont après la durée de garde de House Sync (15 jours par défaut). L'état s'affiche tout de suite (`savedChoice`) et revient en arrière si l'API refuse.
-- **Partager** (`ShareButton`, `lib/shareClip.ts`) : clips sauvegardés, seulement dans Home et SavedClips, pas ici.
+- **Partager** (`ShareButton`, `lib/shareClip.ts`) : clips sauvegardés dans SavedClips ; dans le détail d'une caméra, **seulement sur téléphone**, pour le clip regardé (vidéo légère).
   - La vidéo légère est téléchargée, puis `navigator.share({ files })` ; sans partage de fichier (ordinateurs), elle est téléchargée.
+  - Si la vidéo a mis trop de temps à charger, le navigateur refuse le menu (`NotAllowedError`) : le bouton garde le fichier et passe à « Prêt : touche pour partager » ; le second toucher ouvre le menu aussitôt.
   - Demande HTTPS avec la CA de la maison. Un lien ne servirait à rien : le clip n'est lisible qu'avec la session.
 - **Enregistrer** (`lib/useRecording.ts`, `/record`, `components/RecordButton`) : rond en haut à gauche de la vidéo, aussi sur téléphone.
   - Gris au repos, rouge qui pulse en cours ; un clic commence, un second termine ; arrêt automatique à 3 min.

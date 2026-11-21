@@ -1,5 +1,6 @@
 export const LABEL = 'Partager'
 export const BUSY_LABEL = 'Préparation…'
+export const READY_LABEL = 'Prêt : touche pour partager'
 export const ERROR_TEXT = 'Partage impossible.'
 export const WRAP_CLASS = 'flex items-center gap-2'
 export const ERROR_CLASS = 'rounded-md bg-card px-2 py-1 text-[0.8rem] text-danger'

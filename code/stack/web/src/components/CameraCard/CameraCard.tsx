@@ -9,6 +9,7 @@ import RecordButton from '@/components/RecordButton'
 import RotatedMedia from '@/components/RotatedMedia'
 import { setCameraPower, setClipSaved } from '@/lib/api'
 import { rememberClipDuration } from '@/lib/clipDurations'
+import { describeEvent } from '@/lib/format'
 import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
 import CameraMarkers from '@/components/CameraMarkers'
@@ -26,6 +27,7 @@ import { useSensors } from '@/lib/useSensors'
 import { useRecording } from '@/lib/useRecording'
 import { useZone } from '@/lib/useZone'
 import { usePower } from '@/lib/usePower'
+import ShareButton from '@/components/ShareButton'
 import SnapshotImage from '@/components/SnapshotImage'
 import Timeline from '@/components/Timeline'
 import type { EventRow } from '@/types'
@@ -351,6 +353,8 @@ const CameraCard = ({
       actions={
         <>
           {selected?.clip && !mobile ? saveToggle : null}
+          {/* Sur téléphone, le partage du clip regardé (la vidéo légère) : l'interrupteur « Sauvegardé » n'y est pas. */}
+          {mobile && selected && clipPath ? <ShareButton key={selected.id} path={clipPath} name={selected.id} title={describeEvent(selected)} /> : null}
           {mobile ? liveQualityTabs : null}
           {isLive && !placeholder && !mobile ? (
             <Button variant={zoneEditing ? 'active' : 'default'} aria-pressed={zoneEditing} onClick={() => setEditingZone((on) => !on)}>

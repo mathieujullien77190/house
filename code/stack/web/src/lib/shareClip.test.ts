@@ -1,5 +1,5 @@
 import { reply, stubFetch } from '@/test/fetch'
-import { shareClip } from './shareClip'
+import { loadClip, shareClip, shareFile } from './shareClip'
 
 afterEach(() => {
   Reflect.deleteProperty(navigator, 'canShare')
@@ -33,8 +33,19 @@ describe('shareClip', () => {
     stubFetch(() => reply('video'))
     setNavigator(() => true, vi.fn().mockRejectedValue(new Error('boum')))
     await expect(shareClip('/c', 'n', 't')).rejects.toThrow('boum')
+  })
+  it('un partage refusé car trop tardif (NotAllowedError) rend « ready »', async () => {
+    stubFetch(() => reply('video'))
     setNavigator(() => true, vi.fn().mockRejectedValue(new DOMException('x', 'NotAllowedError')))
-    await expect(shareClip('/c', 'n', 't')).rejects.toThrow()
+    expect(await shareClip('/c', 'n', 't')).toBe('ready')
+  })
+  it('loadClip rend le fichier, shareFile le partage', async () => {
+    stubFetch(() => reply('video'))
+    const file = await loadClip('/c', 'nom')
+    expect(file.name).toBe('nom.mp4')
+    const share = vi.fn().mockResolvedValue(undefined)
+    setNavigator(() => true, share)
+    expect(await shareFile(file, 'titre')).toBe('shared')
   })
   it.each([[undefined], [() => false]])('sinon télécharge le fichier (%s)', async (canShare) => {
     vi.useFakeTimers()

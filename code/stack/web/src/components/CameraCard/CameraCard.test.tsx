@@ -593,11 +593,17 @@ describe('CameraCard : sauvegarde et partage', () => {
     await act(flush)
     expect(screen.getByRole('tab', { name: 'Non sauvegardé' })).toHaveAttribute('aria-selected', 'true')
   })
-  it('plus de bouton Partager dans le détail d’une caméra, clip sauvegardé ou non', () => {
+  it('sur ordinateur : pas de bouton Partager dans le détail d’une caméra', () => {
     mount({ events: [event('a', { saved: true })] })
     pick(event('a', { saved: true }))
     expect(screen.queryByRole('button', { name: /Partager/ })).toBeNull()
-    expect(document.querySelector('[data-testid="share"]')).toBeNull()
+  })
+  it('sur téléphone : bouton Partager pour le clip regardé, sauvegardé ou non, pas avant d’en choisir un', () => {
+    h.s.mobile = true
+    mount({ events: [e] })
+    expect(screen.queryByRole('button', { name: /Partager/ })).toBeNull()
+    pick(e)
+    expect(screen.getByRole('button', { name: /Partager/ })).toBeInTheDocument()
   })
   it('sur téléphone : pas d’interrupteur « Sauvegardé »', () => {
     h.s.mobile = true
