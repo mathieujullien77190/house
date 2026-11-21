@@ -38,6 +38,8 @@ import {
   SECTION_SUNSET,
   EYES_LABEL,
   EYES_OPTIONS,
+  LINK_LABEL,
+  LINK_OPTIONS,
   SECTION_SERVOS,
   MIN_SECONDS_LABEL,
   MIN_SECONDS_MAX,
@@ -192,6 +194,15 @@ const SettingsSection = () => {
                     options={[...EYES_OPTIONS]}
                     value={setting.eyes_mode ?? 'off'}
                     onChange={(id) => change(setting.camera, { eyes_mode: id })}
+                  />
+                </div>
+                <div className={GROUP_CLASS}>
+                  <span className={LABEL_CLASS}>{LINK_LABEL}</span>
+                  <Tabs
+                    label={LINK_LABEL}
+                    options={[...LINK_OPTIONS]}
+                    value={setting.link_mode ?? 'off'}
+                    onChange={(id) => change(setting.camera, { link_mode: id })}
                   />
                 </div>
                 <div className={GROUP_CLASS}>

@@ -250,6 +250,8 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
     { wind_mode: 1 },
     { eyes_mode: 'auto' },
     { eyes_mode: 1 },
+    { link_mode: 'auto' },
+    { link_mode: 1 },
     { clip_retention_days: 0 },
     { clip_retention_days: 3651 },
     { guest_fps: 0 },
@@ -261,7 +263,7 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
   assert.equal(resets.length, 0)
   const res = await call({ ...putSettings({ camera: 'cam', clips_mode: 'night', snapshot_seconds: 120, live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, orientation: 'portrait' }), cookie })
   assert.equal(res.status, 200)
-  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off', wind_mode: 'off', eyes_mode: 'off', clip_retention_days: 15, guest_fps: 2, foliage_zones: 0 })
+  assert.deepEqual(json(res), { camera: 'cam', clips_mode: 'night', live_fps: 10, light_fps: 5, live_fps_mobile: 4, light_fps_mobile: 3, motion_sensitivity: 5, motion_min_seconds: 6, snapshot_seconds: 120, orientation: 'portrait', rain_mode: 'off', rain_now: 'off', wind_mode: 'off', eyes_mode: 'off', link_mode: 'off', clip_retention_days: 15, guest_fps: 2, foliage_zones: 0 })
   assert.equal(resets.length, 1)
   assert.match(ctx.logs.at(-1) ?? '', /Réglages de cam : clips night, direct 4K à 10 images\/s/)
   // Un second envoi partiel garde le reste.
@@ -271,10 +273,10 @@ test('PUT /api/settings : la session, le JSON, la caméra et chaque réglage son
   assert.equal((json(await call({ ...putSettings({ camera: 'cam', rain_mode: 'on' }), cookie })) as { rain_mode: string }).rain_mode, 'on')
   assert.equal((json(await call({ ...putSettings({ camera: 'cam', live_fps: 9 }), cookie })) as { rain_mode: string }).rain_mode, 'on')
   // Le vent, les yeux, la durée de garde, les images par seconde invité et le feuillage : propres à la caméra, gardés par un envoi qui n'en parle pas.
-  const own = json(await call({ ...putSettings({ camera: 'cam', wind_mode: 'on', eyes_mode: 'on', clip_retention_days: 30, guest_fps: 6, foliage_zones: 12 }), cookie })) as Record<string, unknown>
-  assert.deepEqual([own.wind_mode, own.eyes_mode, own.clip_retention_days, own.guest_fps, own.foliage_zones], ['on', 'on', 30, 6, 12])
+  const own = json(await call({ ...putSettings({ camera: 'cam', wind_mode: 'on', eyes_mode: 'on', link_mode: 'on', clip_retention_days: 30, guest_fps: 6, foliage_zones: 12 }), cookie })) as Record<string, unknown>
+  assert.deepEqual([own.wind_mode, own.eyes_mode, own.link_mode, own.clip_retention_days, own.guest_fps, own.foliage_zones], ['on', 'on', 'on', 30, 6, 12])
   const kept = json(await call({ ...putSettings({ camera: 'cam', live_fps: 7 }), cookie })) as Record<string, unknown>
-  assert.deepEqual([kept.wind_mode, kept.eyes_mode, kept.clip_retention_days, kept.guest_fps, kept.foliage_zones], ['on', 'on', 30, 6, 12])
+  assert.deepEqual([kept.wind_mode, kept.eyes_mode, kept.link_mode, kept.clip_retention_days, kept.guest_fps, kept.foliage_zones], ['on', 'on', 'on', 30, 6, 12])
 })
 
 test('/api/sunset-lights : lecture, interrupteur, refus', async () => {

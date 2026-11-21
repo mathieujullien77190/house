@@ -38,6 +38,8 @@ Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
   - Un polygone qui couvre tout ou rien ne met pas de masque.
 - Zone, sensibilité et durée minimale sont gardées dans `detection.json` (à côté de `events.json`, `/data/detection.json`) et reprises au démarrage ; House Sync les renvoie chaque minute. Sans ce fichier (premier démarrage), retour aux défauts (3, toute l'image) jusqu'au premier envoi : un mouvement de feuillage hors zone pouvait alors ouvrir un événement (vu le 19 nov. 2026 à 2 h 48).
 
+- **Caméras liées** : `LINKS` = des **groupes** (`a+b+c,d+e`, compose : `voliere-toit+voliere-interieur`) + `PUT …/link?enabled=0|1` sur la caméra (réglage « Clip sur la caméra liée » de House Sync, **éteint** tant qu'il ne l'a pas dit, répété chaque minute). Quand une caméra dont l'interrupteur est sur ON voit un mouvement **ou** des yeux, un événement s'ouvre sur **chaque autre caméra du groupe** ; il se ferme quand la dernière caméra qui l'a demandé a fini (`openLinked`, `closeLinked` dans `index.ts`). Un événement lié n'en déclenche pas d'autre. Les segments sont toujours enregistrés, le clip se fait comme les autres. Distinct de l'événement propre de la cible : s'ils se recouvrent, la fusion les réunit.
+
 ## 6. Enregistrement manuel
 
 - `GET`, `POST`, `DELETE /api/cameras/<caméra>/record` (bouton « Enregistrer un clip »).

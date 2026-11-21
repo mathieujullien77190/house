@@ -9,6 +9,8 @@
 - **Feuillage** : curseur de 0 (coupé) à 60 zones (`foliage_zones`), dans le bloc « Détection du mouvement » : un mouvement qui fait au moins ce nombre de zones sur 30 % de ses images est étiqueté feuillage, vert dans la frise.
 - **Recherche des yeux** (`eyes_mode`, OFF par défaut) à côté du mode pluie, sans ligne d'aide (les libellés sont seulement « Mode pluie » et « Mode vent ») : `../../../../src/CLAUDE.md`.
 
+- **Clip sur la caméra liée** (`link_mode`, OFF par défaut) : un mouvement ou des yeux vus par cette caméra font aussi un clip sur les autres de son groupe (`LINKS` du compose : `voliere-toit` et `voliere-interieur`). Chaque caméra du groupe a son interrupteur. Sans effet sur une caméra hors groupe.
+
 **Enregistrement : clips et images**
 
 - Clips : Toujours / La nuit / Jamais (hors des clips gardés, la détection est éteinte).

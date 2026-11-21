@@ -29,12 +29,25 @@ export interface Config {
   audioSegmentSeconds: number
   /** Le gain en dB du son des clips (AUDIO_GAIN_DB, 24 par défaut) : le micro des Reolink donne un son très faible. */
   audioGainDb: number
+  /** Les caméras liées (LINKS, groupes `a+b+c,d+e`) : un mouvement ou des yeux vus par la source ouvrent aussi un événement, donc un clip, sur chaque cible de son groupe. */
+  links: { source: string; target: string }[]
   /** Étiquette vidéo du MP4 : hvc1 pour du H.265 (la caméra), vide pour du H.264. */
   videoTag: string
   /** L'API pour House Sync. */
   port: number
   detector: DetectorConfig
 }
+
+/**
+ * Des groupes de caméras liées : « a+b+c,d+e » fait deux groupes (a, b, c) et (d, e) ; le mouvement de l'une fait un clip sur toutes les autres du groupe.
+ * Rend un lien (source, cible) pour chaque paire ordonnée de chaque groupe ; un groupe de moins de deux caméras est ignoré.
+ */
+export const parseLinks = (value: string | undefined): { source: string; target: string }[] =>
+  (value ?? '')
+    .split(',')
+    .map((group) => [...new Set(group.split('+').map((name) => name.trim()).filter(Boolean))])
+    .filter((names) => names.length >= 2)
+    .flatMap((names) => names.flatMap((source) => names.filter((target) => target !== source).map((target) => ({ source, target }))))
 
 const number = (value: string | undefined, fallback: number): number => {
   const parsed = Number(value)
@@ -60,6 +73,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   audioCameras: (env.AUDIO_CAMERAS ?? '').split(',').map((name) => name.trim()).filter(Boolean),
   audioSegmentSeconds: number(env.AUDIO_SEGMENT_SECONDS, 10),
   audioGainDb: number(env.AUDIO_GAIN_DB, 24),
+  links: parseLinks(env.LINKS),
   videoTag: env.VIDEO_TAG ?? 'hvc1',
   port: number(env.PORT, 8080),
   detector: {

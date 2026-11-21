@@ -23,6 +23,8 @@ export const createControl = (ctx: Context) => {
   const eyesSent = new Map<string, { enabled: boolean; at: number }>()
   // Le seuil de zones du feuillage : envoyé de la même façon.
   const foliageSent = new Map<string, { zones: number; at: number }>()
+  // Le clip lié (une caméra qui en déclenche une autre, LINKS de l'enregistreur) : envoyé de la même façon.
+  const linkSent = new Map<string, { enabled: boolean; at: number }>()
 
   const syncDetection = async (base: string, cameras: string[]): Promise<void> => {
     const now = seconds(ctx)
@@ -43,6 +45,12 @@ export const createControl = (ctx: Context) => {
           eyesSent.set(camera, { enabled: eyes, at: now })
           settings.saveEyesNow(camera, eyes)
         }
+      }
+      const link = settings.cameraSettings(camera).link_mode === 'on'
+      const linkAt = linkSent.get(camera)
+      if (!linkAt || linkAt.enabled !== link || now - linkAt.at >= DETECTION_REFRESH_SECONDS) {
+        const res = await ctx.fetch(`${base}/api/cameras/${camera}/link?enabled=${link ? 1 : 0}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+        if (res?.ok) linkSent.set(camera, { enabled: link, at: now })
       }
       const foliageZones = settings.cameraSettings(camera).foliage_zones
       const foliageAt = foliageSent.get(camera)

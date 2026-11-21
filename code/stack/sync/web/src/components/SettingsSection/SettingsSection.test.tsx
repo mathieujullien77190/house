@@ -38,6 +38,7 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
 const RAIN_GROUP = 'Mode pluie'
 const WIND_GROUP = 'Mode vent'
 const EYES_GROUP = 'Recherche des yeux (la nuit)'
+const LINK_GROUP = 'Clip sur la caméra liée'
 const SAVE_ERROR = /n’a pas pu être enregistré/
 
 beforeEach(() => {
@@ -171,6 +172,9 @@ describe('réglages par caméra', () => {
     await waitFor(() => expect(tab(EYES_GROUP, 'ON').getAttribute('aria-selected')).toBe('true'))
     expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { wind_mode: 'on' })
     expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { eyes_mode: 'on' })
+    fireEvent.click(tab(LINK_GROUP, 'ON'))
+    await waitFor(() => expect(tab(LINK_GROUP, 'ON').getAttribute('aria-selected')).toBe('true'))
+    expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { link_mode: 'on' })
   })
 
   it('le mode vent et le brouillard disent aussi ce qui est actif', async () => {

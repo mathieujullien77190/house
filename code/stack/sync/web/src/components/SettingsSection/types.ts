@@ -33,6 +33,8 @@ export interface CameraSetting {
   rain_now?: RainLevel
   /** La recherche des yeux qui brillent, la nuit : off (par défaut) ou on. */
   eyes_mode?: RainMode
+  /** Le clip lié : un mouvement ou des yeux vus par cette caméra font aussi un clip sur la caméra liée de l'enregistreur : off (par défaut) ou on. */
+  link_mode?: RainMode
   /** Le mode vent : allumé, le vent au-dessus du seuil agit comme la pluie (pas de clips, une image toutes les 5 s). */
   wind_mode?: RainMode
   /** La durée de garde (jours) des clips non sauvegardés, des images et des événements de la caméra. */

@@ -61,6 +61,8 @@ export interface CameraSettings {
   wind_mode: RainMode
   /** La recherche des yeux qui brillent, la nuit (enregistreur, `eyes.ts`) : off (par défaut) ou on. */
   eyes_mode: RainMode
+  /** Le clip lié : un mouvement ou des yeux vus par cette caméra font aussi un clip sur la caméra liée (LINKS de l'enregistreur) : off (par défaut) ou on. */
+  link_mode: RainMode
   /** La durée de garde (jours) des clips non sauvegardés, des images et des événements de la caméra. */
   clip_retention_days: number
   /** Les images par seconde de la page invité (public et Chez Matou) pour cette caméra. */
@@ -84,6 +86,7 @@ export interface CameraSettingsUpdate {
   orientation: string
   rain?: string
   eyes?: string
+  link?: string
   wind?: string
   retention?: number
   guestFps?: number
@@ -99,7 +102,7 @@ const rainNowOf = (mode: RainMode, weather: 'none' | 'rain' | 'heavy' | 'fog', w
   mode === 'on' && weather !== 'none' ? weather : windMode === 'on' && windy ? 'wind' : 'off'
 
 export const createSettings = (db: DatabaseSync, config: Config) => {
-  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode, wind_mode, eyes_mode, retention_days, guest_fps, foliage_zones FROM settings WHERE camera = ?')
+  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode, wind_mode, eyes_mode, link_mode, retention_days, guest_fps, foliage_zones FROM settings WHERE camera = ?')
   const saveSettings = db.prepare(
     'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, motion_sensitivity = excluded.motion_sensitivity, snapshot_seconds = excluded.snapshot_seconds',
   )
@@ -110,6 +113,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
   const setWind = db.prepare('UPDATE settings SET wind_mode = ? WHERE camera = ?')
   const setEyesNow = db.prepare('UPDATE settings SET eyes_now = ? WHERE camera = ?')
   const setEyes = db.prepare('UPDATE settings SET eyes_mode = ? WHERE camera = ?')
+  const setLink = db.prepare('UPDATE settings SET link_mode = ? WHERE camera = ?')
   const setRetentionDays = db.prepare('UPDATE settings SET retention_days = ? WHERE camera = ?')
   const setGuestFps = db.prepare('UPDATE settings SET guest_fps = ? WHERE camera = ?')
   const setFoliage = db.prepare('UPDATE settings SET foliage_zones = ? WHERE camera = ?')
@@ -141,7 +145,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
 
   const cameraSettings = (camera: string): CameraSettings => {
     const row = settingsOf.get(camera) as
-      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null; wind_mode: string | null; eyes_mode: string | null; retention_days: number | null; guest_fps: number | null; foliage_zones: number | null }
+      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null; wind_mode: string | null; eyes_mode: string | null; link_mode: string | null; retention_days: number | null; guest_fps: number | null; foliage_zones: number | null }
       | undefined
     const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
     return {
@@ -159,6 +163,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       rain_now: rainNowOf(rainModeOf(row?.rain_mode), weatherRain, rainModeOf(row?.wind_mode), weatherWind >= config.windThresholdKmh),
       wind_mode: rainModeOf(row?.wind_mode),
       eyes_mode: row?.eyes_mode === 'on' ? 'on' : 'off',
+      link_mode: row?.link_mode === 'on' ? 'on' : 'off',
       clip_retention_days: row?.retention_days && row.retention_days >= MIN_RETENTION_DAYS && row.retention_days <= MAX_RETENTION_DAYS ? row.retention_days : defaultRetentionDays(),
       guest_fps: row?.guest_fps && row.guest_fps >= 1 && row.guest_fps <= MAX_LIVE_FPS ? row.guest_fps : defaultGuestFps(),
       foliage_zones: row?.foliage_zones && row.foliage_zones > 0 && row.foliage_zones <= MAX_FOLIAGE_ZONES ? row.foliage_zones : 0,
@@ -197,6 +202,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       if (update.rain !== undefined) setRain.run(update.rain, update.camera)
       if (update.wind !== undefined) setWind.run(update.wind, update.camera)
       if (update.eyes !== undefined) setEyes.run(update.eyes, update.camera)
+      if (update.link !== undefined) setLink.run(update.link, update.camera)
       if (update.retention !== undefined) setRetentionDays.run(update.retention, update.camera)
       if (update.guestFps !== undefined) setGuestFps.run(update.guestFps, update.camera)
       if (update.foliage !== undefined) setFoliage.run(update.foliage, update.camera)

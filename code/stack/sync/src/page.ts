@@ -273,6 +273,8 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (typeof wind !== 'string' || !RAIN_MODES.includes(wind)) return sendJson(res, 400, { error: `wind_mode must be one of ${RAIN_MODES.join(', ')}` })
       const eyes = body.eyes_mode === undefined ? current.eyes_mode : body.eyes_mode
       if (typeof eyes !== 'string' || !RAIN_MODES.includes(eyes)) return sendJson(res, 400, { error: `eyes_mode must be one of ${RAIN_MODES.join(', ')}` })
+      const link = body.link_mode === undefined ? current.link_mode : body.link_mode
+      if (typeof link !== 'string' || !RAIN_MODES.includes(link)) return sendJson(res, 400, { error: `link_mode must be one of ${RAIN_MODES.join(', ')}` })
       const retention = intSetting(body.clip_retention_days, current.clip_retention_days, MIN_RETENTION_DAYS, MAX_RETENTION_DAYS)
       if (retention === null) return sendJson(res, 400, { error: `clip_retention_days must be an integer from ${MIN_RETENTION_DAYS} to ${MAX_RETENTION_DAYS}` })
       const guestFps = intSetting(body.guest_fps, current.guest_fps, 1, MAX_LIVE_FPS)
@@ -280,7 +282,7 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       const foliage = intSetting(body.foliage_zones, current.foliage_zones, 0, MAX_FOLIAGE_ZONES)
       if (foliage === null) return sendJson(res, 400, { error: `foliage_zones must be an integer from 0 to ${MAX_FOLIAGE_ZONES}` })
       // « night », l'ancienne valeur, vaut « on ».
-      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain, wind, eyes, retention, guestFps, foliage })
+      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain, wind, eyes, link, retention, guestFps, foliage })
       ctx.log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, un mouvement compte après ${minSeconds} s, une image toutes les ${secs} s`)
       resetLiveFpsCheck()
       return sendJson(res, 200, settings.cameraSettings(camera))

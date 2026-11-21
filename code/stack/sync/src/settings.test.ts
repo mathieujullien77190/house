@@ -22,6 +22,7 @@ test('une caméra sans réglage : tout par défaut', () => {
     rain_now: 'off',
     wind_mode: 'off',
     eyes_mode: 'off',
+    link_mode: 'off',
     clip_retention_days: 15,
     guest_fps: 2,
     foliage_zones: 0,
@@ -46,6 +47,7 @@ test('les réglages enregistrés, dont l\'orientation, sont relus', () => {
     rain_now: 'off',
     wind_mode: 'off',
     eyes_mode: 'off',
+    link_mode: 'off',
     clip_retention_days: 15,
     guest_fps: 2,
     foliage_zones: 0,
@@ -170,6 +172,16 @@ test('mode vent : allumé, il suit le vent de la météo au-delà du seuil ; la 
   settings.setWeatherRain('none')
   settings.setWeatherWind(0)
   assert.equal(now('venteuse'), 'off')
+})
+
+test('clip lié : réglage de la caméra, éteint par défaut', () => {
+  const { settings } = testContext()
+  const save = (link?: string) => settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 3, seconds: 60, orientation: 'landscape', link })
+  assert.equal(settings.cameraSettings('cam').link_mode, 'off')
+  save('on')
+  assert.equal(settings.cameraSettings('cam').link_mode, 'on')
+  save('nimporte')
+  assert.equal(settings.cameraSettings('cam').link_mode, 'off')
 })
 
 test('recherche des yeux : réglage de la caméra, éteint par défaut ; la nuit rétrécie ; l’état est rangé pour l’API', () => {

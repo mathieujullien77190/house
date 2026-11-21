@@ -35,6 +35,8 @@ export interface Detection {
   setEyes: (camera: string, enabled: boolean) => void
   /** Le feuillage : nombre de zones à partir duquel un mouvement est étiqueté « feuillage » ; 0 = jamais. */
   setFoliage: (camera: string, zones: number) => void
+  /** Le clip lié de la caméra (LINKS) : allumé ou éteint par House Sync (éteint tant qu'on ne lui dit rien). */
+  setLink: (camera: string, enabled: boolean) => void
 }
 
 /** L'enregistrement lancé à la main, caméra par caméra : un mouvement fictif qu'on ouvre puis qu'on ferme, dont le clip se fait comme les autres. */
@@ -101,6 +103,13 @@ export const startServer = (
       if (!isSensitivity(level)) return json(res, 400, { error: `level must be an integer from ${MIN_SENSITIVITY} to ${MAX_SENSITIVITY}` })
       detection.setSensitivity(sensitivity[1], level)
       return json(res, 200, { camera: sensitivity[1], level })
+    }
+    // PUT /api/cameras/<caméra>/link?enabled=0|1 : un mouvement ou des yeux vus par la caméra font (ou non) aussi un clip sur sa caméra liée (LINKS).
+    const link = /^\/api\/cameras\/([\w-]+)\/link$/.exec(pathname)
+    if (req.method === 'PUT' && link) {
+      if (!config.cameras.includes(link[1])) return json(res, 404, { error: 'unknown camera' })
+      detection.setLink(link[1], searchParams.get('enabled') === '1')
+      return json(res, 200, { camera: link[1], enabled: searchParams.get('enabled') === '1' })
     }
     // PUT /api/cameras/<caméra>/eyes?enabled=0|1 : allume ou éteint la recherche des yeux qui brillent (House Sync l'allume la nuit seulement).
     const eyes = /^\/api\/cameras\/([\w-]+)\/eyes$/.exec(pathname)

@@ -105,6 +105,34 @@ try {
 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
+// Les caméras liées (LINKS, des groupes) : l'événement d'une source ouvre un événement sur chaque autre caméra de son groupe, fermé quand la dernière source qui l'a demandé a fini.
+// Il est à part de `open` (celui de la cible elle-même) : si la cible bouge aussi, les deux clips se recouvrent et la fusion les réunit. Les segments sont toujours enregistrés,
+// le clip se fait donc comme pour un mouvement. Un événement lié n'en déclenche jamais un autre (il ne passe pas par le détecteur).
+const linkedOpen = new Map<string, { id: string; sources: Set<string> }>()
+// L'interrupteur de House Sync, par caméra source : éteint tant qu'il n'a rien dit (il répète son état chaque minute).
+const linkOn = new Map<string, boolean>()
+const openLinked = (source: string, at: number) => {
+  if (linkOn.get(source) !== true) return
+  for (const link of config.links.filter((candidate) => candidate.source === source)) {
+    const current = linkedOpen.get(link.target)
+    if (current) {
+      current.sources.add(source)
+      continue
+    }
+    const record = store.open(link.target, at, false)
+    linkedOpen.set(link.target, { id: record.id, sources: new Set([source]) })
+    log(`${link.target} : événement ${record.id} lié à ${source}`)
+  }
+}
+const closeLinked = (source: string, at: number) => {
+  for (const link of config.links.filter((candidate) => candidate.source === source)) {
+    const current = linkedOpen.get(link.target)
+    if (!current?.sources.delete(source) || current.sources.size > 0) continue
+    store.close(current.id, at)
+    linkedOpen.delete(link.target)
+    log(`${link.target} : fin de l’événement lié ${current.id}`)
+  }
+}
 // Les contours du mouvement de chaque caméra sont notés image par image dans un journal (shapes.ts), dont on tire le fichier des contours de chaque clip.
 const shapesDirOf = (camera: string) => `${config.recordingsDir}/${camera}/shapes`
 
@@ -138,6 +166,7 @@ for (const camera of config.cameras) {
         const record = store.open(camera, event.at - config.shapesDelaySeconds, false, eyesSeen(camera).length > 0 ? 'eyes' : 'motion')
         open.set(camera, record.id)
         log(`${camera} : mouvement ${record.id}`)
+        openLinked(camera, event.at - config.shapesDelaySeconds)
       } else {
         const id = open.get(camera)
         if (id) {
@@ -145,6 +174,7 @@ for (const camera of config.cameras) {
           open.delete(camera)
           foliageStats.delete(camera)
           log(`${camera} : fin de mouvement ${id} (${event.durationSeconds.toFixed(1)} s)`)
+          closeLinked(camera, event.startedAt - config.shapesDelaySeconds + event.durationSeconds)
         }
       }
     },
@@ -156,6 +186,7 @@ for (const camera of config.cameras) {
       if (id) {
         store.close(id, Date.now() / 1000)
         open.delete(camera)
+        closeLinked(camera, Date.now() / 1000)
       }
     },
     () => zones.get(camera)?.mask ?? null,
@@ -232,6 +263,10 @@ startServer(
       log(`${camera} : feuillage à partir de ${zones} zones${zones === 0 ? ' (coupé)' : ''}`)
       foliageZones.set(camera, zones)
       saveDetectionState()
+    },
+    setLink: (camera, enabled) => {
+      if (linkOn.get(camera) !== enabled) log(`${camera} : clip sur la caméra liée ${enabled ? 'allumé' : 'éteint'}`)
+      linkOn.set(camera, enabled)
     },
     setEyes: (camera, enabled) => {
       if (eyesOn.get(camera) !== enabled) log(`${camera} : recherche des yeux ${enabled ? 'allumée' : 'éteinte'}`)

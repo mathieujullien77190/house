@@ -79,6 +79,7 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   addColumn(db, 'settings', 'eyes_now', 'INTEGER')
   // Le réglage de la caméra : chercher les yeux qui brillent la nuit (off ou on, éteint par défaut).
   addColumn(db, 'settings', 'eyes_mode', 'TEXT')
+  addColumn(db, 'settings', 'link_mode', 'TEXT')
   // La durée de garde des clips, des images et des événements de la caméra (jours) et les images par seconde de sa page invité : sans valeur, celle de `app_settings` (réglage d'avant, par défaut 15 jours et 2 images/s).
   addColumn(db, 'settings', 'retention_days', 'INTEGER')
   addColumn(db, 'settings', 'guest_fps', 'INTEGER')

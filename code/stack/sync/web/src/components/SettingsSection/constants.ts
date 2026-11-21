@@ -34,6 +34,12 @@ export const EYES_OPTIONS = [
   { id: 'off', label: 'OFF' },
   { id: 'on', label: 'ON' },
 ] as const
+/** Le clip lié : un mouvement ou des yeux vus par cette caméra déclenchent aussi un clip sur les autres caméras de son groupe (LINKS dans le compose : voliere-toit et voliere-interieur). Sans effet sur une caméra hors groupe. */
+export const LINK_LABEL = 'Clip sur la caméra liée'
+export const LINK_OPTIONS = [
+  { id: 'off', label: 'OFF' },
+  { id: 'on', label: 'ON' },
+] as const
 /** Le mode vent : comme le mode pluie, quand le vent dépasse 20 km/h (la météo de House Sync) : pas de clips, une image toutes les 5 s. */
 export const WIND_LABEL = 'Mode vent'
 export const RAIN_LABEL = 'Mode pluie'
