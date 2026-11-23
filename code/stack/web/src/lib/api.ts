@@ -357,7 +357,10 @@ export const fetchRecording = async (key: string, camera: string): Promise<Recor
   (await request(key, `/record/${encodeURIComponent(camera)}`)).json()
 /** Les contours du mouvement d'un clip : pour chaque instant (secondes depuis le début du clip), des polygones de points [x, y] en parts de l'image (0 à 1). */
 export interface ClipShapes {
-  frames: [number, [number, number][][]][]
+  /** Le type du mouvement (étiquette calculée après la fusion) : `rain`, `foliage` ou `motion` ; absent sur les clips avant ce calcul. */
+  type?: 'rain' | 'foliage' | 'motion'
+  /** Troisième élément : le type de chaque zone, dans le même ordre (`rain`, `foliage` ou `motion`). */
+  frames: [number, [number, number][][], ('rain' | 'foliage' | 'motion')[]?][]
 }
 export const fetchClipShapes = async (key: string, path: string): Promise<ClipShapes> => (await request(key, path)).json()
 const recordingCall = async (key: string, camera: string, method: 'POST' | 'DELETE'): Promise<void> => {

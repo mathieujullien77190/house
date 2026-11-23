@@ -122,6 +122,8 @@ const CameraCard = ({
   )
   // L'heure défile en vue en grand et tant qu'on est au direct (le bloc heure de la frise) ; sur une image ou un clip c'est celle du curseur, fixe.
   const now = useClock(bigView.big || cursor === null)
+  // L'heure montrée : pendant un clip, celle de la lecture (le début du clip, puis `playhead` qui suit la vidéo) ; sur une image, celle du curseur ; au direct, maintenant.
+  const shownTime = selected ? (playhead ?? selected.clip_started_at ?? selected.started_at) : (cursor ?? now)
   // La température du détecteur de la caméra (« motion exterieur » pour voliere-exterieur, « motion interieur » pour voliere-interieur), sur la vidéo.
   const sensorId = CAMERA_SENSOR[camera.name]
   const showTemperatures = sensorId !== undefined
@@ -385,8 +387,8 @@ const CameraCard = ({
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
       details={mobile ? indicators : undefined}
-      // En vue en grand, l'heure en bas à droite : celle de l'image ou du clip regardé (le curseur de la frise), sinon l'heure présente.
-      clock={bigView.big ? <ValueChips values={[formatClock(cursor ?? now)]} /> : undefined}
+      // En vue en grand, l'heure en bas à droite : celle du clip (sa lecture) ou de l'image regardés, sinon l'heure présente.
+      clock={bigView.big ? <ValueChips values={[formatClock(shownTime)]} /> : undefined}
       // Les repères (icône de caméra) des autres caméras, posés sur l'image du direct.
       layer={
         showMarkers ? (
@@ -441,7 +443,7 @@ const CameraCard = ({
             bigView.big ? undefined : (
               <>
                 {mobile ? fastScroll : null}
-                <ValueChips values={[formatClock(cursor ?? now)]} stretch={mobile} />
+                <ValueChips values={[formatClock(shownTime)]} stretch={mobile} />
                 {mobile ? null : fastScroll}
               </>
             )

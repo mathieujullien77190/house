@@ -42,4 +42,6 @@ export interface Marker {
   eyes: boolean
   /** Un mouvement de feuillage (étiquette `foliage`) : bloc vert. */
   foliage: boolean
+  /** De la pluie (étiquette `rain`) : bloc bleu. */
+  rain: boolean
 }

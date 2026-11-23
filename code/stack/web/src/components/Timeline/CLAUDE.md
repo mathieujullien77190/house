@@ -42,5 +42,7 @@ Frise **verticale, le plus récent en haut**, vue d'une caméra en écran fixe :
 
 Gestes identiques sur grand écran mais lus le long de l'axe (`alongOf`, `fractionAlong`, `shiftSeconds`) ; positions rendues en % (`vertical`).
 
-- **Bloc violet** : un événement d'étiquette `eyes` (des yeux qui brillent vus pendant le mouvement, `motion/src/CLAUDE.md` §9) est violet à la place du bleu (`TimelineMarker.eyes`, `MARKER_EYES_CLASS` de `@house/ui`). Un événement en cours reste rayé rouge.
-- **Bloc vert** : étiquette `foliage` (beaucoup de zones sur le mouvement, réglage de la caméra dans House Sync, `motion/src/CLAUDE.md` § 10). Priorité : violet (`eyes`) > vert > bleu.
+- **Bloc violet** : un événement d'étiquette `eyes` (des yeux qui brillent vus pendant le mouvement, `motion/src/CLAUDE.md` §9) est violet à la place de l'orange (`TimelineMarker.eyes`, `MARKER_EYES_CLASS` de `@house/ui`). Un événement en cours reste rayé rouge.
+- **Bloc vert** : étiquette `foliage` (beaucoup de zones sur le mouvement, réglage de la caméra dans House Sync, `motion/src/CLAUDE.md` § 10). Priorité : violet (`eyes`) > bleu (pluie) > vert > orange (mouvement ordinaire).
+- **Les couleurs vert et bleu arrivent après coup** : l'enregistreur calcule l'étiquette 30 min après la fin du mouvement, après la fusion ; avant, le bloc est orange.
+- **Bloc bleu** : étiquette `rain` (zones allongées à la verticale, `motion/src/CLAUDE.md` § 10 ter ; `TimelineMarker.rain`, `MARKER_RAIN_CLASS`). Il l'emporte sur le vert, pas sur le violet.

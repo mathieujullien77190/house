@@ -71,7 +71,7 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
   - Les symboles 🌧️ / ☔ / 💨 / 👁️ sont posés seuls (`SYMBOL_CLASS`, sans boîte) ; seules les températures gardent leur boîte.
   - 🌧️ / ☔ si le champ `rain` de `GET /direct` est vrai (mode pluie allumé et il pleut) ; 💨 pour le mode vent (au-dessus de 20 km/h) ;
 - Chaque indicateur est cliquable (`components/IndicatorHint`) : infobulle fermée par un autre clic, Échap ou 6 s ; le clic n'ouvre pas la caméra.
-- **Heure** (`lib/useClock.ts`, `clock`) : en vue en grand, en bas à droite, secondes sans date ; direct = maintenant, sinon l'heure du curseur. Hors vue en grand, la frise a un bloc heure après les durées.
+- **Heure** (`lib/useClock.ts`, `clock`) : en vue en grand, en bas à droite, secondes sans date ; direct = maintenant, **pendant un clip l'heure de sa lecture** (début du clip, puis `playhead` qui avance avec la vidéo), sur une image l'heure du curseur. Hors vue en grand, la frise a un bloc heure après les durées.
 
 ## Alimentation
 

@@ -118,6 +118,16 @@ describe('événements', () => {
     // en cours : s'arrête à maintenant (980), jamais dans le futur
     expect(markers[1].x + markers[1].width).toBeCloseTo(80, 0)
   })
+  it('buildMarkers : l’étiquette pluie, yeux ou feuillage donne le drapeau correspondant', () => {
+    const labelled = (id: string, label: string): EventRow => ({ ...event(id, 950, 960), label }) as EventRow
+    const { markers } = buildMarkers([labelled('r', 'rain'), labelled('f', 'foliage'), labelled('e', 'eyes'), event('m', 950, 960)], 100, 1000, '', 1000)
+    expect(['r', 'f', 'e', 'm'].map((id) => markers.find((m) => m.event.id === id)).map((m) => [m?.rain, m?.foliage, m?.eyes])).toEqual([
+      [true, false, false],
+      [false, true, false],
+      [false, false, true],
+      [false, false, false],
+    ])
+  })
   it('buildMarkers : un événement déjà commencé avant la fenêtre commence à 0 ; un très court garde une largeur minimale ; au bord droit il reste dedans', () => {
     const { markers } = buildMarkers([event('before', 800, 950), event('court', 960, 960), event('bord', 1000, 1000)], 100, 1000, '', 1000)
     const byId = Object.fromEntries(markers.map((m) => [m.event.id, m]))
@@ -143,7 +153,7 @@ describe('événements', () => {
     expect(buildCoverage([990], 100, 1000)).toHaveLength(1)
   })
 
-  it('focusOn : tout le bloc bleu (début de la vidéo à la fin + queue) occupe la part de l’axe, centré', () => {
+  it('focusOn : tout le bloc orange (début de la vidéo à la fin + queue) occupe la part de l’axe, centré', () => {
     // clip_started_at absent : 5 s avant le mouvement ; fin + 10 s : 995 à 1110 = 115 s, fenêtre de 230 s
     expect(focusOn(event('e', 1000, 1100), 0.5, 5000)).toEqual({ seconds: 230, end: 1167.5 })
     // clip_started_at donné : le bloc part de là

@@ -17,10 +17,12 @@ export interface TimelineMarker {
   selected: boolean
   /** Vrai tant que l'événement n'est pas terminé : hachures jusqu'au bord droit. */
   ongoing: boolean
-  /** Des yeux qui brillent ont été vus pendant l'événement : bloc violet au lieu de bleu. */
+  /** Des yeux qui brillent ont été vus pendant l'événement : bloc violet au lieu d'orange. */
   eyes?: boolean
   /** Un mouvement de feuillage (beaucoup de zones) : bloc vert. */
   foliage?: boolean
+  /** De la pluie (zones allongées à la verticale) : bloc bleu. */
+  rain?: boolean
 }
 
 /** Une plage couverte (des images existent) : position et largeur en %. */

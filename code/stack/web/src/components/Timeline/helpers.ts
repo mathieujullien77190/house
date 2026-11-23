@@ -117,6 +117,7 @@ export const buildMarkers = (events: EventRow[], seconds: number, end: number, s
       ongoing: event.ended_at === null,
       eyes: event.label === 'eyes',
       foliage: event.label === 'foliage',
+      rain: event.label === 'rain',
     }
   })
   return { markers }
@@ -145,7 +146,7 @@ export const buildCoverage = (times: number[], seconds: number, end: number): Ti
 }
 
 /**
- * La fenêtre qui met un événement au centre : **tout son bloc bleu** (du début réel de la vidéo à un peu après la fin, comme `buildMarkers`) occupe la part donnée de l'axe,
+ * La fenêtre qui met un événement au centre : **tout son bloc orange** (du début réel de la vidéo à un peu après la fin, comme `buildMarkers`) occupe la part donnée de l'axe,
  * pour que le clip entier se voie.
  */
 export const focusOn = (event: EventRow, share: number, now: number): { seconds: number; end: number } => {
