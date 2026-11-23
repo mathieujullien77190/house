@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import type { SegmentedOption } from '@/components/UI/SegmentedControl'
 import type { DomainId } from '@/domotics'
 
-/** Les onglets de la page : les quatre domaines de la maison, puis la mangeoire (projet) et l'architecture du système. */
-export type TabId = DomainId | 'architecture' | 'feeder'
+/** Les onglets de la page : les quatre domaines de la maison, puis la mangeoire et le boîtier volet + clim (projets) et l'architecture du système. */
+export type TabId = DomainId | 'architecture' | 'feeder' | 'remote'
 
 export interface AppUIProps {
   title: string

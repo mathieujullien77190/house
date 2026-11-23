@@ -6,12 +6,12 @@ import type { CcPin, SceneParts, WireLegendItem, WireSpec } from './types'
 /** Couleur CSS d'une couleur three.js. */
 export const cssColor = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`
 
-const ccPin = (name: CcPin) => {
+export const ccPin = (name: CcPin) => {
   const [col, row] = CC_PINS[name]
   return new THREE.Vector3(CC_ORIGIN.x + col * PITCH, PIN_TOP, CC_ORIGIN.z + row * PITCH)
 }
 
-const wireText = (wire: WireSpec) => wire.textColor ?? cssColor(wire.color)
+export const wireText = (wire: WireSpec) => wire.textColor ?? cssColor(wire.color)
 
 /** Les fils, dans l'ordre de la légende. */
 export const legendOf = (): WireLegendItem[] =>
@@ -22,7 +22,7 @@ export const legendOf = (): WireLegendItem[] =>
     where: wire.where,
   }))
 
-const buildFrame = (root: THREE.Group) => {
+export const buildFrame = (root: THREE.Group) => {
   drawEspBoard(root)
 
   // Le module CC1101 : carte bleue, connecteur SMA et antenne.
@@ -49,7 +49,7 @@ const buildPins = (root: THREE.Group, pinNames: THREE.Group) => {
 }
 
 /** Les fils : un tube en arche, avec un petit boîtier (le bout du câble Dupont) à chaque extrémité. */
-const buildWires = (wires: THREE.Group) => {
+export const buildWires = (wires: THREE.Group) => {
   for (const wire of WIRES) {
     const a = ccPin(wire.cc)
     const b = espPin(wire.side, wire.index)
@@ -69,7 +69,7 @@ const buildWires = (wires: THREE.Group) => {
 }
 
 /** Le courant : prise murale, chargeur USB, câble USB-C jusqu'à l'ESP32. Le CC1101 est alimenté par le fil VCC. */
-const buildPower = (power: THREE.Group) => {
+export const buildPower = (power: THREE.Group) => {
   const { chargerZ, chargerDepth, chargerSize, y, wallZ } = POWER
   const back = chargerZ + chargerDepth
   const wallFace = wallZ - 1.5

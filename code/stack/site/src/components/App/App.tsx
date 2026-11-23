@@ -10,6 +10,7 @@ import Legend from '@/components/Legend'
 import MainsPanel from '@/components/MainsPanel'
 import Architecture from '@/components/Architecture'
 import Pricing from '@/components/Pricing'
+import RemoteBoxSystem from '@/components/RemoteBoxSystem'
 import ShutterSystem from '@/components/ShutterSystem'
 import { GlossaryContext } from '@/lib/glossaryContext'
 import { isCameraKind, isPricedByHand, templates, type Floor, type NodeKind } from '@/nodes'
@@ -22,6 +23,8 @@ import type { TabId } from './types'
 const ShutterWiring3D = lazy(() => import('@/components/ShutterWiring3D'))
 const ServoWiring3D = lazy(() => import('@/components/ServoWiring3D'))
 const FeederWiring3D = lazy(() => import('@/components/FeederWiring3D'))
+const RemoteBox3D = lazy(() => import('@/components/RemoteBox3D'))
+const IrBreadboard3D = lazy(() => import('@/components/IrBreadboard3D'))
 
 const App = () => {
   const d = useDiagram()
@@ -88,7 +91,7 @@ const App = () => {
         tabs={TABS}
         tab={tab}
         onTab={setTab}
-        domain={tab === 'architecture' || tab === 'feeder' ? null : <Domain id={tab} />}
+        domain={tab === 'architecture' || tab === 'feeder' || tab === 'remote' ? null : <Domain id={tab} />}
         detail={
           tab === 'shutters' ? (
             <div className="flex flex-col gap-4">
@@ -105,6 +108,16 @@ const App = () => {
               <FeederWiring />
               <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
                 <FeederWiring3D />
+              </Suspense>
+            </div>
+          ) : tab === 'remote' ? (
+            <div className="flex flex-col gap-4">
+              <RemoteBoxSystem />
+              <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
+                <RemoteBox3D />
+              </Suspense>
+              <Suspense fallback={<p className="text-muted">{LOADING_TEXT}</p>}>
+                <IrBreadboard3D />
               </Suspense>
             </div>
           ) : null
