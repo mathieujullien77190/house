@@ -302,7 +302,8 @@ describe('onglet Machine', () => {
     const pending = deferred<System>()
     m.fetchSystem.mockReset()
     m.fetchSystem.mockReturnValueOnce(pending.promise).mockResolvedValue(system())
-    await wait(60)
+    // assez long pour que la courbe en direct (30 ms ici) ait demandé la mesure en attente, même sur une machine lente
+    await wait(250)
     fireEvent.click(tab('Docker'))
     await act(async () => pending.resolve(system({ cpu: { percent: 99, threads: 1, load1: 1, perThread: [99] } })))
     fireEvent.click(tab('Machine'))
