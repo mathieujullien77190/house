@@ -4,6 +4,7 @@ import { useHouse } from '@/lib/useHouse'
 import { useMobile } from '@/lib/useMobile'
 import { useReadClips } from '@/lib/useReadClips'
 import { useMotionNotifications } from '@/lib/useMotionNotifications'
+import { readTvMode } from '@/lib/tvMode'
 import { useTheme } from '@/lib/useTheme'
 import type { EventRow, TabId } from '@/types'
 import AppUI from './UI'
@@ -15,6 +16,9 @@ const App = () => {
   const mobile = useMobile()
   const notify = useMotionNotifications(house.events, house.status === 'ready')
   const theme = useTheme()
+  // Le mode télé est lu une fois (`?tv=1`).
+  const [tv] = useState<boolean>(readTvMode)
+  const [liveCamera, setLiveCamera] = useState<string | null>(null)
   const [tab, setTab] = useState<TabId>(DEFAULT_TAB)
   // La caméra dont on voit le détail (avec sa frise) ; null : la mosaïque du direct de toutes les caméras.
   const [openCamera, setOpenCamera] = useState<string | null>(null)
@@ -48,6 +52,9 @@ const App = () => {
   const events = openRow && !house.events.some((event) => event.id === openRow.id) ? [...house.events, openRow] : house.events
   return (
     <AppUI
+      tv={tv}
+      liveCamera={liveCamera}
+      onLiveCamera={setLiveCamera}
       status={house.status}
       message={house.message}
       apiKey={house.key}

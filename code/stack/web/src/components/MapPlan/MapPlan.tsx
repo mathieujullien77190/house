@@ -44,6 +44,7 @@ import {
   WRAPPER_CLASS,
 } from './constants'
 import { attachEditing } from './edit'
+import { attachTvNavigation } from './tvNav'
 import { planToLngLat } from './projection'
 import { addMapIcons, addStatusDots, watchDynamicImages } from './icons'
 import {
@@ -55,6 +56,7 @@ import {
   type Palette,
   type PlanDecor,
 } from './features'
+import { readTvMode } from '@/lib/tvMode'
 import { bulbLabel, sensorLabel } from './helpers'
 import { addPlanLayers, LINK_SOURCE, POINTS_SOURCE, SHAPES_SOURCE, STATIC_SOURCE } from './layers'
 import type { MapPlanProps, ResolvedProps } from './types'
@@ -271,9 +273,12 @@ const MapPlan = (given: MapPlanProps) => {
       }
     })
     const detach = attachEditing(map, () => latest.current)
+    // Sur la télé : les flèches de la télécommande passent d'un appareil à l'autre (pas de souris).
+    const detachTv = readTvMode() ? attachTvNavigation(map, () => latest.current) : null
 
     return () => {
       detach()
+      detachTv?.()
       mapRef.current = null
       setStyleReady(false)
       map.remove()
@@ -446,7 +451,8 @@ const MapPlan = (given: MapPlanProps) => {
       {shutter ? <p className={LAMP_LABEL_CLASS}>{shutter.label}</p> : null}
       {cameraName ? <p className={LAMP_LABEL_CLASS}>{cameraName}</p> : null}
       {plugName ? <p className={LAMP_LABEL_CLASS}>{plugName}</p> : null}
-      <div className={ACTIONS_CLASS}>
+      {/* Sur la télé (`?tv=1`) : ni « Modifier », ni cases à cocher, ni menu de filtres : la carte seule. */}
+      {readTvMode() ? null : <div className={ACTIONS_CLASS}>
         {/* Pas de modification sur téléphone (`fill`) : on y regarde la carte, on ne la modifie pas. */}
         {given.fill ? null : (
           <Button variant={editing ? 'active' : 'default'} aria-pressed={editing} onClick={() => setEditing((on) => !on)}>
@@ -463,7 +469,7 @@ const MapPlan = (given: MapPlanProps) => {
         ) : (
           <div className={FILTERS_BAR_CLASS}>{filterBoxes}</div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

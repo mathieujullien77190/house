@@ -41,6 +41,14 @@ Chemins : `src/components/<nom>/CLAUDE.md`.
 
 `main.tsx` n'affiche que `components/ChezMatou` quand le chemin est `/chezmatou` (la même application, sans clé de la WebApp : la page a sa propre clé `LAN_KEY` dans l'adresse, `lib/lanApi.ts`). L'onglet « Page invité » (`GuestPanel`) donne son QR code et un aperçu. Routes et garde : `../api/src/routes/CLAUDE.md`.
 
+## Mode télé (`?tv=1`)
+
+`lib/tvMode.ts` (`readTvMode`) : `?tv=1` dans l'adresse, gardé pour l'onglet (`sessionStorage`). Il sert à l'application de télé `code/cinema` (page `/chezmatou?tv=1` avec `TV_KEY`, toutes les caméras) et à l'ancien essai `code/tv`.
+
+- Thème toujours sombre (`lib/useTheme.ts`) ; la page `ChezMatou` pose la classe `tv` sur la page (tout agrandi, cadre de sélection visible, `index.css`).
+- `App` : seule la Home est à l'écran (ni barre, ni menu) ; un bouton « ← Home » ramène des autres pages. Ouvrir une caméra sur la carte montre son direct en grand et seul (`components/TvLive`), Retour le ferme ; un clip (emoji) ouvre la page de la caméra.
+- `MapPlan` : ni « Modifier », ni filtres ; `components/MapPlan/tvNav.ts` : les flèches passent d'un appareil à l'autre (cadre jaune), OK choisit puis ouvre, Retour ou Échap referme, Programme +/- zooment. L'application de la télé appelle `window.houseTvBack()` (vrai s'il y avait quelque chose à fermer) et `window.houseTvZoom(±1)`.
+
 ## Notifications de mouvement
 
 `lib/useMotionNotifications.ts`, `public/sw.js`.

@@ -8,6 +8,7 @@ import {
   AC_TARGET_RANGE,
   AC_TITLE,
   CAMERAS_CLASS,
+  CAMERAS_TV_CLASS,
   CAMERAS_TITLE,
   EMPTY_TEXT,
   ERROR_CLASS,
@@ -22,12 +23,14 @@ import {
   SECTION_CLASS,
   SHUTTERS_TITLE,
   TILE_PORTRAIT_CLASS,
+  TILE_PORTRAIT_TV_CLASS,
   TITLE,
   TITLE_CLASS,
 } from './constants'
 import type { ChezMatouUIProps } from './types'
 
 const ChezMatouUI = ({
+  tv,
   state,
   problem,
   rooms,
@@ -59,12 +62,12 @@ const ChezMatouUI = ({
 
       {state?.cameras ? (
         <section className={SECTION_CLASS}>
-          <SectionTitle text={CAMERAS_TITLE} />
-          <div className={CAMERAS_CLASS} onErrorCapture={onStreamError}>
+          {tv ? null : <SectionTitle text={CAMERAS_TITLE} />}
+          <div className={tv ? CAMERAS_TV_CLASS : CAMERAS_CLASS} onErrorCapture={onStreamError}>
             {state.cameras.map((camera) => {
               const turned = camera.orientation === 'portrait'
               return (
-                <div key={camera.id} className={turned ? TILE_PORTRAIT_CLASS : undefined}>
+                <div key={camera.id} className={turned ? (tv ? TILE_PORTRAIT_TV_CLASS : TILE_PORTRAIT_CLASS) : undefined}>
                   <CameraTile
                     name={camera.name}
                     media={

@@ -5,7 +5,7 @@ import type { ShutterCard } from '@/components/ShuttersPanel'
 import type { CameraTileProps, LightsPanelProps } from '@house/ui'
 import CameraView from './CameraView'
 import ChezMatouUI from './UI'
-import { EMPTY_TEXT, ERROR_TEXT, LOADING_TEXT, PROBLEM_TEXT } from './constants'
+import { CAMERAS_TITLE, CAMERAS_TV_CLASS, EMPTY_TEXT, ERROR_TEXT, LOADING_TEXT, PROBLEM_TEXT } from './constants'
 import type { ChezMatouUIProps, LanState } from './types'
 
 vi.mock('./CameraView', () => ({
@@ -61,6 +61,7 @@ const state = (over: Partial<LanState> = {}): LanState => ({
 })
 
 const props = (over: Partial<ChezMatouUIProps> = {}): ChezMatouUIProps => ({
+  tv: false,
   state: state(),
   problem: null,
   rooms: [],
@@ -100,6 +101,13 @@ describe('ChezMatouUI', () => {
     expect(screen.getByTestId('view').textContent).toContain('c1 /s/c1 /s/c1?hd')
     fireEvent.click(screen.getByText('fermer'))
     expect(p.onCloseCamera).toHaveBeenCalled()
+  })
+
+  it('en mode télé : pas de titre de section, la grille et la tuile de côté de la télé', () => {
+    const { container } = render(<ChezMatouUI {...props({ tv: true })} />)
+    expect(screen.queryByText(CAMERAS_TITLE)).toBeNull()
+    expect(container.querySelector('.' + CAMERAS_TV_CLASS.split(' ')[0])).not.toBeNull()
+    expect(container.querySelector('[class~="col-start-1"]')).not.toBeNull()
   })
 
   it('une caméra sans adresse (jeton manquant) : image vide, aucune vue ouverte', () => {

@@ -20,6 +20,16 @@ describe('useTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
+  it('en mode télé : toujours sombre, même si le clair est gardé', () => {
+    sessionStorage.setItem('house-tv', '1')
+    localStorage.setItem('house-theme', 'light')
+    try {
+      expect(renderHook(() => useTheme()).result.current.theme).toBe('dark')
+    } finally {
+      sessionStorage.clear()
+    }
+  })
+
   it('une autre valeur gardée donne le clair', () => {
     localStorage.setItem('house-theme', 'rose')
     expect(renderHook(() => useTheme()).result.current.theme).toBe('light')

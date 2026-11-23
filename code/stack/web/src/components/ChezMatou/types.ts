@@ -46,6 +46,8 @@ export interface LanState {
 export type LanProblem = 'locked' | 'disabled' | 'outside' | 'unconfigured' | 'unreachable'
 
 export interface ChezMatouUIProps {
+  /** Mode télé (`?tv=1`) : vignettes plus petites, quatre par ligne. */
+  tv: boolean
   state: LanState | null
   problem: LanProblem | null
   /** Les zones de lampes de l'onglet Lumière, déjà mises en forme pour `LightsPanel`. */
