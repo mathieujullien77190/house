@@ -26,6 +26,8 @@ test('une caméra sans réglage : tout par défaut', () => {
     clip_retention_days: 15,
     guest_fps: 2,
     foliage_zones: 0,
+    streak_zones: 0,
+    streak_height: 10,
   })
 })
 
@@ -51,6 +53,8 @@ test('les réglages enregistrés, dont l\'orientation, sont relus', () => {
     clip_retention_days: 15,
     guest_fps: 2,
     foliage_zones: 0,
+    streak_zones: 0,
+    streak_height: 10,
   })
   settings.saveCameraSettings({ camera: 'cam', mode: 'off', fps: 10, light: 5, fpsMobile: 4, lightMobile: 3, sensitivity: 5, seconds: 120, orientation: 'landscape' })
   assert.equal(settings.cameraSettings('cam').clips_mode, 'off')
@@ -217,6 +221,19 @@ test('réglages propres à la caméra : durée de garde, images par seconde invi
   }
   save({ foliage: 0 })
   assert.equal(settings.cameraSettings('cam').foliage_zones, 0)
+})
+
+test('réglage pluie : zones et hauteur propres à la caméra, défauts et valeurs absurdes remplacés', () => {
+  const { settings, db } = testContext()
+  const save = (extra: object) => settings.saveCameraSettings({ camera: 'cam', mode: 'always', fps: 25, light: 25, fpsMobile: 25, lightMobile: 25, sensitivity: 3, seconds: 60, orientation: 'landscape', ...extra })
+  save({ streakZones: 12, streakHeight: 30 })
+  assert.deepEqual([settings.cameraSettings('cam').streak_zones, settings.cameraSettings('cam').streak_height], [12, 30])
+  for (const [zones, height] of [[0, 0], [61, 101], [-1, -1]]) {
+    db.exec(`UPDATE settings SET streak_zones = ${zones}, streak_height = ${height} WHERE camera = 'cam'`)
+    assert.deepEqual([settings.cameraSettings('cam').streak_zones, settings.cameraSettings('cam').streak_height], [0, 10])
+  }
+  save({ streakZones: 0 })
+  assert.equal(settings.cameraSettings('cam').streak_zones, 0)
 })
 
 test('allumage au coucher du soleil : allumé tant qu’on ne l’a pas coupé ; le dernier jour est gardé', () => {

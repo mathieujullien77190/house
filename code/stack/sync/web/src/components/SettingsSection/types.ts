@@ -43,4 +43,8 @@ export interface CameraSetting {
   guest_fps: number
   /** À partir de ce nombre de zones (sur 30 % des images du mouvement), le mouvement est étiqueté feuillage : 0 = coupé. */
   foliage_zones: number
+  /** À partir de ce nombre de contours allongés à la verticale (d'au moins `streak_height` % de la hauteur), le mouvement est étiqueté pluie : 0 = coupé. */
+  streak_zones: number
+  /** La hauteur minimale d'un contour de pluie, en % de la hauteur de l'image (1 à 100). */
+  streak_height: number
 }

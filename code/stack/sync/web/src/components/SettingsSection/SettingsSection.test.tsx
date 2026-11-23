@@ -33,6 +33,8 @@ const camera = (patch: Partial<CameraSetting> = {}): CameraSetting => ({
   clip_retention_days: 15,
   guest_fps: 2,
   foliage_zones: 0,
+  streak_zones: 0,
+  streak_height: 10,
   ...patch,
 })
 const RAIN_GROUP = 'Mode pluie'
@@ -189,7 +191,7 @@ describe('réglages par caméra', () => {
     m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
     await loaded()
     const input = slider('Feuillage : nombre de zones à partir duquel le mouvement est du feuillage · voliere-exterieur')
-    expect(screen.getByText('coupé')).toBeTruthy()
+    expect(screen.getAllByText('coupé').length).toBeGreaterThan(0)
     fireEvent.change(input, { target: { value: '12' } })
     expect(screen.getByText('12 zones ou plus')).toBeTruthy()
     fireEvent.pointerUp(input)
@@ -197,6 +199,28 @@ describe('réglages par caméra', () => {
     fireEvent.change(input, { target: { value: '20' } })
     fireEvent.keyUp(input)
     await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { foliage_zones: 20 }))
+  })
+
+  it('la pluie : zones par minute et hauteur minimale, envoyées au relâchement', async () => {
+    m.saveSetting.mockImplementation(async (name, patch) => camera({ camera: name, ...patch }))
+    await loaded()
+    const zones = slider('Pluie : nombre moyen de zones hautes par minute à partir duquel c’est de la pluie · voliere-exterieur')
+    const height = slider('Pluie : hauteur minimale d’une zone (en % de la hauteur de l’image) · voliere-exterieur')
+    expect(screen.getByText('10 % de la hauteur')).toBeTruthy()
+    fireEvent.change(zones, { target: { value: '6' } })
+    expect(screen.getByText('6 zones par minute en moyenne ou plus')).toBeTruthy()
+    fireEvent.pointerUp(zones)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { streak_zones: 6 }))
+    fireEvent.change(zones, { target: { value: '8' } })
+    fireEvent.keyUp(zones)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { streak_zones: 8 }))
+    fireEvent.change(height, { target: { value: '25' } })
+    expect(screen.getByText('25 % de la hauteur')).toBeTruthy()
+    fireEvent.pointerUp(height)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { streak_height: 25 }))
+    fireEvent.change(height, { target: { value: '30' } })
+    fireEvent.keyUp(height)
+    await waitFor(() => expect(m.saveSetting).toHaveBeenCalledWith('voliere-exterieur', { streak_height: 30 }))
   })
 
   it('l’enregistrement d’un autre appareil laisse les autres caméras intactes', async () => {

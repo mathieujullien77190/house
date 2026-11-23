@@ -85,6 +85,9 @@ export const initDatabase = (db: DatabaseSync, dataDir: string, now: () => numbe
   addColumn(db, 'settings', 'guest_fps', 'INTEGER')
   // Le feuillage : à partir de ce nombre de zones (sur assez d'images), un mouvement est étiqueté « feuillage » (vert dans la frise) ; 0 ou vide : jamais.
   addColumn(db, 'settings', 'foliage_zones', 'INTEGER')
+  // La pluie : à partir de ce nombre de contours allongés à la verticale (d'au moins `streak_height` % de la hauteur de l'image), un mouvement est étiqueté « pluie » (bleu dans la frise) ; 0 ou vide : jamais.
+  addColumn(db, 'settings', 'streak_zones', 'INTEGER')
+  addColumn(db, 'settings', 'streak_height', 'INTEGER')
   // Les bases créées avant cette colonne la reçoivent ici (le début réel du clip, pour caler la lecture sur la frise).
   addColumn(db, 'events', 'clip_started_at', 'INTEGER')
   // Idem pour la copie légère du clip (H.264, 720p), à côté de l'original (H.265, 4K).

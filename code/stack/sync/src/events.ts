@@ -11,6 +11,7 @@ const LOOK_BACK_SECONDS = 3600
 // après une coupure, il peut y en avoir plus qu'une page, et aucun ne doit sauter.
 const MAX_PAGES = 20
 const MERGE_LOOK_BACK_SECONDS = 6 * 3600
+const LABEL_LOOK_BACK_SECONDS = 6 * 3600
 
 export const createEvents = (ctx: Context, rec: Recorder, clips: Clips) => {
   const { db, config } = ctx
@@ -127,5 +128,23 @@ export const createEvents = (ctx: Context, rec: Recorder, clips: Clips) => {
     return changed
   }
 
-  return { syncEvents, syncOngoingEvents, syncMerges }
+  // L'enregistreur calcule l'étiquette de chaque mouvement (pluie, feuillage) une fois le mouvement fini et fusionné, donc après que House Sync a copié l'événement :
+  // les étiquettes calculées récemment sont recopiées sur les événements connus.
+  const updateLabel = db.prepare('UPDATE events SET label = ? WHERE id = ? AND label IS NOT ?')
+  const syncLabels = async (base: string, cameras: string[]): Promise<number> => {
+    const res = await rec.recorderAt(base, `/api/events?labelled_after=${seconds(ctx) - LABEL_LOOK_BACK_SECONDS}&limit=10000`)
+    if (!res.ok) throw new Error(`étiquettes : HTTP ${res.status}`)
+    let changed = 0
+    for (const event of (await res.json()) as RecorderEvent[]) {
+      if (!cameras.includes(event.camera) || !/^[\w.-]+$/.test(event.id)) continue
+      // L'étiquette a changé : le fichier des contours de l'enregistreur porte maintenant le type des zones, on le recopie.
+      if (Number(updateLabel.run(event.label, event.id, event.label).changes) > 0) {
+        clearShapesClip.run(event.id)
+        changed += 1
+      }
+    }
+    return changed
+  }
+
+  return { syncEvents, syncOngoingEvents, syncMerges, syncLabels }
 }

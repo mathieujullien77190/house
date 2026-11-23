@@ -65,6 +65,15 @@ export const FOLIAGE_LABEL = 'Feuillage : nombre de zones à partir duquel le mo
 export const FOLIAGE_MIN = 0
 export const FOLIAGE_MAX = 60
 export const foliageText = (zones: number): string => (zones === 0 ? 'coupé' : `${zones} zones ou plus`)
+/** La pluie : à partir de ce nombre total de zones hautes (au moins n % de la hauteur de l'image) vues sur tout le mouvement, il est étiqueté « pluie » (bleu dans la frise). */
+export const STREAK_ZONES_LABEL = 'Pluie : nombre moyen de zones hautes par minute à partir duquel c’est de la pluie'
+export const STREAK_ZONES_MIN = 0
+export const STREAK_ZONES_MAX = 60
+export const streakZonesText = (zones: number): string => (zones === 0 ? 'coupé' : `${zones} zones par minute en moyenne ou plus`)
+export const STREAK_HEIGHT_LABEL = 'Pluie : hauteur minimale d’une zone (en % de la hauteur de l’image)'
+export const STREAK_HEIGHT_MIN = 1
+export const STREAK_HEIGHT_MAX = 100
+export const streakHeightText = (percent: number): string => `${percent} % de la hauteur`
 export const SENSITIVITY_LABEL = 'Sensibilité du mouvement'
 export const SENSITIVITY_MIN = 1
 export const SENSITIVITY_MAX = 5

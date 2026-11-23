@@ -18,6 +18,11 @@ export const NIGHT_MARGIN_SECONDS = 30 * 60
 export const RAIN_MODES = ['off', 'on']
 /** Le nombre de zones du réglage « feuillage » : de 1 à 60 (0 : coupé). */
 export const MAX_FOLIAGE_ZONES = 60
+/** Le réglage « pluie » : le nombre de contours allongés (0 : coupé, jusqu'à 60) et leur hauteur minimale, en % de la hauteur de l'image (de 1 à 100, 10 par défaut). */
+export const MAX_STREAK_ZONES = 60
+export const MIN_STREAK_HEIGHT = 1
+export const MAX_STREAK_HEIGHT = 100
+export const DEFAULT_STREAK_HEIGHT = 10
 export type RainMode = 'off' | 'on'
 /** Le niveau de pluie qui s'applique à une caméra : éteint, pluie ou pluie forte (celui de la météo, quand le mode pluie est allumé). */
 export type RainLevel = 'off' | 'rain' | 'heavy' | 'fog' | 'wind'
@@ -69,6 +74,9 @@ export interface CameraSettings {
   guest_fps: number
   /** À partir de ce nombre de zones, un mouvement est étiqueté « feuillage » (0 : jamais). */
   foliage_zones: number
+  /** À partir de ce nombre de contours allongés à la verticale (d'au moins `streak_height` % de la hauteur), un mouvement est étiqueté « pluie » (0 : jamais). */
+  streak_zones: number
+  streak_height: number
 }
 
 /** Ce que la page change pour une caméra (tout est déjà validé). */
@@ -91,6 +99,8 @@ export interface CameraSettingsUpdate {
   retention?: number
   guestFps?: number
   foliage?: number
+  streakZones?: number
+  streakHeight?: number
 }
 
 /** Le mode gardé en base : « on » (et les anciens « auto », « rain », « heavy ») est allumé ; tout le reste est éteint. */
@@ -102,7 +112,7 @@ const rainNowOf = (mode: RainMode, weather: 'none' | 'rain' | 'heavy' | 'fog', w
   mode === 'on' && weather !== 'none' ? weather : windMode === 'on' && windy ? 'wind' : 'off'
 
 export const createSettings = (db: DatabaseSync, config: Config) => {
-  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode, wind_mode, eyes_mode, link_mode, retention_days, guest_fps, foliage_zones FROM settings WHERE camera = ?')
+  const settingsOf = db.prepare('SELECT clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, motion_min_seconds, snapshot_seconds, orientation, rain_mode, wind_mode, eyes_mode, link_mode, retention_days, guest_fps, foliage_zones, streak_zones, streak_height FROM settings WHERE camera = ?')
   const saveSettings = db.prepare(
     'INSERT INTO settings (camera, clips_enabled, clips_mode, live_fps, light_fps, live_fps_mobile, light_fps_mobile, motion_sensitivity, snapshot_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(camera) DO UPDATE SET clips_enabled = excluded.clips_enabled, clips_mode = excluded.clips_mode, live_fps = excluded.live_fps, light_fps = excluded.light_fps, live_fps_mobile = excluded.live_fps_mobile, light_fps_mobile = excluded.light_fps_mobile, motion_sensitivity = excluded.motion_sensitivity, snapshot_seconds = excluded.snapshot_seconds',
   )
@@ -117,6 +127,8 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
   const setRetentionDays = db.prepare('UPDATE settings SET retention_days = ? WHERE camera = ?')
   const setGuestFps = db.prepare('UPDATE settings SET guest_fps = ? WHERE camera = ?')
   const setFoliage = db.prepare('UPDATE settings SET foliage_zones = ? WHERE camera = ?')
+  const setStreakZones = db.prepare('UPDATE settings SET streak_zones = ? WHERE camera = ?')
+  const setStreakHeight = db.prepare('UPDATE settings SET streak_height = ? WHERE camera = ?')
   const settingsCameras = db.prepare('SELECT camera FROM settings')
   // La météo : aucune pluie, pluie ou pluie forte (lue par weather.ts).
   let weatherRain: 'none' | 'rain' | 'heavy' | 'fog' = 'none'
@@ -145,7 +157,7 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
 
   const cameraSettings = (camera: string): CameraSettings => {
     const row = settingsOf.get(camera) as
-      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null; wind_mode: string | null; eyes_mode: string | null; link_mode: string | null; retention_days: number | null; guest_fps: number | null; foliage_zones: number | null }
+      | { clips_enabled: number; clips_mode: string | null; live_fps: number | null; light_fps: number | null; live_fps_mobile: number | null; light_fps_mobile: number | null; motion_sensitivity: number | null; motion_min_seconds: number | null; snapshot_seconds: number; orientation: string | null; rain_mode: string | null; wind_mode: string | null; eyes_mode: string | null; link_mode: string | null; retention_days: number | null; guest_fps: number | null; foliage_zones: number | null; streak_zones: number | null; streak_height: number | null }
       | undefined
     const mode = row?.clips_mode && CLIP_MODES.includes(row.clips_mode) ? (row.clips_mode as ClipMode) : row && row.clips_enabled !== 1 ? 'off' : 'always'
     return {
@@ -167,6 +179,8 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       clip_retention_days: row?.retention_days && row.retention_days >= MIN_RETENTION_DAYS && row.retention_days <= MAX_RETENTION_DAYS ? row.retention_days : defaultRetentionDays(),
       guest_fps: row?.guest_fps && row.guest_fps >= 1 && row.guest_fps <= MAX_LIVE_FPS ? row.guest_fps : defaultGuestFps(),
       foliage_zones: row?.foliage_zones && row.foliage_zones > 0 && row.foliage_zones <= MAX_FOLIAGE_ZONES ? row.foliage_zones : 0,
+      streak_zones: row?.streak_zones && row.streak_zones > 0 && row.streak_zones <= MAX_STREAK_ZONES ? row.streak_zones : 0,
+      streak_height: row?.streak_height && row.streak_height >= MIN_STREAK_HEIGHT && row.streak_height <= MAX_STREAK_HEIGHT ? row.streak_height : DEFAULT_STREAK_HEIGHT,
     }
   }
   /** Les réglages qui comptent vraiment : en mode pluie, pas de clips et une image toutes les 5 s, quoi que dise la page. */
@@ -206,6 +220,8 @@ export const createSettings = (db: DatabaseSync, config: Config) => {
       if (update.retention !== undefined) setRetentionDays.run(update.retention, update.camera)
       if (update.guestFps !== undefined) setGuestFps.run(update.guestFps, update.camera)
       if (update.foliage !== undefined) setFoliage.run(update.foliage, update.camera)
+      if (update.streakZones !== undefined) setStreakZones.run(update.streakZones, update.camera)
+      if (update.streakHeight !== undefined) setStreakHeight.run(update.streakHeight, update.camera)
       setRainNow.run(cameraSettings(update.camera).rain_now, update.camera)
     },
     /** La durée de garde de départ (celle des caméras sans la leur). */

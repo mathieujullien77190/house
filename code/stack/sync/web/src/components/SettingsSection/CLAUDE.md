@@ -7,9 +7,10 @@
 - **Durée de garde** (7, 15, 30, 60, 90 ou 180 jours, `clip_retention_days`) et **images par seconde de la page invité** (curseur de 1 à 25, `guest_fps`, pour la page publique **et** « Chez Matou ») sont **propres à chaque caméra** (`PUT /api/settings`) ; plus de bloc « Général ».
 - **Mode vent** (`wind_mode`, OFF par défaut) sous le mode pluie : au-dessus de 20 km/h (`WIND_THRESHOLD_KMH`), pas de clips et une image toutes les 5 s, comme la pluie ; symbole 💨 à côté du nom de la caméra quand il s'applique.
 - **Feuillage** : curseur de 0 (coupé) à 60 zones (`foliage_zones`), dans le bloc « Détection du mouvement » : un mouvement qui fait au moins ce nombre de zones sur 30 % de ses images est étiqueté feuillage, vert dans la frise.
+- **Pluie (zones allongées)** : deux curseurs dans le bloc « Détection du mouvement », sous le feuillage : nombre de zones (`streak_zones`, 0 = coupé à 60) et hauteur minimale d'une zone en % de la hauteur de l'image (`streak_height`, 1 à 100). Un mouvement dont la moyenne de zones hautes par minute (total divisé par la durée de son clip : 6 par minute sur 2 min = 12 zones) atteint ce nombre est étiqueté pluie, bleu dans la frise.
 - **Recherche des yeux** (`eyes_mode`, OFF par défaut) à côté du mode pluie, sans ligne d'aide (les libellés sont seulement « Mode pluie » et « Mode vent ») : `../../../../src/CLAUDE.md`.
 
-- **Clip sur la caméra liée** (`link_mode`, OFF par défaut) : un mouvement ou des yeux vus par cette caméra font aussi un clip sur les autres de son groupe (`LINKS` du compose : `voliere-toit` et `voliere-interieur`). Chaque caméra du groupe a son interrupteur. Sans effet sur une caméra hors groupe.
+- **Clip sur la caméra liée** (`link_mode`, OFF par défaut) : la caméra est **liée** aux autres de son groupe (`LINKS` du compose : `voliere-toit` et `voliere-interieur`) : un mouvement ou des yeux qu'elle voit font aussi un clip sur les autres caméras **liées** du groupe, et elle reçoit les leurs. **OFF = indépendante** : elle ne déclenche rien, ne reçoit rien et ne réagit qu'à ses propres mouvements. Sans effet sur une caméra hors groupe.
 
 **Enregistrement : clips et images**
 

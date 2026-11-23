@@ -23,6 +23,8 @@ export const createControl = (ctx: Context) => {
   const eyesSent = new Map<string, { enabled: boolean; at: number }>()
   // Le seuil de zones du feuillage : envoyé de la même façon.
   const foliageSent = new Map<string, { zones: number; at: number }>()
+  // Le réglage pluie (zones allongées et hauteur minimale) : envoyé de la même façon.
+  const streakSent = new Map<string, { zones: number; height: number; at: number }>()
   // Le clip lié (une caméra qui en déclenche une autre, LINKS de l'enregistreur) : envoyé de la même façon.
   const linkSent = new Map<string, { enabled: boolean; at: number }>()
 
@@ -57,6 +59,12 @@ export const createControl = (ctx: Context) => {
       if (!foliageAt || foliageAt.zones !== foliageZones || now - foliageAt.at >= DETECTION_REFRESH_SECONDS) {
         const res = await ctx.fetch(`${base}/api/cameras/${camera}/foliage?zones=${foliageZones}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
         if (res?.ok) foliageSent.set(camera, { zones: foliageZones, at: now })
+      }
+      const { streak_zones: streakZones, streak_height: streakHeight } = settings.cameraSettings(camera)
+      const streakAt = streakSent.get(camera)
+      if (!streakAt || streakAt.zones !== streakZones || streakAt.height !== streakHeight || now - streakAt.at >= DETECTION_REFRESH_SECONDS) {
+        const res = await ctx.fetch(`${base}/api/cameras/${camera}/rain?zones=${streakZones}&height=${streakHeight}`, { method: 'PUT', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null)
+        if (res?.ok) streakSent.set(camera, { zones: streakZones, height: streakHeight, at: now })
       }
       const level = settings.cameraSettings(camera).motion_sensitivity
       const levelSent = sensitivitySent.get(camera)

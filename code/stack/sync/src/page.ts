@@ -33,7 +33,7 @@ import type { ApiTarget } from './power.ts'
 import { parseRange } from './range.ts'
 import { readSavedIds } from './savedClips.ts'
 import { createToken, isValidToken, sessionCookie } from './session.ts'
-import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_MOTION_SECONDS, MAX_FOLIAGE_ZONES, MAX_SENSITIVITY, MIN_MOTION_SECONDS, MIN_RETENTION_DAYS, MIN_SENSITIVITY, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
+import { CLIP_MODES, MAX_LIVE_FPS, MAX_RETENTION_DAYS, MAX_MOTION_SECONDS, MAX_FOLIAGE_ZONES, MAX_SENSITIVITY, MAX_STREAK_HEIGHT, MAX_STREAK_ZONES, MIN_STREAK_HEIGHT, MIN_MOTION_SECONDS, MIN_RETENTION_DAYS, MIN_SENSITIVITY, RAIN_MODES, SNAPSHOT_CHOICES } from './settings.ts'
 import { readSpecs } from './specs.ts'
 import { readSystem } from './system.ts'
 
@@ -281,8 +281,12 @@ export const createPage = (ctx: Context, deps: { hueLog: Pick<HueLog, 'list'>; r
       if (guestFps === null) return sendJson(res, 400, { error: `guest_fps must be an integer from 1 to ${MAX_LIVE_FPS}` })
       const foliage = intSetting(body.foliage_zones, current.foliage_zones, 0, MAX_FOLIAGE_ZONES)
       if (foliage === null) return sendJson(res, 400, { error: `foliage_zones must be an integer from 0 to ${MAX_FOLIAGE_ZONES}` })
+      const streakZones = intSetting(body.streak_zones, current.streak_zones, 0, MAX_STREAK_ZONES)
+      if (streakZones === null) return sendJson(res, 400, { error: `streak_zones must be an integer from 0 to ${MAX_STREAK_ZONES}` })
+      const streakHeight = intSetting(body.streak_height, current.streak_height, MIN_STREAK_HEIGHT, MAX_STREAK_HEIGHT)
+      if (streakHeight === null) return sendJson(res, 400, { error: `streak_height must be an integer from ${MIN_STREAK_HEIGHT} to ${MAX_STREAK_HEIGHT}` })
       // « night », l'ancienne valeur, vaut « on ».
-      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain, wind, eyes, link, retention, guestFps, foliage })
+      settings.saveCameraSettings({ camera, mode, fps, light, fpsMobile, lightMobile, sensitivity, minSeconds, seconds: secs, orientation, rain, wind, eyes, link, retention, guestFps, foliage, streakZones, streakHeight })
       ctx.log(`Réglages de ${camera} : clips ${mode}, direct 4K à ${fps} images/s (téléphone ${fpsMobile}), léger à ${light} (téléphone ${lightMobile}), sensibilité du mouvement ${sensitivity}, un mouvement compte après ${minSeconds} s, une image toutes les ${secs} s`)
       resetLiveFpsCheck()
       return sendJson(res, 200, settings.cameraSettings(camera))

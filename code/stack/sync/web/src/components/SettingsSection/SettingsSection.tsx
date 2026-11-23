@@ -21,6 +21,14 @@ import {
   FOLIAGE_MAX,
   FOLIAGE_MIN,
   foliageText,
+  STREAK_HEIGHT_LABEL,
+  STREAK_HEIGHT_MAX,
+  STREAK_HEIGHT_MIN,
+  STREAK_ZONES_LABEL,
+  STREAK_ZONES_MAX,
+  STREAK_ZONES_MIN,
+  streakHeightText,
+  streakZonesText,
   GUEST_FPS_LABEL,
   GUEST_POWER_LABEL,
   GUEST_POWER_OPTIONS,
@@ -297,6 +305,40 @@ const SettingsSection = () => {
                     onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:foliage`]: Number(event.target.value) }))}
                     onPointerUp={(event) => commit(setting, 'foliage_zones', Number(event.currentTarget.value), `${setting.camera}:foliage`)}
                     onKeyUp={(event) => commit(setting, 'foliage_zones', Number(event.currentTarget.value), `${setting.camera}:foliage`)}
+                  />
+                </div>
+                <div className={SLIDER_GROUP_CLASS}>
+                  <div className={SLIDER_HEAD_CLASS}>
+                    <span className={LABEL_CLASS}>{STREAK_ZONES_LABEL}</span>
+                    <span className={VALUE_CLASS}>{streakZonesText(draft[`${setting.camera}:streakzones`] ?? setting.streak_zones)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={STREAK_ZONES_MIN}
+                    max={STREAK_ZONES_MAX}
+                    value={draft[`${setting.camera}:streakzones`] ?? setting.streak_zones}
+                    aria-label={`${STREAK_ZONES_LABEL} · ${setting.camera}`}
+                    className={SLIDER_CLASS}
+                    onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:streakzones`]: Number(event.target.value) }))}
+                    onPointerUp={(event) => commit(setting, 'streak_zones', Number(event.currentTarget.value), `${setting.camera}:streakzones`)}
+                    onKeyUp={(event) => commit(setting, 'streak_zones', Number(event.currentTarget.value), `${setting.camera}:streakzones`)}
+                  />
+                </div>
+                <div className={SLIDER_GROUP_CLASS}>
+                  <div className={SLIDER_HEAD_CLASS}>
+                    <span className={LABEL_CLASS}>{STREAK_HEIGHT_LABEL}</span>
+                    <span className={VALUE_CLASS}>{streakHeightText(draft[`${setting.camera}:streakheight`] ?? setting.streak_height)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={STREAK_HEIGHT_MIN}
+                    max={STREAK_HEIGHT_MAX}
+                    value={draft[`${setting.camera}:streakheight`] ?? setting.streak_height}
+                    aria-label={`${STREAK_HEIGHT_LABEL} · ${setting.camera}`}
+                    className={SLIDER_CLASS}
+                    onChange={(event) => setDraft((current) => ({ ...current, [`${setting.camera}:streakheight`]: Number(event.target.value) }))}
+                    onPointerUp={(event) => commit(setting, 'streak_height', Number(event.currentTarget.value), `${setting.camera}:streakheight`)}
+                    onKeyUp={(event) => commit(setting, 'streak_height', Number(event.currentTarget.value), `${setting.camera}:streakheight`)}
                   />
                 </div>
               </div>

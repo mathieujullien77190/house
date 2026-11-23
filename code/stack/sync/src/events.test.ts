@@ -168,3 +168,32 @@ test('syncMerges : un refus de l\'enregistreur remonte', async () => {
   const { events } = setup(() => new Response('', { status: 500 }))
   await assert.rejects(events.syncMerges(BASE, ['cam']), /events fusionnés : HTTP 500/)
 })
+
+test('syncLabels : recopie l\'étiquette calculée, efface le fichier des contours à recopier, ignore les inconnus et les noms louches', async () => {
+  const ref: { ctx?: TestContext } = {}
+  const c = () => ref.ctx as TestContext
+  const { ctx, events } = setup(() =>
+    Response.json([
+      ev(c(), 'change', { label: 'rain' }),
+      ev(c(), 'pareil', { label: 'foliage' }),
+      ev(c(), 'ailleurs', { camera: 'autre', label: 'rain' }),
+      ev(c(), '../louche', { label: 'rain' }),
+      ev(c(), 'jamais-vu', { label: 'rain' }),
+    ]),
+  )
+  ref.ctx = ctx
+  seed(ctx, 'change')
+  seed(ctx, 'pareil')
+  ctx.db.exec("UPDATE events SET label = 'foliage' WHERE id = 'pareil'")
+  ctx.db.exec("UPDATE events SET clip_shapes_path = 's' WHERE id IN ('change', 'pareil')")
+  assert.equal(await events.syncLabels(BASE, ['cam']), 1)
+  assert.equal(row(ctx, 'change')?.label, 'rain')
+  assert.equal(row(ctx, 'change')?.clip_shapes_path, null)
+  assert.equal(row(ctx, 'pareil')?.clip_shapes_path, 's')
+  assert.match(ctx.calls[0]?.url ?? '', /\/api\/events\?labelled_after=\d+&limit=10000$/)
+})
+
+test('syncLabels : un refus de l\'enregistreur remonte', async () => {
+  const { events } = setup(() => new Response('', { status: 500 }))
+  await assert.rejects(events.syncLabels(BASE, ['cam']), /étiquettes : HTTP 500/)
+})

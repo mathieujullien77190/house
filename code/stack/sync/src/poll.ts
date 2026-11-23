@@ -42,6 +42,7 @@ export const createPoller = (
           copied += await events.syncEvents(base, own)
           ongoing += await events.syncOngoingEvents(base, own)
           merged += await events.syncMerges(base, own)
+          await events.syncLabels(base, own)
           await control.syncDetection(base, own)
           await control.syncLiveFps(own)
         } catch (error) {
