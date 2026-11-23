@@ -120,3 +120,22 @@ test('le direct de la page invité : flux _guest_sub_mjpeg, ou _main_mjpeg en 4K
     },
   )
 })
+
+test('le direct en MP4 : flux léger, ou _main en 4K ; sans flux, null', async () => {
+  const seen: string[] = []
+  await withServer(
+    (req: IncomingMessage, res) => {
+      seen.push(decodeURIComponent(req.url ?? ''))
+      res.writeHead(200)
+      res.end('data')
+    },
+    async (url) => {
+      const live = createLiveService([url], repository([{ camera: 'a', url: `${url}/stream.html?src=cam_sub` }]))
+      const abort = new AbortController()
+      await (await live.mp4('a', abort.signal))?.body?.cancel()
+      await (await live.mp4('a', abort.signal, true))?.body?.cancel()
+      assert.equal(await live.mp4('absente', abort.signal), null)
+      assert.deepEqual(seen, ['/api/stream.mp4?src=cam_sub', '/api/stream.mp4?src=cam_main'])
+    },
+  )
+})

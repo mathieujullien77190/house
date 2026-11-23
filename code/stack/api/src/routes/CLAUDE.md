@@ -24,6 +24,16 @@ La page « Chez Matou » (`https://chezmatou.local:8080/chezmatou?k=<LAN_KEY>`, 
 - `GET /chezmatou` (la WebApp elle-même, sans en-tête `X-Frame-Options` ni CSP : l'onglet « Page invité » l'aperçoit dans un cadre de même origine) ; `GET /invite` redirige vers `/chezmatou` en gardant la query. Pas de cache, pas de référent.
 - **Pas joignable depuis internet** : le Funnel Tailscale ne proxifie que `guest:8090`, jamais l'API. Seule limite : une connexion qui arrive d'une adresse privée (par exemple la passerelle Docker `172.x` si un redirecteur de ports réécrit l'origine) passe le filtre réseau : la clé reste la seconde barrière.
 
+## Application de télé « cinéma » (`/cinema/*`)
+
+L'application Android TV `code/cinema` (chaque caméra est une série, ses clips sont les épisodes). **Garde propre** (`middleware/lanGuard.ts`, comme `/lan`) : réseau local **et** en-tête `X-Lan-Key` égal à `TV_KEY` (`.env` du mini PC, 16 caractères au moins) ; la clé des invités (`LAN_KEY`) et celle de la WebApp n'ouvrent rien ici, et `TV_KEY` n'ouvre que ces routes et la page `/chezmatou?tv=1`. **Lecture seule.**
+
+- `GET /cinema/library` : `{cameras: [{id, name, orientation, episodes: [...]}], saved: [...]}` : les 120 derniers clips de chaque caméra (`CINEMA_CLIPS_PER_CAMERA`) et les clips sauvegardés ; un épisode : `{id, camera, label, startedAt, endedAt, clipStartedAt, saved, note, emoji, orientation, light, hd}`.
+- `GET /cinema/clip/<id>` : la copie légère (H.264, 720p) ; `?q=hd` : l'original (H.265, 4K) ; plage d'octets acceptée.
+- `GET /cinema/thumb?camera=&at=` : l'image gardée la plus proche (une par minute), cache privé d'un jour.
+- `GET /cinema/live/<caméra>/live.mp4` : le direct en **MP4 fragmenté continu** (go2rtc `stream.mp4` ; la télé ne lit pas le MJPEG, et la liste HLS de go2rtc n'est pas glissante : ExoPlayer s'arrête) : le léger, ou le 4K (H.265) avec `?q=hd`, tant que le client reste connecté. Les quatre caméras (`TV_CAMERAS`), 404 sinon.
+- `TV_KEY` ouvre aussi, sur `/lan/*`, les **quatre** caméras (`TV_CAMERAS`) au lieu des deux des invités.
+
 ## Caméras, événements, images
 
 - `GET /direct` : par caméra, orientation (réglage de House Sync, paysage par défaut), `rain` (`off`, `rain`, `heavy`, `fog`).

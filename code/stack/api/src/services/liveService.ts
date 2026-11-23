@@ -64,6 +64,12 @@ export const createLiveService = (go2rtcUrls: string[], cameras: CamerasReposito
       const src = streamOf(camera)
       return src ? open(camera, `/api/stream.aac?src=${encodeURIComponent(src)}`, signal) : Promise.resolve(null)
     },
+    /** Le direct en MP4 fragmenté continu (`stream.mp4`) : le léger, ou le 4K avec `hd` (`<nom>_main`, copie sans transcodage). Pour l'application de télé, dont le lecteur ne lit pas le MJPEG. */
+    mp4: (camera: string, signal: AbortSignal, hd = false): Promise<Upstream | null> => {
+      const light = streamOf(camera)
+      const src = light && hd ? light.replace(/_sub$/, '_main') : light
+      return src ? open(camera, `/api/stream.mp4?src=${encodeURIComponent(src)}`, signal) : Promise.resolve(null)
+    },
     /** Une image JPEG de l'instant. */
     frame: (camera: string, signal: AbortSignal): Promise<Upstream | null> => {
       const src = streamOf(camera)

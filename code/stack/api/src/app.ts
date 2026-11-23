@@ -141,7 +141,7 @@ export const createApp = (config: Config): Express => {
   app.disable('x-powered-by')
   // La base reste accessible à qui assemble l'application (les tests la ferment pour supprimer leurs dossiers temporaires).
   app.locals.database = db
-  app.use(createRoutes(config.apiKey, services, config.caCert, { key: config.lanKey, prefixes: config.lanIpv6Prefixes, host: config.lanHost, port: config.port, doc: createDocStore(db, 'lan-access') }))
+  app.use(createRoutes(config.apiKey, services, config.caCert, { key: config.lanKey, tvKey: config.tvKey, prefixes: config.lanIpv6Prefixes, host: config.lanHost, port: config.port, doc: createDocStore(db, 'lan-access') }))
   // La page invité du réseau (« Chez Matou ») est la WebApp elle-même (`/chezmatou`, sans clé de la WebApp) : même fichier, pas de cache (l'adresse porte la clé de la page), jamais envoyée en référent.
   // Aucun en-tête n'interdit le cadre : l'onglet « Page invité » l'aperçoit dans un iframe de même origine.
   app.get('/chezmatou', (_req, res) => {

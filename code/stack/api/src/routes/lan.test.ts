@@ -6,7 +6,7 @@ import { UnknownHueId, type HueService } from '../services/hueService.ts'
 import type { LiveService, Upstream } from '../services/liveService.ts'
 import { UnknownShutter, type ShuttersService } from '../services/shuttersService.ts'
 import { call, memoryDoc, routerApp, withServer } from '../testing/helpers.ts'
-import { lanRouter, LAN_CAMERAS, type LanDeps, type LanServices } from './lan.ts'
+import { lanRouter, LAN_CAMERAS, TV_CAMERAS, type LanDeps, type LanServices } from './lan.ts'
 
 const KEY = 'une-cle-assez-longue'
 const HEADERS = { 'X-Lan-Key': KEY }
@@ -249,5 +249,21 @@ test('une caméra absente de la base : paysage par défaut', async () => {
   await serve(s, async (url) => {
     const state = (await call(`${url}/lan/state`, 'GET', undefined, HEADERS)).body as { cameras: { orientation: string }[] }
     assert.deepEqual(state.cameras.map((camera) => camera.orientation), ['landscape', 'landscape'])
+  })
+})
+
+test('la clé de la télé : toutes les caméras et son propre jeton ; celle des invités n’en voit que deux', async () => {
+  const TV = 'la-cle-de-la-tele-longue'
+  const s = setup()
+  s.deps.tvKey = TV
+  await serve(s, async (url) => {
+    const state = (await call(`${url}/lan/state`, 'GET', undefined, { 'X-Lan-Key': TV })).body as { cameras: { id: string }[] }
+    assert.deepEqual(state.cameras.map((camera) => camera.id), TV_CAMERAS.map((camera) => camera.id))
+    const guest = (await call(`${url}/lan/state`, 'GET', undefined, HEADERS)).body as { cameras: { id: string }[] }
+    assert.equal(guest.cameras.length, LAN_CAMERAS.length)
+    const t = ((await call(`${url}/lan/token`, 'GET', undefined, { 'X-Lan-Key': TV })).body as { token: string }).token
+    assert.equal((await call(`${url}/lan/stream/salon-de-jardin?t=${t}`)).body, 'flux')
+    const guestToken = await token(url)
+    assert.equal((await call(`${url}/lan/stream/salon-de-jardin?t=${guestToken}`)).status, 404)
   })
 })

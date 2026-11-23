@@ -50,6 +50,8 @@ export interface Config {
   syncServername: string
   /** La clé de la page invité du réseau (LAN_KEY, 16 caractères au moins) ; absente ou trop courte : les routes `/lan` répondent 503. Distincte de API_KEY et de GUEST_KEY. */
   lanKey: string
+  /** La clé de la télé (TV_KEY, 16 caractères au moins) : la même page `/chezmatou?tv=1` mais avec **toutes** les caméras (la clé des invités n'en voit que deux). Absente : pas d'accès télé. Distincte des autres clés. */
+  tvKey: string
   /** Le nom d'hôte de l'adresse de la page (LAN_HOST, `chezmatou.local` par défaut : un alias mDNS du mini PC, `docs/deploiement.md`) ; le certificat de la maison doit le contenir. */
   lanHost: string
   /** Les préfixes IPv6 (/64) du réseau de la maison (LAN_IPV6_PREFIXES, séparés par des virgules) que le filtre « réseau local » de `/lan` accepte en plus des adresses privées. */
@@ -130,6 +132,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     syncUrl: env.SYNC_URL ? env.SYNC_URL.replace(/\/+$/, '') : '',
     syncServername: env.SYNC_SERVERNAME ?? 'localhost',
     lanKey: env.LAN_KEY ?? '',
+    tvKey: env.TV_KEY ?? '',
     lanHost: env.LAN_HOST || 'chezmatou.local',
     lanIpv6Prefixes: (env.LAN_IPV6_PREFIXES ?? '')
       .split(',')

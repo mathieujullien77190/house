@@ -231,6 +231,8 @@ services:
       SYNC_URL: https://sync:8081
       # La page invité du réseau (`/chezmatou`) : sa clé (dans le .env du mini PC, jamais dans le dépôt) et le préfixe IPv6 /64 du réseau de la maison (la Freebox donne une adresse publique à chaque machine) que le filtre « réseau local » accepte.
       LAN_KEY: ${LAN_KEY:-}
+      # La clé de la télé (Freebox Pop, `code/tv`) : la même page avec toutes les caméras (la clé des invités n'en voit que deux). Dans le .env du mini PC.
+      TV_KEY: ${TV_KEY:-}
       # Le nom d'hôte du lien de la page (alias mDNS du mini PC, service systemd chezmatou-mdns) : le certificat de la maison doit le contenir (CERT_HOSTS).
       LAN_HOST: ${LAN_HOST:-chezmatou.local}
       LAN_IPV6_PREFIXES: ${LAN_IPV6_PREFIXES:-2a01:e0a:a16:58d0::/64}

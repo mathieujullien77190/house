@@ -59,6 +59,7 @@ const baseConfig = (dir: string): Config => ({
   tls: null,
   caCert: '',
   lanKey: '',
+  tvKey: '',
   lanHost: 'chezmatou.local',
   lanIpv6Prefixes: [],
 })
