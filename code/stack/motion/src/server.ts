@@ -35,6 +35,7 @@ export interface Detection {
   setEyes: (camera: string, enabled: boolean) => void
   /** Le feuillage : nombre de zones à partir duquel un mouvement est étiqueté « feuillage » ; 0 = jamais. */
   setFoliage: (camera: string, zones: number) => void
+  setRain: (camera: string, zones: number, height: number) => void
   /** Le clip lié de la caméra (LINKS) : allumé ou éteint par House Sync (éteint tant qu'on ne lui dit rien). */
   setLink: (camera: string, enabled: boolean) => void
 }
@@ -127,6 +128,17 @@ export const startServer = (
       detection.setFoliage(foliage[1], zones)
       return json(res, 200, { camera: foliage[1], zones })
     }
+    // PUT /api/cameras/<caméra>/rain?zones=0..60&height=1..100 : à partir de ce nombre de contours d'au moins `height` % de la hauteur de l'image (sur assez d'images du mouvement), l'événement est étiqueté « pluie » ; zones 0 : jamais.
+    const rain = /^\/api\/cameras\/([\w-]+)\/rain$/.exec(pathname)
+    if (req.method === 'PUT' && rain) {
+      if (!config.cameras.includes(rain[1])) return json(res, 404, { error: 'unknown camera' })
+      const zones = Number(searchParams.get('zones'))
+      const height = Number(searchParams.get('height'))
+      if (!Number.isInteger(zones) || zones < 0 || zones > 60) return json(res, 400, { error: 'zones must be an integer from 0 to 60' })
+      if (!Number.isInteger(height) || height < 1 || height > 100) return json(res, 400, { error: 'height must be an integer from 1 to 100' })
+      detection.setRain(rain[1], zones, height)
+      return json(res, 200, { camera: rain[1], zones, height })
+    }
     // PUT /api/cameras/<caméra>/min-seconds?seconds=0..30 : la durée minimale d'un mouvement (en secondes) pour ouvrir un événement.
     const minSeconds = /^\/api\/cameras\/([\w-]+)\/min-seconds$/.exec(pathname)
     if (req.method === 'PUT' && minSeconds) {
@@ -189,6 +201,7 @@ export const startServer = (
           inProgress: flag(searchParams.get('in_progress')),
           limit: num(searchParams.get('limit')),
           mergedAfter: num(searchParams.get('merged_after')),
+          labelledAfter: num(searchParams.get('labelled_after')),
         }),
       )
     }

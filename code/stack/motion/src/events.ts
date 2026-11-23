@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path'
 
 /** Pourquoi l'événement existe. Un mouvement vu par le détecteur ; les anciens événements « eyes » (yeux qui brillent, fonction retirée) restent lisibles dans le fichier. */
-export type MotionLabel = 'motion' | 'eyes' | 'foliage'
+export type MotionLabel = 'motion' | 'eyes' | 'foliage' | 'rain'
 
 export interface MotionRecord {
   id: string
@@ -26,6 +26,10 @@ export interface MotionRecord {
   merged_into?: string
   /** Fusion : secondes depuis 1970 où l'événement a été fusionné (absorbé ou survivant), pour que House Sync le sache. */
   merged_at?: number
+  /** Secondes depuis 1970 où l'étiquette (pluie, feuillage, mouvement) a été calculée sur tout le mouvement, après la fusion ; vide tant qu'elle ne l'est pas. */
+  labelled_at?: number
+  /** D'où viennent les zones qui ont servi au calcul : `stats` (le journal des hauteurs), `shapes` (le journal des contours, 8 zones par image, pour les clips d'avant `stats`) ou `none` (aucune zone gardée). */
+  labelled_from?: 'stats' | 'shapes' | 'none'
 }
 
 export interface EventQuery {
@@ -36,6 +40,8 @@ export interface EventQuery {
   limit?: number
   /** Seulement les événements fusionnés après cet instant (absorbés compris), au lieu de la liste normale. */
   mergedAfter?: number
+  /** Seulement les événements dont l'étiquette a été calculée après cet instant (House Sync recopie les étiquettes qui changent après coup). */
+  labelledAfter?: number
 }
 
 /** Un identifiant sûr pour un nom de fichier : début et caméra. */
@@ -144,6 +150,9 @@ export const createEventStore = (file: string) => {
       delete first.has_audio
       delete first.has_shapes
       first.merged_at = at
+      // Le mouvement fusionné est plus long : son étiquette se recalcule sur le tout.
+      delete first.labelled_at
+      delete first.labelled_from
       for (const other of others) {
         other.merged_into = first.id
         other.merged_at = at
@@ -154,11 +163,29 @@ export const createEventStore = (file: string) => {
       }
       save()
     },
+    /** Les événements terminés avant `before` (secondes), non absorbés, dont l'étiquette n'a pas encore été calculée sur tout le mouvement. */
+    unlabelled: (before: number): MotionRecord[] =>
+      events.filter((e) => e.end_time !== null && e.end_time <= before && e.merged_into === undefined && (e.labelled_at === undefined || e.labelled_from === undefined)),
+    /** Note l'étiquette calculée sur tout le mouvement. Des yeux vus gardent la leur (violet) : seul l'instant est noté. */
+    classify: (id: string, label: MotionLabel, at: number, from: 'stats' | 'shapes' | 'none') => {
+      const record = events.find((e) => e.id === id)
+      if (!record) return
+      if (record.label !== 'eyes') record.label = label
+      record.labelled_at = at
+      record.labelled_from = from
+      save()
+    },
     get: (id: string): MotionRecord | undefined => events.find((e) => e.id === id),
     /** Les événements qui filtrent, du plus récent au plus ancien (comme l'API que House Sync lisait). */
     list: (query: EventQuery = {}): MotionRecord[] =>
       events
-        .filter((e) => (query.mergedAfter === undefined ? e.merged_into === undefined : (e.merged_at ?? 0) > query.mergedAfter))
+        .filter((e) =>
+          query.labelledAfter !== undefined
+            ? e.merged_into === undefined && (e.labelled_at ?? 0) > query.labelledAfter
+            : query.mergedAfter === undefined
+              ? e.merged_into === undefined
+              : (e.merged_at ?? 0) > query.mergedAfter,
+        )
         .filter(
           (e) => (query.after === undefined || e.start_time > query.after) && (query.before === undefined || e.start_time < query.before),
         )

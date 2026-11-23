@@ -14,7 +14,8 @@ import { pruneSegments, recordSegments } from './segments.ts'
 import { detectorForLevel, DEFAULT_SENSITIVITY, isSensitivity } from './sensitivity.ts'
 import { clipToZone, parsePolygon, polygonMask, type Point } from './zone.ts'
 import { isMotionSeconds, MAX_SHAPES } from './detector.ts'
-import { appendShapes, buildShapesClip, pruneShapes, shapesClipPath } from './shapes.ts'
+import { appendShapes, buildShapesClip, pruneShapes, shapesClipPath, tagShapesClip } from './shapes.ts'
+import { appendStats, heightPercents, labelOf, pruneStats, readShapeStats, readStats } from './stats.ts'
 import { startServer } from './server.ts'
 import { watchMotion } from './watcher.ts'
 import { watchEyes, type EyePoint } from './eyes.ts'
@@ -47,13 +48,10 @@ const EYES_HEIGHT = 720
 // Des yeux vus comptent comme un mouvement, et leur cadre reste dessiné, pendant ce temps (les images clés arrivent toutes les 2 s).
 const EYES_HOLD_SECONDS = 1.5
 const eyesOn = new Map<string, boolean>()
-// Le feuillage : un mouvement est étiqueté ainsi quand au moins `zones` zones sont vues sur au moins FOLIAGE_SHARE de ses images (0 : jamais). Compté dans la zone surveillée, sur les images de l'événement ouvert.
-const FOLIAGE_SHARE = 0.3
-const FOLIAGE_MIN_FRAMES = 5
+// Le feuillage et la pluie : l'étiquette d'un mouvement est calculée une fois le mouvement fini et fusionné (classifyEvents), d'après les hauteurs de toutes ses zones (stats.ts).
 const foliageZones = new Map<string, number>()
-// Les images en mouvement depuis le début du mouvement (même avant l'ouverture de l'événement : il s'ouvre après la durée minimale) ; un calme de plus de FOLIAGE_GAP_SECONDS les remet à zéro.
-const FOLIAGE_GAP_SECONDS = 2
-const foliageStats = new Map<string, { frames: number; leafy: number; lastAt: number }>()
+// Pluie : le nombre total de zones d'au moins `height` % de la hauteur de l'image (la pluie fait des zones allongées à la verticale) ; zones 0 : jamais.
+const rainSettings = new Map<string, { zones: number; height: number }>()
 const eyesMasks = new Map<string, Uint8Array | null>()
 const lastEyes = new Map<string, { at: number; boxes: EyePoint[][] }>()
 const eyesSeen = (camera: string): EyePoint[][] => {
@@ -71,6 +69,7 @@ const saveDetectionState = () => {
       zones: Object.fromEntries([...zones].map(([camera, zone]) => [camera, zone.points])),
       sensitivity: Object.fromEntries(sensitivities),
       foliage: Object.fromEntries(foliageZones),
+      rain: Object.fromEntries(rainSettings),
       minSeconds: Object.fromEntries([...detectors].map(([camera, seuils]) => [camera, seuils.minSeconds])),
     }
     writeFileSync(`${detectionStateFile}.tmp`, JSON.stringify(state))
@@ -80,7 +79,7 @@ const saveDetectionState = () => {
   }
 }
 try {
-  const saved = JSON.parse(readFileSync(detectionStateFile, 'utf-8')) as { zones?: Record<string, unknown>; sensitivity?: Record<string, number>; minSeconds?: Record<string, number>; foliage?: Record<string, number> }
+  const saved = JSON.parse(readFileSync(detectionStateFile, 'utf-8')) as { zones?: Record<string, unknown>; sensitivity?: Record<string, number>; minSeconds?: Record<string, number>; foliage?: Record<string, number>; rain?: Record<string, { zones?: number; height?: number }> }
   for (const camera of config.cameras) {
     const points = parsePolygon(saved.zones?.[camera])
     if (points) {
@@ -95,6 +94,10 @@ try {
     }
     const leafy = saved.foliage?.[camera]
     if (leafy !== undefined && Number.isInteger(leafy) && leafy >= 0 && leafy <= 60) foliageZones.set(camera, leafy)
+    const streaks = saved.rain?.[camera]
+    if (streaks && Number.isInteger(streaks.zones) && Number.isInteger(streaks.height) && (streaks.zones as number) >= 0 && (streaks.zones as number) <= 60 && (streaks.height as number) >= 1 && (streaks.height as number) <= 100) {
+      rainSettings.set(camera, { zones: streaks.zones as number, height: streaks.height as number })
+    }
     const minSeconds = saved.minSeconds?.[camera]
     if (seuils && minSeconds !== undefined && isMotionSeconds(minSeconds)) seuils.minSeconds = minSeconds
   }
@@ -105,7 +108,7 @@ try {
 
 // Les ouvertures d'événements, par caméra (un seul événement ouvert à la fois par caméra).
 const open = new Map<string, string>()
-// Les caméras liées (LINKS, des groupes) : l'événement d'une source ouvre un événement sur chaque autre caméra de son groupe, fermé quand la dernière source qui l'a demandé a fini.
+// Les caméras liées (LINKS, des groupes) : l'événement d'une caméra liée (interrupteur allumé) ouvre un événement sur chaque autre caméra liée de son groupe, fermé quand la dernière source qui l'a demandé a fini.
 // Il est à part de `open` (celui de la cible elle-même) : si la cible bouge aussi, les deux clips se recouvrent et la fusion les réunit. Les segments sont toujours enregistrés,
 // le clip se fait donc comme pour un mouvement. Un événement lié n'en déclenche jamais un autre (il ne passe pas par le détecteur).
 const linkedOpen = new Map<string, { id: string; sources: Set<string> }>()
@@ -113,7 +116,8 @@ const linkedOpen = new Map<string, { id: string; sources: Set<string> }>()
 const linkOn = new Map<string, boolean>()
 const openLinked = (source: string, at: number) => {
   if (linkOn.get(source) !== true) return
-  for (const link of config.links.filter((candidate) => candidate.source === source)) {
+  // Seules les caméras dont l'interrupteur est allumé sont liées entre elles : une caméra éteinte ne reçoit rien et ne déclenche rien, elle ne réagit qu'à ses propres mouvements.
+  for (const link of config.links.filter((candidate) => candidate.source === source && linkOn.get(candidate.target) === true)) {
     const current = linkedOpen.get(link.target)
     if (current) {
       current.sources.add(source)
@@ -135,6 +139,7 @@ const closeLinked = (source: string, at: number) => {
 }
 // Les contours du mouvement de chaque caméra sont notés image par image dans un journal (shapes.ts), dont on tire le fichier des contours de chaque clip.
 const shapesDirOf = (camera: string) => `${config.recordingsDir}/${camera}/shapes`
+const statsDirOf = (camera: string) => `${config.recordingsDir}/${camera}/stats`
 
 // Les enregistrements lancés à la main (bouton « Enregistrer »), par caméra : un mouvement fictif de l'appui à l'arrêt. Au plus MAX_MANUAL_SECONDS (on oublie vite un enregistrement).
 const MAX_MANUAL_SECONDS = 180
@@ -162,7 +167,7 @@ for (const camera of config.cameras) {
     { ...config, detector: detectors.get(camera) ?? config.detector },
     (event) => {
       if (event.type === 'start') {
-        // Le flux léger arrive `shapesDelaySeconds` après la vidéo : l'événement (la barre bleue de la frise) commence à l'instant où le mouvement apparaît dans la vidéo, comme le premier contour.
+        // Le flux léger arrive `shapesDelaySeconds` après la vidéo : l'événement (la barre orange de la frise) commence à l'instant où le mouvement apparaît dans la vidéo, comme le premier contour.
         const record = store.open(camera, event.at - config.shapesDelaySeconds, false, eyesSeen(camera).length > 0 ? 'eyes' : 'motion')
         open.set(camera, record.id)
         log(`${camera} : mouvement ${record.id}`)
@@ -172,7 +177,6 @@ for (const camera of config.cameras) {
         if (id) {
           store.close(id, event.startedAt - config.shapesDelaySeconds + event.durationSeconds)
           open.delete(camera)
-          foliageStats.delete(camera)
           log(`${camera} : fin de mouvement ${id} (${event.durationSeconds.toFixed(1)} s)`)
           closeLinked(camera, event.startedAt - config.shapesDelaySeconds + event.durationSeconds)
         }
@@ -196,22 +200,8 @@ for (const camera of config.cameras) {
       const clipped = hulls.map((hull) => clipToZone(hull, zone)).filter((shape): shape is Point[] => shape !== null)
       // Les cadres des yeux vus à l'instant s'ajoutent aux contours : la vidéo les montre comme le mouvement.
       appendShapes(shapesDirOf(camera), Date.now() / 1000, [...clipped.slice(0, MAX_SHAPES), ...eyesSeen(camera)])
-      // Le feuillage : on compte les zones de chaque image en mouvement de l'événement ouvert.
-      const id = open.get(camera)
-      const threshold = foliageZones.get(camera) ?? 0
-      if (threshold > 0 && clipped.length > 0) {
-        const now = Date.now() / 1000
-        let stats = foliageStats.get(camera)
-        if (!stats || now - stats.lastAt > FOLIAGE_GAP_SECONDS) {
-          stats = { frames: 0, leafy: 0, lastAt: now }
-          foliageStats.set(camera, stats)
-        }
-        stats.lastAt = now
-        stats.frames += 1
-        if (clipped.length >= threshold) stats.leafy += 1
-        // Les yeux l'emportent : un événement `eyes` reste violet (setLabel ne change que `motion`).
-        if (id && stats.frames >= FOLIAGE_MIN_FRAMES && stats.leafy / stats.frames >= FOLIAGE_SHARE) store.setLabel(id, 'foliage', 'motion')
-      }
+      // Les hauteurs de toutes les zones de l'image (jusqu'à 60), pour l'étiquette calculée après coup.
+      appendStats(statsDirOf(camera), Date.now() / 1000, heightPercents(clipped))
     },
     () => eyesSeen(camera).length > 0,
   )
@@ -262,6 +252,13 @@ startServer(
       if ((foliageZones.get(camera) ?? 0) === zones) return
       log(`${camera} : feuillage à partir de ${zones} zones${zones === 0 ? ' (coupé)' : ''}`)
       foliageZones.set(camera, zones)
+      saveDetectionState()
+    },
+    setRain: (camera, zones, height) => {
+      const current = rainSettings.get(camera)
+      if ((current?.zones ?? 0) === zones && (zones === 0 || current?.height === height)) return
+      log(`${camera} : pluie à partir de ${zones} zones d’au moins ${height} % de la hauteur${zones === 0 ? ' (coupé)' : ''}`)
+      rainSettings.set(camera, { zones, height })
       saveDetectionState()
     },
     setLink: (camera, enabled) => {
@@ -429,13 +426,46 @@ const mergeOverlaps = () => {
   }
 }
 
+// Les événements finis depuis `mergeDelaySeconds` (donc fusionnés si besoin) reçoivent leur étiquette, calculée sur toutes les zones de tout le mouvement :
+// pluie (bleu), feuillage (vert) ou rien (mouvement ordinaire, orange). Les yeux gardent la leur. Sans zones notées (événement d'avant ce calcul), l'étiquette ne bouge pas.
+// Les zones sont notées à l'instant où le flux léger livre l'image, `shapesDelaySeconds` après l'événement (qui a été avancé d'autant).
+const classifyEvents = () => {
+  const now = Date.now() / 1000
+  for (const record of store.unlabelled(now - config.mergeDelaySeconds)) {
+    const from = record.start_time + config.shapesDelaySeconds - 1
+    const to = (record.end_time ?? now) + config.shapesDelaySeconds + 1
+    // Le journal des hauteurs d'abord ; pour un mouvement d'avant lui, le journal des contours (8 zones par image).
+    let source: 'stats' | 'shapes' | 'none' = 'stats'
+    let frames = readStats(statsDirOf(record.camera), from, to)
+    if (frames.length === 0) {
+      source = 'shapes'
+      frames = readShapeStats(shapesDirOf(record.camera), from, to)
+    }
+    if (frames.length === 0) {
+      // Plus aucune zone gardée (journaux effacés après la rétention) : l'étiquette reste ce qu'elle est ; sinon on réessaie à la minute suivante.
+      if (now - (record.end_time ?? now) > config.retentionSeconds) store.classify(record.id, record.label, now, 'none')
+      continue
+    }
+    const rain = rainSettings.get(record.camera)
+    // La durée est celle du clip (marges comprises) : 6 par minute sur un clip de 2 min = 12 zones hautes.
+    const found = labelOf(frames, { foliageZones: foliageZones.get(record.camera) ?? 0, rainZones: rain?.zones ?? 0, rainHeight: rain?.height ?? 100 }, (record.end_time ?? now) + config.postSeconds - (record.clip_start ?? record.start_time - config.preSeconds))
+    const label = found ?? 'motion'
+    store.classify(record.id, label, now, source)
+    // Les zones du clip reçoivent leur type (en anglais : rain, foliage, motion), à partir de la hauteur pour la pluie.
+    tagShapesClip(shapesClipPath(`${config.clipsDir}/${record.id}.mp4`), found ?? 'motion', rain?.height ?? 100)
+    if (label !== record.label) log(`${record.camera} : ${record.id} devient ${label} (${frames.length} images, ${source})`)
+  }
+}
+
 // Chaque minute : on fusionne, puis on jette les segments, les événements et les clips plus vieux que la rétention.
 setInterval(() => {
   mergeOverlaps()
+  classifyEvents()
   const before = Date.now() / 1000 - config.retentionSeconds
   for (const camera of config.cameras) pruneSegments(`${config.recordingsDir}/${camera}`, before)
   for (const camera of config.audioCameras) pruneAudio(audioDirOf(camera), before)
   for (const camera of config.cameras) pruneShapes(shapesDirOf(camera), before)
+  for (const camera of config.cameras) pruneStats(statsDirOf(camera), before)
   for (const record of store.prune(before)) {
     try {
       unlinkSync(`${config.clipsDir}/${record.id}.mp4`)

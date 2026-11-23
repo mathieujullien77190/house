@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { DEFAULT_CONFIG } from './detector.ts'
 import { createEventStore } from './events.ts'
-import { appendShapes, buildShapesClip, pruneShapes, shapesClipPath } from './shapes.ts'
+import { appendShapes, buildShapesClip, pruneShapes, shapesClipPath, tagShapesClip } from './shapes.ts'
 import { startServer } from './server.ts'
 import type { Config } from './config.ts'
 
@@ -79,4 +79,23 @@ test('GET /api/events/<id>/shapes.json sert le fichier des contours, 404 sans eu
     server.close()
     server.closeAllConnections()
   }
+})
+
+test('tagShapesClip ajoute le type du clip et celui de chaque zone, et rend faux sans fichier ou avec un fichier illisible', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'shapes-'))
+  const path = join(dir, 'a.shapes.json')
+  assert.equal(tagShapesClip(path, 'rain', 10), false)
+  const tall: [number, number][] = [[0.1, 0.1], [0.1, 0.5]]
+  const clip = { frames: [[1, [tall, TRIANGLE, []]]] }
+  writeFileSync(path, JSON.stringify(clip))
+  assert.equal(tagShapesClip(path, 'rain', 20), true)
+  const rain = JSON.parse(readFileSync(path, 'utf-8'))
+  assert.equal(rain.type, 'rain')
+  assert.deepEqual(rain.frames[0][2], ['rain', 'motion', 'motion'])
+  assert.equal(tagShapesClip(path, 'foliage', 20), true)
+  assert.deepEqual(JSON.parse(readFileSync(path, 'utf-8')).frames[0][2], ['foliage', 'foliage', 'foliage'])
+  assert.equal(tagShapesClip(path, 'motion', 20), true)
+  assert.deepEqual(JSON.parse(readFileSync(path, 'utf-8')).frames[0][2], ['motion', 'motion', 'motion'])
+  writeFileSync(path, 'pas du json')
+  assert.equal(tagShapesClip(path, 'rain', 10), false)
 })

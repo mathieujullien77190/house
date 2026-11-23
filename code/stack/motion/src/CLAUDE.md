@@ -27,7 +27,7 @@ Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
 
 - Un mouvement qui reprend peu après un autre donne deux clips qui se chevauchent (marges 5 s, segments 10 s).
 - Quand le dernier d'une chaîne est fini depuis `MERGE_DELAY_MINUTES` (30, vérifié chaque minute), le plus ancien survit (même id, fin repoussée, clip et copie refaits) et les autres sont absorbés (`merged_into`).
-- `GET /api/events?merged_after=<s>` rend les fusionnés, absorbés compris.
+- `GET /api/events?merged_after=<s>` rend les fusionnés, absorbés compris. `?labelled_after=<s>` rend ceux dont l'étiquette a été calculée après cet instant (§ 10).
 
 ## 5. Commandes de House Sync
 
@@ -38,7 +38,7 @@ Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
   - Un polygone qui couvre tout ou rien ne met pas de masque.
 - Zone, sensibilité et durée minimale sont gardées dans `detection.json` (à côté de `events.json`, `/data/detection.json`) et reprises au démarrage ; House Sync les renvoie chaque minute. Sans ce fichier (premier démarrage), retour aux défauts (3, toute l'image) jusqu'au premier envoi : un mouvement de feuillage hors zone pouvait alors ouvrir un événement (vu le 19 nov. 2026 à 2 h 48).
 
-- **Caméras liées** : `LINKS` = des **groupes** (`a+b+c,d+e`, compose : `voliere-toit+voliere-interieur`) + `PUT …/link?enabled=0|1` sur la caméra (réglage « Clip sur la caméra liée » de House Sync, **éteint** tant qu'il ne l'a pas dit, répété chaque minute). Quand une caméra dont l'interrupteur est sur ON voit un mouvement **ou** des yeux, un événement s'ouvre sur **chaque autre caméra du groupe** ; il se ferme quand la dernière caméra qui l'a demandé a fini (`openLinked`, `closeLinked` dans `index.ts`). Un événement lié n'en déclenche pas d'autre. Les segments sont toujours enregistrés, le clip se fait comme les autres. Distinct de l'événement propre de la cible : s'ils se recouvrent, la fusion les réunit.
+- **Caméras liées** : `LINKS` = des **groupes** (`a+b+c,d+e`, compose : `voliere-toit+voliere-interieur`) + `PUT …/link?enabled=0|1` sur la caméra (réglage « Clip sur la caméra liée » de House Sync, **éteint** tant qu'il ne l'a pas dit, répété chaque minute). Les caméras dont l'interrupteur est sur ON sont **liées entre elles** : quand l'une voit un mouvement **ou** des yeux, un événement s'ouvre sur **chaque autre caméra liée (ON) du groupe**. Une caméra OFF est indépendante : elle ne déclenche rien, ne reçoit rien, et ne réagit qu'à ses propres mouvements ; il se ferme quand la dernière caméra qui l'a demandé a fini (`openLinked`, `closeLinked` dans `index.ts`). Un événement lié n'en déclenche pas d'autre. Les segments sont toujours enregistrés, le clip se fait comme les autres. Distinct de l'événement propre de la cible : s'ils se recouvrent, la fusion les réunit.
 
 ## 6. Enregistrement manuel
 
@@ -70,12 +70,23 @@ Forme de l'ancienne API Frigate, gardée pour que House Sync n'ait pas changé.
 - Les yeux n'apparaissent que quand le chat regarde la caméra : à 1 image toutes les 2 s, certains passages ne donnent qu'un ou deux reflets.
 - La suppression de l'ancienne recherche (`POST /api/eyes`, `trigger.ts`) date de novembre 2026 ; les anciens événements de `label` `eyes` restent lisibles.
 
-## 10. Feuillage
+## 10. Étiquette d'un mouvement : feuillage et pluie (`stats.ts`)
 
-- Réglage par caméra de House Sync (`PUT /api/cameras/<caméra>/foliage?zones=0..60`, 0 = coupé, par défaut) : un feuillage agité donne beaucoup de petites zones, un chat quelques-unes.
-- À chaque image avec mouvement de l'événement ouvert, on compte les contours **dans la zone surveillée** (jusqu'à 60 cherchés par image, `COUNTED_SHAPES` ; seuls les 8 plus grands sont écrits dans le clip). Quand au moins `zones` contours sont vus sur **30 % des images** du mouvement (`FOLIAGE_SHARE`, au moins 5 images, comptées **dès le début du mouvement**, avant même l'ouverture de l'événement ; un calme de plus de 2 s remet le compte à zéro), l'événement prend l'étiquette `foliage` (vert dans la frise).
-- Priorité : `eyes` (violet) > `foliage` (vert) > `motion` : `setLabel(id, 'foliage', 'motion')` ne change que `motion`, les yeux écrasent le vert.
-- Gardé dans `detection.json` avec la zone et la sensibilité.
+**Calculée après coup, pas à la volée** : un événement reste orange (`motion`) jusqu'à ce qu'il soit fini depuis `MERGE_DELAY_MINUTES` (30 min). La fusion (§ 4) passe d'abord, puis `classifyEvents` (`index.ts`, chaque minute) donne à chaque événement non étiqueté son étiquette, calculée sur **tout le mouvement fusionné**. Une fusion efface `labelled_at` du survivant : il est recalculé sur la nouvelle durée. House Sync recopie les étiquettes changées (`GET /api/events?labelled_after=`).
+
+- **Journal des hauteurs** : à chaque image avec mouvement, `appendStats` écrit `{t, h: [hauteur en % de l'image de chaque zone]}` (**toutes** les zones cherchées, jusqu'à 60, `COUNTED_SHAPES` ; le journal des contours § 11 n'en garde que 8) dans `<RECORDINGS_DIR>/<caméra>/stats/<tranche de 10 min>.jsonl`, gardé comme les segments (6 h). Les zones sont celles **dans la zone surveillée**.
+- **Fenêtre** : de `start_time + SHAPES_DELAY_SECONDS − 1` à `end_time + SHAPES_DELAY_SECONDS + 1` (les images sont notées à l'arrivée du flux léger, en retard sur l'événement qui a été avancé).
+- **Feuillage** (réglage par caméra de House Sync, `PUT /api/cameras/<caméra>/foliage?zones=0..60`, 0 = coupé, par défaut) : au moins `zones` zones sur **30 % des images** du mouvement (`FOLIAGE_SHARE`, au moins 5 images) : étiquette `foliage` (vert dans la frise).
+- **Pluie** (§ 10 ter) : étiquette `rain` (bleu). **Priorité** : `eyes` (violet, posé en direct, jamais écrasé) > `rain` > `foliage` > `motion`.
+- **Événement d'avant le journal des hauteurs** : le calcul relit le journal des contours (§ 11, `readShapeStats`, 8 zones par image au plus, les plus grandes) ; `labelled_from` dit d'où viennent les zones (`stats`, `shapes` ou `none`).
+- **Plus aucune zone** (journaux effacés au bout de 6 h) : l'étiquette ne bouge pas, `labelled_from: none`. Tant que des zones peuvent exister, l'événement est réessayé chaque minute.
+- Gardé dans `detection.json` avec la zone et la sensibilité (clés `foliage` et `rain`).
+
+## 10 ter. Pluie
+
+- Réglage par caméra de House Sync (`PUT /api/cameras/<caméra>/rain?zones=0..60&height=1..100`, zones 0 = coupé, par défaut ; hauteur de 10 % par défaut) : la pluie fait des zones **allongées à la verticale** (les mêmes que les contours rouges du clip, regroupement à 3 pixels, `GROUP_DISTANCE`).
+- **`zones` par minute, en moyenne** : on compte toutes les zones d'au moins `height` % de hauteur, toutes images confondues, on les divise par la durée **du clip** (marges de début et de fin comprises, au moins 10 s, `MIN_RAIN_SECONDS`) et on ramène à la minute : sur un clip de 2 min, 6 par minute demandent 12 zones (`tallPerMinute`, `stats.ts`) ; si la moyenne atteint `zones`, l'étiquette est `rain` (**bleu** dans la frise). Une zone qui reste plusieurs images compte à chaque image. Un long mouvement et un court se comparent donc au même seuil.
+- Calculé après la fusion (§ 10) : la fusion de deux clips de pluie additionne leurs zones, un clip fusionné ne perd pas l'étiquette.
 
 ## 10 bis. Retiré
 
@@ -86,5 +97,5 @@ Le déclenchement d'événement de l'extérieur (`trigger.ts`, `POST …/trigger
 - Par image avec mouvement (assez de pixels, pas un changement de lumière), `changedShapes` (`detector.ts`) regroupe les pixels changés à 3 pixels ou moins (`GROUP_DISTANCE`) et en fait l'enveloppe convexe : 8 polygones au plus, les plus grands.
 - `index.ts` découpe chaque polygone par la zone (`clipToZone`, Sutherland-Hodgman) et le note dans `<RECORDINGS_DIR>/<caméra>/shapes/<tranche de 10 min>.jsonl` (gardé comme les segments).
 - `buildShapesClip` produit `<id>.shapes.json` : `{frames: [[secondes depuis le début du clip, [[[x, y], ...], ...]], ...]}`. L'événement porte `has_shapes`.
-- **Décalage** : le flux léger livre ses images environ 2,8 s après la 4K. `SHAPES_DELAY_SECONDS` (2,77, réglé à l'œil) avance les contours **et** le début et la fin de l'événement (`store.open`, `store.close`) : la barre bleue de la frise commence au premier contour.
+- **Décalage** : le flux léger livre ses images environ 2,8 s après la 4K. `SHAPES_DELAY_SECONDS` (2,77, réglé à l'œil) avance les contours **et** le début et la fin de l'événement (`store.open`, `store.close`) : la barre orange de la frise commence au premier contour.
 - Clips antérieurs : pas de contours (404), rien n'est retraité. Jamais écrit dans la vidéo : House Sync copie le fichier, House API le sert (`/clips/<id>/shapes`), la WebApp dessine par-dessus. La fusion l'efface avec le clip.
