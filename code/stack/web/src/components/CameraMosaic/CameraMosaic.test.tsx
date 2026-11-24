@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { Camera, EventRow } from '@/types'
 import CameraMosaic from './CameraMosaic'
 
@@ -57,8 +57,11 @@ describe('CameraMosaic : vignettes', () => {
   })
   it('sans caméra à empiler : pas de colonne 1', () => {
     mount({ cameras: [camera('salon-de-jardin')] })
-    expect(wrapper('salon-de-jardin').className).toContain('lg:col-start-3')
-    expect(wrapper('salon-de-jardin').parentElement?.className).not.toContain('flex-col')
+    // Le salon de jardin est dans la pile de la colonne 3 ; sans colonne 1, aucune pile de gauche n'existe.
+    const right = wrapper('salon-de-jardin').parentElement as HTMLElement
+    expect(right.className).toContain('lg:col-start-3')
+    expect(right.className).toContain('flex-col')
+    expect(document.querySelector('[class*="lg:col-start-1"][class*="lg:row-start-1"]')).toBeNull()
   })
   it('une caméra en portrait a une vignette à hauteur fixe ; l’extérieur en portrait resserre la colonne 2', () => {
     mount()
@@ -80,5 +83,54 @@ describe('CameraMosaic : vignettes', () => {
     expect(screen.queryByText('clip voliere-exterieur')).toBeNull()
     expect(screen.getByTestId('tile-voliere-interieur')).toHaveTextContent(/^ouvrir voliere-interieurclip voliere-interieurlu$/)
     expect(screen.getByTestId('tile-voliere-exterieur')).toHaveTextContent('non lu')
+  })
+})
+
+describe('CameraMosaic : caméras prévues', () => {
+  const PLANNED = ['potager', 'cerisier', 'pommier', 'portail']
+  const planned = (name: string) => screen.getByText(name).closest('div[class*="rounded-md"]')?.parentElement as HTMLElement
+
+  it('absentes de l’API : un cadre noir « Pas encore de flux » par caméra prévue, sans flux ni ouverture', () => {
+    const { onOpen } = mount({ cameras: [camera('voliere-interieur')] })
+    for (const name of PLANNED) {
+      expect(screen.getByText(name)).toBeInTheDocument()
+      expect(screen.queryByTestId(`tile-${name}`)).toBeNull()
+    }
+    expect(screen.getAllByText('Pas encore de flux')).toHaveLength(4)
+    expect(screen.getAllByText('Aucun événement')).toHaveLength(4)
+    expect(screen.queryByRole('button', { name: /potager/ })).toBeNull()
+    fireEvent.click(screen.getByText('potager'))
+    fireEvent.click(screen.getAllByText('Pas encore de flux')[0])
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+  it('leur ordre : potager, cerisier, portail, pommier, après les quatre premières', () => {
+    mount({ cameras: [camera('voliere-interieur'), camera('autre')] })
+    const names = [...document.querySelectorAll('div')].map((e) => e.textContent ?? '').filter((text) => PLANNED.includes(text))
+    expect(names).toEqual(['potager', 'cerisier', 'portail', 'pommier'])
+    expect(screen.getByTestId('tile-autre').compareDocumentPosition(screen.getByText('pommier')) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  })
+  it('le potager est empilé sous le salon de jardin (colonne 3) ; cerisier, portail et pommier sont sur la deuxième rangée', () => {
+    mount({ cameras: [camera('salon-de-jardin')] })
+    const right = wrapper('salon-de-jardin').parentElement as HTMLElement
+    expect(right.className).toContain('lg:col-start-3')
+    expect(within(right).getByText('potager')).toBeInTheDocument()
+    expect(planned('cerisier').className).toContain('lg:col-start-1')
+    expect(planned('cerisier').className).toContain('lg:row-start-2')
+    expect(planned('portail').className).toContain('lg:col-start-2')
+    expect(planned('pommier').className).toContain('lg:col-start-3')
+  })
+  it('le portail rehausse son cadre noir quand l’extérieur est en portrait, pas sinon ; les autres jamais', () => {
+    const { unmount } = mount({ cameras: [camera('voliere-exterieur', 'portrait')] })
+    expect(screen.getAllByText('Pas encore de flux')[2].className).toContain('lg:h-[')
+    expect(screen.getAllByText('Pas encore de flux').filter((e) => e.className.includes('lg:h-['))).toHaveLength(1)
+    unmount()
+    mount({ cameras: [camera('voliere-exterieur')] })
+    expect(screen.getAllByText('Pas encore de flux').filter((e) => e.className.includes('lg:h-['))).toHaveLength(0)
+  })
+  it('déjà dans l’API : la vignette normale remplace le cadre noir', () => {
+    mount({ cameras: [camera('potager'), camera('portail')] })
+    expect(screen.getByTestId('tile-potager')).toBeInTheDocument()
+    expect(screen.getByTestId('tile-portail')).toBeInTheDocument()
+    expect(screen.getAllByText('Pas encore de flux')).toHaveLength(2)
   })
 })
