@@ -15,7 +15,7 @@ constexpr uint8_t CC_GDO2 = 12;  // réception (pas utilisée ici)
 constexpr uint8_t IR_PIN = 26;
 
 // Les volets Somfy RTS : un « bouton » de télécommande virtuelle par volet.
-constexpr uint8_t SHUTTER_COUNT = 4;
+constexpr uint8_t SHUTTER_COUNT = 1;
 constexpr uint32_t SHUTTER_ADDRESS_BASE = 0x5A1100;  // adresse RTS du volet n = base + n (24 bits, unique par télécommande)
 constexpr float DEFAULT_MHZ = 433.42f;               // fréquence Somfy RTS (433,36 chez certains boîtiers : réglable dans la page)
 
