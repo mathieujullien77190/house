@@ -14,6 +14,7 @@ import { liveSrc } from '@/lib/live'
 import { useBigView } from '@/lib/useBigView'
 import CameraMarkers from '@/components/CameraMarkers'
 import LiveAudio from '@/components/LiveAudio'
+import CleanToggle from '@/components/CleanToggle'
 import MarkersToggle from '@/components/MarkersToggle'
 import { useMarkers } from '@/lib/useMarkers'
 import { useMarkersVisible } from '@/lib/useMarkersVisible'
@@ -53,6 +54,7 @@ import {
   CAMERA_SENSOR,
   MEDIA_HOST_CLASS,
   CONTROLS_OVERLAY_CLASS,
+  TOP_LEFT_CLASS,
   RECORD_FAILED_TEXT,
   RECORD_NOTE_CLASS,
   RECORD_STOPPED_DETAIL,
@@ -156,6 +158,8 @@ const CameraCard = ({
   const placeholder = off ? CAMERA_OFF_TEXT : starting ? CAMERA_STARTING_TEXT : ''
 
   // La zone de surveillance du mouvement : un polygone (par défaut toute l'image) qu'on réduit en glissant ses sommets sur le direct ; House API le garde.
+  // Tout ce qui est posé sur la vidéo (repères, indicateurs, heure, barre d'avancement, contours) est-il montré ? Le bouton en haut à gauche le cache ou le remontre.
+  const [shown, setShown] = useState(true)
   const [editingZone, setEditingZone] = useState(false)
   const zone = useZone(apiKey, camera.name)
   const zoneEditing = editingZone && isLive && !placeholder && !mobile
@@ -163,7 +167,7 @@ const CameraCard = ({
   const markers = useMarkers(apiKey, camera.name, others)
   // Les caméras éteintes (PoE coupé) : leur repère sur la vidéo est grisé et ne fait rien.
   const offCameras = useOffCameras(apiKey, markersAvailable)
-  const showMarkers = markersAvailable && !placeholder && markersVisible.visible && !zoneEditing
+  const showMarkers = markersAvailable && !placeholder && markersVisible.visible && !zoneEditing && shown
   // Le défilement des images depuis l'instant choisi sur la frise : le rang de la vitesse (×1 : temps réel, négatif : en arrière).
   // La vitesse de défilement des images se garde d'une caméra à l'autre (ouverte depuis un repère).
   const [rate, setRate] = useState(initialRate ?? NORMAL_RATE)
@@ -312,6 +316,7 @@ const CameraCard = ({
               onClose={back}
               controlsHost={uprightControls ? controlsHost : null}
               barInset
+              clean={!shown}
               onReady={onReady}
               onFailure={() => setFailedClip(clipPath)}
               onTime={(seconds) => setPlayhead(selected.started_at - lead + seconds)}
@@ -345,12 +350,15 @@ const CameraCard = ({
       backLabel={camera.name}
       name={`${CAMERA_TITLE_PREFIX}${camera.name}`}
       // « L / 4K » : posé sur la vidéo, en haut à droite, comme sur téléphone.
-      videoActions={mobile ? undefined : (liveQualityTabs ?? undefined)}
+      videoActions={mobile || !shown ? undefined : (liveQualityTabs ?? undefined)}
       // L'enregistrement d'un clip : un petit rond posé en haut à gauche de la vidéo (à droite du bouton retour sur téléphone), gris au repos, rouge quand ça enregistre (en direct).
       topLeft={
-        isLive && !placeholder ? (
-          <RecordButton recording={recorder.recording} busy={recorder.busy} seconds={recorder.seconds} onToggle={() => void recorder.toggle()} />
-        ) : undefined
+        <div className={TOP_LEFT_CLASS}>
+          <CleanToggle visible={shown} onToggle={() => setShown((on) => !on)} />
+          {shown && isLive && !placeholder ? (
+            <RecordButton recording={recorder.recording} busy={recorder.busy} seconds={recorder.seconds} onToggle={() => void recorder.toggle()} />
+          ) : null}
+        </div>
       }
       actions={
         <>
@@ -386,9 +394,9 @@ const CameraCard = ({
       mediaGesture={zoneEditing ? undefined : pinchZoom}
       // Sur téléphone, seulement les valeurs, un bloc chacune (sans le nom du capteur) ; sur grand écran, une ligne par capteur.
       // Sur téléphone, en bas à gauche de la vidéo : le partage d'un clip déjà sauvegardé pendant un clip (pas d'interrupteur « Sauvegardé » sur téléphone), sinon la température.
-      details={mobile ? indicators : undefined}
+      details={mobile && shown ? indicators : undefined}
       // En vue en grand, l'heure en bas à droite : celle du clip (sa lecture) ou de l'image regardés, sinon l'heure présente.
-      clock={bigView.big ? <ValueChips values={[formatClock(shownTime)]} /> : undefined}
+      clock={bigView.big && shown ? <ValueChips values={[formatClock(shownTime)]} /> : undefined}
       // Les repères (icône de caméra) des autres caméras, posés sur l'image du direct.
       layer={
         showMarkers ? (
@@ -412,7 +420,7 @@ const CameraCard = ({
       }
       // En bas à droite de la vidéo : le bouton des repères (montrer ou cacher les icônes de caméra) puis l'icône du son (au clic seulement : rien n'est demandé avant).
       sound={
-        (isLive && !placeholder) || markersAvailable ? (
+        shown && ((isLive && !placeholder) || markersAvailable) ? (
           <div className="flex items-center gap-1">
             {markersAvailable ? <MarkersToggle visible={markersVisible.visible} onToggle={markersVisible.toggle} /> : null}
             {isLive && !placeholder ? <LiveAudio camera={camera.name} initialOn={soundOn} onChange={setSoundOn} /> : null}
@@ -420,7 +428,7 @@ const CameraCard = ({
         ) : undefined
       }
       overlay={
-        (!mobile && indicators) || (bigView.big && fastScroll) ? (
+        shown && ((!mobile && indicators) || (bigView.big && fastScroll)) ? (
           <div className="flex flex-col items-start gap-1">
             {!mobile ? indicators : null}
             {bigView.big ? fastScroll : null}

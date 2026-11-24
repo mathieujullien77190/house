@@ -246,6 +246,15 @@ describe('ClipPlayer commandes', () => {
     expect(plain.container.querySelector('input[type="range"]')?.closest('.pr-24')).toBeNull()
   })
 
+  it('hideControls : ni barre ni boutons, mais un clic sur la vidéo la lance toujours', () => {
+    const { container, video } = setup({ hideControls: true })
+    expect(container.querySelector('input[type="range"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: PLAY_LABEL })).toBeNull()
+    const before = media.play.mock.calls.length
+    fireEvent.click(video())
+    expect(media.play.mock.calls.length).toBeGreaterThan(before)
+  })
+
   it('sans élément (null), elles sont posées dans l image', () => {
     const { container } = setup({ controlsHost: null })
     expect(container.querySelector('input[type="range"]')).not.toBeNull()

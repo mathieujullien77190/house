@@ -41,6 +41,7 @@ const ClipPlayer = ({
   controlsHost = null,
   overlay,
   barInset = false,
+  hideControls = false,
 }: ClipPlayerProps) => {
   const video = useRef<HTMLVideoElement>(null)
   const audio = useRef<HTMLAudioElement>(null)
@@ -173,7 +174,7 @@ const ClipPlayer = ({
       </div>
     ) : null
   // Dans l'élément du parent s'il en donne un (une vidéo tournée : les commandes restent droites), sinon posées dans l'image, en bas.
-  const controls = bar && controlsHost ? createPortal(bar, controlsHost) : bar ? <div className={barInset ? `${BAR_OVERLAY_CLASS} ${BAR_INSET_CLASS}` : BAR_OVERLAY_CLASS}>{bar}</div> : null
+  const controls = hideControls ? null : bar && controlsHost ? createPortal(bar, controlsHost) : bar ? <div className={barInset ? `${BAR_OVERLAY_CLASS} ${BAR_INSET_CLASS}` : BAR_OVERLAY_CLASS}>{bar}</div> : null
 
   const enableSound = () => {
     const sound = audio.current

@@ -3,6 +3,8 @@ export interface ClipPlayerProps {
   controlsHost?: HTMLElement | null
   /** La barre de commandes s'arrête avant les boutons posés en bas à droite de la vidéo (agrandir, son, repères). */
   barInset?: boolean
+  /** Cache la barre de commandes et les contours du mouvement posés sur la vidéo. */
+  clean?: boolean
   /** Plus utilisé pour télécharger : le cookie de session suffit. Gardé pour que le parent n'ait rien à changer. */
   apiKey?: string
   /** Chemin du service clips (/clips/id). */

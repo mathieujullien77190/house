@@ -28,7 +28,7 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
 ## Clips : sauvegarde, partage, enregistrement
 
 - Interrupteur **Sauvegardé / Non sauvegardé** (`PUT /clips/<id>/saved`), grand écran seulement. Un clip sauvegardé n'est jamais effacé ; les autres le sont après la durée de garde de House Sync (15 jours par défaut). L'état s'affiche tout de suite (`savedChoice`) et revient en arrière si l'API refuse.
-- **Partager** (`ShareButton`, `lib/shareClip.ts`) : clips sauvegardés dans SavedClips ; dans le détail d'une caméra, **seulement sur téléphone**, pour le clip regardé (vidéo légère).
+- **Partager** (`ShareButton`, `lib/shareClip.ts` ; un bouton **icône** de partage, étiquette « Partager » en info-bulle) : clips sauvegardés dans SavedClips ; dans le détail d'une caméra, **seulement sur téléphone**, pour le clip regardé (vidéo légère).
   - La vidéo légère est téléchargée, puis `navigator.share({ files })` ; sans partage de fichier (ordinateurs), elle est téléchargée.
   - Si la vidéo a mis trop de temps à charger, le navigateur refuse le menu (`NotAllowedError`) : le bouton garde le fichier et passe à « Prêt : touche pour partager » ; le second toucher ouvre le menu aussitôt.
   - Demande HTTPS avec la CA de la maison. Un lien ne servirait à rien : le clip n'est lisible qu'avec la session.
@@ -36,6 +36,11 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
   - Gris au repos, rouge qui pulse en cours ; un clic commence, un second termine ; arrêt automatique à 3 min.
   - Le clip est copié par House Sync quel que soit le réglage « Clips vidéo », visible dans la frise en environ 1 min, **sauvegardé d'office**.
   - Une page rouverte retrouve un enregistrement en cours.
+
+## Cacher les composants
+
+- `components/CleanToggle` : un œil en haut à gauche de la vidéo (à côté du rond d'enregistrement), **cache d'un coup** tout ce qui est posé sur la vidéo : repères des autres caméras et leur bouton, indicateurs (température, lampe, prise, pluie, yeux), heure, vitesse de défilement, « L / 4K », son, rond d'enregistrement, **barre d'avancement et contours du mouvement** du clip (`clean` de `ClipPlayer`, `hideControls` de `@house/ui`). Un clic sur la vidéo lance ou arrête toujours le clip.
+- Montré par défaut ; l'état est celui de l'écran (la `key` par caméra le remet à zéro).
 
 ## Œil de la recherche des yeux
 

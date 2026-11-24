@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Button } from '@house/ui'
 import { loadClip, shareFile } from '@/lib/shareClip'
-import { BUSY_LABEL, ERROR_CLASS, ERROR_TEXT, LABEL, READY_LABEL, WRAP_CLASS } from './constants'
+import { BUSY_LABEL, ERROR_CLASS, ERROR_TEXT, ICON_BUSY_CLASS, ICON_CLASS, ICON_PATHS, LABEL, READY_LABEL, WRAP_CLASS } from './constants'
 import type { ShareButtonProps } from './types'
 
 /**
@@ -30,10 +30,17 @@ const ShareButton = ({ path, name, title }: ShareButtonProps) => {
     }
   }
 
+  // L'icône seule : son libellé (préparation, prêt, partager) est dans l'étiquette et l'info-bulle.
+  const label = busy ? BUSY_LABEL : ready ? READY_LABEL : LABEL
+
   return (
     <div className={WRAP_CLASS}>
-      <Button disabled={busy} onClick={() => void share()}>
-        {busy ? BUSY_LABEL : ready ? READY_LABEL : LABEL}
+      <Button disabled={busy} variant={ready ? 'active' : 'default'} aria-label={label} title={label} onClick={() => void share()}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={busy ? ICON_BUSY_CLASS : ICON_CLASS} aria-hidden="true">
+          {ICON_PATHS.map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </svg>
       </Button>
       {failed ? <span className={ERROR_CLASS}>{ERROR_TEXT}</span> : null}
     </div>

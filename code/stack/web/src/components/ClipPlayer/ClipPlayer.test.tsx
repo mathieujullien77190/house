@@ -97,3 +97,26 @@ describe('ClipPlayer : contours du mouvement', () => {
     await act(flush)
   })
 })
+
+describe('ClipPlayer : clean', () => {
+  const FRAMES = { frames: [[1, [[[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]]]]] }
+  const seek = (time: number) => {
+    Object.defineProperty(video(), 'currentTime', { value: time, configurable: true })
+    fireEvent.timeUpdate(video())
+  }
+
+  it('par défaut, la barre de commandes est là', () => {
+    const { container } = render(<ClipPlayer path="/clips/1" onClose={vi.fn()} />)
+    expect(container.querySelector('input[type="range"]')).not.toBeNull()
+  })
+
+  it('clean : ni barre de commandes ni contours du mouvement, la vidéo reste', async () => {
+    stubFetch(() => reply(FRAMES))
+    const { container } = render(<ClipPlayer path="/clips/1" shapesSrc="/clips/1/shapes" clean onClose={vi.fn()} />)
+    await act(flush)
+    seek(1.2)
+    expect(container.querySelector('input[type="range"]')).toBeNull()
+    expect(container.querySelector('polygon')).toBeNull()
+    expect(video()).toHaveAttribute('src', '/clips/1')
+  })
+})

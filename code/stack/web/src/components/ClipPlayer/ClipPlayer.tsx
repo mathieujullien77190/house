@@ -24,6 +24,7 @@ const ClipPlayer = ({
   restart = 0,
   controlsHost,
   barInset,
+  clean = false,
 }: ClipPlayerProps) => {
   const [error, setError] = useState('')
   // Les contours du mouvement, chargés avec le clip (un clip sans contours : rien) et dessinés selon la position de lecture.
@@ -49,7 +50,8 @@ const ClipPlayer = ({
       restart={restart}
       controlsHost={controlsHost}
       barInset={barInset}
-      overlay={<MotionShape shapes={shapesAt(shapesSrc ? shapes : null, time)} />}
+      hideControls={clean}
+      overlay={clean ? null : <MotionShape shapes={shapesAt(shapesSrc ? shapes : null, time)} />}
       onClose={onClose}
       onReady={onReady}
       onFailure={(code) => {

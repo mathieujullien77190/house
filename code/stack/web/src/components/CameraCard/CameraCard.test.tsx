@@ -822,3 +822,69 @@ describe('CameraCard : défilement des images sur téléphone en vue en grand', 
     expect(screen.getByTestId('overlay')).toContainElement(screen.getByLabelText('Plus vite, ou en avant'))
   })
 })
+
+describe('CameraCard : cacher les composants sur la vidéo', () => {
+  const eye = (hide: boolean) => screen.getByRole('button', { name: hide ? 'Cacher les composants sur la vidéo' : 'Afficher les composants sur la vidéo' })
+
+  it('grand écran, en direct : l’œil cache puis remontre repères, indicateurs, son et rond d’enregistrement', () => {
+    h.s.sensors = [sensor]
+    mount({ others: ['b'], onOpenCamera: vi.fn() })
+    expect(screen.getByTestId('layer')).toBeInTheDocument()
+    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sound')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enregistrer un clip' })).toBeInTheDocument()
+    fireEvent.click(eye(true))
+    expect(screen.queryByTestId('layer')).toBeNull()
+    expect(screen.queryByTestId('overlay')).toBeNull()
+    expect(screen.queryByTestId('sound')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Enregistrer un clip' })).toBeNull()
+    expect(eye(false)).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(eye(false))
+    expect(screen.getByTestId('layer')).toBeInTheDocument()
+    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    expect(screen.getByTestId('sound')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enregistrer un clip' })).toBeInTheDocument()
+  })
+  it('l’œil est là même sans direct (image passée) ; le rond d’enregistrement reste absent', () => {
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(eye(true)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enregistrer un clip' })).toBeNull()
+  })
+  it('sur téléphone : les indicateurs en bas à gauche disparaissent aussi', () => {
+    h.s.mobile = true
+    h.s.sensors = [sensor]
+    mount()
+    expect(screen.getByTestId('details')).toHaveTextContent('9,5 °C')
+    fireEvent.click(eye(true))
+    expect(screen.queryByTestId('details')).toBeNull()
+    fireEvent.click(eye(false))
+    expect(screen.getByTestId('details')).toBeInTheDocument()
+  })
+  it('en vue en grand : l’heure et la vitesse de défilement disparaissent', () => {
+    h.s.big = { ...h.s.big, big: true }
+    mount()
+    act(() => h.timeline.onCursor(900))
+    expect(screen.getByTestId('clock')).toBeInTheDocument()
+    expect(screen.getByTestId('overlay')).toBeInTheDocument()
+    fireEvent.click(eye(true))
+    expect(screen.queryByTestId('clock')).toBeNull()
+    expect(screen.queryByTestId('overlay')).toBeNull()
+  })
+  it('avec un clip : le lecteur reçoit clean (ni barre ni contours), puis le perd', () => {
+    mount({ events: [event('a')] })
+    pick(event('a'))
+    expect(h.clip.clean).toBe(false)
+    fireEvent.click(eye(true))
+    expect(h.clip.clean).toBe(true)
+    fireEvent.click(eye(false))
+    expect(h.clip.clean).toBe(false)
+  })
+  it('l’éditeur de zone reste ouvert quand on cache les composants', () => {
+    mount({ others: ['b'], onOpenCamera: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'Zone de surveillance' }))
+    fireEvent.click(eye(true))
+    expect(screen.getByTestId('zone-editor')).toBeInTheDocument()
+    expect(screen.queryByTestId('layer')).toBeNull()
+  })
+})

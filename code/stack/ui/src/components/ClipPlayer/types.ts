@@ -29,4 +29,6 @@ export interface ClipPlayerProps {
   overlay?: ReactNode
   /** La barre de commandes posée dans l'image s'arrête avant les boutons posés en bas à droite de la vidéo (agrandir, son, repères). Sans effet avec `controlsHost`. */
   barInset?: boolean
+  /** Cache la barre de commandes (lecture, barre de temps) : un clic sur la vidéo continue de la lancer ou de la mettre en pause. */
+  hideControls?: boolean
 }
