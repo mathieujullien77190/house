@@ -31,6 +31,22 @@ services:
       CAMERA4_IP: ${CAMERA4_IP:-}
       CAMERA4_USER: ${CAMERA4_USER:-admin}
       CAMERA4_PASSWORD: ${CAMERA4_PASSWORD:-}
+      # La cinquième caméra (potager, prévue : pas encore branchée) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA5_IP: ${CAMERA5_IP:-}
+      CAMERA5_USER: ${CAMERA5_USER:-admin}
+      CAMERA5_PASSWORD: ${CAMERA5_PASSWORD:-}
+      # La sixième caméra (cerisier, prévue : pas encore branchée) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA6_IP: ${CAMERA6_IP:-}
+      CAMERA6_USER: ${CAMERA6_USER:-admin}
+      CAMERA6_PASSWORD: ${CAMERA6_PASSWORD:-}
+      # La septième caméra (pommier, prévue : pas encore branchée) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA7_IP: ${CAMERA7_IP:-}
+      CAMERA7_USER: ${CAMERA7_USER:-admin}
+      CAMERA7_PASSWORD: ${CAMERA7_PASSWORD:-}
+      # La huitième caméra (portail, prévue : pas encore branchée) : adresse et compte, lus par go2rtc.yaml.
+      CAMERA8_IP: ${CAMERA8_IP:-}
+      CAMERA8_USER: ${CAMERA8_USER:-admin}
+      CAMERA8_PASSWORD: ${CAMERA8_PASSWORD:-}
     volumes:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
     healthcheck:
@@ -44,7 +60,7 @@ services:
       # Le réseau de la page invité : elle ne voit que go2rtc.
       - guest_net
 
-  # L'enregistreur (voir motion/CLAUDE.md), pour les quatre caméras (voliere-exterieur, voliere-interieur, salon-de-jardin et voliere-toit) : enregistre le flux principal
+  # L'enregistreur (voir motion/CLAUDE.md), pour les caméras de CAMERAS (les quatre en service par défaut : voliere-exterieur, voliere-interieur, salon-de-jardin et voliere-toit ; potager, cerisier, pommier et portail s'y ajoutent depuis le .env quand elles sont branchées) : enregistre le flux principal
   # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
@@ -52,7 +68,8 @@ services:
     depends_on:
       - go2rtc
     environment:
-      CAMERAS: voliere-exterieur,voliere-interieur,salon-de-jardin,voliere-toit
+      # Surchargeable par le .env (CAMERAS=…,potager,cerisier,pommier,portail) : les quatre caméras en service par défaut.
+      CAMERAS: ${CAMERAS:-voliere-exterieur,voliere-interieur,salon-de-jardin,voliere-toit}
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
       # 6 h de segments gardées : House Sync a le temps de copier les clips s'il est arrêté un moment.
@@ -191,7 +208,13 @@ services:
       SWITCH_USER: ${SWITCH_USER:-admin}
       SWITCH_PASSWORD: ${SWITCH_PASSWORD:-}
       # Caméra:port du switch, séparés par des virgules.
-      SWITCH_PORTS: voliere-exterieur:3,voliere-interieur:4,salon-de-jardin:7,voliere-toit:8
+      # Surchargeable par le .env (les quatre caméras en service par défaut ; celles du deuxième switch vont dans SWITCH2_PORTS, pas ici).
+      SWITCH_PORTS: ${SWITCH_PORTS:-voliere-exterieur:3,voliere-interieur:4,salon-de-jardin:7,voliere-toit:8}
+      # Le deuxième switch PoE (même modèle), facultatif : sans SWITCH2_URL et SWITCH2_PASSWORD, il est ignoré. Une caméra est pilotée par le switch où elle est branchée.
+      SWITCH2_URL: ${SWITCH2_URL:-}
+      SWITCH2_USER: ${SWITCH2_USER:-admin}
+      SWITCH2_PASSWORD: ${SWITCH2_PASSWORD:-}
+      SWITCH2_PORTS: ${SWITCH2_PORTS:-}
       # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}

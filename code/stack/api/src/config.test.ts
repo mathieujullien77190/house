@@ -57,6 +57,10 @@ test('toutes les variables renseignées', async () => {
       SWITCH_URL: 'http://sw',
       SWITCH_USER: 'root',
       SWITCH_PORTS: 'cam1:3, cam2 : 4,bad:9,sans-port,:5,x:0',
+      SWITCH2_URL: 'http://sw2',
+      SWITCH2_USER: 'root2',
+      SWITCH2_PASSWORD: 'pw2',
+      SWITCH2_PORTS: 'cam3:1,bad:9',
       HUE_BRIDGE_IP: '1.2.3.4',
       HUE_APP_KEY: 'abc',
       FREEBOX_APP_TOKEN: 'jeton',
@@ -77,6 +81,7 @@ test('toutes les variables renseignées', async () => {
     assert.equal(config.webDir, resolve('w'))
     assert.deepEqual(config.go2rtcUrls, ['http://a:1984', 'http://b:1984'])
     assert.deepEqual(config.switchPoe, { url: 'http://sw', user: 'root', password: 'pw', ports: { cam1: 3, cam2: 4 } })
+    assert.deepEqual(config.switchPoe2, { url: 'http://sw2', user: 'root2', password: 'pw2', ports: { cam3: 1 } })
     assert.deepEqual(config.hue, { url: 'http://1.2.3.4', key: 'abc' })
     assert.deepEqual(config.freebox, { url: 'http://mafreebox.freebox.fr', appId: 'fr.house.home', appToken: 'jeton' })
     assert.deepEqual(config.tv, { host: '192.168.1.60' })
@@ -125,6 +130,18 @@ test('GO2RTC_URL, le switch par défaut, la prise par défaut, un certificat abs
   assert.deepEqual(config.switchPoe, { url: 'http://192.168.1.33', user: 'admin', password: 'pw', ports: {} })
   assert.deepEqual(config.plug, { host: 'h', port: 9999, mac: '' })
   assert.equal(config.tls, null)
+})
+
+test('le deuxième switch : facultatif, il lui faut une adresse et un mot de passe, l’utilisateur par défaut est admin', () => {
+  assert.equal(loadConfig({ API_KEY: '12345678' }).switchPoe2, null)
+  assert.equal(loadConfig({ API_KEY: '12345678', SWITCH2_PASSWORD: 'pw' }).switchPoe2, null)
+  assert.equal(loadConfig({ API_KEY: '12345678', SWITCH2_URL: 'http://sw2' }).switchPoe2, null)
+  assert.deepEqual(loadConfig({ API_KEY: '12345678', SWITCH2_URL: 'http://sw2', SWITCH2_PASSWORD: 'pw' }).switchPoe2, {
+    url: 'http://sw2',
+    user: 'admin',
+    password: 'pw',
+    ports: {},
+  })
 })
 
 test('un certificat sans sa clé ne suffit pas', () => {

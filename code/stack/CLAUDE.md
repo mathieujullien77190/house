@@ -1,6 +1,6 @@
 # stack – la pile en service sur le mini PC
 
-Conteneurs Docker (`docker-compose.yml`) sur le mini PC (ACEMAGIC K1, Ubuntu Server), 4 Reolink RLC-810A sur le switch PoE ES208GP.
+Conteneurs Docker (`docker-compose.yml`) sur le mini PC (ACEMAGIC K1, Ubuntu Server), 4 Reolink RLC-810A en service sur le switch PoE ES208GP ; 4 de plus prévues (potager, cerisier : RLC-810A ; pommier, portail : RLC-811A à zoom optique) sur un second ES208GP, pas encore branchées.
 
 | Conteneur | Rôle | Port |
 |---|---|---|
@@ -14,10 +14,10 @@ Conteneurs Docker (`docker-compose.yml`) sur le mini PC (ACEMAGIC K1, Ubuntu Ser
 
 Hors Docker, `power/` : deux services systemd (puissance CPU par RAPL, état des conteneurs) lus par House Sync.
 
-## Quatre caméras, une unité
+## Huit caméras prévues, quatre en service, une unité
 
-- Un seul `go2rtc` et un seul `motion` pour `voliere-exterieur`, `voliere-interieur`, `salon-de-jardin`, `voliere-toit` (ordre d'affichage : `sync/src/cameraOrder.ts`).
-- Réglage : `CAMERAS` dans le compose ; flux dans `go2rtc/go2rtc.yaml` (huit par caméra, voir `go2rtc/CLAUDE.md`) ; adresse et compte dans `.env` (`CAMERA2_*`, `CAMERA3_*`, `CAMERA4_*`) ; port PoE dans `SWITCH_PORTS`.
+- Un seul `go2rtc` et un seul `motion` pour `voliere-exterieur`, `voliere-interieur`, `salon-de-jardin`, `voliere-toit` (en service) et `potager`, `cerisier`, `pommier`, `portail` (prévues, pas encore branchées ; ordre d'affichage : `sync/src/cameraOrder.ts`).
+- Réglage : `CAMERAS` dans le compose (défaut : les quatre en service ; le `.env` y ajoute les nouvelles une fois branchées) ; flux dans `go2rtc/go2rtc.yaml` (huit par caméra, voir `go2rtc/CLAUDE.md`) ; adresse et compte dans `.env` (`CAMERA2_*` à `CAMERA8_*`) ; port PoE dans `SWITCH_PORTS` (switch 1) ou `SWITCH2_PORTS` (switch 2, voir `api/src/routes/CLAUDE.md`).
 - Segments et clips partagent les mêmes dossiers (`data/recordings/<caméra>`, `data/clips`).
 - Plusieurs machines : `RECORDER_URLS` (House Sync) et `GO2RTC_URLS` (API), une unité go2rtc + motion par machine.
 

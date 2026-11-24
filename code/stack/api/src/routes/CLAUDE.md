@@ -55,6 +55,7 @@ L'application Android TV `code/cinema` (chaque caméra est une série, ses clips
 - `GET /poe` : par caméra, PoE activé, alimentée, watts, `streaming` (octets go2rtc qui augmentent = démarrée).
 - `POST /poe/:camera` `{"on": bool}` ; 503 sans switch.
 - Variables : `SWITCH_URL`, `SWITCH_USER`, `SWITCH_PASSWORD` (absent = PoE désactivé), `SWITCH_PORTS` (`voliere-exterieur:3,voliere-interieur:4`).
+- **Deuxième switch** (facultatif, même modèle) : `SWITCH2_URL`, `SWITCH2_USER` (défaut `admin`), `SWITCH2_PASSWORD`, `SWITCH2_PORTS` (même format, p. ex. `potager:1,cerisier:2`). Ignoré sans adresse ni mot de passe, et sans le premier switch (`SWITCH_PASSWORD`) : le comportement est alors celui d'un seul switch. Une caméra est pilotée par le switch où elle est listée ; `GET /poe` les rassemble toutes (le premier switch d'abord) et la panne d'un switch fait échouer toute la liste. Une caméra listée dans les deux est pilotée sur le premier.
 - Pas d'API officielle : le client imite la page web du firmware 1.0.1 (`logon.cgi`, `poe_port_config.cgi`, `logout.cgi`). Un autre firmware peut casser.
 - Après un refus de connexion, aucun nouvel essai pendant 1 min (le switch pourrait verrouiller le compte).
 - Couper le PoE éteint la caméra ; l'enregistreur réessaie jusqu'au retour du courant.

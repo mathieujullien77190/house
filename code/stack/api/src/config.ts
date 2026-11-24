@@ -16,6 +16,8 @@ export interface Config {
   go2rtcUrls: string[]
   /** Le switch PoE (page web, réseau de la maison) et le port de chaque caméra ; null sans mot de passe : poe répond 503. */
   switchPoe: { url: string; user: string; password: string; ports: Record<string, number> } | null
+  /** Le deuxième switch PoE (SWITCH2_*), facultatif : null sans adresse ni mot de passe. Même forme que `switchPoe`. */
+  switchPoe2: { url: string; user: string; password: string; ports: Record<string, number> } | null
   /** Le pont Philips Hue (réseau de la maison) et sa clé d'application ; null sans clé : hue répond 503. */
   hue: { url: string; key: string } | null
   /** La prise connectée TP-Link Kasa (réseau de la maison, port 9999) ; null sans PLUG_HOST : plug répond 503. */
@@ -80,16 +82,29 @@ export const parseAcUnits = (text: string): { id: string; name: string; host: st
     .filter((match): match is RegExpExecArray => match !== null)
     .map((match) => ({ id: match[1], name: match[2], host: match[3] }))
 
-/** SWITCH_PORTS : « voliere-exterieur:7,jardin:3 » (caméra:port du switch). */
-const parseSwitch = (env: NodeJS.ProcessEnv): Config['switchPoe'] => {
-  const password = env.SWITCH_PASSWORD ?? ''
-  if (!password) return null
+/** « voliere-exterieur:7,jardin:3 » (caméra:port du switch). */
+const parsePorts = (text: string): Record<string, number> => {
   const ports: Record<string, number> = {}
-  for (const pair of (env.SWITCH_PORTS ?? '').split(',')) {
+  for (const pair of text.split(',')) {
     const [camera, port] = pair.split(':').map((part) => part.trim())
     if (camera && /^[1-8]$/.test(port ?? '')) ports[camera] = Number(port)
   }
-  return { url: env.SWITCH_URL ?? 'http://192.168.1.33', user: env.SWITCH_USER ?? 'admin', password, ports }
+  return ports
+}
+
+/** SWITCH_URL, SWITCH_USER, SWITCH_PASSWORD, SWITCH_PORTS : le switch PoE des caméras. */
+const parseSwitch = (env: NodeJS.ProcessEnv): Config['switchPoe'] => {
+  const password = env.SWITCH_PASSWORD ?? ''
+  if (!password) return null
+  return { url: env.SWITCH_URL ?? 'http://192.168.1.33', user: env.SWITCH_USER ?? 'admin', password, ports: parsePorts(env.SWITCH_PORTS ?? '') }
+}
+
+/** SWITCH2_* : le deuxième switch, seulement s'il a une adresse et un mot de passe (pas d'adresse par défaut). */
+const parseSwitch2 = (env: NodeJS.ProcessEnv): Config['switchPoe2'] => {
+  const password = env.SWITCH2_PASSWORD ?? ''
+  const url = env.SWITCH2_URL ?? ''
+  if (!password || !url) return null
+  return { url, user: env.SWITCH2_USER || 'admin', password, ports: parsePorts(env.SWITCH2_PORTS ?? '') }
 }
 
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
@@ -110,6 +125,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       .map((url) => url.trim().replace(/\/$/, ''))
       .filter(Boolean),
     switchPoe: parseSwitch(env),
+    switchPoe2: parseSwitch2(env),
     hue: env.HUE_APP_KEY && env.HUE_BRIDGE_IP ? { url: `http://${env.HUE_BRIDGE_IP}`, key: env.HUE_APP_KEY } : null,
     freebox: env.FREEBOX_APP_TOKEN
       ? { url: env.FREEBOX_URL || 'http://mafreebox.freebox.fr', appId: env.FREEBOX_APP_ID || 'fr.house.home', appToken: env.FREEBOX_APP_TOKEN.trim() }

@@ -52,7 +52,15 @@ const createStreamWatch = (go2rtcFor: (camera: string) => string) => {
   }
 }
 
-export const createPoeService = (client: SwitchClient, ports: Record<string, number>, go2rtcFor: (camera: string) => string) => {
+/** Un switch PoE et les caméras qui y sont branchées (caméra → numéro de port). */
+export interface PoeSwitch {
+  client: SwitchClient
+  ports: Record<string, number>
+}
+
+/** Le premier switch, plus d'autres facultatifs : une caméra est pilotée par le switch où elle est branchée. */
+export const createPoeService = (client: SwitchClient, firstPorts: Record<string, number>, go2rtcFor: (camera: string) => string, others: PoeSwitch[] = []) => {
+  const switches: PoeSwitch[] = [{ client, ports: firstPorts }, ...others]
   let cache: { at: number; value: CameraPower[] } | null = null
   const isStreaming = createStreamWatch(go2rtcFor)
 
@@ -60,18 +68,21 @@ export const createPoeService = (client: SwitchClient, ports: Record<string, num
     /** L'état de chaque caméra branchée à un port connu, mis en cache quelques secondes (le switch est lent). */
     list: async (): Promise<CameraPower[]> => {
       if (cache && Date.now() - cache.at < CACHE_MS) return cache.value
-      const statuses = await client.ports()
-      const value = await Promise.all(
-        Object.entries(ports).map(async ([camera, port]) => toPower(camera, statuses[port - 1], await isStreaming(camera))),
+      const groups = await Promise.all(
+        switches.map(async ({ client: one, ports }) => {
+          const statuses = await one.ports()
+          return Promise.all(Object.entries(ports).map(async ([camera, port]) => toPower(camera, statuses[port - 1], await isStreaming(camera))))
+        }),
       )
+      const value = groups.flat()
       cache = { at: Date.now(), value }
       return value
     },
     set: async (camera: string, on: boolean): Promise<CameraPower> => {
       // Object.hasOwn : « constructor » ou « toString » ne sont pas des caméras (ports[camera] y trouverait une fonction).
-      if (!Object.hasOwn(ports, camera)) throw new UnknownCamera(camera)
-      const port = ports[camera]
-      const status = await client.setPoe(port, on)
+      const found = switches.find(({ ports }) => Object.hasOwn(ports, camera))
+      if (!found) throw new UnknownCamera(camera)
+      const status = await found.client.setPoe(found.ports[camera], on)
       cache = null
       return toPower(camera, status, await isStreaming(camera))
     },

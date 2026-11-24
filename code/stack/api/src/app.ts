@@ -134,7 +134,14 @@ export const createApp = (config: Config): Express => {
     box,
     boxRepository,
     tv: createTvRemote({ store: createTvStore(`${config.stateDir}/tv`), connect: connectTls(config.tv.host) }),
-    poe: config.switchPoe ? createPoeService(createSwitchClient(config.switchPoe), config.switchPoe.ports, live.baseOf) : null,
+    poe: config.switchPoe
+      ? createPoeService(
+          createSwitchClient(config.switchPoe),
+          config.switchPoe.ports,
+          live.baseOf,
+          config.switchPoe2 ? [{ client: createSwitchClient(config.switchPoe2), ports: config.switchPoe2.ports }] : [],
+        )
+      : null,
   }
 
   const app = express()

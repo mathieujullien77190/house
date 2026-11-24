@@ -17,8 +17,8 @@ Image `alexxit/go2rtc`, config `go2rtc.yaml`. **Une seule connexion RTSP** par c
 
 - **Cadence du direct** : la section `ffmpeg` déclare des modèles `mjpeg1` à `mjpeg24`. House Sync change à chaud la source d'un flux `…_mjpeg` en `ffmpeg:<nom>_main#video=mjpegN` (ou `_sub`) par `PATCH /api/streams` (en mémoire : le fichier est monté en lecture seule).
 - Après un redémarrage, les flux reviennent aux valeurs du fichier (25 i/s) jusqu'à ce que House Sync les remette (moins d'une minute). Le décodage H.265 reste complet, seuls l'encodage JPEG et le débit baissent.
-- **Secrets** : le mot de passe vient de `REOLINK_PASSWORD` (`.env`), jamais du fichier. Adresse et compte : `CAMERA2_*` (`voliere-interieur`), `CAMERA3_*` (`salon-de-jardin`), `CAMERA4_*` (`voliere-toit`, 192.168.1.57). IP fixée par bail DHCP statique sur la box.
+- **Secrets** : le mot de passe vient de `REOLINK_PASSWORD` (`.env`), jamais du fichier. Adresse et compte : `CAMERA2_*` (`voliere-interieur`), `CAMERA3_*` (`salon-de-jardin`), `CAMERA4_*` (`voliere-toit`, 192.168.1.57), puis `CAMERA5_*` (`potager`), `CAMERA6_*` (`cerisier`), `CAMERA7_*` (`pommier`), `CAMERA8_*` (`portail`) : ces quatre-là sont prévues, pas encore branchées (adresse vide par défaut). Huit caméras déclarées, soit 64 flux ; go2rtc ne se connecte qu'à la demande, les flux d'une caméra absente ne coûtent rien. IP fixée par bail DHCP statique sur la box.
 - **Son du direct** : House API lit `/api/stream.aac?src=<nom>_sub` tant qu'un onglet écoute. Rien à déclarer.
-- **Ajouter une caméra** : huit lignes dans `streams` (les `_m` sont indispensables au téléphone, les `guest` à la page invité), puis son nom dans `CAMERAS` de `motion`.
+- **Ajouter une caméra** : huit lignes dans `streams` (les `_m` sont indispensables au téléphone, les `guest` à la page invité), puis son nom dans `CAMERAS` (enregistreur, surchargeable par le `.env`) et son port dans `SWITCH_PORTS` ou `SWITCH2_PORTS` (API).
 
 Après un changement : `docker compose restart go2rtc`.

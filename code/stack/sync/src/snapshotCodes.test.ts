@@ -33,9 +33,9 @@ test('codeOf : la lettre de la caméra puis le numéro en lettres', () => {
 test('cameraIndexOf : l’ordre d’arrivée, puis les autres caméras à la suite, une fois pour toutes', () => {
   const db = setup()
   assert.deepEqual(['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit'].map((camera) => cameraIndexOf(db, camera)), [0, 1, 2, 3])
-  assert.equal(cameraIndexOf(db, 'zebre'), 4)
-  assert.equal(cameraIndexOf(db, 'abeille'), 5)
-  assert.equal(cameraIndexOf(db, 'zebre'), 4)
+  assert.equal(cameraIndexOf(db, 'zebre'), 8)
+  assert.equal(cameraIndexOf(db, 'abeille'), 9)
+  assert.equal(cameraIndexOf(db, 'zebre'), 8)
 })
 
 test('insertSnapshot : un numéro par image, aucun pour un doublon', () => {
@@ -72,7 +72,7 @@ test('backfillSnapshotCodes : les images d’avant, par caméra dans l’ordre d
   const insert = db.prepare('INSERT INTO snapshots (camera, taken_at, path) VALUES (?, ?, ?)')
   for (const [camera, at] of [['voliere-toit', 30], ['voliere-toit', 10], ['voliere-interieur', 5], ['zebre', 7], ['abeille', 8], ['voliere-toit', 20]] as const) insert.run(camera, at, `${camera}/${at}.jpg`)
   assert.equal(backfillSnapshotCodes(db), 6)
-  assert.deepEqual(codes(db), ['abeille:ea', 'voliere-interieur:aa', 'voliere-toit:da', 'voliere-toit:db', 'voliere-toit:dc', 'zebre:fa'].sort())
+  assert.deepEqual(codes(db), ['abeille:ia', 'voliere-interieur:aa', 'voliere-toit:da', 'voliere-toit:db', 'voliere-toit:dc', 'zebre:ja'].sort())
   assert.equal(setting(db, 'snapshot_seq_voliere-toit'), '3')
   assert.equal(backfillSnapshotCodes(db), 0)
   insertSnapshot(db, 'voliere-toit', 40, 'x')

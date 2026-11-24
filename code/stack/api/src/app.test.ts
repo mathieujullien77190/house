@@ -41,6 +41,7 @@ const baseConfig = (dir: string): Config => ({
   apiKey: KEY,
   go2rtcUrls: ['http://127.0.0.1:1'],
   switchPoe: null,
+  switchPoe2: null,
   hue: null,
   plug: null,
   acUnits: [],
@@ -151,6 +152,7 @@ test('tous les services configurés : pont Hue, prise, switch, enregistreur', as
         hue: { url: bridge.url, key: 'cle' },
         plug: { host: '127.0.0.1', port: 1, mac: '' },
         switchPoe: { url: 'http://127.0.0.1:1', user: 'a', password: 'b', ports: { cam: 1 } },
+        switchPoe2: { url: 'http://127.0.0.1:2', user: 'a', password: 'b', ports: { cam2: 1 } },
         recorderUrl: 'http://127.0.0.1:1',
         caCert: join(dir, 'absent.crt'),
       }
@@ -266,4 +268,18 @@ test('la page « Chez Matou » est la WebApp sans cache ni référent ; /invite 
       assert.equal(redirect.headers.get('location'), '/chezmatou?k=abc')
     })
   })
+})
+
+test('un seul switch PoE configuré : la liste des caméras éteintes ne dépend pas du second', async () => {
+  const log = mock.method(console, 'error', () => undefined)
+  try {
+    await withTempDir(async (dir) => {
+      const config: Config = { ...prepare(dir), switchPoe: { url: 'http://127.0.0.1:1', user: 'a', password: 'b', ports: { cam: 1 } } }
+      await serveApp(config, async (url) => {
+        assert.equal((await call(`${url}/poe`, 'GET', undefined, { 'X-House-Key': KEY })).status, 500)
+      })
+    })
+  } finally {
+    log.mock.restore()
+  }
 })

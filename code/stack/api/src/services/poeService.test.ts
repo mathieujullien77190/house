@@ -109,3 +109,23 @@ test('une caméra inconnue, même nommée comme une méthode d’objet, est refu
   await assert.rejects(() => poe.set('absente', true), UnknownCamera)
   assert.deepEqual(calls.setPoe, [])
 })
+
+test('avec un deuxième switch : la liste réunit les deux, et chaque caméra est commandée sur son switch', async () => {
+  const first = fakeSwitch()
+  const second = fakeSwitch()
+  const poe = createPoeService(first.client, { cam1: 2 }, () => 'http://127.0.0.1:1', [{ client: second.client, ports: { cam2: 3 } }])
+  assert.deepEqual(
+    (await poe.list()).map((power) => [power.camera, power.port]),
+    [
+      ['cam1', 2],
+      ['cam2', 3],
+    ],
+  )
+  assert.deepEqual([first.calls.ports, second.calls.ports], [1, 1])
+  await poe.set('cam2', false)
+  assert.deepEqual(first.calls.setPoe, [])
+  assert.deepEqual(second.calls.setPoe, [[3, false]])
+  await poe.set('cam1', true)
+  assert.deepEqual(first.calls.setPoe, [[2, true]])
+  await assert.rejects(() => poe.set('absente', true), UnknownCamera)
+})

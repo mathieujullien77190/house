@@ -1,5 +1,5 @@
 // L'identifiant permanent des images gardées : `snapshots.code` = la lettre de la caméra puis le numéro d'ordre de l'image, écrit en lettres.
-// Lettre de la caméra : son rang d'arrivée (voliere-interieur = a, voliere-exterieur = b, salon-de-jardin = c, voliere-toit = d) ; une autre caméra prend la
+// Lettre de la caméra : son rang d'arrivée (voliere-interieur = a, voliere-exterieur = b, salon-de-jardin = c, voliere-toit = d, potager = e, cerisier = f, pommier = g, portail = h) ; une autre caméra prend la
 // lettre suivante la première fois qu'on la voit (gardée dans `app_settings`). Numéro : un compteur par caméra (`snapshot_seq_<caméra>` dans `app_settings`)
 // qui ne fait que monter, même quand le ménage quotidien supprime les vieilles lignes : un code n'est donc jamais réutilisé. Écrit en base 26 « bijective »
 // avec le moins de lettres possible : 1 = a, 26 = z, 27 = aa, 28 = ab, 702 = zz, 703 = aaa. Exemples : `aa` (1re image de voliere-interieur), `da`, `dzz`.
