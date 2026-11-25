@@ -175,6 +175,12 @@ describe('liveFeatures', () => {
     const { shapes, points } = liveFeatures(data(), palette)
     const kinds = props(shapes).map((p) => p.kind)
     expect(kinds).toEqual(expect.arrayContaining(['tiles', 'garage', 'cage', 'gate', 'hedge', 'tree']))
+    const cloison = shapes.features.find((f) => (f.properties as { kind: string }).kind === 'cage-cloison')
+    const [a, b] = (cloison?.geometry as unknown as { coordinates: [number, number][] }).coordinates.map(([lng, lat]) => lngLatToPlan(lng, lat))
+    expect(a[0]).toBeCloseTo(633)
+    expect(a[1]).toBeCloseTo(0)
+    expect(b[0]).toBeCloseTo(633)
+    expect(b[1]).toBeCloseTo(133.33, 1)
     // les caméras, les ampoules et les climatisations sont des icônes d'un calque de symboles (sur leur point), plus des polygones
     for (const icon of ['camera', 'lamp', 'ac', 'plug']) expect(kinds).not.toContain(icon)
     expect(kinds).not.toContain('fov')

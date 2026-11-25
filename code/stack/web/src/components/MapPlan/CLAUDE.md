@@ -2,6 +2,8 @@
 
 Carte **MapLibre GL** en haut de **Home** (`HouseMap/CLAUDE.md`, `Home/CLAUDE.md`). Types du plan (`PlanTree`, `PlanCamera`…) dans `@house/ui` (`ui/src/plan.ts`).
 
+- **Cloison de la cage** : un trait rouge (`cage-cloison`, couche `plan-cage-cloison`, même rouge et épaisseur que le contour) part du milieu du haut de la cage et descend des deux tiers de sa hauteur (`liveFeatures`).
+
 ## Fond et vue
 
 - Un seul fond : la **photo aérienne IGN** (Géoplateforme, sans clé), sur un style MapLibre vide. Aucun texte écrit avec les polices de la carte.

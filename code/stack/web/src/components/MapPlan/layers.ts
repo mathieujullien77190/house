@@ -45,6 +45,7 @@ export const PLAN_LAYERS = [
   'plan-beton',
   'plan-cage',
   'plan-cage-trait',
+  'plan-cage-cloison',
   'plan-toit',
   'plan-pieces',
   'plan-cloisons',
@@ -175,6 +176,14 @@ export const addPlanLayers = (
     id: 'plan-cage-trait',
     type: 'line',
     ...only(SHAPES_SOURCE, kind('cage')),
+    paint: { 'line-color': '#dc2626', 'line-width': widthByZoom(3), 'line-opacity': opacity },
+  })
+  // La cloison de la cage : même rouge et même épaisseur que le contour.
+  map.addLayer({
+    id: 'plan-cage-cloison',
+    type: 'line',
+    layout: { 'line-cap': 'round' },
+    ...only(SHAPES_SOURCE, kind('cage-cloison')),
     paint: { 'line-color': '#dc2626', 'line-width': widthByZoom(3), 'line-opacity': opacity },
   })
   map.addLayer({

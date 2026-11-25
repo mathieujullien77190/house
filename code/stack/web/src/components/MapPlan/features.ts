@@ -348,6 +348,14 @@ export const liveFeatures = (data: LiveData, palette: Palette): { shapes: Collec
       { kind: 'garage', id: 'garage' },
     ),
     polygon(rectRing(data.cage.x, data.cage.y, data.cage.w, data.cage.h), { kind: 'cage', id: 'cage' }),
+    // La cloison de la cage : un trait rouge qui part du milieu du haut et descend des deux tiers de la hauteur.
+    line(
+      [
+        [data.cage.x + data.cage.w / 2, data.cage.y],
+        [data.cage.x + data.cage.w / 2, data.cage.y + (data.cage.h * 2) / 3],
+      ],
+      { kind: 'cage-cloison', id: 'cage-cloison' },
+    ),
     ...data.gates.map((gate) => {
       const { dx, dy } = shift(gate.id)
       return line(
