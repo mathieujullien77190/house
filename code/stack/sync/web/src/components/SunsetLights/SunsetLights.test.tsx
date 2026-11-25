@@ -28,13 +28,12 @@ beforeEach(() => {
 })
 
 describe('SunsetLights', () => {
-  it('montre l’interrupteur, la prochaine heure, le décalage et les lampes', async () => {
+  it('montre l’interrupteur, la prochaine heure, le décalage', async () => {
     render(<SunsetLights />)
     expect(await screen.findByRole('tablist', { name: SWITCH })).toBeTruthy()
     expect(tab('Activé').getAttribute('aria-selected')).toBe('true')
     expect(screen.getByText(/mercredi 18 nov\./)).toBeTruthy()
     expect(screen.getByText('Décalage : au coucher du soleil')).toBeTruthy()
-    expect(screen.getByText('3, 5')).toBeTruthy()
   })
 
   it('coupé : aucune heure prévue', async () => {

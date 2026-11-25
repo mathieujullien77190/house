@@ -5,7 +5,6 @@ export const SWITCH_HINT = 'Chaque jour, le salon, la cuisine et l’entrée s�
 export const NEXT_LABEL = 'Prochain allumage'
 export const NONE_TEXT = 'aucun (coupé)'
 export const OFFSET_LABEL = 'Décalage'
-export const LIGHTS_LABEL = 'Lampes (identifiants du pont)'
 export const OPTIONS = [
   { id: 'on', label: 'Activé' },
   { id: 'off', label: 'Coupé' },

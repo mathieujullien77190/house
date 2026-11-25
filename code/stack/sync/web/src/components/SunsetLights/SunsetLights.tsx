@@ -5,7 +5,7 @@ import { LOAD_ERROR_TEXT } from './constants'
 import SunsetLightsUI from './UI'
 import type { SunsetLightsSettings } from './types'
 
-/** Le contenu du bloc « Allumage au coucher du soleil » des réglages : l'interrupteur (enregistré tout de suite), la prochaine heure prévue, le décalage et les lampes. */
+/** Le contenu du bloc « Allumage au coucher du soleil » des réglages : l'interrupteur (enregistré tout de suite), la prochaine heure prévue, le décalage. */
 const SunsetLights = () => {
   const [settings, setSettings] = useState<SunsetLightsSettings | null>(null)
   const [failed, setFailed] = useState(false)
