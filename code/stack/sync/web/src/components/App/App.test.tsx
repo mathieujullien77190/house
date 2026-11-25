@@ -123,8 +123,10 @@ describe('connexion', () => {
   it('un chargement parti avant « Quitter » ne rouvre pas la page quand il finit', async () => {
     await ready()
     const pending = deferred<ReturnType<typeof overview>>()
+    const calls = m.fetchOverview.mock.calls.length
     m.fetchOverview.mockReturnValueOnce(pending.promise)
-    await wait(120)
+    // attend que le rafraîchissement ait pris la promesse en attente (plutôt qu'un délai fixe, fragile sur une machine chargée)
+    await waitFor(() => expect(m.fetchOverview.mock.calls.length).toBeGreaterThan(calls))
     fireEvent.click(screen.getByRole('button', { name: 'Quitter' }))
     await screen.findByText('Entrez votre clé.')
     await act(async () => pending.resolve(overview()))
@@ -134,8 +136,10 @@ describe('connexion', () => {
   it('un chargement en échec parti avant « Quitter » est ignoré', async () => {
     await ready()
     const pending = deferred<ReturnType<typeof overview>>()
+    const calls = m.fetchOverview.mock.calls.length
     m.fetchOverview.mockReturnValueOnce(pending.promise)
-    await wait(120)
+    // attend que le rafraîchissement ait pris la promesse en attente (plutôt qu'un délai fixe, fragile sur une machine chargée)
+    await waitFor(() => expect(m.fetchOverview.mock.calls.length).toBeGreaterThan(calls))
     fireEvent.click(screen.getByRole('button', { name: 'Quitter' }))
     await screen.findByText('Entrez votre clé.')
     await act(async () => pending.reject(new Error('tard')))
@@ -302,6 +306,8 @@ describe('onglet Machine', () => {
     const pending = deferred<System>()
     m.fetchSystem.mockReset()
     m.fetchSystem.mockReturnValueOnce(pending.promise).mockResolvedValue(system())
+    // le rafraîchissement de la page attend la vue d'ensemble avant de lire la mesure : il ne prend pas la promesse en attente à la place de la courbe en direct
+    m.fetchOverview.mockReturnValue(new Promise(() => undefined))
     // assez long pour que la courbe en direct (30 ms ici) ait demandé la mesure en attente, même sur une machine lente
     await wait(250)
     fireEvent.click(tab('Docker'))
