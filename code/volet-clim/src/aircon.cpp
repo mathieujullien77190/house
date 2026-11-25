@@ -19,12 +19,12 @@ struct Protocol {
   decode_type_t type;
 };
 
-// Les familles Mitsubishi : les plus courantes pour une pompe à chaleur domestique. Si la première ne marche pas, la page permet d'essayer les autres.
+// Les familles Mitsubishi. Mitsubishi Electric (séries MSZ-…, dont la MSZ-SF35VE) : « mitsubishi_ac » d'abord. Mitsubishi Heavy (SRK-…) : heavy152 ou heavy88. La page permet d'essayer les autres si la première ne répond pas.
 const Protocol PROTOCOLS[] = {
-    {"heavy152", MITSUBISHI_HEAVY_152},
-    {"heavy88", MITSUBISHI_HEAVY_88},
     {"mitsubishi_ac", MITSUBISHI_AC},
     {"mitsubishi112", MITSUBISHI112},
+    {"heavy152", MITSUBISHI_HEAVY_152},
+    {"heavy88", MITSUBISHI_HEAVY_88},
 };
 
 stdAc::opmode_t modeOf(const String &mode) {

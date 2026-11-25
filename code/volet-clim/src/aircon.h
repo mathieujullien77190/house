@@ -10,7 +10,7 @@ struct AirconState {
   float temperature = 21;    // °C
   String fan = "auto";       // auto, min, low, medium, high, max
   String vane = "auto";      // auto, highest, high, middle, low, lowest, off
-  String protocol = "heavy152";  // mitsubishi_ac, heavy152, heavy88, mitsubishi112
+  String protocol = "mitsubishi_ac";  // mitsubishi_ac (Mitsubishi Electric, ex. MSZ-SF), mitsubishi112, heavy152, heavy88
 };
 
 namespace aircon {

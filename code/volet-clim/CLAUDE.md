@@ -54,5 +54,5 @@ Au premier démarrage le boîtier crée le Wi-Fi `volet-clim-reglage` : s'y conn
 - **Code tournant** : gardé en flash (`Preferences`, clé `rcN`). Un effacement complet de la flash le remet à 1 : le volet ne répond plus, il faut le réappairer (ou `somfy::setRollingCode`). Ne pas faire `erase_flash`.
 - **Appairage** : appui long sur PROG de la télécommande d'origine (va-et-vient du volet), puis le bouton « Appairage » de la page (roue des réglages, section Volet). Adresse RTS d'un volet = `SHUTTER_ADDRESS_BASE + n`, unique par volet.
 - **Fréquence** : 433,42 MHz par défaut, 433,36 sur certains boîtiers (réglage dans la page).
-- **Clim** : la famille de télécommande (`heavy152`, `heavy88`, `mitsubishi_ac`, `mitsubishi112`) dépend du modèle ; la page les laisse essayer une à une. L'IR est à sens unique : le boîtier ne sait pas l'état réel de la clim.
+- **Clim** : la famille de télécommande (`mitsubishi_ac` par défaut : Mitsubishi Electric, comme la MSZ-SF35VE ; puis `mitsubishi112`, `heavy152`, `heavy88`) dépend du modèle ; la page les laisse essayer une à une. L'IR est à sens unique : le boîtier ne sait pas l'état réel de la clim.
 - Les mots de passe de `config.h` (mise à jour sans fil) sont à changer avant de donner le boîtier.
