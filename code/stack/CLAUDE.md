@@ -32,6 +32,7 @@ Hors Docker, `power/` : deux services systemd (puissance CPU par RAPL, état des
 | Le site servi sur le port 8082 | `site/CLAUDE.md` |
 | Lumières Hue, `hue_events` | `docs/hue.md` |
 | Mangeoire (carte ESP32-S3 caméra + 2 servos, montage) | `docs/mangeoire.md` |
+| Firmware de la mangeoire (PlatformIO, hors Docker) | `mangeoire/CLAUDE.md` |
 | Session Claude du mini PC | `remote/README.md` (`claude-rules.md` n'est pas un `CLAUDE.md` exprès) |
 | Un service | `CLAUDE.md` de son dossier |
 
