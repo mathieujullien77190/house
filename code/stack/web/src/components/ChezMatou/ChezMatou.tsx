@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchLanState, fetchLanToken, LanError, lanStreamUrl, readLanKey, sendLanAc, sendLanLight, sendLanShutter } from '@/lib/lanApi'
-import { readTvMode } from '@/lib/tvMode'
 import { useMobile } from '@/lib/useMobile'
 import { POLL_MS, RETRY_MS } from './constants'
 import { lanAcUnits, lanRooms, lanShutters } from './helpers'
@@ -9,8 +8,6 @@ import type { LanProblem, LanState } from './types'
 
 /** La page « Chez Matou » (`/chezmatou?k=<LAN_KEY>`, ouverte depuis le Wi-Fi de la maison) : les deux caméras des perruches (agrandissables, 4K en grand), les volets, les lampes par zone et les climatisations, chacun seulement si House Sync l'autorise (`GET /lan/state`, relu toutes les 5 s). Le rendu est celui de la WebApp (`@house/ui`, `ShutterCard`, `AcUnitCard`). La clé vient de l'adresse puis de l'onglet (`lib/lanApi.ts`). */
 const ChezMatou = () => {
-  // Le mode télé est lu avant la clé : la clé efface l'adresse (et son `?tv=1`).
-  const [tv] = useState<boolean>(readTvMode)
   const [key] = useState<string | null>(readLanKey)
   const [state, setState] = useState<LanState | null>(null)
   const [problem, setProblem] = useState<LanProblem | null>(key ? null : 'locked')
@@ -20,12 +17,6 @@ const ChezMatou = () => {
   const [tick, setTick] = useState(0)
   const [opened, setOpened] = useState<string | null>(null)
   const mobile = useMobile()
-
-  // En mode télé, la page porte la classe `tv` (agrandie, cadre de sélection visible : `index.css`).
-  useEffect(() => {
-    document.documentElement.classList.toggle('tv', tv)
-    return () => document.documentElement.classList.remove('tv')
-  }, [tv])
 
   const load = useCallback(() => {
     if (!key) return Promise.resolve()
@@ -80,7 +71,6 @@ const ChezMatou = () => {
   const closeCamera = useCallback(() => setOpened(null), [])
   return (
     <ChezMatouUI
-      tv={tv}
       state={state}
       problem={problem}
       rooms={rooms}

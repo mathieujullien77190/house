@@ -28,19 +28,10 @@ vi.mock('@/components/Home', () => ({
   default: (p: any) => (
     <div data-testid="home">
       <button onClick={() => p.onOpenCamera('voliere-interieur', 'e1')}>home camera</button>
-      <button onClick={() => p.onOpenCamera('voliere-interieur')}>home direct</button>
       <button onClick={p.onOpenAc}>home ac</button>
       <button onClick={p.onOpenShutter}>home volets</button>
       <button onClick={p.onOpenPlug}>home prise</button>
       <button onClick={p.onOpenBox}>home box</button>
-    </div>
-  ),
-}))
-vi.mock('@/components/TvLive', () => ({
-  default: (p: any) => (
-    <div data-testid="tvlive">
-      {p.camera.name}
-      <button onClick={p.onClose}>fermer le direct</button>
     </div>
   ),
 }))
@@ -377,44 +368,5 @@ describe('App : téléphone', () => {
     h.house = ready({ status: 'locked' })
     render(<App />)
     expect(screen.getByText('Entrez votre clé.')).toBeInTheDocument()
-  })
-})
-
-describe('App : mode télé', () => {
-  beforeEach(() => sessionStorage.setItem('house-tv', '1'))
-  afterEach(() => sessionStorage.clear())
-
-  it('la Home est seule : ni barre, ni menu', () => {
-    render(<App />)
-    expect(screen.getByTestId('home')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'House' })).toBeNull()
-    expect(screen.queryByRole('tablist')).toBeNull()
-    expect(screen.queryByRole('button', { name: '← Home' })).toBeNull()
-  })
-
-  it('ouvrir une caméra montre son direct en grand, Retour le ferme', () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('home direct'))
-    expect(screen.getByTestId('tvlive')).toHaveTextContent('voliere-interieur')
-    fireEvent.click(screen.getByText('fermer le direct'))
-    expect(screen.queryByTestId('tvlive')).toBeNull()
-  })
-
-  it('un clip (emoji) ouvre la page de la caméra, et le bouton Home ramène à la Home', () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('home camera'))
-    expect(screen.queryByTestId('tvlive')).toBeNull()
-    expect(screen.getByTestId('card')).toBeInTheDocument()
-    expect(screen.queryByRole('tablist')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '← Home' }))
-    expect(screen.getByTestId('home')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '← Home' })).toBeNull()
-  })
-
-  it('une caméra qui n’existe plus : pas de direct', () => {
-    h.house = ready({ cameras: [] })
-    render(<App />)
-    fireEvent.click(screen.getByText('home direct'))
-    expect(screen.queryByTestId('tvlive')).toBeNull()
   })
 })

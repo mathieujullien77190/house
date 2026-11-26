@@ -81,7 +81,7 @@ const mocks = vi.hoisted(() => {
       this.handlers.get(type)?.(event)
     }
   }
-  return { FakeMap, workerUrls: [] as string[], editing: vi.fn(() => vi.fn()), tvNav: vi.fn(() => vi.fn()) }
+  return { FakeMap, workerUrls: [] as string[], editing: vi.fn(() => vi.fn()) }
 })
 
 vi.mock('maplibre-gl', () => ({
@@ -90,7 +90,6 @@ vi.mock('maplibre-gl', () => ({
 }))
 vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?url', () => ({ default: '/worker.mjs' }))
 vi.mock('./edit', () => ({ attachEditing: mocks.editing }))
-vi.mock('./tvNav', () => ({ attachTvNavigation: mocks.tvNav }))
 
 const cameras: PlanCamera[] = [{ id: 'c1', name: 'c', x: 10, y: 10, angle: 0, fov: 60, near: 5, far: 100 }]
 
@@ -114,7 +113,6 @@ const lastMap = () => mocks.FakeMap.instances[mocks.FakeMap.instances.length - 1
 beforeEach(() => {
   mocks.FakeMap.instances.length = 0
   mocks.editing.mockClear()
-  mocks.tvNav.mockClear()
 })
 
 const loaded = () => {
@@ -131,29 +129,6 @@ describe('MapPlan', () => {
     expect(map.addControl).not.toHaveBeenCalled()
     expect(mocks.editing).toHaveBeenCalled()
     expect(mocks.workerUrls).toEqual(['/worker.mjs'])
-  })
-
-  it('sans mode télé : pas de navigation à la télécommande, les actions sont là', () => {
-    render(<MapPlan {...baseProps()} />)
-    expect(mocks.tvNav).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: EDIT_LABEL })).toBeInTheDocument()
-  })
-
-  it('en mode télé : la navigation à la télécommande est branchée puis débranchée, ni « Modifier » ni filtres', () => {
-    sessionStorage.setItem('house-tv', '1')
-    try {
-      const detach = vi.fn()
-      mocks.tvNav.mockReturnValueOnce(detach)
-      const { unmount } = render(<MapPlan {...baseProps()} />)
-      expect(mocks.tvNav).toHaveBeenCalled()
-      const context = (mocks.tvNav.mock.calls as unknown as [unknown, () => object][])[0][1]
-      expect(context()).toBeTypeOf('object')
-      expect(screen.queryByRole('button', { name: EDIT_LABEL })).toBeNull()
-      unmount()
-      expect(detach).toHaveBeenCalled()
-    } finally {
-      sessionStorage.clear()
-    }
   })
 
   it('démonter débranche l’édition et supprime la carte', () => {

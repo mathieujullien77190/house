@@ -21,31 +21,21 @@ import { UnknownShutter } from '../services/shuttersService.ts'
 import { relay } from './live.ts'
 import { toPatch } from './ac.ts'
 
-/** Les deux seules caméras de la page du réseau pour les invités (les perruches). */
+/** Les deux seules caméras de la page du réseau (les perruches). */
 export const LAN_CAMERAS: readonly { id: string; name: string }[] = [
   { id: 'voliere-interieur', name: 'Volière, intérieur' },
   { id: 'voliere-exterieur', name: 'Volière, extérieur' },
 ]
 
-/** Les caméras de la télé (clé TV_KEY) : toutes. */
-export const TV_CAMERAS: readonly { id: string; name: string }[] = [
-  ...LAN_CAMERAS,
-  { id: 'salon-de-jardin', name: 'Salon de jardin' },
-  { id: 'voliere-toit', name: 'Volière, toit' },
-]
-
-/** Les caméras de celui qui appelle : toutes pour la télé, deux pour les invités. */
-const camerasOf = (res: { locals: Record<string, unknown> }): readonly { id: string; name: string }[] => (res.locals.lanScope === 'tv' ? TV_CAMERAS : LAN_CAMERAS)
-
 /** Les deux caméras avec leur orientation (paysage ou portrait, réglée dans House Sync) : en portrait, la page tourne l'image d'un quart de tour comme la WebApp. Lecture seule. */
-export const lanCameras = (cameras: CamerasService | undefined, list: readonly { id: string; name: string }[]) => {
+const lanCameras = (cameras: CamerasService | undefined) => {
   let rows: { camera: string; orientation?: string }[] = []
   try {
     rows = cameras?.liveStreams() ?? []
   } catch {
     rows = []
   }
-  return list.map(({ id, name }) => ({ id, name, orientation: rows.find((row) => row.camera === id)?.orientation === 'portrait' ? 'portrait' : 'landscape' }))
+  return LAN_CAMERAS.map(({ id, name }) => ({ id, name, orientation: rows.find((row) => row.camera === id)?.orientation === 'portrait' ? 'portrait' : 'landscape' }))
 }
 
 /** Les lampes que la page du réseau ne montre pas (identifiants du pont) : la lampe des perruches (« Perruche », 26, la zone « Volière »). Absentes de `/lan/state` ; la route de commande ne les refuse PAS (blocage côté page seulement). */
@@ -65,8 +55,6 @@ const AC_KEYS = ['on', 'mode', 'temperature', 'fan']
 export interface LanDeps {
   /** La clé de la page (LAN_KEY) ; absente ou trop courte : toutes les routes répondent 503. */
   key: string
-  /** La clé de la télé (TV_KEY) : même page, toutes les caméras ; facultative. */
-  tvKey?: string
   /** Les préfixes IPv6 (/64) du réseau de la maison, en plus des adresses privées et de lien local. */
   prefixes: string[]
   /** Le nom d'hôte (LAN_HOST) et le port de l'adresse de la page, que `/guest-lan/link` donne à l'onglet « Page invité » de la WebApp. */
@@ -88,8 +76,7 @@ export interface LanServices {
 export const lanRouter = (services: LanServices, deps: LanDeps): Router => {
   const router = Router()
   const tokens = createLanTokens(deps.key)
-  const tvTokens = createLanTokens(deps.tvKey ?? '')
-  const guard = createLanGuard({ key: deps.key, tvKey: deps.tvKey, tvTokens, prefixes: deps.prefixes, tokens })
+  const guard = createLanGuard({ key: deps.key, prefixes: deps.prefixes, tokens })
   const access = (): LanAccess => readLanAccess(deps.doc)
   /** L'interrupteur général puis celui de la fonction : relus à chaque demande, jamais gardés. */
   const allow =
@@ -112,7 +99,7 @@ export const lanRouter = (services: LanServices, deps: LanDeps): Router => {
     }
     res.json({
       access: { cameras: current.cameras, shutters: current.shutters, lights: current.lights, ac: current.ac },
-      cameras: current.cameras ? lanCameras(services.cameras, camerasOf(res)) : null,
+      cameras: current.cameras ? lanCameras(services.cameras) : null,
       shutters: await part(current.shutters ? services.shutters : null, (shutters) => shutters.state().shutters.map(({ id, name, lastCommand }) => ({ id, name, lastCommand }))),
       lights: await part(current.lights ? services.hue : null, async (hue) => withoutExcluded((await hue.list()) ?? [])),
       ac: await part(current.ac ? services.ac : null, async (ac) =>
@@ -123,7 +110,7 @@ export const lanRouter = (services: LanServices, deps: LanDeps): Router => {
 
   router.get('/lan/token', guard(), allow('cameras'), (_req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    res.json({ token: (res.locals.lanScope === 'tv' ? tvTokens : tokens).issue(), expiresIn: TOKEN_SECONDS })
+    res.json({ token: tokens.issue(), expiresIn: TOKEN_SECONDS })
   })
 
   // Un seul direct 4K à la fois sur cette page (pour ne pas saturer le mini PC) : un nouveau flux 4K coupe l'ancien.
@@ -133,7 +120,7 @@ export const lanRouter = (services: LanServices, deps: LanDeps): Router => {
     allow('cameras'),
     (req, res) => {
       const id = String(req.params.camera)
-      if (!camerasOf(res).some((found) => found.id === id)) return void res.status(404).json({ error: 'caméra inconnue' })
+      if (!LAN_CAMERAS.some((found) => found.id === id)) return void res.status(404).json({ error: 'caméra inconnue' })
       // `quality=hd` : seulement le flux (pas l'image fixe), et seulement pour ces deux caméras (déjà filtrées ci-dessus) ; toute autre valeur vaut `light`.
       const hd = open === 'stream' && req.query.quality === 'hd'
       if (hd) {

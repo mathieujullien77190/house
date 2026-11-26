@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Maison</string>
-    <string name="no_url">Adresse de la page non réglée.\n\nDepuis le PC (le Player doit accepter le débogage réseau) :\nadb shell am start -n house.tv/.MainActivity --es url "https://…"</string>
-    <string name="certificate_refused">Certificat refusé : la page n\'est pas signée par la CA de la maison.</string>
-</resources>

@@ -15,7 +15,6 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'guest', label: 'Page invité' },
 ]
 export const BACK_LABEL = '← Toutes les caméras'
-export const HOME_LABEL = '← Home'
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification de la clé…'
 export const NO_CAMERA_TEXT = 'Aucune caméra : House Sync n’a encore rien écrit.'

@@ -78,7 +78,7 @@ interface Grab {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 /** Le calque jumeau (fond bleu pâle) de chaque genre d'icône à rond. */
-export const HOVER_LAYERS: Record<string, string> = {
+const HOVER_LAYERS: Record<string, string> = {
   'camera-hit': 'plan-survol-cameras',
   'lamp-hit': 'plan-survol-lampes',
   'sensor-hit': 'plan-survol-capteurs',
@@ -91,7 +91,7 @@ export const HOVER_LAYERS: Record<string, string> = {
  * Une icône sans flux ou injoignable (une caméra éteinte, une lampe coupée) : **hors modification**, on ne peut ni la choisir, ni cliquer dessus, ni la survoler ; en modification, on la déplace
  * comme les autres (il faut pouvoir la placer). La modification est reconnue à ses rappels de déplacement.
  */
-export const disabled = (properties: Record<string, unknown> | null | undefined, here: EditContext): boolean =>
+const disabled = (properties: Record<string, unknown> | null | undefined, here: EditContext): boolean =>
   properties?.inactive === 1 && here.onMoveCamera === undefined && here.onMoveLamp === undefined && here.onMoveSensor === undefined
 
 /**

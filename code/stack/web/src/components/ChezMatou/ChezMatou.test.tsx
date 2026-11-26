@@ -52,24 +52,6 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
-describe('ChezMatou : mode télé', () => {
-  afterEach(() => sessionStorage.clear())
-  it('?tv=1 : la page porte la classe tv, retirée au démontage', async () => {
-    sessionStorage.setItem('house-tv', '1')
-    const { unmount } = render(<ChezMatou />)
-    await act(async () => undefined)
-    expect(ui().tv).toBe(true)
-    expect(document.documentElement.classList.contains('tv')).toBe(true)
-    unmount()
-    expect(document.documentElement.classList.contains('tv')).toBe(false)
-  })
-  it('sans ?tv=1 : pas de classe', async () => {
-    await mount()
-    expect(ui().tv).toBe(false)
-    expect(document.documentElement.classList.contains('tv')).toBe(false)
-  })
-})
-
 describe('ChezMatou', () => {
   it('sans clé : verrouillée, rien n’est demandé ni envoyé', async () => {
     vi.mocked(lan.readLanKey).mockReturnValue(null)

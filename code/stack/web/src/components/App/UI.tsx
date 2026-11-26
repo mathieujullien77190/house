@@ -11,7 +11,6 @@ import KeyForm from '@/components/KeyForm'
 import Lights from '@/components/Lights'
 import PlugPanel from '@/components/PlugPanel'
 import ShuttersPanel from '@/components/ShuttersPanel'
-import TvLive from '@/components/TvLive'
 import TvPanel from '@/components/TvPanel'
 import {
   BACK_CLASS,
@@ -21,7 +20,6 @@ import {
   THEME_TITLE,
   BACK_LABEL,
   CHECKING_TEXT,
-  HOME_LABEL,
   LOCKED_TEXT,
   NO_CAMERA_TEXT,
   TABS_LABEL,
@@ -31,9 +29,6 @@ import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
 
 const AppUI = ({
-  tv,
-  liveCamera,
-  onLiveCamera,
   status,
   message,
   apiKey,
@@ -89,18 +84,16 @@ const AppUI = ({
       </Page>
     )
   // Pareil pour le plan des lumières : un écran à part, la flèche retour ramène aux caméras.
-  // Sur la télé, la Home est seule à l'écran : ni titre, ni menu, ni météo, la carte en grand.
-  const bare = ready && tv && tab === 'home'
   return (
     <Page>
-      {bare ? null : <TopBar
+      <TopBar
         title={TITLE}
         // Un clic sur le titre rafraîchit la page (elle se rouvre sur Home, `DEFAULT_TAB`).
         onTitle={ready ? () => window.location.reload() : undefined}
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
         info={ready ? <Weather apiKey={apiKey} /> : undefined}
-        tabs={ready && !tv ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
+        tabs={ready ? { label: TABS_LABEL, options: tabs, value: tab, onChange: onTab } : undefined}
         // Les boutons du thème et des notifications restent dans la barre (sur téléphone : juste à gauche du sandwich).
         barActions={
           <>
@@ -120,23 +113,9 @@ const AppUI = ({
             ) : null}
           </>
         }
-      />}
+      />
 
       {!ready ? <KeyForm busy={status === 'checking'} onSubmit={onConnect} /> : null}
-
-      {/* Sur la télé il n'y a pas de menu : un bouton ramène de toute autre page à la Home. */}
-      {ready && tv && tab !== 'home' ? (
-        <div className={BACK_CLASS}>
-          <Button
-            onClick={() => {
-              onOpenCamera(null)
-              onTab('home')
-            }}
-          >
-            {HOME_LABEL}
-          </Button>
-        </div>
-      ) : null}
 
       {ready ? (
         <>
@@ -146,11 +125,6 @@ const AppUI = ({
               apiKey={apiKey}
               cameras={cameras}
               onOpenCamera={(camera, eventId) => {
-                // Sur la télé, ouvrir une caméra montre son direct en grand, seul ; un clip (emoji) ouvre la page de la caméra.
-                if (tv && !eventId) {
-                  onLiveCamera(camera)
-                  return
-                }
                 onTab('cameras')
                 onOpenCamera(camera, eventId)
               }}
@@ -199,10 +173,6 @@ const AppUI = ({
           {tab === 'tv' ? <TvPanel apiKey={apiKey} /> : null}
           {tab === 'guest' ? <GuestPanel apiKey={apiKey} /> : null}
         </>
-      ) : null}
-      {/* Sur la télé : le direct de la caméra ouverte, en grand et seul ; Retour le ferme. */}
-      {ready && tv && liveCamera && cameras.find((camera) => camera.name === liveCamera) ? (
-        <TvLive camera={cameras.find((camera) => camera.name === liveCamera) as (typeof cameras)[number]} onClose={() => onLiveCamera(null)} />
       ) : null}
     </Page>
   )

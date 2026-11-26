@@ -37,10 +37,6 @@ export const TITLE_CLASS = 'text-2xl font-bold text-fg'
 export const SECTION_CLASS = 'flex flex-col gap-3'
 /** Les caméras : une colonne sur téléphone, deux dès `lg:` ; une caméra en portrait garde sa largeur (le rapport 9/16 de la WebApp) et se centre. */
 export const CAMERAS_CLASS = 'grid grid-cols-1 items-start gap-3 lg:grid-cols-2'
-/** Mode télé : la caméra en portrait tout à gauche sur toute la hauteur, les autres à sa droite (deux côte à côte, la suivante dessous) ; flux léger, l'agrandissement passe en 4K. */
-export const CAMERAS_TV_CLASS = 'grid grid-cols-[11rem_1fr_1fr] items-start gap-3'
-/** Mode télé : la caméra en portrait occupe la colonne de gauche, sur deux rangées. */
-export const TILE_PORTRAIT_TV_CLASS = '[--big-h:440px] col-start-1 row-span-2 row-start-1 mx-auto w-[min(100%,calc(var(--big-h)*9/16))]'
 export const TILE_PORTRAIT_CLASS = '[--big-h:530px] mx-auto w-[min(100%,calc(var(--big-h)*9/16))]'
 export const LIST_CLASS = 'flex flex-col gap-3'
 export const ERROR_CLASS = 'text-[0.85rem] text-danger'

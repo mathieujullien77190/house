@@ -29,7 +29,6 @@ Téléphone, hors de la maison
 | Lumières Hue | `code/stack/docs/hue.md` |
 | Mangeoire de la volière (projet : montage, broches) | `code/stack/docs/mangeoire.md` |
 | Session Claude du mini PC | `code/stack/remote/README.md` |
-| Application de télé (Freebox Pop, clips façon service de vidéo) | `code/cinema/CLAUDE.md` ; ancien essai en fenêtre web : `code/tv/CLAUDE.md` |
 | Boîtier volet + clim (ESP32, Somfy RTS + infrarouge, pour un proche) | `code/volet-clim/CLAUDE.md` |
 
 ## Règles

@@ -22,7 +22,6 @@ import { labelItemId, useTemperatureLabels } from '@/lib/useTemperatureLabels'
 import { shutterItemId, useShutterPlan } from '@/lib/useShutterPlan'
 import { usePlan } from '@/lib/usePlan'
 import { usePlug } from '@/lib/usePlug'
-import { readTvMode } from '@/lib/tvMode'
 import { useOffCameras } from '@/lib/useOffCameras'
 import {
   PREVIEW_VIEW,
@@ -182,7 +181,7 @@ const HouseMap = ({ apiKey, cameras, events, isRead, onOpenCamera, onOpenAc, onO
   return (
     <div ref={wrapper} className={WRAPPER_CLASS}>
       <MapPlan
-        fill={mobile || readTvMode()}
+        fill={mobile}
         cameraNames={cameras.map((camera) => camera.name)}
         links={links}
         onLink={link}

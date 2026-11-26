@@ -42,7 +42,6 @@ import { zonesRouter } from './zones.ts'
 import { docsRouter } from '../openapi/docs.ts'
 import { guestLanRouter } from './guestLan.ts'
 import { lanRouter, type LanDeps } from './lan.ts'
-import { cinemaRouter } from './cinema.ts'
 
 export interface Services {
   cameras: CamerasService
@@ -150,7 +149,5 @@ export const createRoutes = (apiKey: string, services: Services, caCert = '', la
   // La page invité du réseau : sa propre garde (réseau local + LAN_KEY, `middleware/lanGuard.ts`), pas la clé de la WebApp ; seule `/guest-lan/link` (qui rend la clé de la page) est derrière celle-ci.
   router.use(guestLanRouter(lan.key, lan.doc, lan.host, lan.port))
   router.use(lanRouter({ hue: services.hue, shutters: services.shutters, ac: services.ac, live: services.live, cameras: services.cameras }, lan))
-  // L'application de télé « cinéma » : sa propre garde (réseau local + TV_KEY), lecture seule.
-  router.use(cinemaRouter({ events: services.events, snapshots: services.snapshots, files: services.files, cameras: services.cameras, live: services.live }, lan))
   return router
 }

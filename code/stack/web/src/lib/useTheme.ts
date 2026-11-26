@@ -1,14 +1,11 @@
 // Le thème de la WebApp : clair par défaut, le bouton de la barre bascule en sombre (et inversement). Le choix est gardé sur l'appareil ; le réglage du système n'est pas suivi.
 import { useCallback, useEffect, useState } from 'react'
-import { readTvMode } from './tvMode'
 
 const STORAGE_KEY = 'house-theme'
 
 export type Theme = 'light' | 'dark'
 
 const readTheme = (): Theme => {
-  // Sur la télé (`?tv=1`) : toujours sombre.
-  if (readTvMode()) return 'dark'
   try {
     return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
   } catch {

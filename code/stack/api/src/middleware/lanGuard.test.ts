@@ -14,7 +14,7 @@ type Guard = ReturnType<ReturnType<typeof createLanGuard>>
 const run = (guard: Guard, peer: string | undefined, headers: Record<string, string> = {}, query: Record<string, unknown> = {}): string => {
   let result = 'aucun'
   const req = { socket: { remoteAddress: peer }, query, header: (name: string) => headers[name.toLowerCase()] } as unknown as Request
-  const res = { locals: {}, status: (code: number) => ({ json: () => void (result = String(code)) }) } as unknown as Response
+  const res = { status: (code: number) => ({ json: () => void (result = String(code)) }) } as unknown as Response
   guard(req, res, () => void (result = 'next'))
   return result
 }
@@ -67,36 +67,4 @@ test('un jeton court passe seulement quand la route l’autorise', () => {
 test('sans limiteur fourni, la garde en crée un', () => {
   const guard = createLanGuard({ key: KEY, prefixes: [], tokens: createLanTokens(KEY) })()
   assert.equal(run(guard, '10.0.0.2', { [LAN_KEY_HEADER]: KEY }), 'next')
-})
-
-const TV = 'la-cle-de-la-tele-longue'
-
-/** Le périmètre posé par la garde pour la route : lan (invités) ou tv (télé). */
-const scopeOf = (guard: Guard, headers: Record<string, string> = {}, query: Record<string, unknown> = {}): string | undefined => {
-  const locals: Record<string, unknown> = {}
-  const req = { socket: { remoteAddress: '10.0.0.2' }, query, header: (name: string) => headers[name.toLowerCase()] } as unknown as Request
-  const res = { locals, status: () => ({ json: () => undefined }) } as unknown as Response
-  guard(req, res, () => undefined)
-  return locals.lanScope as string | undefined
-}
-
-test('la clé de la télé : périmètre tv ; celle des invités : lan ; la télé seule suffit', () => {
-  const tvTokens = createLanTokens(TV)
-  const both = createLanGuard({ key: KEY, tvKey: TV, tvTokens, prefixes: [], tokens: createLanTokens(KEY) })()
-  assert.equal(scopeOf(both, { [LAN_KEY_HEADER]: TV }), 'tv')
-  assert.equal(scopeOf(both, { [LAN_KEY_HEADER]: KEY }), 'lan')
-  assert.equal(scopeOf(both, { [LAN_KEY_HEADER]: WRONG }), undefined)
-  const only = createLanGuard({ key: '', tvKey: TV, tvTokens, prefixes: [], tokens: createLanTokens('none') })()
-  assert.equal(run(only, '10.0.0.2', { [LAN_KEY_HEADER]: TV }), 'next')
-  assert.equal(run(only, '10.0.0.2', { [LAN_KEY_HEADER]: KEY }), '401')
-})
-
-test('les jetons : celui des invités donne lan, celui de la télé donne tv, seulement si la route les autorise', () => {
-  const tokens = createLanTokens(KEY)
-  const tvTokens = createLanTokens(TV)
-  const guard = createLanGuard({ key: KEY, tvKey: TV, tvTokens, prefixes: [], tokens })
-  assert.equal(scopeOf(guard(true), {}, { t: tokens.issue() }), 'lan')
-  assert.equal(scopeOf(guard(true), {}, { t: tvTokens.issue() }), 'tv')
-  assert.equal(scopeOf(guard(true), {}, { t: 'faux' }), undefined)
-  assert.equal(scopeOf(guard(), {}, { t: tvTokens.issue() }), undefined)
 })

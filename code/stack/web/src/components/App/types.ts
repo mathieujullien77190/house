@@ -4,11 +4,6 @@ import type { Theme } from '@/lib/useTheme'
 import type { Camera, EventRow, TabId } from '@/types'
 
 export interface AppUIProps {
-  /** Mode télé (`?tv=1`, Freebox Pop) : seulement la Home, sans le menu des pages ; un bouton « Home » ramène des autres pages. */
-  tv: boolean
-  /** Mode télé : la caméra dont on voit le direct en grand (seul, plein écran) ; null : la carte. */
-  liveCamera: string | null
-  onLiveCamera: (name: string | null) => void
   status: Status
   message: string
   apiKey: string
