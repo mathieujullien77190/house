@@ -33,8 +33,19 @@ describe('useClipDuration', () => {
     loaded(videos[0], 12.5)
     expect(result.current).toBe(12.5)
     expect(clipDurationOf('clip-1')).toBe(12.5)
+    // La vidéo est lâchée dès la durée lue : sa connexion vers l'API est rendue.
+    expect(videos[0].onloadedmetadata).toBeNull()
+    expect(videos[0].hasAttribute('src')).toBe(false)
+    expect(videos[0].load).toHaveBeenCalled()
+    unmount()
+  })
+  it('lâche la vidéo au démontage, même sans durée lue', () => {
+    const { unmount } = renderHook(() => useClipDuration('clip-gone', '/clips/gone'))
+    expect(videos[0].getAttribute('src')).toBe('/clips/gone')
     unmount()
     expect(videos[0].onloadedmetadata).toBeNull()
+    expect(videos[0].hasAttribute('src')).toBe(false)
+    expect(videos[0].load).toHaveBeenCalledTimes(1)
   })
   it('sans identifiant, la durée n’est pas retenue', () => {
     const { result } = renderHook(() => useClipDuration(null, '/clips/2'))
@@ -46,10 +57,21 @@ describe('useClipDuration', () => {
     loaded(videos[0], Infinity)
     expect(result.current).toBeNull()
   })
-  it('oublie la durée quand le clip change', () => {
-    const { result, rerender } = renderHook(({ path }) => useClipDuration('y', path), { initialProps: { path: '/a' } })
+  it('sans identifiant, oublie la durée quand le clip change', () => {
+    const { result, rerender } = renderHook(({ path }) => useClipDuration(null, path), { initialProps: { path: '/a' } })
     loaded(videos[0], 4)
     rerender({ path: '/b' })
     expect(result.current).toBeNull()
+    expect(videos).toHaveLength(2)
+  })
+  it('une durée connue est gardée par identifiant et n’est pas redemandée', () => {
+    const { result, rerender, unmount } = renderHook(({ path }) => useClipDuration('y', path), { initialProps: { path: '/a' } })
+    loaded(videos[0], 4)
+    rerender({ path: '/b' })
+    expect(result.current).toBe(4)
+    unmount()
+    const again = renderHook(() => useClipDuration('y', '/a'))
+    expect(again.result.current).toBe(4)
+    expect(videos).toHaveLength(1)
   })
 })

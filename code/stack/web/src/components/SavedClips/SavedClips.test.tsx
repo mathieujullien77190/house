@@ -10,6 +10,14 @@ vi.mock('@/components/ClipPlayer', () => ({
   default: (p: { path: string; onClose: () => void }) => <button onClick={p.onClose}>lecteur {p.path}</button>,
 }))
 vi.mock('@/components/PortraitClip', () => ({ default: (p: { path: string }) => <i>portrait {p.path}</i> }))
+// La vignette (une image fixe) est simulée : un bouton qui annonce la durée lue.
+vi.mock('@/components/ClipThumb', () => ({
+  default: (p: { path: string; className: string; onDuration?: (seconds: number) => void }) => (
+    <button data-testid="thumb" className={p.className} onClick={() => p.onDuration?.(p.path.includes('/b/') ? 20 : 14.4)}>
+      vignette {p.path}
+    </button>
+  ),
+}))
 const api = await import('@/lib/api')
 
 const event = (id: string, over: Partial<EventRow> = {}): EventRow =>
@@ -68,16 +76,18 @@ describe('Home', () => {
     })
   })
 
-  it('la liste : vignettes avec durée une fois la vidéo lue', async () => {
+  it('la liste : vignettes en image fixe, avec durée une fois la vidéo lue', async () => {
     await mount([event('a'), event('b', { orientation: 'portrait' }), event('c', { clip: null, clip_h264: null })])
-    const videos = document.querySelectorAll('video')
-    expect(videos).toHaveLength(2)
-    Object.defineProperty(videos[0], 'duration', { value: 14.4 })
-    fireEvent.loadedMetadata(videos[0])
-    fireEvent.loadedMetadata(videos[0])
+    // Jamais de balise vidéo par vignette : chacune gardait une connexion vers l'API.
+    expect(document.querySelectorAll('video')).toHaveLength(0)
+    const thumbs = screen.getAllByTestId('thumb')
+    expect(thumbs).toHaveLength(2)
+    expect(thumbs[0]).toHaveTextContent('vignette /clips/a/h264')
+    expect(thumbs[1]).toHaveTextContent('vignette /clips/b/h264')
+    fireEvent.click(thumbs[0])
+    fireEvent.click(thumbs[0])
     expect(screen.getAllByText(/14 s/).length).toBeGreaterThan(0)
-    Object.defineProperty(videos[1], 'duration', { value: 20 })
-    fireEvent.loadedMetadata(videos[1])
+    fireEvent.click(thumbs[1])
     expect(screen.getAllByText(/20 s/).length).toBeGreaterThan(0)
   })
 

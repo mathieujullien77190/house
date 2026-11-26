@@ -11,6 +11,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 - `lib/useHouse.ts` : la clé et son statut (essaie d'abord le cookie), caméras et événements rafraîchis chaque seconde.
 - `lib/useAcUnits.ts`, `lib/useShutters.ts` : lecture et ordres, **partagés** entre l'onglet et l'aperçu de la carte de Home.
 - `lib/useBox.ts` : la Freebox (lecture, WiFi), **partagée** entre l'onglet Box et son aperçu.
+- `lib/useClipThumb.ts`, `lib/useClipDuration.ts` : vignette (image fixe) et durée d'un clip, sans garder de vidéo ouverte (`components/SavedClips/CLAUDE.md`).
 - `lib/useTv.ts` : la télécommande du Freebox Player (état, touches, association par code affiché sur la TV), pour l'onglet Box TV.
 - `lib/homeSelection.ts` : la sélection de la carte de Home, **état global** qui survit au démontage de la Home.
 - `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), neuf onglets (`TABS`, dont Box TV et Page invité). Ouvre sur **Home** (`DEFAULT_TAB`).

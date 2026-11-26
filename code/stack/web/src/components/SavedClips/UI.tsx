@@ -1,6 +1,7 @@
 import { Button, CameraTile, Notice, SectionTitle, Tabs } from '@house/ui'
 import ClipEmoji from '@/components/ClipEmoji'
 import ClipPlayer from '@/components/ClipPlayer'
+import ClipThumb from '@/components/ClipThumb'
 import FullscreenBox from '@/components/FullscreenBox'
 import PortraitClip from '@/components/PortraitClip'
 import ShareButton from '@/components/ShareButton'
@@ -92,24 +93,10 @@ const SavedClipsUI = ({
                   clip ? (
                     event.orientation === 'portrait' ? (
                       <div className={THUMB_BOX_CLASS}>
-                        <video
-                          className={THUMB_TURNED_CLASS}
-                          src={clip}
-                          preload="metadata"
-                          muted
-                          playsInline
-                          onLoadedMetadata={(e) => onDuration(event.id, e.currentTarget.duration)}
-                        />
+                        <ClipThumb className={THUMB_TURNED_CLASS} path={clip} onDuration={(seconds) => onDuration(event.id, seconds)} />
                       </div>
                     ) : (
-                      <video
-                        className={THUMB_CLASS}
-                        src={clip}
-                        preload="metadata"
-                        muted
-                        playsInline
-                        onLoadedMetadata={(e) => onDuration(event.id, e.currentTarget.duration)}
-                      />
+                      <ClipThumb className={THUMB_CLASS} path={clip} onDuration={(seconds) => onDuration(event.id, seconds)} />
                     )
                   ) : null
                 }
