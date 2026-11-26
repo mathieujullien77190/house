@@ -63,7 +63,7 @@ export interface CameraPower {
   streaming: boolean
 }
 
-export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'ac' | 'plug' | 'box' | 'tv' | 'guest'
+export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'ac' | 'plug' | 'box' | 'tv' | 'guest' | 'test'
 
 /** Les touches de la télécommande du Freebox Player (liste de l'API Freebox). */
 export type TvKey =

@@ -41,6 +41,7 @@ vi.mock('@/components/AcPanel', () => ({ default: () => <div data-testid="ac" />
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
 vi.mock('@/components/BoxPanel', () => ({ default: () => <div data-testid="box" /> }))
 vi.mock('@/components/GuestPanel', () => ({ default: () => <div data-testid="guest" /> }))
+vi.mock('@/components/Kitchen3D', () => ({ default: (p: { apiKey: string }) => <div data-testid="kitchen3d">{p.apiKey}</div> }))
 vi.mock('@/components/TvPanel', () => ({
   default: (p: { onBack?: () => void }) => (
     <div data-testid="tv">{p.onBack ? <button onClick={p.onBack}>retour tv</button> : null}</div>
@@ -260,6 +261,15 @@ describe('App : onglets', () => {
     render(<App />)
     tab('Page invité')
     expect(screen.getByTestId('guest')).toBeInTheDocument()
+  })
+
+  it('l’onglet Test : la vue 3D n’est chargée qu’à son ouverture', async () => {
+    render(<App />)
+    expect(screen.queryByTestId('kitchen3d')).toBeNull()
+    tab('Test')
+    expect(screen.getByText('Chargement de la vue 3D…')).toBeInTheDocument()
+    expect(await screen.findByTestId('kitchen3d')).toHaveTextContent('k')
+    expect(screen.queryByText('Chargement de la vue 3D…')).toBeNull()
   })
 
   it('l’onglet Box TV garde la barre sur ordinateur', () => {

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Button, Notice, Page, TopBar } from '@house/ui'
 import Weather from '@/components/Weather'
 import AcPanel from '@/components/AcPanel'
@@ -20,6 +21,7 @@ import {
   THEME_TITLE,
   BACK_LABEL,
   CHECKING_TEXT,
+  LOADING_3D_TEXT,
   LOCKED_TEXT,
   NO_CAMERA_TEXT,
   TABS_LABEL,
@@ -27,6 +29,9 @@ import {
 } from './constants'
 import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
+
+// Three.js est lourd : la vue 3D n'est chargée que quand on ouvre son onglet.
+const Kitchen3D = lazy(() => import('@/components/Kitchen3D'))
 
 const AppUI = ({
   status,
@@ -172,6 +177,11 @@ const AppUI = ({
           {tab === 'box' ? <BoxPanel apiKey={apiKey} /> : null}
           {tab === 'tv' ? <TvPanel apiKey={apiKey} /> : null}
           {tab === 'guest' ? <GuestPanel apiKey={apiKey} /> : null}
+          {tab === 'test' ? (
+            <Suspense fallback={<Notice text={LOADING_3D_TEXT} />}>
+              <Kitchen3D apiKey={apiKey} />
+            </Suspense>
+          ) : null}
         </>
       ) : null}
     </Page>
