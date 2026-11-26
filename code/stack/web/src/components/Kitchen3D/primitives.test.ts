@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { fakeContext2d, stubCanvasContext } from '@/test/canvas'
-import { BULB_OFF, box, canvasTexture, cylinder, fixtureBulb, seeded, standard } from './primitives'
+import { BULB_OFF, box, bulbBall, canvasTexture, cylinder, fixtureBulb, seeded, standard, woodTexture } from './primitives'
 
 describe('seeded', () => {
   it('rend la même suite pour la même graine, entre 0 et 1', () => {
@@ -42,6 +42,34 @@ describe('canvasTexture', () => {
   })
 })
 
+describe('woodTexture', () => {
+  it('le fond à la teinte donnée, six bandes, soixante-dix veines ondulées et deux nœuds de trois cernes', () => {
+    const context = fakeContext2d()
+    stubCanvasContext(context)
+    const texture = woodTexture(0x804020, 7)
+    expect((texture.image as HTMLCanvasElement).width).toBe(256)
+    expect(context.fillRect).toHaveBeenCalledTimes(7)
+    expect(context.fillRect).toHaveBeenNthCalledWith(1, 0, 0, 256, 256)
+    // Chaque veine part du bord gauche et va jusqu'au bord droit, par pas de 8 px.
+    expect(context.moveTo).toHaveBeenCalledTimes(70)
+    expect(context.lineTo).toHaveBeenCalledTimes(70 * 32)
+    expect((context.lineTo.mock.calls as [number, number][]).filter(([x]) => x === 256)).toHaveLength(70)
+    expect(context.ellipse).toHaveBeenCalledTimes(6)
+    expect(context.stroke).toHaveBeenCalledTimes(76)
+  })
+
+  it('le même dessin pour la même graine, un autre pour une autre', () => {
+    const drawn = (seed: number) => {
+      const context = fakeContext2d()
+      stubCanvasContext(context)
+      woodTexture(0x804020, seed)
+      return context.fillRect.mock.calls
+    }
+    expect(drawn(7)).toEqual(drawn(7))
+    expect(drawn(7)).not.toEqual(drawn(8))
+  })
+})
+
 describe('standard', () => {
   it('une couleur : mat, d’un seul côté par défaut', () => {
     const material = standard(0x112233, 0.4)
@@ -79,6 +107,14 @@ describe('box, cylinder', () => {
   })
 })
 
+describe('bulbBall', () => {
+  it('une boule à sa place', () => {
+    const ball = bulbBall(0.05, 1, 2, 3)
+    expect((ball.geometry as THREE.SphereGeometry).parameters.radius).toBe(0.05)
+    expect(ball.position.toArray()).toEqual([1, 2, 3])
+  })
+})
+
 describe('fixtureBulb', () => {
   it('marque l’ampoule et lui donne son propre matériau, éteint', () => {
     const shared = new THREE.MeshBasicMaterial({ color: 0xffe2b0 })
@@ -87,5 +123,10 @@ describe('fixtureBulb', () => {
     expect(mesh.userData.fixture).toBe(true)
     expect(mesh.material).not.toBe(shared)
     expect((mesh.material as THREE.MeshBasicMaterial).color.getHex()).toBe(BULB_OFF)
+    expect(mesh.userData.fixtureName).toBeUndefined()
+  })
+
+  it('retient le nom de la lampe Hue qui l’allume', () => {
+    expect(fixtureBulb(bulbBall(0.05, 0, 0, 0), 'salon').userData).toEqual({ fixture: true, fixtureName: 'salon' })
   })
 })

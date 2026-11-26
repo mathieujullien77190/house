@@ -41,7 +41,15 @@ vi.mock('@/components/AcPanel', () => ({ default: () => <div data-testid="ac" />
 vi.mock('@/components/PlugPanel', () => ({ default: () => <div data-testid="plug" /> }))
 vi.mock('@/components/BoxPanel', () => ({ default: () => <div data-testid="box" /> }))
 vi.mock('@/components/GuestPanel', () => ({ default: () => <div data-testid="guest" /> }))
-vi.mock('@/components/Kitchen3D', () => ({ default: (p: { apiKey: string }) => <div data-testid="kitchen3d">{p.apiKey}</div> }))
+vi.mock('@/components/Kitchen3D', () => ({
+  default: (p: { apiKey: string; cameras: { name: string; portrait: boolean }[]; onOpenCamera: (camera: string) => void }) => (
+    <div data-testid="kitchen3d">
+      {p.apiKey}
+      <span data-testid="kitchen3d-cameras">{p.cameras.map((camera) => `${camera.name}:${camera.portrait}`).join()}</span>
+      <button onClick={() => p.onOpenCamera('voliere-exterieur')}>voir 3d</button>
+    </div>
+  ),
+}))
 vi.mock('@/components/TvPanel', () => ({
   default: (p: { onBack?: () => void }) => (
     <div data-testid="tv">{p.onBack ? <button onClick={p.onBack}>retour tv</button> : null}</div>
@@ -137,7 +145,7 @@ describe('App : en-tête', () => {
 })
 
 describe('App : barre', () => {
-  it('le titre rafraîchit la page (qui s’ouvre sur Home)', () => {
+  it('le titre rafraîchit la page (qui s’ouvre sur Test)', () => {
     const reload = vi.fn()
     const original = window.location
     Object.defineProperty(window, 'location', { value: { ...original, reload }, configurable: true })
@@ -200,9 +208,11 @@ describe('App : barre sur téléphone', () => {
 })
 
 describe('App : onglets', () => {
-  it('s’ouvre sur Home, puis l’onglet Caméras montre la mosaïque', () => {
+  it('s’ouvre sur Test (la Home est montée, cachée), puis l’onglet Caméras montre la mosaïque', async () => {
     render(<App />)
-    expect(screen.getByTestId('home')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Test' })).toHaveAttribute('aria-selected', 'true')
+    expect((screen.getByTestId('home').parentElement as HTMLElement).hidden).toBe(true)
+    expect(await screen.findByTestId('kitchen3d')).toBeInTheDocument()
     expect(screen.queryByTestId('mosaic')).toBeNull()
     tab('Caméras')
     expect(screen.getByTestId('mosaic')).toBeInTheDocument()
@@ -227,6 +237,7 @@ describe('App : onglets', () => {
 
   it('la Home reste montée (cachée) quand on change d’onglet : le clip choisi et les flux restent chargés', () => {
     render(<App />)
+    tab('Home')
     const home = screen.getByTestId('home')
     expect((home.parentElement as HTMLElement).hidden).toBe(false)
     tab('Lumière')
@@ -263,13 +274,24 @@ describe('App : onglets', () => {
     expect(screen.getByTestId('guest')).toBeInTheDocument()
   })
 
-  it('l’onglet Test : la vue 3D n’est chargée qu’à son ouverture', async () => {
+  it('l’onglet Test : la vue 3D se charge à son ouverture et n’est montée que sur cet onglet', async () => {
     render(<App />)
-    expect(screen.queryByTestId('kitchen3d')).toBeNull()
-    tab('Test')
-    expect(screen.getByText('Chargement de la vue 3D…')).toBeInTheDocument()
     expect(await screen.findByTestId('kitchen3d')).toHaveTextContent('k')
     expect(screen.queryByText('Chargement de la vue 3D…')).toBeNull()
+    tab('Home')
+    expect(screen.queryByTestId('kitchen3d')).toBeNull()
+    tab('Test')
+    expect(screen.getByTestId('kitchen3d')).toBeInTheDocument()
+  })
+
+  it('l’onglet Test reçoit les caméras (portrait ou non) ; son bouton « Voir » ouvre la page de la caméra', async () => {
+    h.house = ready({ cameras: [cam('voliere-interieur'), { name: 'voliere-exterieur', orientation: 'portrait' }] })
+    render(<App />)
+    expect(await screen.findByTestId('kitchen3d-cameras')).toHaveTextContent('voliere-interieur:false,voliere-exterieur:true')
+    fireEvent.click(screen.getByText('voir 3d'))
+    expect(screen.getByRole('tab', { name: 'Caméras' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('card')).toHaveTextContent('voliere-exterieur')
+    expect(screen.queryByTestId('kitchen3d')).toBeNull()
   })
 
   it('l’onglet Box TV garde la barre sur ordinateur', () => {

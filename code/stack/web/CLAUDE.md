@@ -14,7 +14,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 - `lib/useClipThumb.ts`, `lib/useClipDuration.ts` : vignette (image fixe) et durée d'un clip, sans garder de vidéo ouverte (`components/SavedClips/CLAUDE.md`).
 - `lib/useTv.ts` : la télécommande du Freebox Player (état, touches, association par code affiché sur la TV), pour l'onglet Box TV.
 - `lib/homeSelection.ts` : la sélection de la carte de Home, **état global** qui survit au démontage de la Home.
-- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), dix onglets (`TABS`, dont Box TV, Page invité et Test). Ouvre sur **Home** (`DEFAULT_TAB`).
+- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), dix onglets (`TABS`, dont Box TV, Page invité et Test). Ouvre sur **Test** (`DEFAULT_TAB`) ; la Home est montée dès l'ouverture, cachée.
 
 ## Barre du haut
 
@@ -35,7 +35,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 | Détail d'une caméra, frise | `CameraCard/`, `Timeline/` |
 | Lumière, Volet, Clim, Prise, Box, Box TV | `Lights/`, `ShuttersPanel/`, `AcPanel/`, `PlugPanel/`, `BoxPanel/`, `TvPanel/` |
 | Page invité (QR code, aperçu) et la page `/chezmatou` | `GuestPanel/`, `ChezMatou/` |
-| Onglet Test : l'espace de vie en 3D, éclairé par les lampes Hue | `Kitchen3D/` |
+| Onglet Test : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, volets, écrans qui montrent les caméras) | `Kitchen3D/` |
 
 Chemins : `src/components/<nom>/CLAUDE.md`.
 
@@ -56,6 +56,6 @@ Chemins : `src/components/<nom>/CLAUDE.md`.
 
 - `npm install`, `npm run dev` (port 5180, services relayés vers l'API).
 - Tests : Vitest + Testing Library + jsdom, un `*.test.ts(x)` à côté du code. `npm run test:coverage` exige **100 %** sur `src/**` (hors `main.tsx`, `types.ts`, `index.ts` de réexport).
-- MapLibre, `@house/ui` et les hooks sont simulés (`vi.mock`). Three.js est le vrai, sauf `WebGLRenderer` et `OrbitControls` (jsdom n'a pas de WebGL) ; doubles du canevas et des vidéos hors page : `src/test/canvas.ts`. React Compiler est coupé sous Vitest (`process.env.VITEST`) : il fausserait la couverture.
+- MapLibre, `@house/ui` et les hooks sont simulés (`vi.mock`). Three.js est le vrai, sauf `WebGLRenderer` et `OrbitControls` (jsdom n'a pas de WebGL) ; doubles du canevas, des images et des vidéos hors page : `src/test/canvas.ts`. React Compiler est coupé sous Vitest (`process.env.VITEST`) : il fausserait la couverture.
 - Vérifications : `npm run typecheck && npm run lint && npm run test:coverage && npm run build`.
 - Déploiement : `../docs/deploiement.md` (la WebApp part avec l'API).

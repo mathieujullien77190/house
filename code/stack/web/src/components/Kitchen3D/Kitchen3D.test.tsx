@@ -1,12 +1,16 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import type * as THREE from 'three'
+import * as THREE from 'three'
 import type { PlanLamp } from '@house/ui'
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT } from '@/components/MapPlan/constants'
+import { liveSrc } from '@/lib/live'
 import { stubCanvasContext } from '@/test/canvas'
-import { LAMP_LIGHT, NO_WEBGL_TEXT, PLAN_HOUSE, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
+import type { AcUnit, ShutterCommand, ShuttersState } from '@/types'
+import { DAYLIGHT, LAMP_LIGHT, LAYOUT, NO_WEBGL_TEXT, PLAN_HOUSE, ROOM, SCREEN_SHARE, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
 import Kitchen3D from './Kitchen3D'
-import type { SceneParts } from './types'
+import { AC_LED, screenDistance } from './live'
+import { SHUTTER_KEYS, SHUTTER_TRAVEL_S } from './shutters'
+import type { SceneCamera, SceneParts, ScreenFeed } from './types'
 
 interface FakeRenderer {
   domElement: HTMLCanvasElement
@@ -31,10 +35,17 @@ interface FakeControls {
 const h = vi.hoisted(() => ({
   supported: true,
   lamps: [] as PlanLamp[],
+  toggle: (() => undefined) as (id: string) => void,
+  units: null as AcUnit[] | null,
+  change: (() => undefined) as (id: string, change: { on: boolean }) => void,
+  shutters: null as ShuttersState | null,
+  send: (() => undefined) as (id: string, command: ShutterCommand) => void,
+  weather: null as { isDay: boolean; code: number } | null,
   planKeys: [] as string[],
   renderers: [] as FakeRenderer[],
   controls: [] as FakeControls[],
   parts: [] as SceneParts[],
+  feeds: [] as ScreenFeed[],
   resize: [] as (() => void)[],
   visibility: [] as ((entries: { isIntersecting: boolean }[]) => void)[],
   disconnected: [] as string[],
@@ -82,9 +93,12 @@ vi.mock('@/lib/usePlan', () => ({ usePlan: () => ({ items: { l1: { x: 1, y: 2 } 
 vi.mock('@/lib/useLampPlan', () => ({
   useLampPlan: (apiKey: string, items: Record<string, unknown>, enabled: boolean) => {
     h.planKeys.push(`${apiKey} ${Object.keys(items).join()} ${enabled}`)
-    return { lamps: h.lamps, toggle: () => undefined }
+    return { lamps: h.lamps, toggle: h.toggle }
   },
 }))
+vi.mock('@/lib/useAcUnits', () => ({ useAcUnits: () => ({ units: h.units, change: h.change }) }))
+vi.mock('@/lib/useShutters', () => ({ useShutters: () => ({ state: h.shutters, send: h.send }) }))
+vi.mock('@/lib/useWeather', () => ({ useWeather: () => h.weather }))
 // La scène est la vraie ; elle est seulement retenue pour y regarder la hotte et les lumières.
 vi.mock('./helpers', async (original) => {
   const actual = await original<typeof import('./helpers')>()
@@ -94,6 +108,18 @@ vi.mock('./helpers', async (original) => {
       const parts = actual.buildScene()
       h.parts.push(parts)
       return parts
+    },
+  }
+})
+// Les écrans sont les vrais ; ils sont seulement retenus pour suivre ce qu'on leur demande.
+vi.mock('./live', async (original) => {
+  const actual = await original<typeof import('./live')>()
+  return {
+    ...actual,
+    createScreenFeed: (root: THREE.Object3D) => {
+      const feed = actual.createScreenFeed(root)
+      h.feeds.push(feed)
+      return feed
     },
   }
 })
@@ -109,10 +135,29 @@ const lamp = (id: string, houseX: number, houseY: number, over: Partial<PlanLamp
   ...over,
 })
 
+const unit = (id: string, over: Partial<AcUnit> = {}): AcUnit => ({ id, name: id, reachable: true, power: true, ...over }) as AcUnit
+
+/** L'état des volets de la maison : un volet par nom, avec son dernier ordre. */
+const shuttersOf = (commands: Record<string, ShutterCommand | null>): ShuttersState => ({
+  mock: false,
+  shutters: Object.entries(commands).map(([name, lastCommand], index) => ({ id: `s${index + 1}`, name, lastCommand, lastAt: null, auto: null })),
+})
+
+const CAMERAS: SceneCamera[] = [
+  { name: 'voliere-toit', portrait: true },
+  { name: 'salon de jardin', portrait: false },
+]
+
 beforeEach(() => {
   h.supported = true
   h.lamps = []
-  for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
+  h.toggle = vi.fn()
+  h.units = null
+  h.change = vi.fn()
+  h.shutters = null
+  h.send = vi.fn()
+  h.weather = { isDay: true, code: 0 }
+  for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.feeds, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
   stubCanvasContext(null)
   vi.stubGlobal(
     'ResizeObserver',
@@ -140,12 +185,57 @@ beforeEach(() => {
 
 const host = () => screen.getByRole('img')
 const camera = () => h.controls[0].object
+const canvas = () => h.renderers[0].domElement
+const root = () => h.parts[0].root
 const lightsOf = (parts: SceneParts) => {
   const lights: THREE.PointLight[] = []
   parts.root.traverse((child) => {
     if ((child as THREE.PointLight).isPointLight) lights.push(child as THREE.PointLight)
   })
   return lights
+}
+
+/** L'objet de la scène marqué par `userData[tag] === value`. */
+const tagged = (tag: string, value: string): THREE.Mesh => {
+  let found: THREE.Object3D | null = null
+  root().traverse((child) => {
+    if (child.userData[tag] === value) found = child
+  })
+  if (!found) throw new Error(`rien n'est marqué ${tag} = ${value}`)
+  return found as THREE.Mesh
+}
+
+const worldOf = (object: THREE.Object3D): THREE.Vector3 => object.getWorldPosition(new THREE.Vector3())
+
+/** Place l'œil en `from` et le tourne vers `at` : le milieu de la vue vise `at` (les places de la scène sont remises à jour, comme le ferait un rendu). */
+const look = (from: THREE.Vector3, at: THREE.Vector3) => {
+  root().updateMatrixWorld(true)
+  const eye = camera()
+  eye.position.copy(from)
+  eye.lookAt(at)
+  eye.updateMatrixWorld(true)
+}
+
+/** Vise un objet depuis un point décalé de `offset` par rapport à lui. */
+const aim = (target: THREE.Object3D, offset: [number, number, number]) => {
+  const at = worldOf(target)
+  look(at.clone().add(new THREE.Vector3(...offset)), at)
+}
+
+/** Regarde le ciel : rien de la scène n'est sous le pointeur. */
+const lookAway = () => look(new THREE.Vector3(0, 50, 0), new THREE.Vector3(0, 100, 5))
+
+/** Un événement du pointeur sur la vue, au milieu par défaut (la vue fait 1000 × 520 px). */
+const pointer = (type: string, init: MouseEventInit = {}) => {
+  vi.spyOn(canvas(), 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 1000, height: 520 } as DOMRect)
+  act(() => {
+    canvas().dispatchEvent(new MouseEvent(type, { clientX: 500, clientY: 260, button: 0, buttons: 0, bubbles: true, ...init }))
+  })
+}
+
+const click = () => {
+  pointer('pointerdown')
+  pointer('pointerup')
 }
 
 describe('Kitchen3D', () => {
@@ -236,10 +326,10 @@ describe('Kitchen3D', () => {
 
   it('les lampes Hue de l’espace de vie éclairent la scène, à chaque changement', () => {
     h.lamps = [
-      lamp('cuisine', 300, 70, { brightness: 127, color: '#ff8800' }),
-      lamp('salon', 300, 220, { on: false }),
+      lamp('plan-cuisine', 300, 70, { brightness: 127, color: '#ff8800' }),
+      lamp('plan-salon', 300, 220, { on: false }),
       lamp('a-placer', 300, 70, { waiting: true }),
-      lamp('chambre', 100, 100),
+      lamp('plan-chambre', 100, 100),
     ]
     const view = render(<Kitchen3D apiKey="k" />)
     expect(screen.getByText('1 lampe allumée sur 2 dans la pièce')).toBeInTheDocument()
@@ -247,34 +337,405 @@ describe('Kitchen3D', () => {
     expect(lights.map((light) => light.intensity)).toEqual([expect.closeTo((127 / 254) * LAMP_LIGHT.intensity), 0])
     expect(lights[0].color.getHexString()).toBe('ff8800')
     // La lampe du salon s'allume, sans couleur ni luminosité : blanc chaud, pleine puissance.
-    h.lamps = [h.lamps[0], lamp('salon', 300, 220), h.lamps[2], h.lamps[3]]
+    h.lamps = [h.lamps[0], lamp('plan-salon', 300, 220), h.lamps[2], h.lamps[3]]
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(screen.getByText('2 lampes allumées sur 2 dans la pièce')).toBeInTheDocument()
     expect(lightsOf(h.parts[0]).map((light) => light.intensity)).toEqual([expect.closeTo((127 / 254) * LAMP_LIGHT.intensity), LAMP_LIGHT.intensity])
     // Une lampe injoignable n'éclaire pas ; une lampe retirée du pont quitte la scène.
-    h.lamps = [lamp('cuisine', 300, 70, { reachable: false })]
+    h.lamps = [lamp('plan-cuisine', 300, 70, { reachable: false })]
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(screen.getByText('0 lampe allumée sur 1 dans la pièce')).toBeInTheDocument()
     expect(lightsOf(h.parts[0]).map((light) => light.intensity)).toEqual([0])
     expect(h.renderers).toHaveLength(1)
   })
 
+  it('une lampe dont le luminaire est nommé dans la scène y est, même hors de l’espace de vie ou sans place sur le plan', () => {
+    h.lamps = [lamp('l1', 100, 100, { name: 'Chambre' }), lamp('l2', 300, 70, { name: ' Couloir ', waiting: true }), lamp('l3', 100, 100, { name: 'Garage' })]
+    render(<Kitchen3D apiKey="k" />)
+    expect(screen.getByText('2 lampes allumées sur 2 dans la pièce')).toBeInTheDocument()
+    const [bedroom, corridor] = lightsOf(h.parts[0])
+    // La lumière part de leur luminaire, un peu sous l'ampoule.
+    const under = (name: string) => worldOf(tagged('fixtureName', name)).add(new THREE.Vector3(0, -0.12, 0))
+    expect(bedroom.position.distanceTo(under('chambre'))).toBeCloseTo(0)
+    expect(corridor.position.distanceTo(under('couloir'))).toBeCloseTo(0)
+  })
+
   it('au démontage : la boucle s’arrête, tout est libéré et le contexte WebGL est rendu', () => {
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon' })]
     const view = render(<Kitchen3D apiKey="k" />)
     const [renderer] = h.renderers
-    const canvas = renderer.domElement
+    const drawing = renderer.domElement
     const floor = h.parts[0].root.children[0].children[0] as THREE.Mesh
     const dispose = vi.spyOn(floor.geometry, 'dispose')
+    const closeFeeds = vi.spyOn(h.feeds[0], 'dispose')
     const element = host()
+    aim(tagged('fixtureName', 'salon'), [1, -0.5, 1])
     view.unmount()
     expect(h.cancelled).toEqual([1])
     expect(h.disconnected.sort()).toEqual(['resize', 'visibility'])
     expect(h.controls[0].dispose).toHaveBeenCalledTimes(1)
     expect(dispose).toHaveBeenCalledTimes(1)
+    expect(closeFeeds).toHaveBeenCalledTimes(1)
     expect(renderer.dispose).toHaveBeenCalledTimes(1)
     expect(renderer.forceContextLoss).toHaveBeenCalledTimes(1)
-    expect(canvas.isConnected).toBe(false)
-    // L'écouteur du clic molette est retiré.
+    expect(drawing.isConnected).toBe(false)
+    // L'écouteur du clic molette est retiré, ceux du pointeur aussi.
     expect(fireEvent.mouseDown(element, { button: 1 })).toBe(true)
+    click()
+    expect(h.toggle).not.toHaveBeenCalled()
+  })
+})
+
+describe('Kitchen3D : le pointeur', () => {
+  it('devient une main au-dessus d’une ampoule, d’une clim, d’un écran ou d’une fenêtre à volet', () => {
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon' })]
+    render(<Kitchen3D apiKey="k" />)
+    lookAway()
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('')
+    aim(tagged('fixtureName', 'salon'), [1, -0.5, 1])
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
+    lookAway()
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('')
+    aim(tagged('acUnit', 'chambre-invite'), [-1.5, 0, 0])
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
+    // Pendant qu'on glisse (un bouton enfoncé), le curseur ne change pas.
+    lookAway()
+    pointer('pointermove', { buttons: 1 })
+    expect(canvas().style.cursor).toBe('pointer')
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('')
+    aim(tagged('cameraScreen', 'tv'), [0, 0, 2])
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
+    lookAway()
+    pointer('pointermove')
+    aim(tagged('shutter', 'cuisine'), [-1.5, 0, 0])
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
+  })
+
+  it('un clic sans glisser sur une ampoule allume ou éteint sa lampe', () => {
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon' })]
+    render(<Kitchen3D apiKey="k" />)
+    aim(tagged('fixtureName', 'salon'), [1, -0.5, 1])
+    click()
+    expect(h.toggle).toHaveBeenCalledExactlyOnceWith('l1')
+    // Glisser (tourner la vue) n'est pas cliquer ; un autre bouton non plus ; ni un relâchement sans appui.
+    pointer('pointerdown')
+    pointer('pointerup', { clientX: 520 })
+    pointer('pointerdown', { button: 2 })
+    pointer('pointerup', { button: 2 })
+    pointer('pointerup')
+    expect(h.toggle).toHaveBeenCalledTimes(1)
+    // Un tremblement de quelques pixels reste un clic.
+    pointer('pointerdown')
+    pointer('pointerup', { clientX: 503, clientY: 257 })
+    expect(h.toggle).toHaveBeenCalledTimes(2)
+  })
+
+  it('la scène appelle toujours le `toggle` du moment', () => {
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon' })]
+    const view = render(<Kitchen3D apiKey="k" />)
+    const first = h.toggle
+    h.toggle = vi.fn()
+    view.rerender(<Kitchen3D apiKey="k" />)
+    aim(tagged('fixtureName', 'salon'), [1, -0.5, 1])
+    click()
+    expect(first).not.toHaveBeenCalled()
+    expect(h.toggle).toHaveBeenCalledExactlyOnceWith('l1')
+  })
+
+  it('un clic dans le vide ne fait rien', () => {
+    h.units = [unit('salon')]
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up' })
+    render(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
+    const show = vi.spyOn(h.feeds[0], 'show')
+    lookAway()
+    click()
+    expect(h.toggle).not.toHaveBeenCalled()
+    expect(h.change).not.toHaveBeenCalled()
+    expect(h.send).not.toHaveBeenCalled()
+    expect(show).not.toHaveBeenCalled()
+  })
+})
+
+describe('Kitchen3D : les clims', () => {
+  it('un clic sur une clim l’allume ou l’éteint', () => {
+    h.units = [unit('salon'), unit('chambre-invite', { power: false })]
+    render(<Kitchen3D apiKey="k" />)
+    aim(tagged('acUnit', 'salon'), [0, -0.5, -2])
+    click()
+    expect(h.change).toHaveBeenCalledExactlyOnceWith('salon', { on: false })
+    aim(tagged('acUnit', 'chambre-invite'), [-1.5, 0, 0])
+    click()
+    expect(h.change).toHaveBeenLastCalledWith('chambre-invite', { on: true })
+  })
+
+  it('sans état connu (pas encore lue, injoignable, absente) : le clic ne fait rien', () => {
+    const view = render(<Kitchen3D apiKey="k" />)
+    aim(tagged('acUnit', 'salon'), [0, -0.5, -2])
+    click()
+    h.units = [unit('salon', { reachable: false }), unit('matou')]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    click()
+    aim(tagged('acUnit', 'chambre-invite'), [-1.5, 0, 0])
+    click()
+    expect(h.change).not.toHaveBeenCalled()
+  })
+
+  it('le voyant de chaque clim suit la vraie : gris, vert, rouge', () => {
+    const colorOf = (id: string) => (tagged('acLed', id).material as THREE.MeshBasicMaterial).color.getHex()
+    const view = render(<Kitchen3D apiKey="k" />)
+    expect([colorOf('salon'), colorOf('chambre-invite')]).toEqual([AC_LED.unknown, AC_LED.unknown])
+    h.units = [unit('salon'), unit('chambre-invite', { power: false })]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect([colorOf('salon'), colorOf('chambre-invite')]).toEqual([AC_LED.on, AC_LED.off])
+    h.units = [unit('salon', { reachable: false }), unit('chambre-invite')]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect([colorOf('salon'), colorOf('chambre-invite')]).toEqual([AC_LED.unknown, AC_LED.on])
+  })
+})
+
+describe('Kitchen3D : les écrans', () => {
+  it('un clic sur la télé vient se placer devant elle et y montre les caméras, une par clic, puis l’éteint', () => {
+    render(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
+    const show = vi.spyOn(h.feeds[0], 'show')
+    const tv = tagged('cameraScreen', 'tv')
+    const center = worldOf(tv)
+    aim(tv, [0.3, 0.2, 2])
+    h.controls[0].update.mockClear()
+    click()
+    // Bien en face (la télé regarde vers +z), à la distance où elle occupe les deux tiers de la vue.
+    const { width, height } = (tv.geometry as THREE.BoxGeometry).parameters
+    const distance = screenDistance(width, height, camera().fov, camera().aspect, SCREEN_SHARE)
+    expect(camera().position.distanceTo(center.clone().add(new THREE.Vector3(0, 0, distance)))).toBeCloseTo(0)
+    expect(h.controls[0].target.distanceTo(center)).toBeCloseTo(0)
+    expect(h.controls[0].update).toHaveBeenCalledTimes(1)
+    expect(show).toHaveBeenLastCalledWith('tv', liveSrc('voliere-toit'), true)
+    // Les autres écrans restent éteints.
+    expect(show).toHaveBeenCalledWith('left', null, undefined)
+    aim(tv, [0, 0, 2])
+    click()
+    expect(show).toHaveBeenLastCalledWith('tv', liveSrc('salon de jardin'), false)
+    aim(tv, [0, 0, 2])
+    click()
+    expect(show).toHaveBeenLastCalledWith('tv', null, undefined)
+    aim(tv, [0, 0, 2])
+    click()
+    expect(show).toHaveBeenLastCalledWith('tv', liveSrc('voliere-toit'), true)
+  })
+
+  it('les deux écrans du bureau se regardent ensemble : la vue se centre entre eux et les cadre tous les deux', () => {
+    render(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
+    const show = vi.spyOn(h.feeds[0], 'show')
+    const left = tagged('cameraScreen', 'left')
+    const right = tagged('cameraScreen', 'right')
+    const middle = worldOf(left).lerp(worldOf(right), 0.5)
+    const { width, height } = (left.geometry as THREE.BoxGeometry).parameters
+    // Ils regardent le fauteuil (−z) : la vue recule de ce côté, assez pour les deux écrans et l'écart entre eux.
+    const distance = screenDistance(width + 0.6, height, camera().fov, camera().aspect, SCREEN_SHARE)
+    const expected = middle.clone().add(new THREE.Vector3(0, 0, -distance))
+    aim(left, [0, 0, -1.5])
+    click()
+    expect(middle.x).toBeCloseTo(LAYOUT.desk.x)
+    expect(camera().position.distanceTo(expected)).toBeCloseTo(0)
+    expect(h.controls[0].target.distanceTo(middle)).toBeCloseTo(0)
+    expect(show).toHaveBeenCalledWith('left', liveSrc('voliere-toit'), true)
+    expect(show).toHaveBeenCalledWith('right', null, undefined)
+    camera().position.set(0, 0, 0)
+    aim(right, [0, 0, -1.5])
+    click()
+    expect(camera().position.distanceTo(expected)).toBeCloseTo(0)
+    expect(show).toHaveBeenCalledWith('right', liveSrc('voliere-toit'), true)
+  })
+
+  it('sans caméra, un écran cliqué reste éteint ; un écran dont on ne sait pas la place ne déplace pas la vue', () => {
+    render(<Kitchen3D apiKey="k" />)
+    const show = vi.spyOn(h.feeds[0], 'show')
+    vi.spyOn(h.feeds[0], 'frame').mockReturnValue(null)
+    const tv = tagged('cameraScreen', 'tv')
+    aim(tv, [0, 0, 2])
+    const from = camera().position.clone()
+    click()
+    expect(camera().position.equals(from)).toBe(true)
+    expect(show).not.toHaveBeenCalled()
+  })
+
+  it('le bouton « Voir » d’un écran ouvre la page de la caméra qu’il montre', () => {
+    const onOpenCamera = vi.fn()
+    const view = render(<Kitchen3D apiKey="k" cameras={CAMERAS} onOpenCamera={onOpenCamera} />)
+    const tv = tagged('cameraScreen', 'tv')
+    const button = tv.children[0]
+    // Écran éteint : pas de bouton, le clic à cet endroit touche l'écran et y ouvre la première caméra.
+    aim(button, [0, 0, 1])
+    click()
+    expect(onOpenCamera).not.toHaveBeenCalled()
+    expect(button.visible).toBe(true)
+    aim(button, [0, 0, 1])
+    click()
+    expect(onOpenCamera).toHaveBeenCalledExactlyOnceWith('voliere-toit')
+    // Sans page à ouvrir, le bouton ne fait rien (et ne change pas de caméra).
+    const show = vi.spyOn(h.feeds[0], 'show')
+    view.rerender(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
+    click()
+    expect(onOpenCamera).toHaveBeenCalledTimes(1)
+    expect(show).not.toHaveBeenCalled()
+  })
+
+  it('le bouton d’un écran qui ne montre rien n’ouvre rien', () => {
+    const onOpenCamera = vi.fn()
+    render(<Kitchen3D apiKey="k" cameras={CAMERAS} onOpenCamera={onOpenCamera} />)
+    vi.spyOn(h.feeds[0], 'button').mockReturnValue('right')
+    lookAway()
+    click()
+    expect(onOpenCamera).not.toHaveBeenCalled()
+  })
+})
+
+describe('Kitchen3D : les volets et le jour', () => {
+  const slatsOf = (key: string) => tagged('shutter', key)
+  const shownOf = (key: string) => slatsOf(key).children.filter((slat) => slat.visible).length
+  const lightsOfScene = () => {
+    const [scene] = h.renderers[0].render.mock.calls[0] as [THREE.Scene]
+    const ambient = scene.children.find((child) => (child as THREE.HemisphereLight).isHemisphereLight) as THREE.HemisphereLight
+    const sun = scene.children.find((child) => (child as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight
+    return { ambient, sun }
+  }
+
+  it('les volets de la scène suivent ceux de la maison ; sans état connu, ils sont à moitié', () => {
+    const view = render(<Kitchen3D apiKey="k" />)
+    for (const key of SHUTTER_KEYS) expect(shownOf(key)).toBe(Math.round(slatsOf(key).children.length / 2))
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet Salon': 'up', 'Volet PC': 'stop', 'Volet porte': null })
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(shownOf('cuisine')).toBe(slatsOf('cuisine').children.length)
+    expect(shownOf('salon')).toBe(0)
+    expect(shownOf('pc')).toBe(Math.round(slatsOf('pc').children.length / 2))
+    expect(shownOf('porte')).toBe(Math.round(slatsOf('porte').children.length / 2))
+  })
+
+  it('le jour qui entre : la part de vitre découverte, fois la clarté du ciel ; « Volets réels » relâché, tout est ouvert', () => {
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'down', 'Volet PC': 'down', 'Volet porte': 'down' })
+    const view = render(<Kitchen3D apiKey="k" />)
+    const { ambient, sun } = lightsOfScene()
+    // Tout fermé : il ne reste que l'ambiance de nuit.
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
+    expect(sun.intensity).toBe(0)
+    const real = screen.getByRole('button', { name: 'Volets réels' })
+    expect(real).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(real)
+    expect(real).toHaveAttribute('aria-pressed', 'false')
+    expect(shownOf('cuisine')).toBe(0)
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
+    // Le ciel se couvre, puis la nuit tombe.
+    h.weather = { isDay: true, code: 3 }
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * 0.7)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun * 0.7)
+    h.weather = { isDay: false, code: 0 }
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
+    fireEvent.click(real)
+    expect(shownOf('cuisine')).toBe(slatsOf('cuisine').children.length)
+  })
+
+  it('un clic sur une fenêtre envoie l’ordre contraire du dernier à son volet', () => {
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'up', 'Volet porte': 'stop' })
+    render(<Kitchen3D apiKey="k" />)
+    aim(slatsOf('cuisine'), [-1.5, 0, 0])
+    click()
+    expect(h.send).toHaveBeenCalledExactlyOnceWith('s1', 'up')
+    aim(slatsOf('salon'), [1.5, 0, 0])
+    click()
+    expect(h.send).toHaveBeenLastCalledWith('s2', 'down')
+    // Le long du mur des baies, deux fenêtres sont sous le pointeur : c'est la plus proche de l'œil, la porte-fenêtre.
+    const wallX = worldOf(slatsOf('porte')).x + 0.03
+    look(new THREE.Vector3(wallX, 1.5, ROOM.zMin - 1.5), new THREE.Vector3(wallX, 1.5, 10))
+    click()
+    expect(h.send).toHaveBeenLastCalledWith('s3', 'down')
+    // De l'autre bout du mur, la fenêtre du bureau d'abord : elle n'a pas de volet connu de la maison.
+    look(new THREE.Vector3(wallX, 1.5, ROOM.zMax + 1), new THREE.Vector3(wallX, 1.5, -10))
+    click()
+    expect(h.send).toHaveBeenCalledTimes(3)
+  })
+
+  it('sans état des volets, un clic sur une fenêtre ne fait rien', () => {
+    render(<Kitchen3D apiKey="k" />)
+    aim(slatsOf('cuisine'), [-1.5, 0, 0])
+    click()
+    expect(h.send).not.toHaveBeenCalled()
+  })
+
+  it('seul un volet cliqué bouge à l’écran : ses lames avancent du temps écoulé ; passé le délai, les volets se placent d’un coup', () => {
+    let now = 1000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down' })
+    const view = render(<Kitchen3D apiKey="k" />)
+    const slats = slatsOf('cuisine')
+    expect(slats.userData.level).toBe(1)
+    aim(slats, [-1.5, 0, 0])
+    click()
+    expect(h.send).toHaveBeenCalledExactlyOnceWith('s1', 'up')
+    // La maison confirme l'ordre : le volet garde sa place et monte peu à peu.
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up' })
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(slats.userData).toMatchObject({ goal: 0, level: 1 })
+    now += 100
+    act(() => h.frames[0]())
+    expect(slats.userData.level).toBeCloseTo(1 - 0.1 / SHUTTER_TRAVEL_S)
+    // Après une pause de l'onglet, un pas d'un quart de seconde au plus.
+    now += 60_000
+    act(() => h.frames[1]())
+    expect(slats.userData.level).toBeCloseTo(1 - 0.35 / SHUTTER_TRAVEL_S)
+    // Le délai d'animation est passé : un changement venu d'ailleurs se place d'un coup.
+    expect(now).toBeGreaterThan(1000 + SHUTTER_ANIMATE_MS)
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down' })
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(slats.userData.level).toBe(1)
+    expect(shownOf('cuisine')).toBe(slats.children.length)
+  })
+})
+
+describe('Kitchen3D : l’heure', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('la pendule de la cuisine donne l’heure, remise à jour toutes les quinze secondes', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 26, 9, 0, 0))
+    const view = render(<Kitchen3D apiKey="k" />)
+    const hour = tagged('clockHand', 'hour')
+    const minute = tagged('clockHand', 'minute')
+    expect(hour.rotation.z).toBeCloseTo((9 / 12) * Math.PI * 2)
+    expect(minute.rotation.z).toBeCloseTo(0)
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
+    expect(minute.rotation.z).toBeCloseTo((0.5 / 60) * Math.PI * 2)
+    // Démontée, la pendule s'arrête.
+    view.unmount()
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(minute.rotation.z).toBeCloseTo((0.5 / 60) * Math.PI * 2)
+  })
+
+  it('sans météo, le jour qui entre suit l’heure : jour moyen à midi, nuit à 22 h', () => {
+    h.weather = null
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 26, 12, 0, 0))
+    const view = render(<Kitchen3D apiKey="k" />)
+    const [scene] = h.renderers[0].render.mock.calls[0] as [THREE.Scene]
+    const ambient = scene.children.find((child) => (child as THREE.HemisphereLight).isHemisphereLight) as THREE.HemisphereLight
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * 0.7)
+    vi.setSystemTime(new Date(2026, 10, 26, 22, 0, 0))
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
   })
 })

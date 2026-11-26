@@ -40,12 +40,12 @@ describe('lampPlace', () => {
   })
 })
 
-const lamp = (id: string, x: number, z: number, over: Partial<SceneLamp> = {}): SceneLamp => ({ id, x, z, on: true, reachable: true, brightness: 254, color: null, ...over })
+const lamp = (id: string, x: number, z: number, over: Partial<SceneLamp> = {}): SceneLamp => ({ id, name: id, x, z, on: true, reachable: true, brightness: 254, color: null, ...over })
 
-/** Une scène de deux luminaires (dont un dans un groupe déplacé) et d'un meuble sans ampoule. */
-const stage = () => {
+/** Une scène de deux luminaires (dont un dans un groupe déplacé ; `name` : le nom de lampe du premier) et d'un meuble sans ampoule. */
+const stage = (name?: string) => {
   const root = new THREE.Group()
-  const first = fixtureBulb(cylinder(0.05, 0.05, 0.1, standard(0xffffff, 1), 0, 2, 0))
+  const first = fixtureBulb(cylinder(0.05, 0.05, 0.1, standard(0xffffff, 1), 0, 2, 0), name)
   const holder = new THREE.Group()
   holder.position.set(1, 0, 0)
   const second = fixtureBulb(cylinder(0.05, 0.05, 0.1, standard(0xffffff, 1), 0, 1.9, 0))
@@ -128,5 +128,53 @@ describe('createLighting', () => {
     expect(colorOf(first).getHex()).toBe(BULB_OFF)
     lighting.apply([])
     expect(group.children).toHaveLength(0)
+  })
+
+  it('le nom passe avant la place : la lampe qui porte le nom d’un luminaire est la sienne, où qu’elle soit', () => {
+    const { lighting, lights, owns, first, second, colorOf } = stage('salon')
+    // « near » est tout contre le luminaire nommé, mais c'est « Salon », loin de tout, qui le prend ; une seconde lampe du même nom n'en a pas.
+    lighting.apply([lamp('near', 0, 0), lamp('named', 4, 4, { name: ' Salon ', color: '#0000ff' }), lamp('twin', 4, 4, { name: 'salon' })])
+    const [near, named, twin] = lights()
+    expect(named.position.toArray()).toEqual([0, 2 - 0.12, 0])
+    expect(colorOf(first).getHex()).toBe(new THREE.Color('#0000ff').lerp(new THREE.Color(0xffffff), 0.35).getHex())
+    // « near » se rabat sur l'autre luminaire, à un mètre ; la jumelle garde une ampoule nue.
+    expect(near.position.x).toBeCloseTo(1)
+    expect(colorOf(second).getHex()).not.toBe(BULB_OFF)
+    expect(twin.position.toArray()).toEqual([4, LAMP_LIGHT.height - 0.12, 4])
+    expect(owns().map((own) => own.visible)).toEqual([false, false, true])
+  })
+})
+
+describe('pick', () => {
+  /** Un rayon horizontal le long de x, à la hauteur `y` et à la profondeur `z`, parti de `fromX` vers les x croissants. */
+  const ray = (fromX: number, y: number, z: number) => new THREE.Ray(new THREE.Vector3(fromX, y, z), new THREE.Vector3(1, 0, 0))
+
+  it('sans lampe, ou loin de toute ampoule : rien', () => {
+    const { lighting } = stage()
+    expect(lighting.pick(ray(-5, 2, 0))).toBeNull()
+    lighting.apply([lamp('a', 0, 0), lamp('c', 1, 0)])
+    expect(lighting.pick(ray(-5, 2, 1))).toBeNull()
+    // Une ampoule derrière l'œil ne compte pas.
+    expect(lighting.pick(ray(5, 2, 0))).toBeNull()
+  })
+
+  it('le rayon qui traverse une ampoule la désigne, la plus proche de l’œil si deux sont alignées', () => {
+    const { lighting } = stage()
+    // a prend le premier luminaire (0, 2, 0) ; b, sans luminaire à portée, a son ampoule nue à 4 m, dix centimètres plus haut.
+    lighting.apply([lamp('b', 4, 0), lamp('a', 0, 0)])
+    expect(lighting.pick(ray(-5, 2.02, 0))).toBe('a')
+    expect(lighting.pick(ray(1.5, LAMP_LIGHT.height, 0.01))).toBe('b')
+    // Vu de l'autre bout, en visant entre les deux hauteurs : b d'abord.
+    expect(lighting.pick(new THREE.Ray(new THREE.Vector3(8, 2.05, 0), new THREE.Vector3(-1, 0, 0)))).toBe('b')
+  })
+
+  it('sinon, l’ampoule la plus près du rayon, à moins du rayon de visée', () => {
+    const { lighting } = stage()
+    lighting.apply([lamp('a', 0, 0), lamp('c', 1, 0)])
+    // Le rayon passe à 15 cm du premier luminaire (y = 2) et à 25 cm du second (y = 1,9) : trop loin pour le traverser, assez près du premier.
+    expect(lighting.pick(ray(-5, 2.15, 0))).toBe('a')
+    // À 10 cm de l'un et 20 cm de l'autre, parti de l'autre côté : toujours le plus près du rayon.
+    expect(lighting.pick(new THREE.Ray(new THREE.Vector3(5, 2.1, 0), new THREE.Vector3(-1, 0, 0)))).toBe('a')
+    expect(lighting.pick(ray(-5, 1.75, 0))).toBe('c')
   })
 })

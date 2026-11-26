@@ -8,10 +8,19 @@ export const VIEW_HEIGHT = 520
 export const TITLE = 'Séjour et cuisine en 3D (test)'
 export const INTRO =
   'Un essai d’après les photos : tout l’espace de vie. La cuisine en U (caissons bleu nuit à cadre et poignées coquille, plan de travail en lames de bois clair, plaque à induction sous une hotte inox, évier de ferme blanc qui dépasse, lave-vaisselle, crédence de quatre rangées de carreaux), le séjour (canapé d’angle, télé, baies vitrées), la salle à manger ronde, le coin bureau, le coin repas avec le frigo et l’entrée ; parquet partout, lambris blanc au plafond et plaque de plâtre dans la cuisine. Positions et dimensions estimées, à corriger.'
-export const HINT = 'Glisse (clic gauche ou clic molette) pour tourner, clic droit pour déplacer, molette (ou pincement) pour zoomer.'
+export const HINT = 'Glisse (clic gauche ou clic molette) pour tourner, clic droit pour déplacer, molette (ou pincement) pour zoomer. Clique une ampoule ou la clim pour l’allumer ou l’éteindre, une fenêtre pour monter ou descendre son volet, un écran du bureau ou la télé pour y voir les caméras.'
 export const ARIA_LABEL =
   'Cuisine en U en 3D : caissons bas bleu nuit, plan de travail en bois, plaque à induction sous une hotte en inox, évier de ferme blanc, lave-vaisselle et parquet : glisser pour tourner, molette pour zoomer'
+/** Les lampes Hue dont le luminaire est dessiné et nommé dans la scène (noms du pont, en minuscules) : elles s'y allument même sans place sur le plan. */
+export const LAMP_FIXTURES = ['salon', 'salle à manger', 'ordi 1', 'ordi 2', 'cuisine 1', 'cuisine 2', 'bar 1', 'bar 2', 'entrée', 'couloir', 'chambre', 'sdb 1', 'sdb 3', 'sdb 4', 'sdb 5', 'sdb 6', 'sdb 7']
 export const HOOD_LABEL = 'Hotte'
+/** Le bouton qui fait suivre aux volets de la vue ceux de la maison (enfoncé à l'ouverture) ; relâché, ils sont tous ouverts. */
+export const SHUTTERS_LABEL = 'Volets réels'
+/**
+ * La lumière du jour, mise d'une manière générale (pas de rayon par fenêtre) : l'ambiance de nuit (`night`), ce que le plein jour y ajoute
+ * tous volets ouverts (`day`), et la force du soleil qui porte les ombres (`sun`). Entre les deux, elle suit la part de vitre découverte et le ciel.
+ */
+export const DAYLIGHT = { night: 0.2, day: 1.9, sun: 1.5 }
 export const RESET_LABEL = 'Réinitialiser la vue'
 export const TOP_LABEL = 'Vue du dessus'
 export const NO_WEBGL_TEXT = 'La vue 3D demande WebGL, que ce navigateur ne propose pas.'
@@ -22,27 +31,32 @@ export const NO_WEBGL_TEXT = 'La vue 3D demande WebGL, que ce navigateur ne prop
  * et **z croît vers l'est** (z min : le mur ouest de la télé et de la hotte, z max : le mur est du bureau et de la porte d'entrée).
  * La largeur nord-sud de la cuisine (2,8 m) vient des photos (le plan la donne plus large) ; la longueur ouest-est (7,4 m) vient du plan.
  */
-export const ROOM = { xMin: -5.48, xMax: 1.4, zMin: -1.5, zMax: 5.99, height: 2.38 }
+export const ROOM = { xMin: -5.48, xMax: 1.4, zMin: -1.5, zMax: 5.95, height: 2.36 }
 /** La cuisine : du mur ouest au mur de l'escalier (4,8 m), entre le mur des fenêtres et la cloison de bar. Son plafond est en plaque de plâtre, le reste de la pièce a un lambris blanc. */
-export const KITCHEN = { xMin: -1.4, xMax: 1.4, zMin: -1.2, zMax: 3.47 }
-/** L'entrée : un couloir sous l'escalier, entre la cuisine et la porte du mur est ; le claustra (x) le sépare du salon à partir du poteau (z). */
-export const ENTRY = { x: -2.56, postZ: 2.74, claustraZ: 3.85, wallZ: 4.71, doorZ: 4.94, doorX: -1.84, doorWidth: 0.98, doorHeight: 2.11, northX: -0.68, muret: 0.58 }
-/** Le retour de mur à droite du frigo : un bout de mur qui part du mur de l'escalier et revient de 50 cm vers le bar, à la limite de la cuisine et du salon. */
-export const FRIDGE_WALL = { length: 0.5 }
+export const KITCHEN = { xMin: -1.4, xMax: 1.4, zMin: -1.2, zMax: 3.39 }
+/** L'entrée : un couloir sous l'escalier, entre la cuisine et la porte du mur est ; le claustra (x) le sépare du salon à partir du poteau (z). Mesuré face à la porte : 19 cm de mur à droite (côté claustra), 3 cm à gauche, puis le mur nord revient de 1,43 m (`depth`) avant de rejoindre, 23,5 cm plus au sud, le retour de mur du frigo. */
+export const ENTRY = { x: -2.59, postZ: 2.74, claustraZ: 3.85, wallZ: 4.71, doorZ: 4.94, doorX: -1.88, doorWidth: 0.98, doorHeight: 2.11, northX: -1.36, depth: 1.43, muret: 0.86 }
+/** Le retour de mur à droite du frigo : un bout de mur qui part du mur de l'escalier et revient vers le bar (61 cm côté entrée, 49 cm côté cuisine), à la limite de la cuisine et du salon. */
+export const FRIDGE_WALL = { length: 0.49 }
 /** Où se trouvent les meubles (centres, en mètres), d'après les photos : à corriger avec les vraies cotes. */
 export const LAYOUT = {
-  tv: { x: -4, width: 1.5 },
-  door: { x: -2.05, width: 0.8 },
-  pouf: { x: -2.85, z: -1.15 },
-  sofa: { x: -4.03, z: 1.7 },
-  coffee: { x: -3.35, z: 0.45 },
-  armchair: { x: -2.2, z: 1.9 },
-  dining: { x: -4, z: 3.75 },
-  desk: { x: -3.8, z: 5.6 },
+  tv: { x: -3.95, width: 1.25 },
+  door: { x: -2.05, width: 0.73 },
+  pouf: { x: -2.72, z: -1.15 },
+  sofa: { x: -4.35, z: 1.5 },
+  coffee: { x: -3.75, z: 0.45 },
+  armchair: { x: -2.84, z: 1.45 },
+  dining: { x: -4, z: 3.15 },
+  desk: { x: -3.72, z: 5.56 },
   libraryWindow: { z: 4.63 },
-  bistro: { x: 0.95, z: 2.35 },
-  cellar: { x: -0.08 },
-  fridge: { x: -1.08 },
+  bays: { door: { z: -0.55, width: 1.2 }, window: { z: 1.55, width: 2.2, height: 1.25, bottom: 0.95 }, curtains: [-1.32, 0.25, 2.46] },
+  // Le buffet va du dernier rideau (son bord est à 2,61) jusqu'à 10 cm de la fenêtre du bureau.
+  sideboard: { z: 3.33, width: 1.4, depth: 0.4, height: 0.9 },
+  bistro: { x: 0.13, z: 2.53 },
+  nookLamp: { x: 0.3, z: 2.35 },
+  puzzle: { x: KITCHEN.xMin, y: 1.72, z: -0.5, width: 0.8, height: 0.58 },
+  cellar: { x: 0.13 },
+  fridge: { x: -0.925 },
 }
 
 /** Un caisson bas : un socle en retrait, le corps, puis le plan de travail de 4 cm (85 cm au total). Les façades ont un cadre de 5,5 cm qui dépasse de 6 mm du panneau. */
@@ -80,15 +94,15 @@ export const RUNS: RunSpec[] = [
   },
   {
     id: 'left',
-    x: -0.8,
-    z: 1.3,
+    x: -0.75,
+    z: 1.33,
     angle: Math.PI / 2,
     modules: [
       { kind: 'wine', width: 0.2 },
       { kind: 'drawers', width: 0.9 },
       { kind: 'door', width: 0.4 },
       { kind: 'door', width: 0.4 },
-      { kind: 'door', width: 0.6 },
+      { kind: 'door', width: 0.63 },
     ],
   },
 ]
@@ -104,10 +118,10 @@ export const SINK = { width: 0.6, depth: 0.52, height: 0.22, wall: 0.04, above: 
 /** Le carrelage beige (métro) entre le plan de travail et les étagères. */
 export const TILES = { height: 0.3 }
 /** Entre la cuisine et le salon, depuis le mur ouest : un mur plein de 1,60 m (jusqu'à la porte du couloir, dans l'angle), puis le bar de 1,20 m (un muret coiffé d'une tablette en bois, lambris bleu côté salon), puis l'ouverture. */
-export const PARTITION = { wall: 1.59, bar: 1.24, height: 1.09, thickness: 0.18, topWidth: 0.34 }
-export const WINDOWS = { z: [-0.6, 0.3], width: 0.6, height: 1.15, bottom: 1.12 }
+export const PARTITION = { wall: 1.59, bar: 1.24, height: 1.09, thickness: 0.22, topWidth: 0.34, ledge: 0.05 }
+export const WINDOWS = { z: [-0.6, 0.45], width: 0.6, height: 2.27 - (COUNTER_TOP + TILES.height + 0.04), bottom: COUNTER_TOP + TILES.height + 0.04 }
 /** La fenêtre du coin repas, à côté de la petite table. */
-export const NOOK_WINDOW = { z: 2.35, width: 1.2, height: 1.15, bottom: 1.12 }
+export const NOOK_WINDOW = { z: 1.95, width: 1.2, height: 1.15, bottom: 1.12 }
 
 export const COLORS = {
   cabinet: 0x1c3250,
@@ -146,7 +160,7 @@ export const PLAN_HOUSE = { livingWest: 210, east: 540, kitchenSouth: 140, heigh
  * La lumière d'une lampe Hue dans la scène : sa teinte sans couleur donnée (blanc chaud), son intensité à pleine puissance, le plancher
  * d'une lampe allumée au minimum, la hauteur d'une ampoule sans luminaire, et la distance sous laquelle une lampe prend un luminaire dessiné.
  */
-export const LAMP_LIGHT = { color: '#ffd9a0', intensity: 5, floor: 0.12, height: 2.1, matchDistance: 2 }
+export const LAMP_LIGHT = { color: '#ffd9a0', intensity: 5, floor: 0.12, height: 2.1, pickRadius: 0.2, hitRadius: 0.07, matchDistance: 2 }
 export const LAMPS_ON_TEXT = (on: number, total: number): string => `${on} lampe${on > 1 ? 's' : ''} allumée${on > 1 ? 's' : ''} sur ${total} dans la pièce`
 
 export const TITLE_CLASS = 'm-0 text-[1.15rem] font-semibold text-fg'
@@ -161,9 +175,90 @@ export const LIBRARY = { gap: 0.05, board: 0.012, wood: 0xb08a5a, dark: 0x1a1c1f
 /**
  * Le mur est de la cuisine (celui de l'escalier), d'après le modèle SketchUp. Le frigo est posé devant, calé contre le retour de mur.
  * Deux niches y sont percées : le cellier (une ouverture de 66 cm sur 2 m, un réduit de 1,04 m de large et 52 cm de profondeur derrière)
- * et, vers les fenêtres, la niche du comptoir à verres (un meuble bas de 1,03 m et des tablettes au-dessus).
+ * et, vers les fenêtres, la niche à verres : elle ne s'ouvre qu'à partir de sa tablette en bois (`bottom`), le mur est plein en dessous, sauf un
+ * casier carré encadré de bois (`RECESS`).
  */
 export const NICHES = [
-  { id: 'cellar', x: LAYOUT.cellar.x, width: 0.66, height: 2.02, inner: 1.04, depth: 0.52 },
-  { id: 'bar', x: 0.94, width: 0.9, height: 2.1, inner: 0.9, depth: 0.49 },
+  // Le trou du frigo : il y rentre presque en entier, sa façade dépasse de 5 cm. Mesuré : le frigo est à 15 cm du mur de la poutre et à 40 cm du cellier.
+  { id: 'fridge', x: LAYOUT.fridge.x, width: 0.68, bottom: 0, height: 1.9, inner: 0.68, depth: 0.62 },
+  { id: 'cellar', x: LAYOUT.cellar.x, width: 0.66, bottom: 0, height: 2.02, inner: 0.84, depth: 0.52 },
+  { id: 'bar', x: 0.97, width: 0.84, bottom: 1, height: 2.05, inner: 0.84, depth: 0.4 },
 ]
+/** Le casier carré sous la niche à verres : un creux en contreplaqué clair, encadré de bois. */
+export const RECESS = { width: 0.62, bottom: 0.28, top: 0.86, depth: 0.35 }
+
+/** Un clic sur une ampoule : la souris n'a pas glissé de plus de tant de pixels entre l'appui et le relâchement. */
+export const CLICK_SLOP = 5
+/** Les écrans de la scène qui montrent une caméra au clic : les deux du bureau et la télé. */
+export const SCREEN_KEYS = ['left', 'right', 'tv']
+/** La part de la vue qu'occupe un écran après le clic qui zoome sur lui. */
+export const SCREEN_SHARE = 2 / 3
+/** Le bouton d'un écran qui montre une caméra : il ouvre sa page. */
+export const VIEW_LABEL = 'Voir'
+
+/**
+ * Le reste de la maison, tiré du plan de Home (`PLAN_ROOMS`) : les pièces qu'on n'a pas meublées, à l'ouest de l'espace de vie. `west` : le
+ * mur extérieur ouest (le plan y est à 0, le mur de la télé à 210) ; `middle` : le mur entre la chambre 1 et la salle de bain / le couloir ;
+ * `corridorNorth` et `corridorSouth` : les deux murs du couloir (au nord la salle de bain, au sud la chambre 2, dont le mur borne aussi la chambre 1).
+ */
+/** La salle de bain fait 2,02 m d'est en ouest ; une cloison de 8 cm la sépare de la chambre d'invité (la chambre 1 du plan), qui en fait 2,54. */
+const BATH_WEST = ROOM.zMin - 2.02
+const GUEST_EAST = BATH_WEST - 0.08
+export const REST = {
+  // Le mur ouest de la maison : là où finit la chambre d'invité (mesures), à 18 cm près de ce que dit le plan.
+  west: GUEST_EAST - 2.54,
+  // La chambre d'invité, mesurée : 3,77 m du nord au sud (depuis le mur nord) sur 2,54 m d'est en ouest.
+  guestEast: GUEST_EAST,
+  guestSouth: ROOM.xMax - 3.77,
+  // Le couloir des chambres, mesuré : 1,80 m de long (du mur de la télé au mur de la chambre 1) sur 78 cm de large, centré sur sa porte.
+  middle: ROOM.zMin - 1.8,
+  corridorNorth: LAYOUT.door.x + 0.39,
+  corridorSouth: LAYOUT.door.x - 0.39,
+  // La salle de bain, mesurée : 2,85 m du nord au sud (depuis le mur nord) sur 2,02 m d'est en ouest (depuis le mur de la cuisine).
+  bathSouth: ROOM.xMax - 2.85,
+  bathWest: BATH_WEST,
+  // La chambre de Matou (la chambre 2 du plan), mesurée : 3,86 m d'est en ouest depuis le mur ouest (sur 3,01 m du nord au sud) ; le
+  // reste, jusqu'au mur de la télé, est pris par le placard bleu.
+  matouEast: GUEST_EAST - 2.54 + 3.86,
+}
+/** Après un clic sur un volet de la scène, le temps pendant lequel son changement d'état est animé (au-delà, les volets se placent d'un coup). */
+export const SHUTTER_ANIMATE_MS = 15_000
+/** L'épaisseur des murs extérieurs de la maison (m). */
+export const OUTER_WALL = 0.3
+
+/** L'alcôve des WC, creusée dans le mur épais derrière la cuvette : son milieu le long du mur, sa largeur, son bas, sa hauteur et sa profondeur (m). */
+export const WC_ALCOVE = { x: REST.bathSouth + 0.48, width: 0.36, bottom: 1.44, height: 0.56, depth: 0.15 }
+
+/** La fenêtre de la chambre d'invité, dans le mur ouest, derrière son rideau : son milieu le long du mur (x), sa largeur, son bas et sa hauteur (m). */
+export const GUEST_WINDOW = { z: 0.1, width: 1.2, bottom: 0.85, height: 1.3 }
+
+/** La fenêtre de la chambre de Matou, dans le mur des baies : à trois vitres, de la taille de celle du salon, centrée dans la pièce (`z` : son milieu le long du mur). */
+export const MATOU_WINDOW = { ...LAYOUT.bays.window, z: (REST.west + REST.matouEast) / 2 }
+
+/**
+ * Le sas, derrière la porte d'entrée : l'avancée de la maison vers l'est (1,50 m au-delà du mur du bureau). `south` et `north` : ses deux
+ * murs longs ; `west` : la porte d'entrée ; `east` : le mur de sa fenêtre. `laundry` : la porte de la buanderie, dans le mur nord ;
+ * `door` : la porte qui donne dehors, dans le mur sud, au-delà du bureau ; `window` : la fenêtre du mur est (`z` : son milieu le long du mur).
+ */
+export const SAS = {
+  south: ENTRY.x + 0.06,
+  north: ENTRY.northX,
+  west: ENTRY.doorZ,
+  east: ROOM.zMax + 1.5,
+  laundry: [ENTRY.doorZ + 0.1, ENTRY.doorZ + 0.8] as [number, number],
+  door: [ROOM.zMax + 0.4, ROOM.zMax + 1.3] as [number, number],
+  window: { z: (ENTRY.x + 0.06 + ENTRY.northX) / 2, width: 0.86, bottom: 1.0, height: 1.0 },
+  // Le coin des manteaux : une niche creusée dans le mur nord (un mur extérieur, de 30 cm), de où à où, sa hauteur et sa profondeur.
+  nook: [ROOM.zMax + 0.4, ROOM.zMax + 1.25] as [number, number],
+  nookTop: 2.15,
+  nookDepth: 0.24,
+}
+
+/**
+ * La maison est surélevée : son sol est à `rise` au-dessus du terrain, sur un muret de soubassement. Le muret est en retrait de `setback`
+ * par rapport au nu du mur (l'isolation par l'extérieur, au-dessus, dépasse de lui).
+ */
+export const BASE = { rise: 0.33, setback: 0.08 }
+
+/** La fenêtre de la salle de bain, dans le mur nord : à 35 cm du mur ouest (à gauche, vue de la pièce) et à 5 cm du mur est (`z` : son milieu le long du mur), son bas et sa hauteur (m). */
+export const BATH_WINDOW = { z: (REST.bathWest + 0.35 + ROOM.zMin - 0.05) / 2, width: ROOM.zMin - REST.bathWest - 0.4, bottom: 1.28, height: 0.8 }

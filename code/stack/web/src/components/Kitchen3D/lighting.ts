@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from '@/components/MapPlan/constants'
 import { KITCHEN, LAMP_LIGHT, PLAN_HOUSE, ROOM } from './constants'
-import { BULB_OFF, box, cylinder } from './primitives'
+import { BULB_OFF, box } from './primitives'
 import type { Lighting, SceneLamp } from './types'
 
 /**
@@ -26,6 +26,8 @@ export const lampPlace = (planX: number, planY: number): { x: number; z: number 
 
 interface Fixture {
   bulb: THREE.Mesh
+  /** Le nom de la lampe Hue de ce luminaire, s'il est connu. */
+  name?: string
   position: THREE.Vector3
 }
 
@@ -40,7 +42,7 @@ const colorOf = (bulb: THREE.Mesh): THREE.Color => (bulb.material as THREE.MeshB
 
 /**
  * L'éclairage de la scène par les vraies lampes Hue. Chaque lampe placée dans l'espace de vie a une source de lumière ; elle part du
- * luminaire dessiné le plus proche (à moins de `matchDistance`, un luminaire par lampe, les plus proches d'abord), sinon d'une ampoule
+ * luminaire qui porte son nom, sinon du luminaire dessiné le plus proche (à moins de `matchDistance`, un luminaire par lampe, les plus proches d'abord), sinon d'une ampoule
  * nue pendue au plafond à sa place. Allumée, sa lumière prend la couleur et l'intensité de la lampe ; éteinte ou injoignable, elle
  * n'éclaire pas et son ampoule est grise. `apply` se rappelle à chaque relecture du pont.
  */
@@ -49,12 +51,14 @@ export const createLighting = (root: THREE.Group): Lighting => {
   const fixtures: Fixture[] = []
   root.traverse((child) => {
     const mesh = child as THREE.Mesh
-    if (mesh.isMesh && mesh.userData.fixture === true) fixtures.push({ bulb: mesh, position: mesh.getWorldPosition(new THREE.Vector3()) })
+    if (mesh.isMesh && mesh.userData.fixture === true) fixtures.push({ bulb: mesh, name: mesh.userData.fixtureName as string | undefined, position: mesh.getWorldPosition(new THREE.Vector3()) })
   })
   const group = new THREE.Group()
   root.add(group)
   const rigs = new Map<string, Rig>()
   const cordMaterial = new THREE.MeshStandardMaterial({ color: 0x15171a })
+  // Où est l'ampoule de chaque lampe, pour la viser à la souris.
+  const places = new Map<string, THREE.Vector3>()
 
   const rigOf = (id: string): Rig => {
     const existing = rigs.get(id)
@@ -63,7 +67,7 @@ export const createLighting = (root: THREE.Group): Lighting => {
     const ownBulb = new THREE.MeshBasicMaterial({ color: BULB_OFF })
     const own = new THREE.Group()
     const cord = ROOM.height - LAMP_LIGHT.height
-    own.add(cylinder(0.05, 0.05, 0.1, ownBulb, 0, 0, 0), box(0.01, cord, 0.01, cordMaterial, 0, cord / 2 + 0.05, 0))
+    own.add(new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), ownBulb), box(0.01, cord, 0.01, cordMaterial, 0, cord / 2 + 0.05, 0))
     group.add(light, own)
     const rig = { light, own, ownBulb }
     rigs.set(id, rig)
@@ -78,6 +82,13 @@ export const createLighting = (root: THREE.Group): Lighting => {
       .sort((a, b) => a.distance - b.distance)
     const fixtureOf = new Map<string, Fixture>()
     const taken = new Set<Fixture>()
+    // D'abord par le nom : une lampe du pont qui porte le nom d'un luminaire dessiné est la sienne, où qu'elle soit sur le plan.
+    for (const lamp of lamps) {
+      const named = fixtures.find((fixture) => fixture.name === lamp.name.trim().toLowerCase() && !taken.has(fixture))
+      if (!named) continue
+      fixtureOf.set(lamp.id, named)
+      taken.add(named)
+    }
     for (const { lamp, fixture } of pairs) {
       if (fixtureOf.has(lamp.id) || taken.has(fixture)) continue
       fixtureOf.set(lamp.id, fixture)
@@ -86,6 +97,7 @@ export const createLighting = (root: THREE.Group): Lighting => {
     for (const fixture of fixtures) if (!taken.has(fixture)) colorOf(fixture.bulb).set(BULB_OFF)
 
     const seen = new Set<string>()
+    places.clear()
     for (const lamp of lamps) {
       seen.add(lamp.id)
       const rig = rigOf(lamp.id)
@@ -101,11 +113,13 @@ export const createLighting = (root: THREE.Group): Lighting => {
         rig.light.position.set(fixture.position.x, fixture.position.y - 0.12, fixture.position.z)
         colorOf(fixture.bulb).copy(bulbColor)
         rig.own.visible = false
+        places.set(lamp.id, fixture.position)
       } else {
         rig.light.position.set(lamp.x, LAMP_LIGHT.height - 0.12, lamp.z)
         rig.own.position.set(lamp.x, LAMP_LIGHT.height, lamp.z)
         rig.ownBulb.color.copy(bulbColor)
         rig.own.visible = true
+        places.set(lamp.id, rig.own.position)
       }
     }
     for (const [id, rig] of rigs) {
@@ -116,5 +130,27 @@ export const createLighting = (root: THREE.Group): Lighting => {
     }
   }
 
-  return { apply }
+  // L'ampoule visée par le rayon (un abat-jour ou un mur devant elle ne gêne pas). Le rayon qui traverse une ampoule (à moins de `hitRadius`
+  // de son centre) la désigne, la plus proche de l'œil si deux sont alignées ; sinon c'est l'ampoule la plus près du rayon, à moins de `pickRadius`.
+  const pick = (ray: THREE.Ray): string | null => {
+    let best: string | null = null
+    let nearest: number = LAMP_LIGHT.pickRadius
+    let hit: string | null = null
+    let hitDepth = Infinity
+    for (const [id, place] of places) {
+      const depth = place.clone().sub(ray.origin).dot(ray.direction)
+      if (depth <= 0) continue
+      const distance = ray.distanceToPoint(place)
+      if (distance <= LAMP_LIGHT.hitRadius && depth < hitDepth) {
+        hitDepth = depth
+        hit = id
+      }
+      if (distance > nearest) continue
+      nearest = distance
+      best = id
+    }
+    return hit ?? best
+  }
+
+  return { apply, pick }
 }

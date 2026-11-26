@@ -1,6 +1,6 @@
-# Home – l'onglet de départ
+# Home – le premier onglet
 
-Premier onglet et onglet d'ouverture (`DEFAULT_TAB`, y compris au rechargement). Un clic sur le titre « House » (`onTitle` de `TopBar`) rafraîchit la page, qui se rouvre sur Home.
+Premier onglet de la barre. Ce n'est plus l'onglet d'ouverture : la WebApp s'ouvre sur l'onglet Test (`DEFAULT_TAB` de `App/constants.ts`, y compris au rechargement et au clic sur le titre « House », `onTitle` de `TopBar`, qui rafraîchit la page). La Home est pourtant montée dès l'ouverture, cachée.
 
 - **La carte** (`components/HouseMap`, `../HouseMap/CLAUDE.md`, `../MapPlan/CLAUDE.md`) : toit caché. `App` lui donne les vraies caméras.
 - Clics : voir `../HouseMap/CLAUDE.md` (aperçus et double clics).

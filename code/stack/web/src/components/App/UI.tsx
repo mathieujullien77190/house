@@ -93,7 +93,7 @@ const AppUI = ({
     <Page>
       <TopBar
         title={TITLE}
-        // Un clic sur le titre rafraîchit la page (elle se rouvre sur Home, `DEFAULT_TAB`).
+        // Un clic sur le titre rafraîchit la page (elle se rouvre sur l'onglet de départ, `DEFAULT_TAB`).
         onTitle={ready ? () => window.location.reload() : undefined}
         status={message || statusText}
         tone={message ? 'error' : 'muted'}
@@ -179,7 +179,14 @@ const AppUI = ({
           {tab === 'guest' ? <GuestPanel apiKey={apiKey} /> : null}
           {tab === 'test' ? (
             <Suspense fallback={<Notice text={LOADING_3D_TEXT} />}>
-              <Kitchen3D apiKey={apiKey} />
+              <Kitchen3D
+                apiKey={apiKey}
+                cameras={cameras.map((camera) => ({ name: camera.name, portrait: camera.orientation === 'portrait' }))}
+                onOpenCamera={(camera) => {
+                  onTab('cameras')
+                  onOpenCamera(camera)
+                }}
+              />
             </Suspense>
           ) : null}
         </>
