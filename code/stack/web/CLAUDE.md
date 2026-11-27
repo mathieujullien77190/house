@@ -9,12 +9,12 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 
 - `lib/api.ts` : client de House API. La clé n'est jamais gardée : l'en-tête `X-House-Key` sert le temps de la saisie, `/auth` ouvre la session par cookie (`../docs/securite.md`).
 - `lib/useHouse.ts` : la clé et son statut (essaie d'abord le cookie), caméras et événements rafraîchis chaque seconde.
-- `lib/useAcUnits.ts`, `lib/useShutters.ts` : lecture et ordres, **partagés** entre l'onglet et l'aperçu de la carte de Home.
-- `lib/useBox.ts` : la Freebox (lecture, WiFi), **partagée** entre l'onglet Box et son aperçu.
+- `lib/useAcUnits.ts`, `lib/useShutters.ts` : lecture et ordres, **partagés** entre l'onglet et la vue 3D de Home.
+- `lib/useBox.ts` : la Freebox (lecture, WiFi), pour l'onglet Box.
+- `lib/usePlan.ts`, `lib/useLampPlan.ts` : le plan gardé par l'API et les lampes Hue à leur place, pour la vue 3D (plus rien ne modifie le plan depuis la WebApp).
 - `lib/useClipThumb.ts`, `lib/useClipDuration.ts` : vignette (image fixe) et durée d'un clip, sans garder de vidéo ouverte (`components/SavedClips/CLAUDE.md`).
 - `lib/useTv.ts` : la télécommande du Freebox Player (état, touches, association par code affiché sur la TV), pour l'onglet Box TV.
-- `lib/homeSelection.ts` : la sélection de la carte de Home, **état global** qui survit au démontage de la Home.
-- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), dix onglets (`TABS`, dont Box TV, Page invité et Test). Ouvre sur **Test** (`DEFAULT_TAB`) ; la Home est montée dès l'ouverture, cachée.
+- `components/App` : barre du haut (`TopBar` de `@house/ui`), clé (`KeyForm`), neuf onglets (`TABS`, dont Box TV et Page invité). Ouvre sur **Home** (`DEFAULT_TAB`), qui reste montée (cachée) sur les autres onglets.
 
 ## Barre du haut
 
@@ -30,12 +30,12 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 
 | Je travaille sur… | Je lis |
 |---|---|
-| Home, carte avec caméras et lampes | `Home/`, `HouseMap/`, `MapPlan/` |
+| Home : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, caméras, volets) | `Home/`, `Kitchen3D/` |
+| Repère du plan gardé par l'API (unités, cadastre, haies de départ) | `MapPlan/` |
 | Onglet Caméras : mosaïque, clips sauvegardés | `CameraMosaic/`, `SavedClips/` |
 | Détail d'une caméra, frise | `CameraCard/`, `Timeline/` |
 | Lumière, Volet, Clim, Prise, Box, Box TV | `Lights/`, `ShuttersPanel/`, `AcPanel/`, `PlugPanel/`, `BoxPanel/`, `TvPanel/` |
 | Page invité (QR code, aperçu) et la page `/chezmatou` | `GuestPanel/`, `ChezMatou/` |
-| Onglet Test : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, volets, écrans qui montrent les caméras) | `Kitchen3D/` |
 
 Chemins : `src/components/<nom>/CLAUDE.md`.
 
@@ -56,6 +56,6 @@ Chemins : `src/components/<nom>/CLAUDE.md`.
 
 - `npm install`, `npm run dev` (port 5180, services relayés vers l'API).
 - Tests : Vitest + Testing Library + jsdom, un `*.test.ts(x)` à côté du code. `npm run test:coverage` exige **100 %** sur `src/**` (hors `main.tsx`, `types.ts`, `index.ts` de réexport).
-- MapLibre, `@house/ui` et les hooks sont simulés (`vi.mock`). Three.js est le vrai, sauf `WebGLRenderer` et `OrbitControls` (jsdom n'a pas de WebGL) ; doubles du canevas, des images et des vidéos hors page : `src/test/canvas.ts`. React Compiler est coupé sous Vitest (`process.env.VITEST`) : il fausserait la couverture.
+- `@house/ui` et les hooks sont simulés (`vi.mock`). Three.js est le vrai, sauf `WebGLRenderer` et `OrbitControls` (jsdom n'a pas de WebGL) ; doubles du canevas et des vidéos hors page : `src/test/canvas.ts`. React Compiler est coupé sous Vitest (`process.env.VITEST`) : il fausserait la couverture.
 - Vérifications : `npm run typecheck && npm run lint && npm run test:coverage && npm run build`.
 - Déploiement : `../docs/deploiement.md` (la WebApp part avec l'API).

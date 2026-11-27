@@ -2,8 +2,8 @@
 
 Climatisations Mitsubishi (`/ac`, 10 s). Un bloc par unité : nom, état en une phrase, commandes.
 
-- `AcUnitCard.tsx` et `lib/useAcUnits.ts` sont **partagés** avec l'aperçu de la carte (`../AcPreview/CLAUDE.md`). Une lecture qui échoue garde la dernière liste et dit pourquoi.
-- **Le salon est toujours en premier** (`salonFirst`, tri stable), onglet et carte.
+- `lib/useAcUnits.ts` est **partagé** avec la vue 3D de Home (`../Kitchen3D/CLAUDE.md`), `AcUnitCard.tsx` avec la page Chez Matou. Une lecture qui échoue garde la dernière liste et dit pourquoi.
+- **Le salon est toujours en premier** (`salonFirst`, tri stable).
 
 ## Commandes
 

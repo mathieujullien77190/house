@@ -1,5 +1,5 @@
-// Les climatisations, partagées par l'onglet Clim et l'aperçu de la carte de Home : lues toutes les 10 s, un changement part par `POST /ac/<id>` et la réponse de l'API (l'unité avec le changement appliqué) remplace tout de suite l'unité.
-// Une lecture qui échoue garde la dernière liste lue et dit pourquoi (`problem`) : l'onglet Clim n'affiche alors que le message, l'aperçu garde son bloc.
+// Les climatisations, partagées par l'onglet Clim et la vue 3D de Home : lues toutes les 10 s, un changement part par `POST /ac/<id>` et la réponse de l'API (l'unité avec le changement appliqué) remplace tout de suite l'unité.
+// Une lecture qui échoue garde la dernière liste lue et dit pourquoi (`problem`) : l'onglet Clim n'affiche alors que le message.
 import { useEffect, useState } from 'react'
 import { POLL_MS } from '@/components/AcPanel/constants'
 import { ApiError, fetchAc, setAc } from '@/lib/api'

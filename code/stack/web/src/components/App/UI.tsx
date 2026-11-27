@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react'
 import { Button, Notice, Page, TopBar } from '@house/ui'
 import Weather from '@/components/Weather'
 import AcPanel from '@/components/AcPanel'
@@ -21,7 +20,6 @@ import {
   THEME_TITLE,
   BACK_LABEL,
   CHECKING_TEXT,
-  LOADING_3D_TEXT,
   LOCKED_TEXT,
   NO_CAMERA_TEXT,
   TABS_LABEL,
@@ -29,9 +27,6 @@ import {
 } from './constants'
 import { eventsOf } from './helpers'
 import type { AppUIProps } from './types'
-
-// Three.js est lourd : la vue 3D n'est chargée que quand on ouvre son onglet.
-const Kitchen3D = lazy(() => import('@/components/Kitchen3D'))
 
 const AppUI = ({
   status,
@@ -124,21 +119,14 @@ const AppUI = ({
 
       {ready ? (
         <>
-          {/* La Home reste montée quand on change d'onglet (juste cachée) : la carte, le bloc ou le clip choisi et les flux des miniatures de caméras restent chargés pendant la session. */}
+          {/* La Home reste montée quand on change d'onglet (juste cachée) : la vue 3D garde sa scène et son point de vue pendant la session. */}
           <div hidden={tab !== 'home'}>
             <Home
               apiKey={apiKey}
-              cameras={cameras}
-              onOpenCamera={(camera, eventId) => {
+              onOpenCamera={(camera) => {
                 onTab('cameras')
-                onOpenCamera(camera, eventId)
+                onOpenCamera(camera)
               }}
-              events={events}
-              isRead={isRead}
-              onOpenAc={() => onTab('ac')}
-              onOpenShutter={() => onTab('shutters')}
-              onOpenPlug={() => onTab('plug')}
-              onOpenBox={() => onTab('box')}
             />
           </div>
           {tab === 'cameras' ? (
@@ -177,18 +165,6 @@ const AppUI = ({
           {tab === 'box' ? <BoxPanel apiKey={apiKey} /> : null}
           {tab === 'tv' ? <TvPanel apiKey={apiKey} /> : null}
           {tab === 'guest' ? <GuestPanel apiKey={apiKey} /> : null}
-          {tab === 'test' ? (
-            <Suspense fallback={<Notice text={LOADING_3D_TEXT} />}>
-              <Kitchen3D
-                apiKey={apiKey}
-                cameras={cameras.map((camera) => ({ name: camera.name, portrait: camera.orientation === 'portrait' }))}
-                onOpenCamera={(camera) => {
-                  onTab('cameras')
-                  onOpenCamera(camera)
-                }}
-              />
-            </Suspense>
-          ) : null}
         </>
       ) : null}
     </Page>

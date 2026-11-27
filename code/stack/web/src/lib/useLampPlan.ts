@@ -1,4 +1,4 @@
-// Les lampes du pont Hue prêtes pour la carte des caméras : relues toutes les 5 s tant que `enabled`, placées d'après le plan (`items`) ou, à défaut, l'ancien plan des lumières
+// Les lampes du pont Hue prêtes pour la vue 3D de Home : relues toutes les 5 s tant que `enabled`, placées d'après le plan (`items`) ou, à défaut, l'ancien plan des lumières
 // (`useLegacyPositions`), avec de quoi en allumer ou éteindre une : **un clic sur une lampe éteinte ou à 0 % l'allume à 100 %, un clic sur une lampe allumée l'éteint**. Vide sans pont Hue ou avant la première réponse.
 import { useCallback, useEffect, useState } from 'react'
 import type { PlanLamp } from '@house/ui'

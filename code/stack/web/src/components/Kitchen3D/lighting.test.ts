@@ -6,7 +6,7 @@ import { createLighting, lampPlace } from './lighting'
 import { BULB_OFF, cylinder, fixtureBulb, standard } from './primitives'
 import type { SceneLamp } from './types'
 
-/** Une place du plan de Home (unités de la carte) d'après une place dans la maison (unités du plan, 540 × 300). */
+/** Une place du plan de la maison (unités de la carte) d'après une place dans la maison (unités du plan, 540 × 300). */
 const fromHouse = (houseX: number, houseY: number) => lampPlace(houseX + HOUSE_SHIFT, (houseY * MAP_HOUSE_HEIGHT) / PLAN_HOUSE.height)
 
 describe('lampPlace', () => {

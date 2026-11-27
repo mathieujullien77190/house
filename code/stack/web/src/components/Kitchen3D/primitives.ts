@@ -100,6 +100,12 @@ export const bulbBall = (radius: number, x: number, y: number, z: number): THREE
   return mesh
 }
 
+/** Tourne un groupe pour que son devant (+z) regarde dans la direction (dx, dz). */
+export const facing = (group: THREE.Group, dx: number, dz: number): THREE.Group => {
+  group.rotation.y = Math.atan2(dx, dz)
+  return group
+}
+
 /** La teinte d'une ampoule éteinte. */
 export const BULB_OFF = 0x4a4640
 

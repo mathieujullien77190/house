@@ -6,7 +6,7 @@ import { BULB_OFF, box } from './primitives'
 import type { Lighting, SceneLamp } from './types'
 
 /**
- * La place d'une lampe dans la scène, d'après sa place sur le plan de Home (unités de la carte). `null` hors de l'espace de vie
+ * La place d'une lampe dans la scène, d'après sa place sur le plan de la maison (unités de la carte). `null` hors de l'espace de vie
  * (chambres, salle de bain, escalier, jardin). D'ouest en est, le plan est à l'échelle (43,5 unités par mètre) ; du nord au sud, la
  * cuisine (2,8 m dans la scène) et le salon n'ont pas la même échelle que le plan : chacun est étiré sur sa propre profondeur.
  */

@@ -25,7 +25,7 @@ export interface RunSpec {
 
 export interface SceneParts {
   root: THREE.Group
-  /** La hotte et son conduit, pour la cacher. */
+  /** La hotte et son conduit. */
   hood: THREE.Group
 }
 
@@ -51,26 +51,7 @@ export interface Lighting {
   pick: (ray: THREE.Ray) => string | null
 }
 
-/** Où est un écran de la scène : son centre, la direction vers laquelle il regarde, sa largeur et sa hauteur (m). */
-export interface ScreenFrame {
-  center: THREE.Vector3
-  normal: THREE.Vector3
-  width: number
-  height: number
-}
-
-/** Les écrans qui montrent une caméra : `show` ouvre un direct sur l'un d'eux (ou l'éteint avec null), `update` rafraîchit les images, `hit` rend l'écran qu'un rayon touche, `frame` dit où il est. */
-export interface ScreenFeed {
-  show: (key: string, src: string | null, portrait?: boolean) => void
-  update: (now: number) => void
-  hit: (raycaster: THREE.Raycaster) => string | null
-  /** L'écran dont le bouton « Voir » est touché par le rayon. */
-  button: (raycaster: THREE.Raycaster) => string | null
-  frame: (key: string) => ScreenFrame | null
-  dispose: () => void
-}
-
-/** Ce que la scène expose au composant pour réagir aux boutons et aux lampes. */
+/** Ce que la scène expose au composant pour réagir aux boutons et à la maison. */
 export interface SceneHandle {
   /** Toute la scène construite, pour y retrouver les volets. */
   root: THREE.Group
@@ -78,10 +59,7 @@ export interface SceneHandle {
   ambient: THREE.HemisphereLight
   sun: THREE.DirectionalLight
   controls: OrbitControls
-  hood: THREE.Group
   lighting: Lighting
-  /** Les écrans (bureau, télé) qui montrent le direct d'une caméra. */
-  screen: ScreenFeed
   resetView: () => void
   topView: () => void
 }
@@ -92,16 +70,8 @@ export interface Vec3 {
   z: number
 }
 
-/** Une caméra de la maison pour les écrans de la scène : son nom, et si son image se montre en portrait (tournée d'un quart de tour). */
-export interface SceneCamera {
-  name: string
-  portrait: boolean
-}
-
 export interface Kitchen3DProps {
   apiKey: string
-  /** Les caméras de la maison (leurs noms) : les écrans du bureau et la télé montrent leur direct léger, une par clic. */
-  cameras?: SceneCamera[]
-  /** Le bouton « Voir » d'un écran : ouvre la page de la caméra qu'il montre. */
-  onOpenCamera?: (camera: string) => void
+  /** Ouvre la vraie caméra d'un modèle de caméra cliqué dans la scène (son nom). */
+  onOpenCamera?: (name: string) => void
 }

@@ -1,34 +1,22 @@
-import { render, screen } from '@testing-library/react'
-import type { Camera } from '@/types'
+import { fireEvent, render, screen } from '@testing-library/react'
 import Home from './Home'
 
-vi.mock('@/components/HouseMap', () => ({
-  default: (props: { apiKey: string; cameras: Camera[]; isRead: (id: string) => boolean; onOpenPlug: () => void }) => (
-    <button data-testid="map" onClick={props.onOpenPlug}>
-      {props.apiKey}:{props.cameras.length}:{String(props.isRead('x'))}
+vi.mock('@/components/Kitchen3D', () => ({
+  default: (props: { apiKey: string; onOpenCamera?: (name: string) => void }) => (
+    <button data-testid="kitchen3d" onClick={() => props.onOpenCamera?.('voliere-toit')}>
+      {props.apiKey}
     </button>
   ),
 }))
 
 describe('Home', () => {
-  it('montre la carte de la maison', () => {
-    const onOpenPlug = vi.fn()
-    render(
-      <Home
-        apiKey="k"
-        cameras={[{ name: 'a' } as Camera]}
-        events={[]}
-        isRead={() => true}
-        onOpenCamera={vi.fn()}
-        onOpenAc={vi.fn()}
-        onOpenShutter={vi.fn()}
-        onOpenPlug={onOpenPlug}
-        onOpenBox={vi.fn()}
-      />,
-    )
-    expect(screen.getByTestId('map')).toHaveTextContent('k:1:true')
-    screen.getByTestId('map').click()
-    expect(onOpenPlug).toHaveBeenCalledTimes(1)
+  it('montre la vue 3D, chargée à part (un texte d’attente d’abord), et lui passe l’ouverture d’une caméra', async () => {
+    const onOpenCamera = vi.fn()
+    render(<Home apiKey="k" onOpenCamera={onOpenCamera} />)
+    expect(screen.getByText('Chargement de la vue 3D…')).toBeInTheDocument()
+    expect(await screen.findByTestId('kitchen3d')).toHaveTextContent('k')
+    expect(screen.queryByText('Chargement de la vue 3D…')).toBeNull()
+    fireEvent.click(screen.getByTestId('kitchen3d'))
+    expect(onOpenCamera).toHaveBeenCalledWith('voliere-toit')
   })
-
 })

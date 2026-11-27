@@ -88,12 +88,6 @@ export const PLAN_WALLS: PlanWall[] = [
 ]
 
 /**
- * Le mur de l'entrée (c'était un claustra en pointillé) : le prolongement du mur sud de la pièce « Entrée » vers la gauche, jusqu'à la lampe « Entrée » (x = 404). Il suit le mur sud de la pièce, où qu'on
- * l'ait déplacé (les murs de la maison se modifient) : son ordonnée est celle du bas de la pièce, son bout droit son bord gauche.
- */
-export const PLAN_ENTRANCE_WALL = { room: 'Entrée', fromX: 404 }
-
-/**
  * Où sont posées les ampoules, par identifiant de lampe du pont : celles que tu as placées sur le plan (540 × 300, origine en haut
  * à gauche de la maison). Une lampe qui n'est pas ici attend dans la zone « À placer », à droite de la maison.
  */
@@ -118,12 +112,6 @@ export const LAMP_POSITIONS: Positions = {
   '27': { x: 404, y: 162 },
   '28': { x: 204, y: 115 },
 }
-
-/**
- * Les ouvertures : des morceaux de mur qui n'existent pas (la cuisine est ouverte sur le salon). Le contour d'une pièce est dessiné en traits de mur, et ce qui tombe sur une ouverture n'est
- * pas dessiné. Un segment horizontal ou vertical, en unités du plan (540 × 300) : ici le mur entre la cuisine et le salon : il porte les ampoules « Bar 1 » (x = 289) et « Bar 2 » (x = 331) et va jusqu'à « Bar 2 ; de là au mur de droite (x = 420), la cuisine est ouverte.
- */
-export const PLAN_OPENINGS: PlanWall[] = [{ x1: 331, y1: 140, x2: 420, y2: 140 }]
 
 /** La zone « À placer » de l ancien plan : une position gardée à droite de cette abscisse veut dire « pas encore placée ». */
 export const SIDE_ZONE = { x: 590, w: 98 }

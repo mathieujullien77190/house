@@ -30,4 +30,4 @@ Grille du direct de toutes les caméras : `CameraMosaic` + `LiveTile`, une `Came
 - Vignettes sans étirement ; espace identique (`gap-3`) en horizontal et vertical.
 - **Portrait** : vidéo de 530 px de haut (`--big-h`, `TILE_PORTRAIT_CLASS`, 298 px de large). Si la colonne 2 est en portrait, elle fait exactement 298 px (`GRID_PORTRAIT_MIDDLE_CLASS`), sinon du vide s'ajouterait.
 - **Hauteurs égales** : les deux vidéos paysage empilées (colonne 1) doivent égaler la hauteur de la vignette portrait. `lib/useStackWidth.ts` mesure et pose `--col1` sur la grille (399 px avant la première mesure).
-- La carte de la maison est dans Home (`../HouseMap/CLAUDE.md`). Sous la mosaïque : les clips sauvegardés (`../SavedClips/CLAUDE.md`).
+- Sous la mosaïque : les clips sauvegardés (`../SavedClips/CLAUDE.md`).

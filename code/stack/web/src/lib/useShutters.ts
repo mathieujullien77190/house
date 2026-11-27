@@ -1,4 +1,4 @@
-// Les volets roulants, partagés par l'onglet Volet et l'aperçu de la carte de Home : lus toutes les 10 s (toutes les 2 s pendant un « Fermer à moitié »), les ordres (monter, stop, descendre, fermer à moitié)
+// Les volets roulants, partagés par l'onglet Volet et la vue 3D de Home : lus toutes les 10 s (toutes les 2 s pendant un « Fermer à moitié »), les ordres (monter, stop, descendre, fermer à moitié)
 // et les cases de l'action automatique. La réponse de l'API remplace tout de suite le volet. Une lecture qui échoue garde le dernier état lu et dit pourquoi (`problem`).
 import { useEffect, useState } from 'react'
 import { POLL_MS, POLL_RUNNING_MS } from '@/components/ShuttersPanel/constants'

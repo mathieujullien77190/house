@@ -1,9 +1,10 @@
 # Home – le premier onglet
 
-Premier onglet de la barre. Ce n'est plus l'onglet d'ouverture : la WebApp s'ouvre sur l'onglet Test (`DEFAULT_TAB` de `App/constants.ts`, y compris au rechargement et au clic sur le titre « House », `onTitle` de `TopBar`, qui rafraîchit la page). La Home est pourtant montée dès l'ouverture, cachée.
+Premier onglet de la barre et onglet d'ouverture (`DEFAULT_TAB` de `App/constants.ts`, y compris au rechargement et au clic sur le titre « House », qui rafraîchit la page).
 
-- **La carte** (`components/HouseMap`, `../HouseMap/CLAUDE.md`, `../MapPlan/CLAUDE.md`) : toit caché. `App` lui donne les vraies caméras.
-- Clics : voir `../HouseMap/CLAUDE.md` (aperçus et double clics).
-- **Téléphone (sous 1024 px)** : carte en paysage qui remplit la place sous la barre (`fill`, `fitHeight`, 15 rem au moins) ; un clic ouvre directement la page de l'objet.
-- **Home reste montée quand on change d'onglet** (`App/UI.tsx` : seulement `hidden`). Bloc ou clip choisi, flux des miniatures et vue de la carte restent toute la session ; la carte se redimensionne au retour (`ResizeObserver`). Sélection : `lib/homeSelection.ts`.
+- **La maison et le jardin en 3D** (`components/Kitchen3D`, `../Kitchen3D/CLAUDE.md`) : rien d'autre. Il n'y a plus de plan 2D ni de carte.
+- **Chargée à part** : `React.lazy` dans `Home.tsx` (Three.js n'est pas dans le premier paquet), « Chargement de la vue 3D… » en attendant (`LOADING_3D_TEXT`).
+- **Clics** : ampoules, clims et volets se commandent dans la scène ; un clic sur une caméra de la scène ouvre l'onglet Caméras sur elle (`onOpenCamera`, câblé par `App/UI.tsx`).
+- **Home reste montée quand on change d'onglet** (`App/UI.tsx` : seulement `hidden`) : la scène et le point de vue restent toute la session. Cachée, la vue n'est plus dessinée (`IntersectionObserver`) et sa largeur nulle est ignorée ; elle reprend sa taille au retour (`ResizeObserver`).
+- Sur téléphone, l'écran d'une caméra et la télécommande TV remplacent toute la page : la Home est alors démontée, la scène est reconstruite au retour.
 - Les clips sauvegardés sont en bas de l'onglet Caméras (`../SavedClips/CLAUDE.md`).

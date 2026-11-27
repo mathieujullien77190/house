@@ -81,6 +81,14 @@ describe('ShuttersPanel', () => {
     expect(isOn(screen.getByLabelText(AUTO_OPEN_LABEL))).toBe(false)
   })
 
+  it('le liseré du bloc : violet pour un volet descendu, bleu pâle sinon', async () => {
+    vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter({ lastCommand: 'down', lastAt: 1_000_000_000 }), shutter({ id: '2', name: 'Volet salon', lastCommand: 'up', lastAt: 1_000_000_000 })]))
+    render(<ShuttersPanel apiKey="k" />)
+    await settle()
+    expect(screen.getByText('Volet PC').closest('.border')).toHaveClass('border-[#8b5cf6]')
+    expect(screen.getByText('Volet salon').closest('.border')).toHaveClass('border-[#8fd0f7]')
+  })
+
   it('sans simulation, pas d’avertissement', async () => {
     vi.mocked(api.fetchShutters).mockResolvedValue(state([shutter()], false))
     render(<ShuttersPanel apiKey="k" />)

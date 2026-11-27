@@ -2,7 +2,7 @@ import type { EventRow } from '@/types'
 
 export interface SavedClipsProps {
   apiKey: string
-  /** Ouvre le détail de la caméra du clip, le clip lancé (comme un clic sur l'emoji du clip sur la carte de Home). Sans lui, la vignette lit le clip sur place. */
+  /** Ouvre le détail de la caméra du clip, le clip lancé. Sans lui, la vignette lit le clip sur place. */
   onOpenCamera?: (camera: string, eventId?: string) => void
 }
 

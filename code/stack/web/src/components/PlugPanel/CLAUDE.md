@@ -21,6 +21,6 @@ La prise connectée (`/plug`, 5 s). Ce que fait l'API et le minuteur de la prise
 - Valeurs par défaut : `../../../../api/src/routes/CLAUDE.md`.
 - **Constantes de l'API, pas des champs** : tarif 0,1589 EUR creux / 0,2142 EUR plein, heures creuses 23:10 à 07:10, puissance 2000 W.
 
-## Sur la carte de Home
+## `embedded`
 
-Un clic sur le chauffage montre tout ce bloc (`embedded` : sans titre ni marge du haut).
+Sans titre ni marge du haut : c'était le bloc de la carte de Home, plus d'appelant.

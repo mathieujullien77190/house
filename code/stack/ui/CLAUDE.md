@@ -5,7 +5,7 @@ Composants **dumb** des deux apps (`web/` et `sync/web/`) : aucun état métier 
 - `src/index.ts` : barrel public. `src/tokens.css` : couleurs de la maison (`@theme`), clairs ou sombres selon le système, sauf si la page porte un attribut `data-theme` (la WebApp et la page de House Sync imposent leur thème avec leur bouton ; sombre via `:root:not([data-theme])` ou `:root[data-theme='dark']`), importé par chaque app après Tailwind, avec `@source` vers `ui/src`.
 - `src/components/<Nom>/` : même structure que le reste du projet. **Imports relatifs entre composants** (`../Button`) : seule exception à « jamais `../` », le paquet n'a pas d'alias résolu par ses consommateurs.
 - Liste des composants et options : `src/components/CLAUDE.md`.
-- `src/plan.ts` : types du plan de la maison (`PlanLamp`, `PlanRoom`, `PlanWall`, `PlanTree`, `PlanHedge`, `PlanGate`, `PlanCamera`, `PlanPlug`, `PlanRect`), de simples données. Le plan est dessiné par la WebApp (`../web/src/components/MapPlan/CLAUDE.md`).
+- `src/plan.ts` : types du plan de la maison (`PlanLamp`, `PlanRoom`, `PlanWall`, `PlanTree`, `PlanHedge`, `PlanGate`, `PlanCamera`, `PlanPlug`, `PlanRect`), de simples données. La WebApp n'en dessine plus la carte ; elle en garde le repère (`../web/src/components/MapPlan/CLAUDE.md`).
 - Un composant avec ref ou effet de présentation (`ClipPlayer`) reste dumb : il ne tient aucune donnée.
 
 ## Storybook

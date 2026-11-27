@@ -23,7 +23,7 @@ import type { LightsProps, LightsStatus } from './types'
 
 /**
  * Les lumières du pont Hue : les zones de la maison et leurs lampes, relues toutes les 5 s. Allumer, éteindre ou régler la luminosité d'une zone entière (lampe par lampe) ou d'une
- * lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie). La carte des lampes est dans l'accueil (`HouseMap`).
+ * lampe ; le curseur envoie sa valeur au relâchement (le pont n'aime pas qu'on le noie).
  */
 const Lights = ({ apiKey }: LightsProps) => {
   const [rooms, setRooms] = useState<HueRoom[]>([])

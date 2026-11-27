@@ -3,7 +3,6 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Button } from '@house/ui'
 import { disposeObject, supportsWebGL } from '@/lib/three'
-import { liveSrc } from '@/lib/live'
 import { useAcUnits } from '@/lib/useAcUnits'
 import { useLampPlan } from '@/lib/useLampPlan'
 import { usePlan } from '@/lib/usePlan'
@@ -12,23 +11,19 @@ import { useWeather } from '@/lib/useWeather'
 import { HOUSE_LATITUDE, HOUSE_LONGITUDE } from '@/components/Weather/constants'
 import {
   ARIA_LABEL,
+  ALWAYS_DAY,
   DAYLIGHT,
   BUTTONS_CLASS,
   SHUTTER_ANIMATE_MS,
-  SCREEN_KEYS,
-  SCREEN_SHARE,
   CLICK_SLOP,
   HINT,
   HINT_CLASS,
   LAMP_FIXTURES,
-  HOOD_LABEL,
   HOST_CLASS,
-  INTRO,
   INTRO_CLASS,
   LAMPS_ON_TEXT,
   NO_WEBGL_TEXT,
   RESET_LABEL,
-  SHUTTERS_LABEL,
   START,
   TARGET,
   TITLE,
@@ -37,43 +32,20 @@ import {
   TOP_LABEL,
   VIEW_HEIGHT,
 } from './constants'
-import { acMeshes, applyAcLed, applyClock, createScreenFeed, screenDistance } from './live'
+import { acMeshes, applyAcLed, applyClock, cameraMeshes } from './live'
 import { buildScene } from './helpers'
 import { createLighting, lampPlace } from './lighting'
 import { applyShutters, closedOf, SHUTTER_KEYS, shutterWindows, skyOf, stepShutters } from './shutters'
-import type { Kitchen3DProps, SceneCamera, SceneHandle, SceneLamp } from './types'
+import type { Kitchen3DProps, SceneHandle, SceneLamp } from './types'
 
 /**
- * L'espace de vie de la maison en 3D (cuisine, coin repas, entrée, salon, bureau), éclairé par les vraies lampes Hue : chaque lampe
- * placée sur le plan de Home dans ces pièces allume la scène avec son intensité et sa couleur du moment (relues toutes les 5 s).
+ * La maison et le jardin en 3D (la vue de Home), éclairés par les vraies lampes Hue : chaque lampe
+ * placée sur le plan de la maison dans ces pièces allume la scène avec son intensité et sa couleur du moment (relues toutes les 5 s).
  */
-const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
+const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   const hostRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<SceneHandle | null>(null)
   const [supported] = useState(supportsWebGL)
-  const [showHood, setShowHood] = useState(true)
-  const [realShutters, setRealShutters] = useState(true)
-  // Les écrans du bureau et la télé : pour chacun, la caméra qu'il montre (absent ou -1 : éteint). Chaque clic passe à la suivante, puis l'éteint.
-  const [screenIndex, setScreenIndex] = useState<Record<string, number>>({})
-  const nextScreen = (key: string) =>
-    setScreenIndex((current) => {
-      const index = (current[key] ?? -1) + 1
-      return { ...current, [key]: index >= cameras.length ? -1 : index }
-    })
-  // Le bouton « Voir » d'un écran ouvre la page de la caméra qu'il montre.
-  const openShown = (key: string) => {
-    const camera = cameras[screenIndex[key] ?? -1]
-    if (camera) onOpenCamera?.(camera.name)
-  }
-  const openShownRef = useRef(openShown)
-  useEffect(() => {
-    openShownRef.current = openShown
-  })
-  const nextScreenRef = useRef(nextScreen)
-  useEffect(() => {
-    nextScreenRef.current = nextScreen
-  })
-  const screenKey = JSON.stringify(SCREEN_KEYS.map((key) => [key, cameras[screenIndex[key] ?? -1] ?? null]))
   const plan = usePlan(apiKey)
   const { lamps, toggle } = useLampPlan(apiKey, plan.items, true)
   // La scène est construite une fois : elle appelle le `toggle` du moment par cette référence.
@@ -95,6 +67,11 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
   useEffect(() => {
     toggleAcRef.current = toggleAc
   })
+  // Un clic sur une caméra de la scène ouvre la vraie (rien sans `onOpenCamera`).
+  const openCameraRef = useRef(onOpenCamera)
+  useEffect(() => {
+    openCameraRef.current = onOpenCamera
+  })
   // La clarté du ciel du moment (météo de la maison, relue toutes les 15 min).
   const weather = useWeather(HOUSE_LATITUDE, HOUSE_LONGITUDE)
   const sky = skyOf(weather, new Date().getHours())
@@ -105,7 +82,7 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
     return place ? [{ id: lamp.id, name: lamp.name, ...place, on: lamp.on, reachable: lamp.reachable, brightness: lamp.brightness ?? null, color: lamp.color ?? null }] : []
   })
   const lampsKey = JSON.stringify(sceneLamps)
-  // Les volets roulants : tous ouverts, ou, bouton « Volets réels » enfoncé, la part fermée de chacun d'après le dernier ordre de la maison.
+  // Les volets roulants : la part fermée de chacun d'après le dernier ordre de la maison.
   const shutters = useShutters(apiKey)
   // Un clic sur une fenêtre de la scène envoie l'ordre contraire du dernier à son vrai volet : descendu, il monte ; sinon il descend.
   const animateUntil = useRef(0)
@@ -121,12 +98,7 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
     toggleShutterRef.current = toggleShutter
   })
   const closedKey = JSON.stringify(
-    Object.fromEntries(
-      SHUTTER_KEYS.map((key) => [
-        key,
-        realShutters ? closedOf(shutters.state?.shutters.find((shutter) => shutter.name.toLowerCase().includes(key))?.lastCommand ?? null) : 0,
-      ]),
-    ),
+    Object.fromEntries(SHUTTER_KEYS.map((key) => [key, closedOf(shutters.state?.shutters.find((shutter) => shutter.name.toLowerCase().includes(key))?.lastCommand ?? null)])),
   )
 
   // Crée la scène à l'ouverture et la détruit ensuite.
@@ -159,7 +131,6 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
     sun.shadow.bias = -0.0005
     scene.add(sun)
     const lighting = createLighting(parts.root)
-    const screen = createScreenFeed(parts.root)
     // La pendule de la cuisine donne l'heure, remise à jour quatre fois par minute.
     applyClock(parts.root, new Date())
     const clockTimer = setInterval(() => applyClock(parts.root, new Date()), 15_000)
@@ -167,6 +138,9 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
     const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 260)
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
+    // La molette zoome vers ce qui est sous la souris, pas vers le point de pivot : sinon son pas dépend de la distance à ce pivot (qui
+    // bouge quand on déplace la vue), et le zoom bute dessus sans raison apparente.
+    controls.zoomToCursor = true
     controls.minDistance = 0.15
     controls.maxDistance = 70
     controls.maxPolarAngle = Math.PI / 2 - 0.02
@@ -188,6 +162,9 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
     // La clim se clique aussi : son bloc, visé pour de bon par le rayon.
     const acParts = acMeshes(parts.root)
     const acUnder = (): string | null => acParts.find((part) => raycaster.intersectObject(part.object, false).length > 0)?.id ?? null
+    // Les caméras aussi : leur modèle (fût, face, casquette, rotule).
+    const cameraParts = cameraMeshes(parts.root)
+    const cameraUnder = (): string | null => cameraParts.find((part) => raycaster.intersectObject(part.object, true).length > 0)?.name ?? null
     // Les fenêtres à volet aussi : la plus proche de l'œil sous le rayon.
     const windows = shutterWindows(parts.root)
     const shutterUnder = (): string | null => {
@@ -207,7 +184,7 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
       pressed = e.button === 0 ? { x: e.clientX, y: e.clientY } : null
     }
     const onPointerMove = (e: PointerEvent) => {
-      if (e.buttons === 0) canvas.style.cursor = lampUnder(e) || acUnder() !== null || screen.hit(raycaster) !== null || shutterUnder() ? 'pointer' : ''
+      if (e.buttons === 0) canvas.style.cursor = lampUnder(e) || acUnder() !== null || cameraUnder() !== null || shutterUnder() ? 'pointer' : ''
     }
     const onPointerUp = (e: PointerEvent) => {
       const start = pressed
@@ -221,26 +198,9 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
           toggleAcRef.current(unit)
           return
         }
-        const viewed = screen.button(raycaster)
-        if (viewed) {
-          openShownRef.current(viewed)
-          return
-        }
-        const touched = screen.hit(raycaster)
-        if (touched) {
-          // La vue vient se placer bien en face de l'écran cliqué, à la distance où il occupe les deux tiers de l'image.
-          const place = screen.frame(touched)
-          if (place) {
-            // Les deux écrans du bureau se regardent ensemble : la vue se centre entre eux et les cadre tous les deux.
-            const mate = touched === 'left' ? screen.frame('right') : touched === 'right' ? screen.frame('left') : null
-            const center = mate ? place.center.clone().lerp(mate.center, 0.5) : place.center
-            const width = mate ? place.width + place.center.distanceTo(mate.center) : place.width
-            const distance = screenDistance(width, place.height, camera.fov, camera.aspect, SCREEN_SHARE)
-            camera.position.copy(center).addScaledVector(place.normal, distance)
-            controls.target.copy(center)
-            controls.update()
-          }
-          nextScreenRef.current(touched)
+        const name = cameraUnder()
+        if (name) {
+          openCameraRef.current?.(name)
           return
         }
         const shutter = shutterUnder()
@@ -285,18 +245,16 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
       stepShutters(parts.root, Math.min(0.25, (now - last) / 1000))
       last = now
       if (!visible) return
-      screen.update(now)
       controls.update()
       renderer.render(scene, camera)
     }
     loop()
 
-    sceneRef.current = { root: parts.root, ambient, sun, controls, hood: parts.hood, lighting, screen, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
+    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
 
     return () => {
       cancelAnimationFrame(frame)
       clearInterval(clockTimer)
-      screen.dispose()
       observer.disconnect()
       host.removeEventListener('mousedown', noAutoscroll)
       canvas.removeEventListener('pointerdown', onPointerDown)
@@ -314,12 +272,6 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
     }
   }, [supported])
 
-  // Applique le réglage du bouton à la scène existante.
-  useEffect(() => {
-    if (!sceneRef.current) return
-    sceneRef.current.hood.visible = showHood
-  }, [showHood, supported])
-
   // Les lampes du pont éclairent la scène : à chaque changement d'état (allumée, intensité, couleur) ou de place.
   useEffect(() => {
     sceneRef.current?.lighting.apply(JSON.parse(lampsKey) as SceneLamp[])
@@ -330,15 +282,11 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
   useEffect(() => {
     const current = sceneRef.current
     if (!current) return
-    const daylight = applyShutters(current.root, JSON.parse(closedKey) as Record<string, number>, performance.now() < animateUntil.current) * sky
+    const open = applyShutters(current.root, JSON.parse(closedKey) as Record<string, number>, performance.now() < animateUntil.current)
+    const daylight = ALWAYS_DAY ? 1 : open * sky
     current.ambient.intensity = DAYLIGHT.night + DAYLIGHT.day * daylight
     current.sun.intensity = DAYLIGHT.sun * daylight
   }, [closedKey, sky, supported])
-
-  // Chaque écran ouvre le direct de sa caméra, ou le referme.
-  useEffect(() => {
-    for (const [key, camera] of JSON.parse(screenKey) as [string, SceneCamera | null][]) sceneRef.current?.screen.show(key, camera ? liveSrc(camera.name) : null, camera?.portrait)
-  }, [screenKey, supported])
 
   // Le voyant de la clim suit la vraie.
   useEffect(() => {
@@ -349,18 +297,11 @@ const Kitchen3D = ({ apiKey, cameras = [], onOpenCamera }: Kitchen3DProps) => {
   return (
     <section>
       <h2 className={TITLE_CLASS}>{TITLE}</h2>
-      <p className={INTRO_CLASS}>{INTRO}</p>
       {!supported ? (
         <p className={INTRO_CLASS}>{NO_WEBGL_TEXT}</p>
       ) : (
         <div>
           <div className={BUTTONS_CLASS}>
-            <Button variant={showHood ? 'active' : undefined} aria-pressed={showHood} onClick={() => setShowHood((value) => !value)}>
-              {HOOD_LABEL}
-            </Button>
-            <Button variant={realShutters ? 'active' : undefined} aria-pressed={realShutters} onClick={() => setRealShutters((value) => !value)}>
-              {SHUTTERS_LABEL}
-            </Button>
             <Button onClick={() => sceneRef.current?.topView()}>{TOP_LABEL}</Button>
             <Button onClick={() => sceneRef.current?.resetView()}>{RESET_LABEL}</Button>
             <span className={HINT_CLASS}>{LAMPS_ON_TEXT(lit, sceneLamps.length)}</span>

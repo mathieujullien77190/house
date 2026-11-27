@@ -3,14 +3,13 @@ import * as THREE from 'three'
 import type { PlanLamp } from '@house/ui'
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT } from '@/components/MapPlan/constants'
-import { liveSrc } from '@/lib/live'
 import { stubCanvasContext } from '@/test/canvas'
 import type { AcUnit, ShutterCommand, ShuttersState } from '@/types'
-import { DAYLIGHT, LAMP_LIGHT, LAYOUT, NO_WEBGL_TEXT, PLAN_HOUSE, ROOM, SCREEN_SHARE, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
+import { DAYLIGHT, LAMP_LIGHT, NO_WEBGL_TEXT, PLAN_HOUSE, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
 import Kitchen3D from './Kitchen3D'
-import { AC_LED, screenDistance } from './live'
+import { AC_LED } from './live'
 import { SHUTTER_KEYS, SHUTTER_TRAVEL_S } from './shutters'
-import type { SceneCamera, SceneParts, ScreenFeed } from './types'
+import type { SceneParts } from './types'
 
 interface FakeRenderer {
   domElement: HTMLCanvasElement
@@ -34,6 +33,7 @@ interface FakeControls {
 
 const h = vi.hoisted(() => ({
   supported: true,
+  alwaysDay: false,
   lamps: [] as PlanLamp[],
   toggle: (() => undefined) as (id: string) => void,
   units: null as AcUnit[] | null,
@@ -45,7 +45,6 @@ const h = vi.hoisted(() => ({
   renderers: [] as FakeRenderer[],
   controls: [] as FakeControls[],
   parts: [] as SceneParts[],
-  feeds: [] as ScreenFeed[],
   resize: [] as (() => void)[],
   visibility: [] as ((entries: { isIntersecting: boolean }[]) => void)[],
   disconnected: [] as string[],
@@ -88,6 +87,16 @@ vi.mock('three/examples/jsm/controls/OrbitControls.js', async () => {
   }
   return { OrbitControls }
 })
+// Le plein jour forcé (`ALWAYS_DAY`) est un réglage du code : les tests le choisissent pour passer par ses deux valeurs.
+vi.mock('./constants', async (original) => {
+  const actual = await original<typeof import('./constants')>()
+  return {
+    ...actual,
+    get ALWAYS_DAY() {
+      return h.alwaysDay
+    },
+  }
+})
 vi.mock('@/lib/three', async (original) => ({ ...(await original<typeof import('@/lib/three')>()), supportsWebGL: () => h.supported }))
 vi.mock('@/lib/usePlan', () => ({ usePlan: () => ({ items: { l1: { x: 1, y: 2 } } }) }))
 vi.mock('@/lib/useLampPlan', () => ({
@@ -111,20 +120,8 @@ vi.mock('./helpers', async (original) => {
     },
   }
 })
-// Les écrans sont les vrais ; ils sont seulement retenus pour suivre ce qu'on leur demande.
-vi.mock('./live', async (original) => {
-  const actual = await original<typeof import('./live')>()
-  return {
-    ...actual,
-    createScreenFeed: (root: THREE.Object3D) => {
-      const feed = actual.createScreenFeed(root)
-      h.feeds.push(feed)
-      return feed
-    },
-  }
-})
 
-/** Une lampe du plan de Home, à une place de la maison (unités du plan, 540 × 300). */
+/** Une lampe du plan de la maison, à une place de la maison (unités du plan, 540 × 300). */
 const lamp = (id: string, houseX: number, houseY: number, over: Partial<PlanLamp> = {}): PlanLamp => ({
   id,
   name: id,
@@ -143,13 +140,9 @@ const shuttersOf = (commands: Record<string, ShutterCommand | null>): ShuttersSt
   shutters: Object.entries(commands).map(([name, lastCommand], index) => ({ id: `s${index + 1}`, name, lastCommand, lastAt: null, auto: null })),
 })
 
-const CAMERAS: SceneCamera[] = [
-  { name: 'voliere-toit', portrait: true },
-  { name: 'salon de jardin', portrait: false },
-]
-
 beforeEach(() => {
   h.supported = true
+  h.alwaysDay = false
   h.lamps = []
   h.toggle = vi.fn()
   h.units = null
@@ -157,7 +150,7 @@ beforeEach(() => {
   h.shutters = null
   h.send = vi.fn()
   h.weather = { isDay: true, code: 0 }
-  for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.feeds, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
+  for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
   stubCanvasContext(null)
   vi.stubGlobal(
     'ResizeObserver',
@@ -301,15 +294,9 @@ describe('Kitchen3D', () => {
     expect(camera().aspect).toBe(1040 / VIEW_HEIGHT)
   })
 
-  it('les boutons : la hotte se cache, la vue du dessus et le retour à la vue de départ', () => {
+  it('les boutons : la vue du dessus et le retour à la vue de départ ; ni « Hotte » ni « Volets réels » (la hotte est toujours là)', () => {
     render(<Kitchen3D apiKey="k" />)
-    const hood = screen.getByRole('button', { name: 'Hotte' })
-    expect(hood).toHaveAttribute('aria-pressed', 'true')
-    expect(h.parts[0].hood.visible).toBe(true)
-    fireEvent.click(hood)
-    expect(hood).toHaveAttribute('aria-pressed', 'false')
-    expect(h.parts[0].hood.visible).toBe(false)
-    fireEvent.click(hood)
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue'])
     expect(h.parts[0].hood.visible).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Vue du dessus' }))
     expect(camera().position.toArray()).toEqual([TOP.x, TOP.y, TOP.z])
@@ -367,7 +354,6 @@ describe('Kitchen3D', () => {
     const drawing = renderer.domElement
     const floor = h.parts[0].root.children[0].children[0] as THREE.Mesh
     const dispose = vi.spyOn(floor.geometry, 'dispose')
-    const closeFeeds = vi.spyOn(h.feeds[0], 'dispose')
     const element = host()
     aim(tagged('fixtureName', 'salon'), [1, -0.5, 1])
     view.unmount()
@@ -375,7 +361,6 @@ describe('Kitchen3D', () => {
     expect(h.disconnected.sort()).toEqual(['resize', 'visibility'])
     expect(h.controls[0].dispose).toHaveBeenCalledTimes(1)
     expect(dispose).toHaveBeenCalledTimes(1)
-    expect(closeFeeds).toHaveBeenCalledTimes(1)
     expect(renderer.dispose).toHaveBeenCalledTimes(1)
     expect(renderer.forceContextLoss).toHaveBeenCalledTimes(1)
     expect(drawing.isConnected).toBe(false)
@@ -387,7 +372,7 @@ describe('Kitchen3D', () => {
 })
 
 describe('Kitchen3D : le pointeur', () => {
-  it('devient une main au-dessus d’une ampoule, d’une clim, d’un écran ou d’une fenêtre à volet', () => {
+  it('devient une main au-dessus d’une ampoule, d’une clim ou d’une fenêtre à volet', () => {
     h.lamps = [lamp('l1', 0, 0, { name: 'Salon' })]
     render(<Kitchen3D apiKey="k" />)
     lookAway()
@@ -408,11 +393,6 @@ describe('Kitchen3D : le pointeur', () => {
     expect(canvas().style.cursor).toBe('pointer')
     pointer('pointermove')
     expect(canvas().style.cursor).toBe('')
-    aim(tagged('cameraScreen', 'tv'), [0, 0, 2])
-    pointer('pointermove')
-    expect(canvas().style.cursor).toBe('pointer')
-    lookAway()
-    pointer('pointermove')
     aim(tagged('shutter', 'cuisine'), [-1.5, 0, 0])
     pointer('pointermove')
     expect(canvas().style.cursor).toBe('pointer')
@@ -452,14 +432,12 @@ describe('Kitchen3D : le pointeur', () => {
   it('un clic dans le vide ne fait rien', () => {
     h.units = [unit('salon')]
     h.shutters = shuttersOf({ 'Volet cuisine': 'up' })
-    render(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
-    const show = vi.spyOn(h.feeds[0], 'show')
+    render(<Kitchen3D apiKey="k" />)
     lookAway()
     click()
     expect(h.toggle).not.toHaveBeenCalled()
     expect(h.change).not.toHaveBeenCalled()
     expect(h.send).not.toHaveBeenCalled()
-    expect(show).not.toHaveBeenCalled()
   })
 })
 
@@ -500,99 +478,27 @@ describe('Kitchen3D : les clims', () => {
   })
 })
 
-describe('Kitchen3D : les écrans', () => {
-  it('un clic sur la télé vient se placer devant elle et y montre les caméras, une par clic, puis l’éteint', () => {
-    render(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
-    const show = vi.spyOn(h.feeds[0], 'show')
-    const tv = tagged('cameraScreen', 'tv')
-    const center = worldOf(tv)
-    aim(tv, [0.3, 0.2, 2])
-    h.controls[0].update.mockClear()
-    click()
-    // Bien en face (la télé regarde vers +z), à la distance où elle occupe les deux tiers de la vue.
-    const { width, height } = (tv.geometry as THREE.BoxGeometry).parameters
-    const distance = screenDistance(width, height, camera().fov, camera().aspect, SCREEN_SHARE)
-    expect(camera().position.distanceTo(center.clone().add(new THREE.Vector3(0, 0, distance)))).toBeCloseTo(0)
-    expect(h.controls[0].target.distanceTo(center)).toBeCloseTo(0)
-    expect(h.controls[0].update).toHaveBeenCalledTimes(1)
-    expect(show).toHaveBeenLastCalledWith('tv', liveSrc('voliere-toit'), true)
-    // Les autres écrans restent éteints.
-    expect(show).toHaveBeenCalledWith('left', null, undefined)
-    aim(tv, [0, 0, 2])
-    click()
-    expect(show).toHaveBeenLastCalledWith('tv', liveSrc('salon de jardin'), false)
-    aim(tv, [0, 0, 2])
-    click()
-    expect(show).toHaveBeenLastCalledWith('tv', null, undefined)
-    aim(tv, [0, 0, 2])
-    click()
-    expect(show).toHaveBeenLastCalledWith('tv', liveSrc('voliere-toit'), true)
-  })
-
-  it('les deux écrans du bureau se regardent ensemble : la vue se centre entre eux et les cadre tous les deux', () => {
-    render(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
-    const show = vi.spyOn(h.feeds[0], 'show')
-    const left = tagged('cameraScreen', 'left')
-    const right = tagged('cameraScreen', 'right')
-    const middle = worldOf(left).lerp(worldOf(right), 0.5)
-    const { width, height } = (left.geometry as THREE.BoxGeometry).parameters
-    // Ils regardent le fauteuil (−z) : la vue recule de ce côté, assez pour les deux écrans et l'écart entre eux.
-    const distance = screenDistance(width + 0.6, height, camera().fov, camera().aspect, SCREEN_SHARE)
-    const expected = middle.clone().add(new THREE.Vector3(0, 0, -distance))
-    aim(left, [0, 0, -1.5])
-    click()
-    expect(middle.x).toBeCloseTo(LAYOUT.desk.x)
-    expect(camera().position.distanceTo(expected)).toBeCloseTo(0)
-    expect(h.controls[0].target.distanceTo(middle)).toBeCloseTo(0)
-    expect(show).toHaveBeenCalledWith('left', liveSrc('voliere-toit'), true)
-    expect(show).toHaveBeenCalledWith('right', null, undefined)
-    camera().position.set(0, 0, 0)
-    aim(right, [0, 0, -1.5])
-    click()
-    expect(camera().position.distanceTo(expected)).toBeCloseTo(0)
-    expect(show).toHaveBeenCalledWith('right', liveSrc('voliere-toit'), true)
-  })
-
-  it('sans caméra, un écran cliqué reste éteint ; un écran dont on ne sait pas la place ne déplace pas la vue', () => {
-    render(<Kitchen3D apiKey="k" />)
-    const show = vi.spyOn(h.feeds[0], 'show')
-    vi.spyOn(h.feeds[0], 'frame').mockReturnValue(null)
-    const tv = tagged('cameraScreen', 'tv')
-    aim(tv, [0, 0, 2])
-    const from = camera().position.clone()
-    click()
-    expect(camera().position.equals(from)).toBe(true)
-    expect(show).not.toHaveBeenCalled()
-  })
-
-  it('le bouton « Voir » d’un écran ouvre la page de la caméra qu’il montre', () => {
+describe('Kitchen3D : les caméras', () => {
+  it('un clic sur une caméra de la scène ouvre la vraie ; la souris devient une main au-dessus', () => {
     const onOpenCamera = vi.fn()
-    const view = render(<Kitchen3D apiKey="k" cameras={CAMERAS} onOpenCamera={onOpenCamera} />)
-    const tv = tagged('cameraScreen', 'tv')
-    const button = tv.children[0]
-    // Écran éteint : pas de bouton, le clic à cet endroit touche l'écran et y ouvre la première caméra.
-    aim(button, [0, 0, 1])
-    click()
-    expect(onOpenCamera).not.toHaveBeenCalled()
-    expect(button.visible).toBe(true)
-    aim(button, [0, 0, 1])
+    render(<Kitchen3D apiKey="k" onOpenCamera={onOpenCamera} />)
+    aim(tagged('camera', 'voliere-toit'), [0.2, 2, 0.2])
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
     click()
     expect(onOpenCamera).toHaveBeenCalledExactlyOnceWith('voliere-toit')
-    // Sans page à ouvrir, le bouton ne fait rien (et ne change pas de caméra).
-    const show = vi.spyOn(h.feeds[0], 'show')
-    view.rerender(<Kitchen3D apiKey="k" cameras={CAMERAS} />)
+    aim(tagged('camera', 'salon-de-jardin'), [0.2, 2, 0.2])
     click()
-    expect(onOpenCamera).toHaveBeenCalledTimes(1)
-    expect(show).not.toHaveBeenCalled()
+    expect(onOpenCamera).toHaveBeenLastCalledWith('salon-de-jardin')
+    expect(h.change).not.toHaveBeenCalled()
+    expect(h.send).not.toHaveBeenCalled()
   })
 
-  it('le bouton d’un écran qui ne montre rien n’ouvre rien', () => {
-    const onOpenCamera = vi.fn()
-    render(<Kitchen3D apiKey="k" cameras={CAMERAS} onOpenCamera={onOpenCamera} />)
-    vi.spyOn(h.feeds[0], 'button').mockReturnValue('right')
-    lookAway()
+  it('sans `onOpenCamera`, le clic sur une caméra ne fait rien', () => {
+    render(<Kitchen3D apiKey="k" />)
+    aim(tagged('camera', 'voliere-toit'), [0.2, 2, 0.2])
     click()
-    expect(onOpenCamera).not.toHaveBeenCalled()
+    expect(h.send).not.toHaveBeenCalled()
   })
 })
 
@@ -617,17 +523,16 @@ describe('Kitchen3D : les volets et le jour', () => {
     expect(shownOf('porte')).toBe(Math.round(slatsOf('porte').children.length / 2))
   })
 
-  it('le jour qui entre : la part de vitre découverte, fois la clarté du ciel ; « Volets réels » relâché, tout est ouvert', () => {
+  it('le jour qui entre : la part de vitre découverte, fois la clarté du ciel', () => {
     h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'down', 'Volet PC': 'down', 'Volet porte': 'down' })
     const view = render(<Kitchen3D apiKey="k" />)
     const { ambient, sun } = lightsOfScene()
     // Tout fermé : il ne reste que l'ambiance de nuit.
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
     expect(sun.intensity).toBe(0)
-    const real = screen.getByRole('button', { name: 'Volets réels' })
-    expect(real).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(real)
-    expect(real).toHaveAttribute('aria-pressed', 'false')
+    // Tout ouvert : plein jour.
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
+    view.rerender(<Kitchen3D apiKey="k" />)
     expect(shownOf('cuisine')).toBe(0)
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
     expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
@@ -639,7 +544,16 @@ describe('Kitchen3D : les volets et le jour', () => {
     h.weather = { isDay: false, code: 0 }
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
-    fireEvent.click(real)
+  })
+
+  it('plein jour forcé : la scène est éclairée comme en journée, volets fermés et de nuit compris ; les volets suivent quand même la maison', () => {
+    h.alwaysDay = true
+    h.weather = { isDay: false, code: 3 }
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'down', 'Volet PC': 'down', 'Volet porte': 'down' })
+    render(<Kitchen3D apiKey="k" />)
+    const { ambient, sun } = lightsOfScene()
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
     expect(shownOf('cuisine')).toBe(slatsOf('cuisine').children.length)
   })
 

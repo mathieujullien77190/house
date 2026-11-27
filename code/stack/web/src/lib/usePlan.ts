@@ -1,4 +1,4 @@
-// Le plan de la maison (la carte de l'onglet Caméras) : House API en est la seule source, rien n'est gardé dans le navigateur. Le plan est lu une fois au montage (un autre appareil
+// Le plan de la maison (lu par la vue 3D de Home) : House API en est la seule source, rien n'est gardé dans le navigateur. Le plan est lu une fois au montage (un autre appareil
 // le retrouve en rechargeant la page) ; un changement local s'applique tout de suite et part à l'API 500 ms plus tard (le dernier gagne, la base est mise à jour). Tant que le plan de
 // l'API n'est pas lu, rien n'est envoyé (le dessin de départ n'écrase jamais le plan gardé).
 import { useCallback, useEffect, useRef, useState } from 'react'

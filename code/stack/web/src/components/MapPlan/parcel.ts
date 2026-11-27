@@ -34,19 +34,6 @@ const parcel = parcelPoints(PARCEL, MAP_CENTER, MAP_ANCHOR, MAP_ROTATION_DEG, MA
 // La haie suit la limite de la parcelle (son axe pile dessus).
 const hedgeRing = parcel
 
-/** La limite de propriété à l'est à la hauteur `y` du plan : le x le plus à l'est où le contour de la parcelle coupe cette ligne. */
-export const eastLimitAt = (y: number): number => {
-  let limit = -Infinity
-  parcel.forEach(([x1, y1], index) => {
-    const [x2, y2] = parcel[(index + 1) % parcel.length]
-    if ((y1 <= y && y <= y2) || (y2 <= y && y <= y1)) {
-      const t = y2 === y1 ? 0 : (y - y1) / (y2 - y1)
-      limit = Math.max(limit, x1 + t * (x2 - x1))
-    }
-  })
-  return limit
-}
-
 /** Les portails du plan, posés sur la haie au point le plus proche de leur ancienne place, dans le sens du côté. */
 const placed = PLAN_GATES.map((gate) => {
   const length = Math.hypot(gate.x2 - gate.x1, gate.y2 - gate.y1)
@@ -65,7 +52,6 @@ const placed = PLAN_GATES.map((gate) => {
     },
   }
 })
-export const PARCEL_GATES = placed.map((entry) => entry.gate)
 
 /** Les haies de départ : la limite de la parcelle, percée à chaque portail (la moitié du portail, plus le bout arrondi de la haie), un morceau par haie. */
 export const PARCEL_HEDGES: PlanHedge[] = ringPieces(

@@ -2,7 +2,7 @@ import type { TabId } from '@/types'
 
 export const TITLE = 'House'
 export const TABS_LABEL = 'Pages'
-export const DEFAULT_TAB: TabId = 'test'
+export const DEFAULT_TAB: TabId = 'home'
 export const TABS: { id: TabId; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'cameras', label: 'Caméras' },
@@ -13,12 +13,10 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'box', label: 'Box' },
   { id: 'tv', label: 'Box TV' },
   { id: 'guest', label: 'Page invité' },
-  { id: 'test', label: 'Test' },
 ]
 export const BACK_LABEL = '← Toutes les caméras'
 export const LOCKED_TEXT = 'Entrez votre clé.'
 export const CHECKING_TEXT = 'Vérification de la clé…'
-export const LOADING_3D_TEXT = 'Chargement de la vue 3D…'
 export const NO_CAMERA_TEXT = 'Aucune caméra : House Sync n’a encore rien écrit.'
 
 export const BACK_CLASS = 'mt-4'

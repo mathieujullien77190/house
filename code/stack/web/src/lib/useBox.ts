@@ -1,4 +1,4 @@
-// La Freebox, partagée par l'onglet Box et l'aperçu de la carte de Home : lue toutes les 12 s ; l'interrupteur du WiFi part par `PUT /box/wifi` et la réponse de l'API remplace tout de suite l'état du WiFi.
+// La Freebox, pour l'onglet Box : lue toutes les 12 s ; l'interrupteur du WiFi part par `PUT /box/wifi` et la réponse de l'API remplace tout de suite l'état du WiFi.
 // Une lecture qui échoue garde le dernier état lu et dit pourquoi (`problem`).
 import { useEffect, useState } from 'react'
 import { POLL_MS } from '@/components/BoxPanel/constants'

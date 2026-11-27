@@ -2,11 +2,11 @@
 
 Lampes du pont Hue (`/hue`, 5 s), rendues par `LightsPanel` de `@house/ui`. Pont et règles : `../../../../docs/hue.md`.
 
-- **Allumer = puissance max** : `{ on: true, bri: 254 }` (`MAX_BRI`) pour une case, une zone, « Tout allumer » et une ampoule de la carte. Éteindre : `{ on: false }`.
+- **Allumer = puissance max** : `{ on: true, bri: 254 }` (`MAX_BRI`) pour une case, une zone, « Tout allumer ». Éteindre : `{ on: false }`.
 - **Seule la lampe « Perruche » (`dimmable`) a un curseur de luminosité**, envoyé au relâchement.
 - Sans pont (503) : un message. Erreur passagère : un bandeau. Une lampe qui échoue dans « Tout allumer » ne bloque pas les autres.
 - « Tout allumer / éteindre » ne touchent pas la volière.
-- Il n'y a **plus de carte dans cet onglet** : elle est dans Home (`../HouseMap/CLAUDE.md`).
+- Il n'y a **pas de carte** : les lampes se voient à leur place dans la vue 3D de Home (`../Kitchen3D/CLAUDE.md`).
 
 ## La liste
 
