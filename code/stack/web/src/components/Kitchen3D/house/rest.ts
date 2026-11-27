@@ -22,9 +22,17 @@ export const guestAndBath = (shell: Shell): void => {
   emptyRoom([guestSouth, xMax, west, guestEast], standard(sisalTexture(), 0.95), { east: [END_DOOR] }, { west: [GUEST_WINDOW] })
   // Les cloisons de la chambre d'invité, pleines : 8 cm vers la salle de bain, quelques centimètres vers la chambre 2.
   group.add(box(xMax - bathSouth - 0.002, height, bathWest - guestEast - 0.002, materials.wall, (xMax + bathSouth) / 2, height / 2, (bathWest + guestEast) / 2))
-  // Celle de la chambre 2 est épaissie de 3 cm, pris sur la chambre 2.
-  const matouWall = corridorSouth - 0.03
-  group.add(box(guestSouth - matouWall - 0.002, height, guestEast - west - 0.002, materials.wall, (guestSouth + matouWall) / 2, height / 2, (guestEast + west) / 2))
+  // Celle de la chambre 2 est épaissie de 6 cm, pris sur la chambre 2.
+  const matouWall = corridorSouth - 0.06
+  // Elle continue jusqu'à la porte de la chambre 2 (le mur ne s'amincit pas au-dessus d'elle).
+  const matouTo = SIDE_DOOR[0]
+  group.add(box(guestSouth - matouWall - 0.002, height, matouTo - west - 0.002, materials.wall, (guestSouth + matouWall) / 2, height / 2, (matouTo + west) / 2))
+  // Et de l'autre côté de la porte, il continue jusqu'au mur d'en face (celui de la penderie), avec un linteau plein au-dessus de la porte.
+  const thick = guestSouth - matouWall - 0.002
+  const middleX = (guestSouth + matouWall) / 2
+  const [, doorTo] = SIDE_DOOR
+  group.add(box(thick, height, REST.matouEast - doorTo, materials.wall, middleX, height / 2, (doorTo + REST.matouEast) / 2))
+  group.add(box(thick, height - PASSAGE.top, doorTo - matouTo, materials.wall, middleX, (height + PASSAGE.top) / 2, (matouTo + doorTo) / 2))
   emptyRoom([bathSouth, xMax, bathWest, zMin], 'small', { south: [SIDE_DOOR] }, { east: [{ z: WC_ALCOVE.x, width: WC_ALCOVE.width, bottom: WC_ALCOVE.bottom, height: WC_ALCOVE.height }], north: [BATH_WINDOW] })
   // Entre ces pièces, les murs épais sont pleins : celui du couloir à la salle de bain, et celui du bout du couloir à la chambre d'invité.
   // Leurs seuils de porte sont en chêne clair.
@@ -66,12 +74,13 @@ export const matouRoom = (shell: Shell): void => {
   const { west, corridorSouth, matouEast } = REST
   // Pas de parquet dans les chambres : un sol uni, clair.
   const plain = standard(0xdcd8d0, 0.8)
-  emptyRoom([xMin, corridorSouth, west, matouEast], plain, { north: [SIDE_DOOR] }, { south: [MATOU_WINDOW] })
+  // Son mur du couloir est épaissi de 6 cm (voir `guestAndBath`) : la pièce s'arrête à sa face, et la plinthe est contre elle, pas dedans.
+  emptyRoom([xMin, corridorSouth - 0.06, west, matouEast], plain, { north: [SIDE_DOOR] }, { south: [MATOU_WINDOW] })
   // Sa porte : un battant blanc ouvert dans la chambre, rabattu du côté du mur du placard (ses gonds sont de ce côté), avec sa poignée noire.
   const leafWide = SIDE_DOOR[1] - SIDE_DOOR[0] - 0.02
   const leafZ = SIDE_DOOR[1] - 0.03
-  group.add(box(leafWide, PASSAGE.top - 0.02, 0.04, standard(0xf6f6f3, 0.55), corridorSouth - 0.03 - leafWide / 2, (PASSAGE.top - 0.02) / 2, leafZ))
-  for (const side of [-1, 1]) group.add(box(0.12, 0.02, 0.03, materials.lamp, corridorSouth - 0.03 - leafWide + 0.11, 1.02, leafZ + side * 0.035))
+  group.add(box(leafWide, PASSAGE.top - 0.02, 0.04, standard(0xf6f6f3, 0.55), corridorSouth - 0.06 - leafWide / 2, (PASSAGE.top - 0.02) / 2, leafZ))
+  for (const side of [-1, 1]) group.add(box(0.12, 0.02, 0.03, materials.lamp, corridorSouth - 0.06 - leafWide + 0.11, 1.02, leafZ + side * 0.035))
   // Entre la chambre et le mur de la télé : un mur blanc épais où est encastré le placard. Quatre portes blanches à cadre (quatre panneaux
   // séparés par des traverses), dans un chambranle blanc, chacune avec sa poignée noire ; les deux du milieu s'ouvrent l'une vers l'autre.
   group.add(box(corridorSouth - xMin - 0.002, height, zMin - matouEast - 0.002, materials.wall, (corridorSouth + xMin) / 2, height / 2, (zMin + matouEast) / 2))

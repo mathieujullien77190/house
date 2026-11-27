@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
-import { box, noShadow, standard } from '@/components/Kitchen3D/primitives'
+import { box, cylinder, noShadow, standard } from '@/components/Kitchen3D/primitives'
 import { wireTexture } from '@/components/Kitchen3D/textures'
 import { CAGE_HEIGHT, CAGE_LOW, GRASS, LOW, PANEL } from './constants'
 import { SITE } from './layout'
@@ -82,6 +82,55 @@ export const cageRoof = (group: THREE.Group): void => {
   group.add(roof)
 }
 
+/**
+ * Un pan de bois de la cage (85 cm, d'après photo) : des planches horizontales d'une douzaine de centimètres, séparées d'un joint, tenues dans
+ * un cadre (deux montants, une traverse en haut et une en bas) qui dépasse des deux côtés. `along` : l'axe le long duquel il s'étend ; (x, z) : son milieu.
+ */
+const woodPan = (group: THREE.Group, wood: THREE.Material, along: 'x' | 'z', x: number, z: number, tall: number): void => {
+  // Un pavé du pan : sa largeur le long du pan, son épaisseur en travers, et son décalage le long du pan.
+  const piece = (wide: number, high: number, thick: number, shift: number, y: number): THREE.Mesh =>
+    along === 'x' ? box(wide, high, thick, wood, x + shift, y, z) : box(thick, high, wide, wood, x, y, z + shift)
+  const stile = 0.045
+  const boards = Math.round(tall / 0.13)
+  for (let board = 0; board < boards; board += 1) group.add(piece(PANEL - stile * 2, tall / boards - 0.004, 0.018, 0, (tall * (board + 0.5)) / boards))
+  for (const side of [-1, 1]) group.add(piece(stile, tall, 0.04, side * (PANEL / 2 - stile / 2 - 0.003), tall / 2))
+  for (const y of [stile / 2, tall - stile / 2]) group.add(piece(PANEL - stile * 2, stile, 0.036, 0, y))
+}
+
+/**
+ * Une porte de la cage, dans un pan de 85 cm du mur `wallX`, centrée en `doorZ`, haute de `tall` ; elle se regarde depuis −x.
+ */
+const cageDoor = (group: THREE.Group, post: THREE.Material, iron: THREE.Material, wallX: number, doorZ: number, tall: number): void => {
+  // La porte (d'après photo) : un bâti (deux montants, une traverse haute), et dedans un vantail de planches horizontales tenu par un cadre,
+  // une traverse du milieu et deux écharpes en biais ; trois pentures noires en T à droite (pour qui la regarde du dehors), un loquet à gauche.
+  const doorFace = wallX - 0.02
+  const jamb = 0.06
+  group.add(box(0.05, tall, jamb, post, doorFace, tall / 2, doorZ - PANEL / 2 + jamb / 2 + 0.01), box(0.05, tall, jamb, post, doorFace, tall / 2, doorZ + PANEL / 2 - jamb / 2 - 0.01))
+  group.add(box(0.05, 0.09, PANEL - 0.02 - jamb * 2, post, doorFace, tall - 0.045, doorZ))
+  const [leafWide, leafLow, leafHigh] = [PANEL - 0.02 - jamb * 2 - 0.012, 0.03, tall - 0.1]
+  const leafTall = leafHigh - leafLow
+  const boards = 12
+  for (let board = 0; board < boards; board += 1) group.add(box(0.016, leafTall / boards - 0.004, leafWide, post, doorFace, leafLow + (leafTall * (board + 0.5)) / boards, doorZ))
+  // Le cadre du vantail, posé sur les planches : deux montants, trois traverses (haut, milieu aux deux cinquièmes, bas).
+  const [rail, frameX] = [0.07, doorFace - 0.02]
+  const middle = leafLow + leafTall * 0.4
+  for (const side of [-1, 1]) group.add(box(0.024, leafTall, rail, post, frameX, leafLow + leafTall / 2, doorZ + side * (leafWide / 2 - rail / 2)))
+  const inner = leafWide - rail * 2
+  for (const y of [leafLow + rail / 2, middle, leafHigh - rail / 2]) group.add(box(0.024, rail, inner, post, frameX, y, doorZ))
+  // Les écharpes : celle du haut monte vers les pentures, celle du bas descend vers elles.
+  const brace = (fromY: number, toY: number): void => {
+    const piece = box(0.022, 0.06, Math.hypot(toY - fromY, inner), post, frameX, (fromY + toY) / 2, doorZ)
+    piece.rotation.x = -Math.atan2(toY - fromY, inner)
+    group.add(piece)
+  }
+  brace(middle + rail / 2, leafHigh - rail)
+  brace(middle - rail / 2, leafLow + rail)
+  for (const y of [leafLow + rail / 2, middle, leafHigh - rail / 2]) {
+    group.add(box(0.008, 0.035, 0.2, iron, frameX - 0.016, y, doorZ + leafWide / 2 - 0.09), box(0.008, 0.11, 0.035, iron, frameX - 0.012, y, doorZ + PANEL / 2 - jamb / 2 - 0.01))
+  }
+  group.add(box(0.02, 0.03, 0.12, iron, frameX - 0.02, 1.05, doorZ - leafWide / 2 + 0.03))
+}
+
 /** Les pans de bois de la cage et sa porte. */
 export const cagePanels = (group: THREE.Group, m: GardenMaterials): void => {
   const { iron, post } = m
@@ -93,14 +142,29 @@ export const cagePanels = (group: THREE.Group, m: GardenMaterials): void => {
   const doorZ = cageZ2 - pan * 1.5
   // Sous le toit, les pans de bois et la porte s'arrêtent sous la tôle : le panneau près de l'arête à mi-pente, celui du bord au plus bas.
   const midTall = (CAGE_HEIGHT + CAGE_LOW) / 2
-  group.add(box(0.03, CAGE_LOW, pan, post, cageX1, CAGE_LOW / 2, cageZ2 - pan / 2))
-  group.add(box(pan * 5, CAGE_LOW, 0.03, post, cageX2 - (pan * 5) / 2, CAGE_LOW / 2, cageZ2))
-  group.add(box(0.03, CAGE_HEIGHT, pan * 2, post, cageX2, CAGE_HEIGHT / 2, cageZ2 - pan * 3), box(0.03, midTall, pan, post, cageX2, midTall / 2, cageZ2 - pan * 1.5), box(0.03, CAGE_LOW, pan, post, cageX2, CAGE_LOW / 2, cageZ2 - pan / 2))
-  // La porte : un pan de bois comme les autres, de toute la hauteur, sur trois pentures noires, avec sa poignée.
-  const doorFace = cageX1 - 0.02
-  group.add(box(0.03, midTall, pan - 0.02, post, doorFace, midTall / 2, doorZ))
-  for (const y of [0.25, 1.1, 1.95]) group.add(box(0.02, 0.05, 0.2, iron, doorFace - 0.02, y, doorZ + pan / 2 - 0.12))
-  group.add(box(0.03, 0.14, 0.03, iron, doorFace - 0.03, 1.05, doorZ - pan / 2 + 0.08))
+  woodPan(group, post, 'z', cageX1, cageZ2 - pan / 2, CAGE_LOW)
+  for (let index = 0; index < 5; index += 1) woodPan(group, post, 'x', cageX2 - pan * (index + 0.5), cageZ2, CAGE_LOW)
+  for (const [index, tall] of [CAGE_LOW, midTall, CAGE_HEIGHT, CAGE_HEIGHT].entries()) woodPan(group, post, 'z', cageX2, cageZ2 - pan * (index + 0.5), tall)
+  // Le mur des deux pans grillagés du bac (`backX`) continue dans la cage, sous la tôle, sur deux pans jusqu'au côté de la haie : une porte (en face de celle de l'entrée), puis un pan de bois plein.
+  woodPan(group, post, 'z', SITE.backX, cageZ2 - pan / 2, CAGE_LOW)
+  cageDoor(group, post, iron, cageX1, doorZ, midTall)
+  // En face d'elle, dans la cloison de bois (`backX`), une seconde porte, la même.
+  cageDoor(group, post, iron, SITE.backX, doorZ, midTall)
+}
+
+/** Un bac creux : quatre planches de bois (de `bottom` à `top`) et de la terre dedans, jusqu'à `soilTop`, un peu sous le bord. `size` : x puis z ; `at` : le centre. */
+const tub = (group: THREE.Group, wood: THREE.Material, soil: THREE.Material, size: [number, number], [bottom, top]: [number, number], soilTop: number, at: [number, number]): void => {
+  const [long, wide] = size
+  const [x, z] = at
+  const tall = top - bottom
+  const board = 0.04
+  group.add(
+    box(long, tall, board, wood, x, bottom + tall / 2, z - wide / 2 + board / 2),
+    box(long, tall, board, wood, x, bottom + tall / 2, z + wide / 2 - board / 2),
+    box(board, tall, wide - board * 2, wood, x - long / 2 + board / 2, bottom + tall / 2, z),
+    box(board, tall, wide - board * 2, wood, x + long / 2 - board / 2, bottom + tall / 2, z),
+    box(long - board * 2, soilTop - bottom, wide - board * 2, soil, x, (bottom + soilTop) / 2, z),
+  )
 }
 
 /** Les bacs de bois pleins de terre, devant la cage, et leurs plantes. */
@@ -112,13 +176,13 @@ export const planters = (group: THREE.Group, m: GardenMaterials): void => {
   // Il avance vers l'ouest jusqu'au bord extérieur du long bac du côté : les deux se rejoignent à l'angle.
   const planterLong = 1.05 + 0.4
   const planterZ = cageZ1 - 0.4 + planterLong / 2
-  group.add(box(0.8, 0.45 + LOW, planterLong, post, backX - 0.45, (0.45 - LOW) / 2, planterZ), box(0.7, 0.02, planterLong - 0.1, soil, backX - 0.45, 0.455, planterZ))
+  tub(group, post, soil, [0.8, planterLong], [-LOW, 0.45], 0.43, [backX - 0.45, planterZ])
   // Le long bac part du grand, collé à lui.
   const sideFrom = backX - 0.05
   const sideLong = cageX2 - sideFrom
-  group.add(box(sideLong, 0.225, 0.4, post, (cageX2 + sideFrom) / 2, GRASS + 0.1125, cageZ1 - 0.2), box(sideLong - 0.1, 0.02, 0.3, soil, (cageX2 + sideFrom) / 2 + 0.03, GRASS + 0.23, cageZ1 - 0.2))
+  tub(group, post, soil, [sideLong, 0.4], [GRASS, GRASS + 0.225], GRASS + 0.205, [(cageX2 + sideFrom) / 2, cageZ1 - 0.2])
   // Dans le long bac : trois fougères à droite pour qui le regarde face à la cage (le bout sud, vers le grand bac), un hortensia à gauche.
-  const bedY = GRASS + 0.24
+  const bedY = GRASS + 0.215
   ;[0.4, 0.95, 1.5].forEach((along, index) => {
     const plant = fern(21 + index)
     plant.position.set(sideFrom + along, bedY, cageZ1 - 0.2)
@@ -127,4 +191,61 @@ export const planters = (group: THREE.Group, m: GardenMaterials): void => {
   const bush = hydrangea(5)
   bush.position.set(cageX2 - 0.55, bedY, cageZ1 - 0.2)
   group.add(bush)
+}
+
+/**
+ * Les outils de jardin pendus dans la petite partie de la cage (derrière la porte d'entrée). Contre le pan de bois de la haie : une bêche, une
+ * pioche, un râteau et un balai, le manche en bas ou en haut selon l'outil ; contre le pan plein de la cloison : une cisaille et un sécateur,
+ * à un clou. Chaque outil est construit à plat contre son mur : x le long du mur, y vers le haut, z vers la pièce.
+ */
+export const cageTools = (group: THREE.Group, m: GardenMaterials): void => {
+  const { iron } = m
+  const { cageZ2, backX } = SITE
+  const wood = standard(0xb58a5a, 0.8)
+  const straw = standard(0xcfb46a, 0.95)
+  const red = standard(0xb5322c, 0.6)
+  // Un manche vertical, de `from` à `to` (m du sol), et le clou qui le tient.
+  const handle = (tool: THREE.Group, from: number, to: number): void => {
+    tool.add(cylinder(0.014, 0.014, to - from, wood, 0, (from + to) / 2, 0.03, 10), box(0.012, 0.012, 0.05, iron, 0.03, to - 0.12, 0.025))
+  }
+  const spade = new THREE.Group()
+  handle(spade, 0.42, 1.3)
+  spade.add(box(0.18, 0.28, 0.006, iron, 0, 0.28, 0.03), box(0.12, 0.025, 0.025, wood, 0, 1.31, 0.03))
+  const pick = new THREE.Group()
+  handle(pick, 0.3, 1.25)
+  const head = box(0.46, 0.04, 0.035, iron, 0, 1.25, 0.03)
+  pick.add(head, box(0.05, 0.07, 0.05, iron, 0, 1.25, 0.03))
+  const rake = new THREE.Group()
+  handle(rake, 0.2, 1.6)
+  rake.add(box(0.36, 0.02, 0.02, iron, 0, 1.6, 0.03))
+  for (let tooth = 0; tooth < 9; tooth += 1) rake.add(box(0.008, 0.008, 0.06, iron, -0.16 + tooth * 0.04, 1.6, 0.06))
+  const broom = new THREE.Group()
+  handle(broom, 0.32, 1.5)
+  broom.add(box(0.3, 0.045, 0.045, wood, 0, 0.3, 0.035), box(0.3, 0.14, 0.035, straw, 0, 0.21, 0.035))
+  // Contre le pan de la haie (z = `cageZ2`) : la pièce est du côté −z.
+  ;[spade, pick, rake, broom].forEach((tool, index) => {
+    tool.position.set(backX - 0.14 - index * 0.19, 0, cageZ2 - 0.012)
+    tool.rotation.y = Math.PI
+    group.add(tool)
+  })
+  // La cisaille : deux lames longues croisées, deux poignées de bois ; le sécateur : plus petit, poignées rouges.
+  const scissors = (blade: number, grip: number, thick: number, gripMaterial: THREE.Material): THREE.Group => {
+    const tool = new THREE.Group()
+    for (const side of [-1, 1]) {
+      const half = new THREE.Group()
+      half.add(box(thick, blade, 0.004, iron, 0, -blade / 2, 0.012 + side * 0.003), box(thick * 1.3, grip, thick * 1.3, gripMaterial, 0, grip / 2, 0.012 + side * 0.003))
+      half.rotation.z = side * 0.14
+      tool.add(half)
+    }
+    tool.add(box(0.012, 0.012, 0.03, iron, 0, grip * 0.2, 0.015))
+    return tool
+  }
+  const shears = scissors(0.26, 0.22, 0.022, wood)
+  const pruner = scissors(0.07, 0.13, 0.014, red)
+  // Contre le pan plein de la cloison (x = `backX`) : la pièce est du côté −x.
+  ;[shears, pruner].forEach((tool, index) => {
+    tool.position.set(backX - 0.03, 1.35, cageZ2 - PANEL / 2 + (index === 0 ? -0.15 : 0.18))
+    tool.rotation.y = -Math.PI / 2
+    group.add(tool)
+  })
 }

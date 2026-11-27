@@ -23,6 +23,21 @@ export const gardenX = (planY: number): number => {
   return ROOM.xMax - (planY / PLAN.height) * (ROOM.xMax - ROOM.xMin)
 }
 
+/** De la place dans la scène (x, z) à celle du plan (l'inverse de `gardenX` et `gardenZ`). */
+export const planOf = (x: number, z: number): PlanPoint => {
+  const east = PLAN.west + PLAN.width
+  const planX = z > ROOM.zMax ? east + (z - ROOM.zMax) * UNITS_PER_METER : z < REST.west ? PLAN.west - (REST.west - z) * UNITS_PER_METER : PLAN.west + ((z - REST.west) / (ROOM.zMax - REST.west)) * PLAN.width
+  const planY = x > ROOM.xMax ? -(x - ROOM.xMax) * UNITS_PER_METER : x < ROOM.xMin ? PLAN.height + (ROOM.xMin - x) * UNITS_PER_METER : ((ROOM.xMax - x) / (ROOM.xMax - ROOM.xMin)) * PLAN.height
+  return [planX, planY]
+}
+
+/** Vrai si la place de la scène est dans la propriété : sous l'arc de la limite côté rue, dans la bande du haut au nord, en deçà de la limite de l'est. */
+export const inLot = (x: number, z: number): boolean => {
+  const [planX, planY] = planOf(x, z)
+  if (planX > LOT.east || planY < LOT.north) return false
+  return planY <= LOT.centerY ? planX >= LOT.centerX - LOT.radius : Math.hypot(planX - LOT.centerX, planY - LOT.centerY) <= LOT.radius
+}
+
 /** Les points d'un arc du plan, centré sur le centre du terrain, d'un point à l'autre (ses deux bouts compris), un tous les 60 unités environ. */
 export const arc = (radius: number, from: PlanPoint, to: PlanPoint): PlanPoint[] => {
   const angle = ([x, y]: PlanPoint) => Math.atan2(y - LOT.centerY, x - LOT.centerX)
@@ -36,13 +51,23 @@ export const arc = (radius: number, from: PlanPoint, to: PlanPoint): PlanPoint[]
 }
 
 /** Une surface à plat sur le sol, donnée par son contour sur le plan. */
-export const flat = (points: PlanPoint[], material: THREE.Material, y: number): THREE.Mesh => {
+export const flat = (points: PlanPoint[], material: THREE.Material, y: number, holes: PlanPoint[][] = []): THREE.Mesh => {
   // Dans le repère de la forme : (x de la scène, −z de la scène) ; couchée d'un quart de tour, elle retombe à sa place.
   const shape = new THREE.Shape(points.map(([planX, planY]) => new THREE.Vector2(gardenX(planY), -gardenZ(planX))))
+  // Des trous dans la surface (un chemin en contrebas, par exemple).
+  shape.holes = holes.map((hole) => new THREE.Path(hole.map(([planX, planY]) => new THREE.Vector2(gardenX(planY), -gardenZ(planX)))))
   const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
   mesh.rotation.x = -Math.PI / 2
   mesh.position.y = y
   return mesh
+}
+
+/** Un quadrilatère dans l'espace (quatre points de la scène, dans l'ordre du tour), vu des deux côtés : une rampe, la face d'un mur de soutènement. */
+export const quad = (corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3], material: THREE.Material): THREE.Mesh => {
+  const [a, b, c, d] = corners
+  const geometry = new THREE.BufferGeometry().setFromPoints([a, b, c, a, c, d])
+  geometry.computeVertexNormals()
+  return new THREE.Mesh(geometry, material)
 }
 
 /** Un pavé couché le long d'une ligne du plan (une haie, un portail) : un tronçon par segment. */

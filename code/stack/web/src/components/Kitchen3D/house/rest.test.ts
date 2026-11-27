@@ -28,8 +28,8 @@ describe('le reste de la maison', () => {
     const shell = emptyShell()
     guestAndBath(shell)
     const [guestFloor, bathFloor] = floorsOf(shell)
-    // La chambre d'invité, mesurée : 3,77 m sur 2,54 m, son propre sol.
-    expect(planeOf(guestFloor)).toMatchObject({ width: expect.closeTo(3.77), height: expect.closeTo(2.54) })
+    // La chambre d'invité : 3,84 m (mesurée à 3,77 m, ramenée pour que le mur soit dans le prolongement de celui du couloir) sur 2,54 m, son propre sol.
+    expect(planeOf(guestFloor)).toMatchObject({ width: expect.closeTo(3.84), height: expect.closeTo(2.54) })
     expect(guestFloor.material).not.toBe(shell.materials.floor)
     // La salle de bain : 2,85 m sur 2,02 m, le fond sombre sous son parquet.
     expect(planeOf(bathFloor)).toMatchObject({ width: expect.closeTo(2.85), height: expect.closeTo(2.02) })
@@ -51,6 +51,25 @@ describe('le reste de la maison', () => {
     const alcoveSill = meshes(shell).find((mesh) => mesh.geometry.type === 'PlaneGeometry' && mesh.position.z === ROOM.zMin && Math.abs(planeOf(mesh).height - WC_ALCOVE.bottom) < 1e-9) as THREE.Mesh
     expect(planeOf(alcoveSill).width).toBeCloseTo(WC_ALCOVE.width)
     expect(alcoveSill.position.x).toBeCloseTo(WC_ALCOVE.x)
+  })
+
+  it('le mur de la chambre de Matou (6 cm pris sur elle) va jusqu’à la porte, la reprend de l’autre côté jusqu’à la penderie, et passe plein au-dessus de la porte', () => {
+    const shell = emptyShell()
+    guestAndBath(shell)
+    const thick = REST.guestSouth - (REST.corridorSouth - 0.06) - 0.002
+    const pieces = boxes(shell).filter((mesh) => Math.abs(boxOf(mesh).width - thick) < 1e-9)
+    // Avant la porte, après la porte, et le linteau au-dessus d'elle.
+    expect(pieces).toHaveLength(3)
+    const [before, after, lintel] = pieces
+    expect(boxOf(before).height).toBe(ROOM.height)
+    expect(boxOf(after).height).toBe(ROOM.height)
+    expect(before.position.z - boxOf(before).depth / 2).toBeCloseTo(REST.west + 0.001)
+    expect(after.position.z + boxOf(after).depth / 2).toBeCloseTo(REST.matouEast)
+    expect(boxOf(lintel).height).toBeCloseTo(ROOM.height - PASSAGE.top)
+    expect(lintel.position.y).toBeCloseTo((ROOM.height + PASSAGE.top) / 2)
+    // Le linteau comble exactement l'espace entre les deux : la porte.
+    expect(before.position.z + boxOf(before).depth / 2).toBeCloseTo(lintel.position.z - boxOf(lintel).depth / 2)
+    expect(lintel.position.z + boxOf(lintel).depth / 2).toBeCloseTo(after.position.z - boxOf(after).depth / 2)
   })
 
   it('le couloir : du parquet comme au salon, un linteau plein au-dessus de sa porte, et son plafonnier « couloir »', () => {

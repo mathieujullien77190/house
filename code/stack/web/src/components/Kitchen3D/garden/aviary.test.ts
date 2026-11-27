@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
-import { cageFrame, cagePanels, cageRoof, cageWire, planters } from './aviary'
+import { cageFrame, cagePanels, cageRoof, cageTools, cageWire, planters } from './aviary'
 import { CAGE_HEIGHT, CAGE_LOW, GRASS, LOW, PANEL } from './constants'
 import { SITE } from './layout'
 
@@ -115,61 +115,125 @@ describe('cageRoof', () => {
 })
 
 describe('cagePanels', () => {
-  it('les pans de bois de la face sud, du côté haie et du fond, et la porte sur ses trois pentures', () => {
+  it('onze pans de bois à planches (face sud, côté haie, fond, cloison) et deux portes, la même de chaque côté', () => {
     const { meshes, m } = built(cagePanels)
-    expect(meshes).toHaveLength(10)
     const wood = meshes.filter((mesh) => mesh.material === m.post)
     const iron = meshes.filter((mesh) => mesh.material === m.iron)
-    expect(wood).toHaveLength(6)
-    expect(iron).toHaveLength(4)
-    // Aucun pan ne dépasse la hauteur de la cage ; tous sont posés au sol.
-    for (const pan of wood) {
-      expect(sizeOf(pan).height).toBeLessThanOrEqual(CAGE_HEIGHT)
-      expect(pan.position.y).toBeCloseTo(sizeOf(pan).height / 2)
+    // Deux portes à trois pentures (deux pièces chacune) et un loquet : sept pièces de fer chacune.
+    expect(iron).toHaveLength(14)
+    expect(wood).toHaveLength(meshes.length - 14)
+    // Aucune pièce ne dépasse la hauteur de la cage ; toutes sont posées au-dessus du sol.
+    for (const piece of meshes) {
+      expect(piece.position.y + sizeOf(piece).height / 2).toBeLessThanOrEqual(CAGE_HEIGHT + 0.001)
+      expect(piece.position.y - sizeOf(piece).height / 2).toBeGreaterThanOrEqual(-0.001)
     }
-    // Le côté haie : cinq panneaux d'un seul tenant, sous le bas du toit.
-    expect(sizeOf(wood[1]).width).toBeCloseTo(PANEL * 5)
-    expect(sizeOf(wood[1]).height).toBe(CAGE_LOW)
-    expect(wood[1].position.z).toBe(SITE.cageZ2)
-    // La porte : un panneau moins son jeu, devant la face sud, à mi-pente du toit.
-    const door = wood[5]
-    expect(sizeOf(door).depth).toBeCloseTo(PANEL - 0.02)
-    expect(sizeOf(door).height).toBeCloseTo((CAGE_HEIGHT + CAGE_LOW) / 2)
-    expect(door.position.x).toBeCloseTo(SITE.cageX1 - 0.02)
-    expect(door.position.z).toBeCloseTo(SITE.cageZ2 - PANEL * 1.5)
-    // Trois pentures du même côté, et la poignée de l'autre.
-    const [low, middle, high, handle] = iron
-    expect([low, middle, high].map((hinge) => hinge.position.y)).toEqual([0.25, 1.1, 1.95])
-    expect(low.position.z).toBeGreaterThan(door.position.z)
-    expect(handle.position.z).toBeLessThan(door.position.z)
+    // Les pans sont à planches horizontales : beaucoup de planches d'une douzaine de centimètres.
+    const boards = wood.filter((piece) => sizeOf(piece).height < 0.13 && sizeOf(piece).height > 0.1)
+    expect(boards.length).toBeGreaterThan(50)
+    // Le côté haie : cinq pans côte à côte sous le bas du toit, sur toute la longueur de la cage.
+    const hedgeSide = wood.filter((piece) => piece.position.z === SITE.cageZ2 && sizeOf(piece).height < 0.13)
+    const xs = hedgeSide.map((piece) => piece.position.x)
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(PANEL * 3)
+  })
+
+  it('les deux portes se font face : pentures à droite pour qui les regarde du dehors, loquet à gauche', () => {
+    const { meshes, m } = built(cagePanels)
+    const iron = meshes.filter((mesh) => mesh.material === m.iron)
+    const doorZ = SITE.cageZ2 - PANEL * 1.5
+    const midTall = (CAGE_HEIGHT + CAGE_LOW) / 2
+    for (const [wallX, hinges] of [
+      [SITE.cageX1, iron.slice(0, 7)],
+      [SITE.backX, iron.slice(7)],
+    ] as const) {
+      // Les trois pentures (une plaque et une patte chacune) et le loquet, tous devant le vantail.
+      expect(hinges.every((piece) => piece.position.x < wallX)).toBe(true)
+      const latch = hinges[6]
+      expect(latch.position.y).toBeCloseTo(1.05)
+      expect(latch.position.z).toBeLessThan(doorZ)
+      const plates = hinges.slice(0, 6).filter((piece) => sizeOf(piece).depth === 0.2)
+      expect(plates).toHaveLength(3)
+      expect(plates.every((plate) => plate.position.z > doorZ)).toBe(true)
+      expect(Math.max(...plates.map((plate) => plate.position.y))).toBeLessThan(midTall)
+    }
+  })
+
+  it('douze planches par vantail et deux écharpes en biais, l’une montante, l’autre descendante', () => {
+    const { meshes, m } = built(cagePanels)
+    const doorZ = SITE.cageZ2 - PANEL * 1.5
+    const atDoor = meshes.filter((mesh) => mesh.material === m.post && Math.abs(mesh.position.z - doorZ) < PANEL / 2 && Math.abs(mesh.position.x - SITE.cageX1) < 0.05)
+    const braces = atDoor.filter((piece) => piece.rotation.x !== 0)
+    expect(braces).toHaveLength(2)
+    expect(braces[0].rotation.x).toBeLessThan(0)
+    expect(braces[1].rotation.x).toBeGreaterThan(0)
+    expect(atDoor.filter((piece) => sizeOf(piece).width === 0.016)).toHaveLength(12)
   })
 })
 
 describe('planters', () => {
-  it('le grand bac et le long bac, pleins de terre, avec trois fougères et un hortensia', () => {
+  it('le grand bac et le long bac, creux (quatre planches) et pleins de terre, avec trois fougères et un hortensia', () => {
     const { children, m } = built(planters)
-    expect(children).toHaveLength(8)
-    const [big, bigSoil, side, sideSoil] = children as THREE.Mesh[]
-    expect([big.material, side.material]).toEqual([m.post, m.post])
+    // Chaque bac : quatre planches et sa terre ; puis les quatre plantes.
+    expect(children).toHaveLength(14)
+    const bigBoards = children.slice(0, 4) as THREE.Mesh[]
+    const bigSoil = children[4] as THREE.Mesh
+    const sideBoards = children.slice(5, 9) as THREE.Mesh[]
+    const sideSoil = children[9] as THREE.Mesh
+    expect([...bigBoards, ...sideBoards].every((board) => board.material === m.post)).toBe(true)
     expect([bigSoil.material, sideSoil.material]).toEqual([m.soil, m.soil])
-    // Le grand bac descend jusqu'au sol de la partie basse et monte à 45 cm.
-    expect(big.position.y - sizeOf(big).height / 2).toBeCloseTo(-LOW)
-    expect(big.position.y + sizeOf(big).height / 2).toBeCloseTo(0.45)
+    // Le grand bac descend jusqu'au sol de la partie basse et monte à 45 cm ; la terre reste un peu sous le bord.
+    const bottom = (box: THREE.Mesh) => box.position.y - sizeOf(box).height / 2
+    const top = (box: THREE.Mesh) => box.position.y + sizeOf(box).height / 2
+    expect(Math.min(...bigBoards.map(bottom))).toBeCloseTo(-LOW)
+    expect(Math.max(...bigBoards.map(top))).toBeCloseTo(0.45)
+    expect(top(bigSoil)).toBeCloseTo(0.43)
     // Le long bac, posé sur l'herbe, deux fois moins haut et deux fois moins large, va jusqu'au fond de la cage.
-    expect(sizeOf(side).height).toBeCloseTo(0.225)
-    expect(sizeOf(side).depth).toBe(0.4)
-    expect(side.position.y - sizeOf(side).height / 2).toBeCloseTo(GRASS)
-    expect(side.position.x + sizeOf(side).width / 2).toBeCloseTo(SITE.cageX2)
+    expect(Math.min(...sideBoards.map(bottom))).toBeCloseTo(GRASS)
+    expect(Math.max(...sideBoards.map(top))).toBeCloseTo(GRASS + 0.225)
+    expect(top(sideSoil)).toBeCloseTo(GRASS + 0.205)
+    expect(Math.max(...sideBoards.map((board) => board.position.x + sizeOf(board).width / 2))).toBeCloseTo(SITE.cageX2)
+    // Creux : la terre est plus étroite que le bac.
+    expect(sizeOf(sideSoil).depth).toBeCloseTo(0.4 - 0.08)
     // Les plantes : des groupes posés sur la terre du long bac, les fougères vers le grand bac, l'hortensia au bout.
-    const plants = children.slice(4)
+    const plants = children.slice(10)
+    expect(plants).toHaveLength(4)
     expect(plants.every((plant) => plant.type === 'Group' && plant.children.length > 0)).toBe(true)
     for (const plant of plants) {
-      expect(plant.position.y).toBeCloseTo(GRASS + 0.24)
+      expect(plant.position.y).toBeCloseTo(GRASS + 0.215)
       expect(plant.position.z).toBeCloseTo(SITE.cageZ1 - 0.2)
     }
     expect(plants.map((plant) => plant.position.x)).toEqual([...plants.map((plant) => plant.position.x)].sort((a, b) => a - b))
     expect(plants[3].position.x).toBeCloseTo(SITE.cageX2 - 0.55)
     // Trois fougères différentes (une graine chacune).
     expect(new Set(plants.slice(0, 3).map((plant) => (plant.children[0] as THREE.Mesh).geometry.attributes.position.getX(0))).size).toBe(3)
+  })
+})
+
+describe('cageTools', () => {
+  it('quatre outils pendus au pan de la haie (bêche, pioche, râteau, balai), une cisaille et un sécateur sur la cloison', () => {
+    const { children, m } = built(cageTools)
+    expect(children).toHaveLength(6)
+    const [spade, pick, rake, broom, shears, pruner] = children as THREE.Group[]
+    // Contre le pan de la haie, dos à lui, du plus proche de la cloison au plus loin, à 19 cm l'un de l'autre.
+    for (const [index, tool] of [spade, pick, rake, broom].entries()) {
+      expect(tool.position.x).toBeCloseTo(SITE.backX - 0.14 - index * 0.19)
+      expect(tool.position.y).toBe(0)
+      expect(tool.position.z).toBeCloseTo(SITE.cageZ2 - 0.012)
+      expect(tool.rotation.y).toBeCloseTo(Math.PI)
+    }
+    // Le râteau a ses neuf dents de fer (plus le clou et la barre) ; la bêche, sa lame et le clou.
+    expect(rake.children.filter((child) => (child as THREE.Mesh).material === m.iron)).toHaveLength(11)
+    expect(spade.children.filter((child) => (child as THREE.Mesh).material === m.iron)).toHaveLength(2)
+    expect(broom.children.length).toBeGreaterThan(2)
+    expect(pick.children.length).toBeGreaterThan(2)
+    // Contre la cloison, côté pièce : deux lames croisées et leur axe ; le sécateur est plus petit que la cisaille.
+    for (const tool of [shears, pruner]) {
+      expect(tool.position.x).toBeCloseTo(SITE.backX - 0.03)
+      expect(tool.position.y).toBe(1.35)
+      expect(tool.rotation.y).toBeCloseTo(-Math.PI / 2)
+      expect(tool.children).toHaveLength(3)
+    }
+    expect(pruner.position.z).toBeGreaterThan(shears.position.z)
+    const length = (tool: THREE.Group) => ((tool.children[0].children[0] as THREE.Mesh).geometry as THREE.BoxGeometry).parameters.height
+    expect(length(shears)).toBeGreaterThan(length(pruner))
   })
 })

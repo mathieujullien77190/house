@@ -1,7 +1,7 @@
 import * as THREE from 'three'
-import { BASE, BATH_WINDOW, ENTRY, GUEST_WINDOW, KITCHEN_BAYS, MAST, MAST_CAMERA, MATOU_WINDOW, OUTER_WALL, PASSAGE, REST, ROOM, SALON_BAYS, SAS } from '@/components/Kitchen3D/constants'
+import { BASE, BATH_WINDOW, ENTRY, GUEST_WINDOW, KITCHEN_BAYS, MAST, MAST_CAMERA, MATOU_WINDOW, NOOK_WINDOW, OUTER_WALL, PASSAGE, REST, ROOM, SALON_BAYS, SAS } from '@/components/Kitchen3D/constants'
 import { SITE } from '@/components/Kitchen3D/garden/layout'
-import { box, standard } from '@/components/Kitchen3D/primitives'
+import { box, bulbBall, facing, fixtureBulb, standard } from '@/components/Kitchen3D/primitives'
 import { reolink } from '@/components/Kitchen3D/reolink'
 import { terracottaTexture } from '@/components/Kitchen3D/textures'
 import type { Area, Bay, Gap, Shell } from './walls'
@@ -91,6 +91,29 @@ const sasShell = (shell: Shell, outer: OuterWall, outerMaterial: THREE.Material)
   group.add(box(skin, SAS.nookTop, nookWide, outerMaterial, SAS.north + 0.002 + OUTER_WALL - skin / 2, SAS.nookTop / 2, nookMiddle))
 }
 
+/**
+ * La lanterne de l'entrée, sur le mur du sas à droite de sa porte, vers 1,95 m : une platine blanche en cartouche, un bras courbe, et la lanterne
+ * à quatre pans (verre dépoli éclairé, armature sombre, toit en pyramide et pointe). Son ampoule est un luminaire de la scène (`fixtureBulb`).
+ */
+const entryLantern = (group: THREE.Group): void => {
+  const lantern = new THREE.Group()
+  const dark = standard(0x26282a, 0.5, 0.3)
+  const white = standard(0xf1efe8, 0.6)
+  lantern.add(box(0.2, 0.15, 0.025, white, 0, 0, 0.0125), box(0.04, 0.04, 0.09, dark, 0, 0.0, 0.07))
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.26, 4, 1, true), standard(0xe9eee8, 0.4))
+  body.rotation.y = Math.PI / 4
+  body.position.set(0, 0.2, 0.16)
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.09, 4), dark)
+  roof.rotation.y = Math.PI / 4
+  roof.position.set(0, 0.375, 0.16)
+  lantern.add(body, roof, box(0.014, 0.05, 0.014, dark, 0, 0.44, 0.16), box(0.14, 0.02, 0.14, dark, 0, 0.06, 0.16))
+  for (const corner of [0, 1, 2, 3]) lantern.add(box(0.012, 0.26, 0.012, dark, Math.cos(corner * (Math.PI / 2)) * 0.063, 0.2, 0.16 + Math.sin(corner * (Math.PI / 2)) * 0.063))
+  lantern.add(fixtureBulb(bulbBall(0.05, 0, 0.2, 0.16)))
+  const z = (SAS.door[1] + SAS.east) / 2
+  lantern.position.set(SAS.south - OUTER_WALL - 0.002, 1.8, z)
+  group.add(facing(lantern, -1, 0))
+}
+
 /** Deux marches carrelées devant la porte du sas : le sol de la maison est plus haut que le terrain (côté baies, la terrasse est surélevée : `garden/ground.ts`). */
 const entrySteps = (group: THREE.Group): void => {
   const z = (SAS.door[0] + SAS.door[1]) / 2
@@ -112,8 +135,15 @@ export const outerWalls = (shell: Shell): void => {
   outer('x', xMin - OUTER_WALL, xMax + OUTER_WALL, REST.west, -1, [GUEST_WINDOW], [true, true])
   outer('z', REST.west, zMax + OUTER_WALL, xMin, -1, [MATOU_WINDOW, ...SALON_BAYS], [false, true])
   outer('z', REST.west, zMax + OUTER_WALL, xMax, 1, [BATH_WINDOW, ...KITCHEN_BAYS], [false, true])
+  // Sous la fenêtre du coin repas, dans le soubassement : le soupirail de la cave, petit : un cadre clair, une vitre sombre et trois barreaux.
+  const face = xMax + OUTER_WALL - BASE.setback + 0.002
+  const vent = { z: NOOK_WINDOW.z, wide: 0.55, tall: 0.2, y: -BASE.rise / 2 }
+  const frame = standard(0xf1efe8, 0.6)
+  shell.group.add(box(0.03, vent.tall + 0.06, vent.wide + 0.06, frame, face + 0.012, vent.y, vent.z), box(0.02, vent.tall, vent.wide, standard(0x14181c, 0.2, 0.3), face + 0.026, vent.y, vent.z))
+  for (const bar of [-1, 0, 1]) shell.group.add(box(0.012, vent.tall, 0.012, standard(0x2a2c2f, 0.5, 0.5), face + 0.036, vent.y, vent.z + bar * (vent.wide / 3)))
   outer('x', xMin, ENTRY.x + 0.05, zMax, 1)
   sasShell(shell, outer, outerMaterial)
   entrySteps(shell.group)
+  entryLantern(shell.group)
   outer('x', SAS.north + 0.01, xMax, zMax, 1)
 }

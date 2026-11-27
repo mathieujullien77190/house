@@ -158,7 +158,7 @@ export const DEFAULT_TREES = [
 ]
 /** Le portail (à gauche, en haut mais pas tout en haut) et le portillon (en bas à droite, mais pas tout à droite), sur l'arc du terrain. */
 export const PLAN_GATES = [
-  { id: 'portail', name: 'Portail', x1: -273, y1: 40, x2: -228, y2: 184 },
+  { id: 'portail', name: 'Portail', x1: -258, y1: 96, x2: -205, y2: 237 },
   { id: 'portillon', name: 'Portillon', x1: 552, y1: 799, x2: 501, y2: 790 },
 ]
 /** La maison est poussée de 1 m vers la droite (vers l'est). */
@@ -247,10 +247,10 @@ export const PLAN_CAMERAS = [
  * En modification, on déplace chaque coin à la main (`garage-corner-<n>` dans les éléments du plan gardé par l'API).
  */
 export const PLAN_GARAGE_CORNERS: [number, number][] = [
-  [-274, 37],
-  [-227, 187],
-  [-10, 187],
-  [-10, 37],
+  [-259, 93],
+  [-204, 240],
+  [-10, 240],
+  [-10, 93],
 ]
 /**
  * Le chemin carrelé de 1,5 m de large du portillon à la terrasse de la maison (y = 358) : son bout bas suit l'arc de la haie (rayon 1000)

@@ -3,7 +3,7 @@ import { HOUSE_SHIFT, UNITS_PER_METER } from '@/components/Lights/constants'
 import { REST, ROOM } from '@/components/Kitchen3D/constants'
 import { LOT } from './constants'
 import type { PlanPoint } from './constants'
-import { along, arc, flat, gardenX, gardenZ, tiledOn } from './plan'
+import { along, arc, flat, gardenX, gardenZ, inLot, planOf, quad, tiledOn } from './plan'
 
 describe('gardenZ, gardenX', () => {
   it('sous la maison, le plan est ramené aux murs de la scène', () => {
@@ -59,6 +59,56 @@ describe('flat', () => {
     expect(box.max.x).toBeCloseTo(ROOM.xMax)
     expect(box.min.z).toBeCloseTo(REST.west)
     expect(box.max.z).toBeCloseTo(ROOM.zMax)
+  })
+})
+
+describe('flat avec des trous', () => {
+  it('chaque trou du plan est percé dans la surface', () => {
+    const outline: PlanPoint[] = [[HOUSE_SHIFT, 0], [HOUSE_SHIFT + 540, 0], [HOUSE_SHIFT + 540, 300], [HOUSE_SHIFT, 300]]
+    const hole: PlanPoint[] = [[HOUSE_SHIFT + 100, 100], [HOUSE_SHIFT + 200, 100], [HOUSE_SHIFT + 200, 200], [HOUSE_SHIFT + 100, 200]]
+    const material = new THREE.MeshStandardMaterial()
+    const full = flat(outline, material, 0)
+    const holed = flat(outline, material, 0, [hole])
+    // Le trou ajoute des sommets et des triangles, et l'emprise ne change pas.
+    expect(holed.geometry.attributes.position.count).toBeGreaterThan(full.geometry.attributes.position.count)
+    expect(new THREE.Box3().setFromObject(holed).equals(new THREE.Box3().setFromObject(full))).toBe(true)
+  })
+})
+
+describe('quad', () => {
+  it('deux triangles à la suite, avec leurs normales, dans le matériau donné', () => {
+    const material = new THREE.MeshStandardMaterial()
+    const corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3] = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 1, 0), new THREE.Vector3(0, 1, 0)]
+    const mesh = quad(corners, material)
+    expect(mesh.material).toBe(material)
+    expect(mesh.geometry.attributes.position.count).toBe(6)
+    expect(mesh.geometry.attributes.normal.count).toBe(6)
+    expect(new THREE.Box3().setFromObject(mesh).max.toArray()).toEqual([1, 1, 0])
+  })
+})
+
+describe('planOf, inLot', () => {
+  it('planOf est l’inverse de gardenX et gardenZ, sous la maison comme dehors', () => {
+    for (const [planX, planY] of [[HOUSE_SHIFT + 100, 100], [HOUSE_SHIFT - 80, -50], [HOUSE_SHIFT + 540 + 90, 350]] as PlanPoint[]) {
+      const [backX, backY] = planOf(gardenX(planY), gardenZ(planX))
+      expect(backX).toBeCloseTo(planX)
+      expect(backY).toBeCloseTo(planY)
+    }
+  })
+
+  it('la propriété : sous l’arc côté rue, dans la bande du haut, en deçà de la limite de l’est', () => {
+    const at = ([planX, planY]: PlanPoint) => inLot(gardenX(planY), gardenZ(planX))
+    expect(at([HOUSE_SHIFT + 100, 100])).toBe(true)
+    // Dans la bande du nord (au-dessus du centre de l'arc), puis au-delà de la limite du nord.
+    expect(at([0, LOT.north + 10])).toBe(true)
+    expect(at([0, LOT.north - 10])).toBe(false)
+    // Au-delà de la limite est.
+    expect(at([LOT.east + 10, 0])).toBe(false)
+    // Dans la bande, à l'ouest de l'arc : dehors.
+    expect(at([LOT.centerX - LOT.radius - 10, LOT.centerY - 10])).toBe(false)
+    // Au sud du centre : le cercle décide.
+    expect(at([LOT.centerX, LOT.centerY + LOT.radius - 10])).toBe(true)
+    expect(at([LOT.centerX, LOT.centerY + LOT.radius + 10])).toBe(false)
   })
 })
 

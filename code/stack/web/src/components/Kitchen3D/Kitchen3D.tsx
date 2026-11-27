@@ -1,3 +1,4 @@
+import { createMatrix } from './matrix'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -16,6 +17,7 @@ import {
   BUTTONS_CLASS,
   SHUTTER_ANIMATE_MS,
   CLICK_SLOP,
+  WHEEL_STEP,
   HINT,
   HINT_CLASS,
   LAMP_FIXTURES,
@@ -24,6 +26,7 @@ import {
   LAMPS_ON_TEXT,
   LIGHT_LABEL,
   LIGHT_OPTIONS,
+  MATRIX_LABEL,
   NO_WEBGL_TEXT,
   QUALITY,
   RESET_LABEL,
@@ -57,6 +60,12 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   const [quality] = useState(() => (mobile ? QUALITY.phone : QUALITY.desktop))
   // La lumière : plein jour forcé, ou le jour qu'il fait vraiment ; choisie au-dessus de la vue, gardée sur l'appareil.
   const [light, setLight] = useState(loadLight)
+  // La vue « Matrix » : éteinte à chaque ouverture (rien n'est gardé).
+  const [matrixOn, setMatrixOn] = useState(false)
+  const toggleMatrix = () => {
+    sceneRef.current?.matrix(!matrixOn)
+    setMatrixOn(!matrixOn)
+  }
   const chooseLight = (next: LightMode) => {
     setLight(next)
     saveLight(next)
@@ -158,8 +167,9 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     // La molette zoome vers ce qui est sous la souris, pas vers le point de pivot : sinon son pas dépend de la distance à ce pivot (qui
     // bouge quand on déplace la vue), et le zoom bute dessus sans raison apparente.
     controls.zoomToCursor = true
-    controls.minDistance = 0.15
-    controls.maxDistance = 70
+    // Pas de limite de zoom (la molette avance d'un pas fixe : `onWheel`).
+    controls.minDistance = 0
+    controls.maxDistance = Infinity
     controls.maxPolarAngle = Math.PI / 2 - 0.02
     // Le clic molette tourne la vue comme le clic gauche (par défaut il zoomait) ; sans preventDefault, le navigateur lance son défilement automatique.
     controls.mouseButtons.MIDDLE = THREE.MOUSE.ROTATE
@@ -227,6 +237,21 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     const raycaster = new THREE.Raycaster()
     const aim = new THREE.Vector2()
     const canvas = renderer.domElement
+    // La molette avance ou recule la caméra d'un pas fixe vers ce qui est sous la souris, sans limite : le pas ne dépend pas de la distance
+    // (le zoom de OrbitControls est un facteur : plus on s'approche, moins il avance). Le pivot suit la caméra, la distance au pivot ne change pas.
+    const heading = new THREE.Vector3()
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      const rect = canvas.getBoundingClientRect()
+      raycaster.setFromCamera(aim.set(((e.clientX - rect.left) / rect.width) * 2 - 1, 1 - ((e.clientY - rect.top) / rect.height) * 2), camera)
+      heading.copy(raycaster.ray.direction).multiplyScalar((-Math.sign(e.deltaY) * WHEEL_STEP * Math.min(3, Math.abs(e.deltaY) / 100)) || 0)
+      camera.position.add(heading)
+      controls.target.add(heading)
+      controls.update()
+      invalidate()
+    }
+    canvas.addEventListener('wheel', onWheel, { capture: true, passive: false })
     const lampUnder = (e: PointerEvent): string | null => {
       const rect = canvas.getBoundingClientRect()
       raycaster.setFromCamera(aim.set(((e.clientX - rect.left) / rect.width) * 2 - 1, 1 - ((e.clientY - rect.top) / rect.height) * 2), camera)
@@ -237,7 +262,15 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     const acUnder = (): string | null => acParts.find((part) => raycaster.intersectObject(part.object, false).length > 0)?.id ?? null
     // Les caméras aussi : leur modèle (fût, face, casquette, rotule).
     const cameraParts = cameraMeshes(parts.root)
-    const cameraUnder = (): string | null => cameraParts.find((part) => raycaster.intersectObject(part.object, true).length > 0)?.name ?? null
+    // La caméra visée est la plus proche du regard : avec deux modèles sur le même rayon, c'est celle de devant qui s'ouvre.
+    const cameraUnder = (): string | null => {
+      let nearest: { name: string; distance: number } | null = null
+      for (const part of cameraParts) {
+        const hit = raycaster.intersectObject(part.object, true)[0]
+        if (hit && (!nearest || hit.distance < nearest.distance)) nearest = { name: part.name, distance: hit.distance }
+      }
+      return nearest?.name ?? null
+    }
     // Les fenêtres à volet aussi : la plus proche de l'œil sous le rayon.
     const windows = shutterWindows(parts.root)
     const shutterUnder = (): string | null => {
@@ -313,7 +346,14 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
 
     invalidate()
 
-    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, invalidate, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
+    // La vue Matrix : fond noir opaque et arêtes vertes ; à la sortie, le fond redevient transparent.
+    const showMatrix = createMatrix(parts.root)
+    const matrix = (on: boolean) => {
+      showMatrix(on)
+      renderer.setClearColor(0x000000, on ? 1 : 0)
+      invalidate(true)
+    }
+    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, invalidate, resetView: () => lookFrom(START), topView: () => lookFrom(TOP), matrix }
 
     return () => {
       cancelAnimationFrame(frame)
@@ -322,6 +362,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       controls.removeEventListener('change', onMove)
       observer.disconnect()
       host.removeEventListener('mousedown', noAutoscroll)
+      canvas.removeEventListener('wheel', onWheel, { capture: true })
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', onPointerUp)
@@ -379,6 +420,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
           <div className={BUTTONS_CLASS}>
             <Button onClick={() => sceneRef.current?.topView()}>{TOP_LABEL}</Button>
             <Button onClick={() => sceneRef.current?.resetView()}>{RESET_LABEL}</Button>
+            <Button onClick={toggleMatrix}>{matrixOn ? MATRIX_LABEL.off : MATRIX_LABEL.on}</Button>
             <span className={HINT_CLASS}>{LAMPS_ON_TEXT(lit, sceneLamps.length)}</span>
           </div>
           <div className={BUTTONS_CLASS}>

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { mergeStatic, shareMaterials } from './merge'
+import { KINDS, kindOf, mergeStatic, shareMaterials } from './merge'
 
 const boxAt = (material: THREE.Material | THREE.Material[], x: number, y: number, z: number): THREE.Mesh => {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material)
@@ -80,6 +80,32 @@ describe('shareMaterials', () => {
   })
 })
 
+describe('kindOf', () => {
+  it('le genre est le nom du groupe le plus proche qui en porte un ; sans nom, c’est le mobilier (les caissons de cuisine)', () => {
+    expect(KINDS).toEqual(['shell', 'furniture', 'tree', 'garden'])
+    const garden = new THREE.Group()
+    garden.name = 'garden'
+    const tree = new THREE.Group()
+    tree.name = 'tree'
+    const anonymous = new THREE.Group()
+    const leaf = boxAt(new THREE.MeshStandardMaterial(), 0, 0, 0)
+    anonymous.add(leaf)
+    tree.add(anonymous)
+    garden.add(tree)
+    // L'arbre est plus proche que le jardin qui le porte.
+    expect(kindOf(leaf)).toBe('tree')
+    expect(kindOf(anonymous)).toBe('tree')
+    expect(kindOf(garden)).toBe('garden')
+    // Un autre nom (celui de la scène fondue, par exemple) n'est pas un genre.
+    const other = new THREE.Group()
+    other.name = 'static'
+    const loose = boxAt(new THREE.MeshStandardMaterial(), 0, 0, 0)
+    other.add(loose)
+    expect(kindOf(loose)).toBe('furniture')
+    expect(kindOf(new THREE.Group())).toBe('furniture')
+  })
+})
+
 describe('mergeStatic', () => {
   it('les maillages d’un même matériau, où qu’ils soient, font un seul maillage, à leur place dans le repère de la scène', () => {
     const root = new THREE.Group()
@@ -122,6 +148,24 @@ describe('mergeStatic', () => {
     const normal = new THREE.Vector3().fromBufferAttribute(woods.geometry.attributes.normal, 0)
     expect(normal.distanceTo(new THREE.Vector3(0, 0, -1))).toBeCloseTo(0)
     expect(woods.position.toArray()).toEqual([0, 0, 0])
+  })
+
+  it('un même matériau est fondu par genre : un maillage par genre, qui porte son nom', () => {
+    const root = new THREE.Group()
+    const stone = new THREE.MeshStandardMaterial({ color: 0x999999 })
+    const named = (name: string, ...meshes: THREE.Mesh[]): THREE.Group => {
+      const group = new THREE.Group()
+      group.name = name
+      group.add(...meshes)
+      return group
+    }
+    root.add(named('shell', boxAt(stone, 0, 0, 0), boxAt(stone, 1, 0, 0)), named('garden', boxAt(stone, 2, 0, 0)), named('tree', boxAt(stone, 3, 0, 0)), boxAt(stone, 4, 0, 0))
+    mergeStatic(root, [])
+    const fused = fusedOf(root)
+    expect(fused.map((mesh) => mesh.name)).toEqual(['shell', 'garden', 'tree', 'furniture'])
+    expect(fused.every((mesh) => mesh.material === stone)).toBe(true)
+    // Un pavé a 24 sommets : deux dans le gros œuvre, un dans chacun des autres genres.
+    expect(fused.map((mesh) => mesh.geometry.attributes.position.count / 24)).toEqual([2, 1, 1, 1])
   })
 
   it('reste à part : ce qui est marqué (lui ou un parent), ce qui est sous un objet à garder, ce qui est caché, les copies, le transparent', () => {

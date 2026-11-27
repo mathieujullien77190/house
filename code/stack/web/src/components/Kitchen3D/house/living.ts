@@ -143,10 +143,13 @@ export const stairWall = (shell: Shell): void => {
  * prolonge le claustra jusqu'au mur du bureau (vu des deux côtés).
  */
 export const entryWalls = (shell: Shell): void => {
-  const { group, materials, wall } = shell
+  const { group, materials, wall, skirting } = shell
   const { zMax, height } = ROOM
   const { salonX, entryBack } = SHELL
-  wall('x', ENTRY.x, ENTRY.northX, ENTRY.doorZ, -1)
+  // Le mur de la porte : sa plinthe s'arrête de chaque côté de la porte (pas de plinthe sous elle).
+  wall('x', ENTRY.x, ENTRY.northX, ENTRY.doorZ, -1, 0, height, false)
+  skirting('x', ENTRY.x, ENTRY.doorX - ENTRY.doorWidth / 2, ENTRY.doorZ, -1)
+  skirting('x', ENTRY.doorX + ENTRY.doorWidth / 2, ENTRY.northX, ENTRY.doorZ, -1)
   wall('z', entryBack, ENTRY.doorZ, ENTRY.northX, -1)
   wall('x', salonX, ENTRY.northX, entryBack, 1)
   group.add(box(0.12, height, zMax - ENTRY.wallZ, materials.wall, ENTRY.x, height / 2, (ENTRY.wallZ + zMax) / 2))

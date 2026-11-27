@@ -96,7 +96,7 @@ describe('guestRoom', () => {
     const mirror = group.children.find((child) => child.type === 'Group') as THREE.Group
     expect(mirror.position.toArray()).toEqual([REST.guestSouth + 0.3, 0, REST.west + 0.3])
     expect(mirror.rotation.y).toBeCloseTo(-Math.PI / 4)
-    expect(mirror.rotation.z).toBeCloseTo(-0.1)
+    expect(mirror.rotation.z).toBeCloseTo(0.1)
     expect(mirror.children).toHaveLength(2)
   })
 })

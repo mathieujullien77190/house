@@ -59,7 +59,7 @@ const grassLevel = (planX: number, planY: number): number | null => {
   const [x, z] = [gardenX(planY), gardenZ(planX)]
   // La maison, ses terrasses, la jardinière de devant et la bande de béton de derrière.
   if (x > house[0] - PERGOLA_FRONT - 0.7 && x < house[1] + TERRACE + 0.2 && z > house[2] - TERRACE - 0.15 && z < house[3] + TERRACE) return null
-  // Tout l'est de la maison, au nord du muret des poubelles : le pavage, la cage, la dalle.
+  // Tout l'est de la maison, au nord du muret des poubelles : le pavage, la cage, la dalle, et derrière la cage jusqu'à la haie (de la terre).
   if (z > ROOM.zMax - 0.1 && x > binSouth - 0.3) return null
   // Le chemin du portillon et ses murets.
   if (z > gardenZ(PAVING.pathWest) - 0.2 && z < gardenZ(PAVING.pathEast) + 0.2 && x < house[0]) return null

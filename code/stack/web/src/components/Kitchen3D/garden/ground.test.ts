@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
 import { BASE, ENTRY, OUTER_WALL, PATIO_DOOR, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
-import { GRASS, LOT, LOW, PAVING, TERRACE } from './constants'
+import { GARAGE_DEPTH, GRASS, LOT, LOW, PATH_DROP, PATH_STEPS, PAVING, TERRACE } from './constants'
 import { groundTerrace, lawns, paving, raisedTerrace, retainingWalls } from './ground'
 import { SITE } from './layout'
 import { PERGOLA_FRONT } from './pergola'
@@ -102,23 +102,58 @@ describe('groundTerrace', () => {
 describe('paving', () => {
   it('le pavage de l’est, le sol de la cage et le chemin du portillon en terre cuite, puis l’allée de béton du portail', () => {
     const { meshes, m } = built(paving)
-    expect(meshes).toHaveLength(4)
-    expect(meshes.map((mesh) => mesh.material)).toEqual([m.terrace, m.terrace, m.terrace, m.concrete])
-    expect(meshes.map((mesh) => mesh.position.y)).toEqual([-0.008, -0.008, -0.008, -0.012])
-    // Le sol de la cage couvre toute la cage.
-    const cage = boundsOf(meshes[1])
-    expect(cage.min.x).toBeCloseTo(SITE.cageX1)
-    expect(cage.max.x).toBeCloseTo(SITE.cageX2)
-    expect(cage.min.z).toBeCloseTo(SITE.cageZ1)
-    expect(cage.max.z).toBeCloseTo(SITE.cageZ2)
-    // Le chemin du portillon part du sud du pavage.
-    const path = boundsOf(meshes[2])
-    expect(path.max.x).toBeCloseTo(gardenX(PAVING.south))
-    expect(path.min.x).toBeCloseTo(gardenX(PAVING.pathEnd))
-    expect(path.min.z).toBeCloseTo(gardenZ(PAVING.pathWest))
-    expect(path.max.z).toBeCloseTo(gardenZ(PAVING.pathEast))
-    // L'allée de béton est à l'ouest de la maison.
-    expect(boundsOf(meshes[3]).max.z).toBeLessThan(SITE.house[2])
+    // Le pavage, le sol de la cage (carreaux, terre), le chemin du portillon (plat, trois marches avec leur contremarche, plat en contrebas), l'allée du garage (rampe et trois murs).
+    expect(meshes).toHaveLength(15)
+    const [east, tiles, soil, pathTop, ...rest] = meshes
+    expect(meshes.slice(0, 4).map((mesh) => mesh.material)).toEqual([m.terrace, m.terrace, m.soil, m.terrace])
+    expect(east.position.y).toBe(-0.008)
+    expect([tiles.position.y, soil.position.y]).toEqual([-0.008, -0.008])
+    // Le sol de la cage : des carreaux, sauf une bande de terre le long du grillage de devant ; à eux deux, ils couvrent toute la cage.
+    const floor = boundsOf(tiles)
+    const earth = boundsOf(soil)
+    expect(floor.min.x).toBeCloseTo(SITE.cageX1)
+    expect(floor.max.x).toBeCloseTo(SITE.cageX2)
+    expect(floor.max.z).toBeCloseTo(SITE.cageZ2)
+    expect(earth.min.z).toBeCloseTo(SITE.cageZ1)
+    expect(earth.min.x).toBeCloseTo(gardenX(SITE.recessPlan))
+    expect(earth.max.x).toBeCloseTo(SITE.cageX2)
+    // La terre touche les carreaux : la bande est devant (du côté du bac), les carreaux derrière.
+    expect(earth.max.z).toBeCloseTo(floor.min.z)
+    expect(earth.max.z - earth.min.z).toBeGreaterThan(0.5)
+    expect(floor.min.z).toBeGreaterThan(SITE.cageZ1)
+    // Le chemin du portillon part du sud du pavage, de plain-pied, puis descend de trois marches de 17 cm.
+    const top = boundsOf(pathTop)
+    expect(top.max.x).toBeCloseTo(gardenX(PAVING.south))
+    expect(top.min.x).toBeCloseTo(gardenX(PATH_STEPS.from))
+    expect(top.min.z).toBeCloseTo(gardenZ(PAVING.pathWest))
+    expect(top.max.z).toBeCloseTo(gardenZ(PAVING.pathEast))
+    const steps = rest.slice(0, 6)
+    // Chaque marche : une surface, un cran plus bas que la précédente, puis sa contremarche.
+    for (let step = 0; step < PATH_STEPS.count; step += 1) {
+      const [tread, riser] = [steps[step * 2], steps[step * 2 + 1]]
+      expect(tread.position.y).toBeCloseTo(-0.008 - PATH_STEPS.drop * (step + 1))
+      expect(sizeOf(riser).height).toBeCloseTo(PATH_STEPS.drop)
+      expect(sizeOf(riser).width).toBe(0.02)
+      expect(riser.position.y).toBeCloseTo(-0.008 - PATH_STEPS.drop * step - PATH_STEPS.drop / 2)
+      expect(sizeOf(riser).depth).toBeCloseTo(gardenZ(PAVING.pathEast) - gardenZ(PAVING.pathWest))
+    }
+    // En contrebas, après la dernière marche, jusqu'au portillon.
+    const lowPath = rest[6]
+    expect(lowPath.position.y).toBeCloseTo(-0.008 - PATH_DROP)
+    expect(boundsOf(lowPath).min.x).toBeCloseTo(gardenX(PAVING.pathEnd))
+    expect(boundsOf(lowPath).max.x).toBeCloseTo(gardenX(PATH_STEPS.from + PATH_STEPS.count * PATH_STEPS.tread))
+    // L'allée du garage : une rampe de béton, du niveau du chemin (au portail) à 2 m sous le terrain (au pied de la terrasse), entre trois murs.
+    const [ramp, ...walls] = rest.slice(7)
+    expect(ramp.material).toBe(m.concrete)
+    expect(walls).toHaveLength(3)
+    expect(walls.every((wall) => wall.material === m.wall)).toBe(true)
+    const heights = Array.from(ramp.geometry.attributes.position.array).filter((_, index) => index % 3 === 1)
+    expect(Math.max(...heights)).toBeCloseTo(-0.012 - PATH_DROP)
+    expect(Math.min(...heights)).toBeCloseTo(-GARAGE_DEPTH)
+    // Elle est à l'ouest de la maison.
+    expect(boundsOf(ramp).max.z).toBeLessThan(SITE.house[2])
+    // Les murs vont de la rampe au terrain (y = 0).
+    for (const wall of walls) expect(boundsOf(wall).max.y).toBeCloseTo(0)
   })
 })
 

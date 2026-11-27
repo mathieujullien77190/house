@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { faceted } from '@/components/Kitchen3D/materials'
-import { box, noShadow, seeded, standard } from '@/components/Kitchen3D/primitives'
-import { CAGE_HEIGHT, GRASS, LOT, PANEL } from './constants'
+import { BATH_WINDOW } from '@/components/Kitchen3D/constants'
+import { box, noShadow, seeded } from '@/components/Kitchen3D/primitives'
+import { CAGE_HEIGHT, CAGE_LOW, GRASS, HEDGE, LOT, PANEL } from './constants'
 import type { PlanPoint } from './constants'
 import { piecesOf, tuftsOf, woodOf } from './branches'
 import { PERGOLA } from './pergola'
-import { gardenX, gardenZ } from './plan'
+import { gardenX, gardenZ, inLot } from './plan'
 import { SITE } from './layout'
 
 /** Une fougère : une touffe de frondes plates qui partent du cœur, montent, s'arquent et retombent tout autour, de plus en plus étroites. */
@@ -15,6 +16,9 @@ export const fern = (seed: number): THREE.Group => {
   // Les lames d'un même vert font un seul maillage.
   const greens = [0x4c8f3c, 0x5aa046, 0x3f7d34].map((color) => piecesOf(new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true, side: THREE.DoubleSide })))
   const place = new THREE.Object3D()
+  // Une foliole : une lame plate de 1 m sur 1 m, couchée, dont la base est à l'origine (on l'étire à la pose).
+  const leafGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0.5, 0, 0)
+  const leaflet = new THREE.Object3D()
   const fronds = 11 + Math.floor(rand() * 4)
   for (let frond = 0; frond < fronds; frond += 1) {
     const turn = (frond / fronds) * Math.PI * 2 + (rand() - 0.5) * 0.5
@@ -29,7 +33,21 @@ export const fern = (seed: number): THREE.Group => {
       place.position.copy(from).add(to).multiplyScalar(0.5)
       place.lookAt(to)
       place.updateMatrix()
-      material.add(new THREE.BoxGeometry(0.09 - index * 0.025, 0.006, from.distanceTo(to)), place.matrix)
+      const span = from.distanceTo(to)
+      // La nervure, fine ; de chaque côté, des folioles par paires qui s'écartent vers le bout et raccourcissent vers la pointe.
+      material.add(new THREE.BoxGeometry(0.008, 0.006, span), place.matrix)
+      const base = place.matrix.clone()
+      for (let pair = 0; pair < 5; pair += 1) {
+        const share = (index + pair / 5) / 3
+        const reach = 0.1 * (1 - 0.7 * share)
+        for (const side of [1, -1]) {
+          leaflet.position.set(0, 0.002, -span / 2 + (span * (pair + 0.5)) / 5)
+          leaflet.rotation.set(side * 0.15, side === 1 ? -0.95 : Math.PI + 0.95, 0)
+          leaflet.scale.set(reach, 1, 0.02 * (1 - 0.4 * share) + 0.006)
+          leaflet.updateMatrix()
+          material.add(leafGeometry.clone(), base.clone().multiply(leaflet.matrix))
+        }
+      }
     })
   }
   for (const green of greens) green.grow(group)
@@ -86,84 +104,141 @@ export const hydrangea = (seed: number): THREE.Group => {
 }
 
 /**
- * La passiflore du grand bac : elle a grimpé sur les deux pans derrière le bac et sur le pan de droite, a gagné le dessus (le grillage
- * puis un peu la tôle) et commence à courir sur le grand côté grillagé. Des feuilles plates (un seul maillage), des tiges, des fleurs violettes en étoile.
+ * Les pièces d'une fleur de passiflore, à plat dans le plan xy, tournée vers +z (9 cm de large) : dix pétales pâles en étoile ; dessus, la
+ * couronne de filaments violets, fins et rayonnants, autour d'un cœur sombre ; au centre, la colonne verte qui porte cinq étamines jaunes
+ * en étoile et, plus haut, trois stigmates violets.
+ */
+const passionBloom = (): THREE.Mesh[] => {
+  const flat = (color: number): THREE.Material => new THREE.MeshStandardMaterial({ color, roughness: 0.7, side: THREE.DoubleSide })
+  const outline = (points: number, reach: (turn: number, index: number) => number): THREE.ShapeGeometry =>
+    new THREE.ShapeGeometry(new THREE.Shape(Array.from({ length: points }, (_, index) => {
+      const turn = (index / points) * Math.PI * 2
+      return new THREE.Vector2(Math.cos(turn) * reach(turn, index), Math.sin(turn) * reach(turn, index))
+    })))
+  const at = (mesh: THREE.Mesh, x: number, y: number, z: number): THREE.Mesh => {
+    mesh.position.set(x, y, z)
+    return mesh
+  }
+  const petals = new THREE.Mesh(outline(80, (turn) => 0.012 + 0.034 * Math.abs(Math.cos(turn * 5)) ** 0.6), flat(0xe6def2))
+  const corona = at(new THREE.Mesh(outline(96, (_, index) => (index % 2 === 0 ? 0.031 : 0.011)), flat(0x6d3fc4)), 0, 0, 0.004)
+  const heart = at(new THREE.Mesh(outline(16, () => 0.012), flat(0x35195f)), 0, 0, 0.006)
+  const green = new THREE.MeshStandardMaterial({ color: 0xb4c76a, roughness: 0.7 })
+  const column = at(new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0045, 0.03, 8), green), 0, 0, 0.02)
+  column.rotation.x = Math.PI / 2
+  const yellow = new THREE.MeshStandardMaterial({ color: 0xe8cf4a, roughness: 0.7 })
+  const purple = new THREE.MeshStandardMaterial({ color: 0x5a2a86, roughness: 0.6 })
+  const stamens = Array.from({ length: 5 }, (_, index) => {
+    const turn = (index / 5) * Math.PI * 2
+    const stamen = at(new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.003), yellow), Math.cos(turn) * 0.011, Math.sin(turn) * 0.011, 0.024)
+    stamen.rotation.z = turn
+    return stamen
+  })
+  const stigmas = Array.from({ length: 3 }, (_, index) => {
+    const turn = (index / 3) * Math.PI * 2 + 0.5
+    return at(new THREE.Mesh(new THREE.SphereGeometry(0.004, 8, 6), purple), Math.cos(turn) * 0.007, Math.sin(turn) * 0.007, 0.036)
+  })
+  return [petals, corona, heart, column, ...stamens, ...stigmas]
+}
+
+/**
+ * La passiflore du grand bac : une tige courte sort de la terre et monte au pan de l'ouest, puis ce ne sont plus que des feuilles plates, palmées
+ * à cinq doigts (un seul `InstancedMesh`), penchées en tous sens et plus ou moins décollées du grillage : serrées sur les pans grillagés
+ * verticaux, surtout près du bac, sur les toits, des chemins de feuilles qui partent du haut des pans (sept sur le grillage, deux courts sur la tôle). Elles ne portent pas d'ombre.
  */
 export const passionflower = (group: THREE.Group): void => {
-  const { cageX1, cageZ1, backX, turnZ } = SITE
+  const { cageX1, cageX2, cageZ1, cageZ2, backX, turnZ } = SITE
   const step = PANEL
   const rand = seeded(43)
-  // Chaque zone : son nombre de feuilles, l'axe sur lequel elles sont à plat, et la place d'une feuille tirée au hasard.
-  const zones: [number, 'x' | 'y' | 'z', () => [number, number, number]][] = [
-    [300, 'x', () => [backX - 0.03 + rand() * 0.04, 0.45 + rand() * (CAGE_HEIGHT - 0.45), cageZ1 + rand() * step * 2]],
-    [140, 'z', () => [cageX1 + rand() * step, 0.3 + rand() * (CAGE_HEIGHT - 0.3), turnZ - 0.03 + rand() * 0.04]],
-    [230, 'y', () => [backX + rand() * rand() * 2.4, CAGE_HEIGHT + 0.05 + rand() * 0.04, cageZ1 + rand() * step * 2]],
-    [70, 'y', () => {
-      const along = rand() * 0.9
-      return [cageX1 + rand() * 1.8, CAGE_HEIGHT + 0.11 - along * 0.06 + rand() * 0.03, turnZ - 0.1 + along]
-    }],
-    [60, 'z', () => [backX + rand() * rand() * 2.6, 0.2 + rand() * (CAGE_HEIGHT - 0.2), cageZ1 - 0.03 + rand() * 0.04]],
-  ]
-  const total = zones.reduce((sum, [count]) => sum + count, 0)
-  // Une feuille de passiflore : plate, palmée, à cinq doigts étroits qui rayonnent du pétiole (son contour, en coordonnées polaires).
+  // Les pans grillagés, mis bout à bout en une bande `u` (m) : le pan du fond de l'ouest (`turnZ`), le pan de l'ouest (`backX`), puis le grand
+  // côté grillagé (`cageZ1`) ; `v` est la hauteur. Du côté du bac, dehors.
+  const wide = step * 3 + cageX2 - backX
+  const onWalls = (u: number, v: number): THREE.Vector3 => {
+    if (u < step) return new THREE.Vector3(cageX1 + u, v, turnZ - 0.04)
+    if (u < step * 3) return new THREE.Vector3(backX - 0.04, v, turnZ - (u - step))
+    return new THREE.Vector3(backX + (u - step * 3), v, cageZ1 - 0.04)
+  }
+  // Là où la tige arrive sur le pan de l'ouest, au-dessus du bac.
+  const foot = step * 3 - 0.45
+  const wood = woodOf(faceted(0x5b6b2e, 0.95))
+  wood.limb(new THREE.Vector3(backX - 0.3, 0.44, cageZ1 + 0.45), onWalls(foot, 0.85), 0.014, 0.011)
+  wood.limb(onWalls(foot, 0.85), onWalls(foot + 0.06, 1.25), 0.011, 0.006)
+  wood.grow(group)
+  // Une feuille de passiflore : plate, palmée, à cinq doigts larges qui rayonnent du pétiole (son contour, en coordonnées polaires).
   const finger = (40 * Math.PI) / 180
-  const outline = Array.from({ length: 90 }, (_, index) => {
-    const turn = (index / 90) * Math.PI * 2 - Math.PI
-    const lobe = Math.abs(turn) <= finger * 2.5 ? Math.abs(Math.cos((Math.PI * turn) / finger)) ** 3 : 0
-    const reach = 0.012 + 0.085 * lobe
+  const points = 40
+  const outline = Array.from({ length: points }, (_, index) => {
+    const turn = (index / points) * Math.PI * 2 - Math.PI
+    const lobe = Math.abs(turn) <= finger * 2.5 ? Math.abs(Math.cos((Math.PI * turn) / finger)) ** 1.1 : 0
+    const reach = 0.02 + 0.08 * lobe
     return new THREE.Vector2(Math.sin(turn) * reach, Math.cos(turn) * reach)
   })
-  const leaves = new THREE.InstancedMesh(new THREE.ShapeGeometry(new THREE.Shape(outline)), standard(0x3f7d34, 0.9, 0, THREE.DoubleSide), total)
-  // Une fleur de passiflore : une étoile plate à dix branches fines, violette.
-  const star = Array.from({ length: 20 }, (_, index) => {
-    const turn = (index / 20) * Math.PI * 2
-    const reach = index % 2 === 0 ? 0.06 : 0.02
-    return new THREE.Vector2(Math.cos(turn) * reach, Math.sin(turn) * reach)
-  })
-  const flowers = new THREE.InstancedMesh(new THREE.ShapeGeometry(new THREE.Shape(star)), standard(0x7b4fd0, 0.6, 0, THREE.DoubleSide), 40)
-  const dummy = new THREE.Object3D()
-  let leafIndex = 0
-  let flowerIndex = 0
-  for (const [count, flat, place] of zones) {
-    for (let leaf = 0; leaf < count; leaf += 1) {
-      const [x, y, z] = place()
-      const size = 0.7 + rand() * 0.8
-      dummy.position.set(x, y, z)
-      // La feuille tourne d'abord dans son plan (au hasard), puis se couche contre son pan, avec un peu de jeu.
-      const tilt = (rand() - 0.5) * 0.7
-      dummy.rotation.set(flat === 'y' ? -Math.PI / 2 + tilt : tilt, flat === 'x' ? Math.PI / 2 + tilt : tilt, rand() * Math.PI * 2)
-      dummy.scale.set(size, size, size)
-      dummy.updateMatrix()
-      leaves.setMatrixAt(leafIndex, dummy.matrix)
-      leafIndex += 1
-      // Une fleur de temps en temps, posée devant sa feuille.
-      if (flowerIndex < 40 && rand() < 0.06) {
-        dummy.position.set(x - (flat === 'x' ? 0.04 : 0), y + (flat === 'y' ? 0.04 : 0), z - (flat === 'z' ? 0.04 : 0))
-        // Elle garde l'orientation de sa feuille : à plat contre le pan.
-        dummy.scale.set(1, 1, 1)
-        dummy.updateMatrix()
-        flowers.setMatrixAt(flowerIndex, dummy.matrix)
-        flowerIndex += 1
-      }
+  // Chaque feuille : sa place et l'axe du pan contre lequel elle est (x, y pour le toit, z).
+  const spots: [THREE.Vector3, 'x' | 'y' | 'z'][] = []
+  // Sur les pans verticaux : partout, mais de moins en moins en s'éloignant du bac. Elles ne sont pas toutes dans le même plan : plus ou moins décollées du grillage.
+  for (let attempt = 0; attempt < 1500; attempt += 1) {
+    const u = rand() * wide
+    const v = 0.25 + rand() * (CAGE_HEIGHT - 0.3)
+    if (rand() > 1.05 - (Math.abs(u - foot) / wide) * 0.9) continue
+    const flat = u >= step && u < step * 3 ? 'x' : 'z'
+    const out = rand() * 0.09
+    spots.push([onWalls(u, v).add(new THREE.Vector3(flat === 'x' ? -out : 0, 0, flat === 'z' ? -out : 0)), flat])
+  }
+  // Sur les toits : des chemins de feuilles. Chacun part du haut d'un pan et serpente sur le dessus, une feuille tous les 6 cm environ.
+  const trail = (fromX: number, fromZ: number, heading: number, long: number, tin: boolean): void => {
+    let [x, z, turn] = [fromX, fromZ, heading]
+    for (let walked = 0; walked < long; walked += 0.06) {
+      turn += (rand() - 0.5) * 0.5 - (turn - heading) * 0.15
+      x += Math.cos(turn) * 0.06
+      z += Math.sin(turn) * 0.06
+      if (x < (tin ? cageX1 : backX) || x > cageX2 - 0.05 || z < cageZ1 || z > (tin ? cageZ2 : turnZ)) return
+      const y = tin ? CAGE_HEIGHT + 0.1 - ((z - turnZ) / (cageZ2 - turnZ)) * (CAGE_HEIGHT - CAGE_LOW) : CAGE_HEIGHT + 0.04
+      spots.push([new THREE.Vector3(x + (rand() - 0.5) * 0.08, y + rand() * 0.05, z + (rand() - 0.5) * 0.08), 'y'])
     }
   }
-  flowers.count = flowerIndex
-  const stem = standard(0x5b6b2e, 0.9)
-  group.add(leaves, flowers)
-  for (const dz of [0.25, 0.7, 1.15]) group.add(box(0.015, 0.9, 0.015, stem, backX - 0.03, 0.9, cageZ1 + dz))
+  // Le toit grillagé : quatre chemins montent du pan de l'ouest, trois du grand côté grillagé.
+  for (let index = 0; index < 4; index += 1) trail(backX, cageZ1 + 0.15 + rand() * (turnZ - cageZ1 - 0.3), 0, 1 + rand() * 1.5, false)
+  for (let index = 0; index < 3; index += 1) trail(backX + 0.1 + rand() * step * 2, cageZ1, Math.PI / 2, 0.8 + rand() * 0.9, false)
+  // La tôle : deux chemins courts, depuis le pan du fond de l'ouest.
+  for (let index = 0; index < 2; index += 1) trail(cageX1 + 0.1 + rand() * (step - 0.2), turnZ, Math.PI / 2, 0.5 + rand() * 0.6, true)
+  const leaves = new THREE.InstancedMesh(new THREE.ShapeGeometry(new THREE.Shape(outline)), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide }), spots.length)
+  const dummy = new THREE.Object3D()
+  const tint = new THREE.Color()
+  spots.forEach(([at, flat], index) => {
+    const size = 0.7 + rand() * 0.8
+    // La feuille tourne dans son plan (au hasard), se couche contre son pan, puis penche franchement d'un côté ou de l'autre.
+    const [tiltX, tiltY] = [(rand() - 0.5) * 1.3, (rand() - 0.5) * 1.3]
+    dummy.position.copy(at)
+    dummy.rotation.set(flat === 'y' ? -Math.PI / 2 + tiltX : tiltX, flat === 'x' ? Math.PI / 2 + tiltY : tiltY, rand() * Math.PI * 2)
+    dummy.scale.set(size, size, size)
+    dummy.updateMatrix()
+    leaves.setMatrixAt(index, dummy.matrix)
+    leaves.setColorAt(index, tint.setHSL(0.3 + rand() * 0.05, 0.45 + rand() * 0.15, 0.13 + rand() * 0.09))
+  })
+  group.add(noShadow(leaves))
+  // Une dizaine de fleurs, sur les pans près du bac, devant les feuilles, tournées vers le dehors.
+  const parts = passionBloom()
+  for (let bloom = 0; bloom < 10; bloom += 1) {
+    const u = Math.max(0.1, Math.min(wide - 0.1, foot + (rand() - 0.5) * 3.4))
+    const flat = u >= step && u < step * 3 ? 'x' : 'z'
+    const flower = new THREE.Group()
+    for (const part of parts) flower.add(part.clone())
+    flower.position.copy(onWalls(u, 0.6 + rand() * (CAGE_HEIGHT - 0.8))).add(new THREE.Vector3(flat === 'x' ? -0.1 : 0, 0, flat === 'z' ? -0.1 : 0))
+    flower.rotation.set((rand() - 0.5) * 0.5, (flat === 'x' ? -Math.PI / 2 : Math.PI) + (rand() - 0.5) * 0.5, rand() * Math.PI * 2, 'YXZ')
+    group.add(flower)
+  }
 }
 
 /**
  * Une haie de spirées le long d'une ligne du plan : un bloc vert au cœur, et autour une masse très dense de rameaux. Chaque rameau part du pied, monte haut,
  * s'arque et retombe ; la plupart retombent du côté du jardin (vers le centre du terrain), quelques-uns de l'autre. Tout du long, de
  * petits amas de feuilles et des bouquets de fleurs blanches, plus serrés sur la retombée. `sink` : de combien le pied est sous le niveau
- * du terrain (là où le jardin est plus bas). Deux maillages par ligne (feuilles, fleurs), plus le bloc de chaque tronçon. Seul le bloc porte une ombre, pas les bouquets.
+ * du terrain (là où le jardin est plus bas). Deux maillages par ligne (feuilles, fleurs), plus le bloc de chaque tronçon. Seul le bloc porte une ombre, pas les bouquets. `leafy` faux : le bloc seul. `ivy` : c'est en fait du lierre (le tronçon du portail du garage au cerisier) : pas de fleurs blanches, et un vert bien plus foncé. `spread` : de combien les rameaux avancent sur le terrain (1 : comme d'habitude). `toGround` : ils retombent jusqu'à terre.
  */
-export const spireaHedge = (points: PlanPoint[], height: number, sink: number, seed: number): THREE.Group => {
+export const spireaHedge = (points: PlanPoint[], height: number, sink: number, seed: number, leafy = true, ivy = false, spread = 1, toGround = false): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
   const heart = new THREE.Vector3(gardenX(LOT.centerY), 0, gardenZ(LOT.centerX))
-  const core = faceted(0x3f7a3a, 1)
+  const core = faceted(ivy ? 0x1f4524 : 0x3f7a3a, 1)
   // La hauteur du bloc vert du cœur (m).
   const block = 2.1
   const spots: [number, number, number, number][] = []
@@ -177,27 +252,32 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
     if (across.dot(heart.clone().sub(from)) < 0) across.negate()
     // Le cœur de la haie : un bloc vert, plein, d'où sortent les rameaux.
     const long = from.distanceTo(to)
-    const body = box(0.6, block + sink, long + 0.3, core, (from.x + to.x) / 2, (block - sink) / 2, (from.z + to.z) / 2)
+    const body = box(ivy ? 0.56 : 0.6, block + sink, long + 0.3, core, (from.x + to.x) / 2, (block - sink) / 2, (from.z + to.z) / 2)
     body.rotation.y = Math.atan2(to.x - from.x, to.z - from.z)
     group.add(body)
     // Sur ce bloc, la haie est la plus dense : de gros bouquets de feuilles posés sur ses flancs et son dessus, et des fleurs parmi eux.
-    for (let clump = 0; clump < long * 70; clump += 1) {
+    for (let clump = 0; clump < long * (toGround ? 40 : 70); clump += 1) {
       const at = from.clone().lerp(to, rand())
       const onTop = rand() < 0.35
       const side = onTop ? (rand() - 0.5) * 0.6 : (rand() < 0.5 ? -1 : 1) * (0.3 + rand() * 0.08)
       const y = onTop ? block + rand() * 0.12 : rand() * block
+      // La face de la haie côté dehors (hors de la propriété) n'a ni bouquet ni fleur : ils ne sont que côté jardin.
+      if (side < -0.05) continue
       at.addScaledVector(across, side)
       spots.push([at.x, y - sink, at.z, 0.11 + rand() * 0.08])
-      if (rand() < 0.45) blooms.push([at.x + (rand() - 0.5) * 0.1, y - sink + 0.08, at.z + (rand() - 0.5) * 0.1, 0.035 + rand() * 0.03])
+      if (!ivy && rand() < 0.45) blooms.push([at.x + (rand() - 0.5) * 0.1, y - sink + 0.08, at.z + (rand() - 0.5) * 0.1, 0.035 + rand() * 0.03])
     }
-    const canes = Math.round(long * 16)
+    // Retombant jusqu'à terre, la haie a moins de rameaux et moins de bouquets (plus gros là où elle descend sur l'herbe).
+    const canes = Math.round(long * (toGround ? 10 : 16))
     for (let cane = 0; cane < canes; cane += 1) {
       const foot = from.clone().lerp(to, rand()).addScaledVector(across, (rand() - 0.5) * 0.4)
       // Trois rameaux sur quatre retombent vers le jardin, tout près du bloc (à moins d'un mètre) ; les autres de l'autre côté, encore plus près.
       const inward = rand() < 0.75
-      const reach = (inward ? 0.5 + rand() * 0.5 : -(0.25 + rand() * 0.3)) * (0.8 + rand() * 0.4)
+      // Les rameaux qui retombent de l'autre côté, hors de la propriété, ne sont pas dessinés.
+      if (!inward) continue
+      const reach = (0.5 + rand() * 0.5) * (0.8 + rand() * 0.4) * spread
       const tall = height * (0.8 + rand() * 0.4)
-      const drop = tall * (0.3 + rand() * 0.3)
+      const drop = toGround ? tall * rand() * 0.08 : tall * (0.3 + rand() * 0.3)
       const lean = (rand() - 0.5) * 0.5
       // Le rameau suit une courbe : du pied, par un sommet au-dessus de lui, jusqu'à sa pointe qui pend.
       for (let step = 0; step < 13; step += 1) {
@@ -208,14 +288,21 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
         const jitter = (): number => (rand() - 0.5) * 0.14
         // Dans le bloc (près du pied, sous son dessus), les bouquets sont plus gros.
         const inBlock = Math.abs(out) < 0.45 && y < block + 0.15
-        spots.push([at.x + jitter(), y - sink + jitter(), at.z + jitter(), (0.05 + rand() * 0.045) * (inBlock ? 1.9 : 1)])
+        if (toGround) {
+          // En haut : peu de bouquets, petits ; là où le rameau descend sur l'herbe : les plus gros ; tout au bout, vers l'herbe : plus petits.
+          if (t < 0.45 && rand() > 0.3) continue
+          const big = t >= 0.45 && t < 0.85
+          spots.push([at.x + jitter(), y - sink + jitter(), at.z + jitter(), big ? 0.11 + rand() * 0.07 : 0.045 + rand() * 0.03])
+        } else spots.push([at.x + jitter(), y - sink + jitter(), at.z + jitter(), (0.05 + rand() * 0.045) * (inBlock ? 1.9 : 1)])
         // Les fleurs : en bouquets sur la moitié haute et la retombée.
-        if (t > 0.4 && rand() < 0.75) blooms.push([at.x + jitter(), y - sink + 0.04 + jitter(), at.z + jitter(), 0.03 + rand() * 0.03])
+        if (!ivy && t > 0.4 && rand() < 0.75) blooms.push([at.x + jitter(), y - sink + 0.04 + jitter(), at.z + jitter(), 0.03 + rand() * 0.03])
       }
     }
   })
   const dummy = new THREE.Object3D()
-  const scatter = (places: [number, number, number, number][], material: THREE.Material): THREE.InstancedMesh => {
+  // Ce qui dépasserait de la propriété (de l'autre côté de la limite) n'est pas dessiné.
+  const scatter = (all: [number, number, number, number][], material: THREE.Material): THREE.InstancedMesh => {
+    const places = all.filter(([x, , z]) => inLot(x, z))
     const mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, places.length)
     places.forEach(([x, y, z, size], index) => {
       dummy.position.set(x, y, z)
@@ -227,8 +314,11 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
     group.add(noShadow(mesh))
     return mesh
   }
-  scatter(spots, faceted(0x5c9a4a, 0.9))
-  scatter(blooms, faceted(0xf8f8f3, 0.7))
+  // Sur téléphone (`leafy` faux) il ne reste que le bloc vert : les feuilles et les fleurs font près de la moitié des triangles de la scène.
+  if (leafy) {
+    scatter(spots, faceted(ivy ? 0x28592d : 0x5c9a4a, 0.9))
+    if (!ivy) scatter(blooms, faceted(0xf8f8f3, 0.7))
+  }
   return group
 }
 
@@ -389,53 +479,180 @@ export const flowerPatch = (seed: number, radius: number, height: number, color:
 }
 
 /**
- * La vigne vierge de la cage : elle part du long bac, du côté des fougères, grimpe sur le grand côté grillagé (serrée près du pied, plus
- * clairsemée en s'éloignant) et déborde sur le dessus. Des feuilles de vigne, plates : un seul limbe large à cinq lobes pointus et
- * dentés, d'un vert sombre, quelques-unes rougies ; deux tiges. Un seul maillage pour les feuilles.
+ * L'arche en treillis de bois, au fond du jardin, en face de la fenêtre de la salle de bain, devant la bande de béton qui longe la haie du nord :
+ * une arche carrée : deux côtés en échelle (deux montants, des barreaux, un croisillon) réunis par un dessus à plat, et une vigne qui y grimpe (un cep
+ * qui s'enroule d'un pied à l'autre, des feuilles en touffes, plus serrées en haut, des grappes de raisin, des bouquets de feuilles par terre). `timber` : le bois de l'arche.
  */
-export const creeper = (group: THREE.Group): void => {
-  const { backX, cageZ1 } = SITE
-  const rand = seeded(59)
-  // Le contour d'une feuille, en coordonnées polaires autour du pétiole : cinq lobes (l'axe de chacun, sa longueur) : celui du bout, deux
-  // de côté, deux plus courts vers le bas.
-  const lobes: [number, number][] = [[0, 1], [1.1, 0.92], [-1.1, 0.92], [2.05, 0.7], [-2.05, 0.7]]
-  const outline = Array.from({ length: 120 }, (_, index) => {
-    const turn = (index / 120) * Math.PI * 2 - Math.PI
-    // Chaque lobe est une pointe : il s'efface en s'écartant de son axe.
-    const lobe = Math.max(...lobes.map(([axis, long]) => long * (1 - Math.min(1, Math.abs(turn - axis) / 0.62))))
-    // Entre deux lobes, le limbe reste large (les creux sont peu profonds) ; vers le pétiole, il se creuse en cœur.
-    const blade = 0.5 * Math.min(1, (Math.PI - Math.abs(turn)) / 0.5)
-    // Les dents : de petites pointes régulières sur tout le bord.
-    const tooth = 1 - 0.1 * Math.abs(((turn * 14) / Math.PI) % 1)
-    const reach = (0.012 + 0.085 * Math.max(lobe, blade)) * tooth
-    return new THREE.Vector2(Math.sin(turn) * reach, Math.cos(turn) * reach)
-  })
-  const spread = 2.1
-  const spots: [number, number, number, boolean][] = []
-  // Sur le grillage : plus on s'éloigne du pied (le long du mur ou vers le haut), moins il y a de feuilles.
-  for (let attempt = 0; attempt < 900; attempt += 1) {
-    const along = rand() * spread
-    const rise = rand()
-    if (rand() > (1 - along / spread) * (1.15 - rise * 0.5)) continue
-    spots.push([backX + 0.05 + along, GRASS + 0.3 + rise * (CAGE_HEIGHT - GRASS - 0.3), cageZ1 - 0.02 - rand() * 0.04, false])
+export const vineArch = (group: THREE.Group, timber: THREE.Material): void => {
+  const rand = seeded(131)
+  const arch = { half: 0.6, deep: 0.2, legs: 2.1, stick: 0.016 }
+  const x = gardenX(HEDGE.north) - HEDGE.thickness / 2 - 0.3 - arch.deep - 0.12
+  const z = BATH_WINDOW.z
+  const wood = woodOf(timber)
+  // Un point de l'arche : `along` va de 0 (pied de gauche) à 1 (pied de droite) en passant par le cintre ; `side` : devant ou derrière.
+  const legShare = arch.legs / (arch.legs * 2 + arch.half * 2)
+  const on = (along: number, side: number): THREE.Vector3 => {
+    if (along < legShare) return new THREE.Vector3(x + side * arch.deep, GRASS + (along / legShare) * arch.legs, z - arch.half)
+    if (along > 1 - legShare) return new THREE.Vector3(x + side * arch.deep, GRASS + ((1 - along) / legShare) * arch.legs, z + arch.half)
+    // Le dessus : à plat, d'un montant à l'autre (l'arche est carrée).
+    return new THREE.Vector3(x + side * arch.deep, GRASS + arch.legs, z - arch.half + ((along - legShare) / (1 - legShare * 2)) * arch.half * 2)
   }
-  // Sur le dessus, au-dessus du pied.
-  for (let attempt = 0; attempt < 160; attempt += 1) spots.push([backX + 0.05 + rand() * rand() * spread, CAGE_HEIGHT + 0.05 + rand() * 0.03, cageZ1 + rand() * rand() * 0.9, true])
-  const leaves = new THREE.InstancedMesh(new THREE.ShapeGeometry(new THREE.Shape(outline)), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, side: THREE.DoubleSide }), spots.length)
-  const dummy = new THREE.Object3D()
-  const tint = new THREE.Color()
-  spots.forEach(([x, y, z, flatOnTop], index) => {
-    const size = 0.8 + rand() * 0.7
-    const tilt = (rand() - 0.5) * 0.6
-    dummy.position.set(x, y, z)
-    dummy.rotation.set(flatOnTop ? -Math.PI / 2 + tilt : tilt, tilt, rand() * Math.PI * 2)
-    dummy.scale.set(size, size, size)
-    dummy.updateMatrix()
-    leaves.setMatrixAt(index, dummy.matrix)
-    leaves.setColorAt(index, rand() < 0.12 ? tint.setHSL(0.02 + rand() * 0.03, 0.6, 0.32 + rand() * 0.08) : tint.setHSL(0.3 + rand() * 0.04, 0.45 + rand() * 0.1, 0.22 + rand() * 0.1))
-  })
-  group.add(leaves)
-  const wood = woodOf(faceted(0x5a4a3a, 0.95))
-  for (const lean of [0.5, 1.3]) wood.limb(new THREE.Vector3(backX + 0.2, GRASS + 0.22, cageZ1 - 0.2), new THREE.Vector3(backX + 0.2 + lean, CAGE_HEIGHT - 0.1, cageZ1 - 0.02), 0.014, 0.006)
+  const steps = 36
+  for (let index = 0; index < steps; index += 1) {
+    const [from, to] = [index / steps, (index + 1) / steps]
+    for (const side of [-1, 1]) wood.limb(on(from, side), on(to, side), arch.stick, arch.stick)
+    // Un barreau à chaque pas, et un croisillon un pas sur deux.
+    wood.limb(on(to, -1), on(to, 1), arch.stick * 0.7, arch.stick * 0.7)
+    if (index % 2 === 0) wood.limb(on(from, -1), on(to, 1), arch.stick * 0.6, arch.stick * 0.6)
+  }
   wood.grow(group)
+  // Le cep : il part du pied de gauche et s'enroule autour de l'arche jusqu'à l'autre pied.
+  const vine = woodOf(faceted(0x5a4a3a, 0.95))
+  const twist = (along: number): THREE.Vector3 => on(along, Math.sin(along * 22) * 0.9).add(new THREE.Vector3(0, 0, Math.cos(along * 22) * 0.03))
+  for (let index = 0; index < 60; index += 1) vine.limb(twist(index / 62), twist((index + 1) / 62), 0.014 - index * 0.00015, 0.014 - (index + 1) * 0.00015)
+  vine.grow(group)
+  const leaves = tuftsOf([0x4f8f3a, 0x5c9e42, 0x3f7a34].map((color) => faceted(color, 0.85)))
+  for (let leaf = 0; leaf < 90; leaf += 1) {
+    // Plus de feuilles sur le cintre que sur les pieds.
+    const along = 0.5 + (rand() - 0.5) * (rand() < 0.6 ? 0.5 : 0.96)
+    const size = 0.07 + rand() * 0.06
+    const at = on(along, (rand() - 0.5) * 2.4).add(new THREE.Vector3(0, (rand() - 0.3) * 0.12, (rand() - 0.5) * 0.14))
+    leaves.add(leaf % leaves.tints, at, [rand() * 3, rand() * 3, rand() * 3], [size, size * 0.6, size])
+  }
+  leaves.grow(group)
+  // Les grappes de raisin : des grains sombres serrés en cône, pendus sous le dessus et le haut des côtés.
+  const grapes = tuftsOf([0x4a2a5e, 0x3a2350, 0x5b3470].map((color) => faceted(color, 0.5)), 1)
+  for (let bunch = 0; bunch < 12; bunch += 1) {
+    const top = on(0.28 + rand() * 0.44, (rand() - 0.5) * 1.6).add(new THREE.Vector3(0, -0.05, 0))
+    for (let grain = 0; grain < 9; grain += 1) {
+      const down = rand() * 0.14
+      const wide = (0.14 - down) * 0.22
+      grapes.add(grain % grapes.tints, top.clone().add(new THREE.Vector3((rand() - 0.5) * wide * 2, -down, (rand() - 0.5) * wide * 2)), [0, 0, 0], [0.017, 0.017, 0.017])
+    }
+  }
+  for (const mesh of grapes.grow(group)) noShadow(mesh)
+  // Par terre, autour de l'arche : des bouquets de feuilles, comme ceux de la vigne.
+  const ground = tuftsOf([0x4f8f3a, 0x5c9e42, 0x3f7a34].map((color) => faceted(color, 0.85)))
+  for (let leaf = 0; leaf < 45; leaf += 1) {
+    const turn = rand() * Math.PI * 2
+    const far = Math.sqrt(rand()) * 1.5
+    const size = 0.07 + rand() * 0.06
+    ground.add(leaf % ground.tints, new THREE.Vector3(x - 0.3 + Math.cos(turn) * far * 0.7, GRASS + size * 0.3, z + Math.sin(turn) * far), [rand() * 3, rand() * 3, rand() * 3], [size, size * 0.6, size])
+  }
+  for (const mesh of ground.grow(group)) noShadow(mesh)
+}
+
+/**
+ * Un conifère jamais taillé, pris dans une haie qui court le long de z : un tronc nu jusqu'à 1 m, puis une masse de touffes sombres, à peine
+ * plus étroite en haut, étirée le long de la haie ; au-dessus de `over` (m), des branches partent vers −x (par-dessus la cage) avec leurs touffes.
+ * `tall` : sa hauteur (m). `mingle` : jusqu'où ses branches s'allongent le long de la haie, vers −z, pour se mêler à l'arbre voisin (m ; 0 : pas de voisin).
+ */
+export const wildConifer = (seed: number, tall: number, over: number, mingle = 0): THREE.Group => {
+  const group = new THREE.Group()
+  const rand = seeded(seed)
+  const wood = woodOf(faceted(0x4a3a2c, 0.95))
+  const lean = new THREE.Vector3((rand() - 0.5) * 0.2, tall * 0.95, (rand() - 0.5) * 0.3)
+  wood.limb(new THREE.Vector3(0, 0, 0), lean, 0.07, 0.015)
+  // Du plus sombre au plus clair : le cœur de l'arbre est plus foncé que son pourtour (`out` : de 0, au tronc, à 1, au bord).
+  const greens = tuftsOf([0x1a3622, 0x234529, 0x2f5a35, 0x3f7040].map((color) => faceted(color, 0.95)))
+  const tuft = (at: THREE.Vector3, size: number, out: number): void =>
+    greens.add(Math.min(greens.tints - 1, Math.floor(out * 3 + rand())), at, [rand() * 3, rand() * 3, rand() * 3], [size, size * (0.7 + rand() * 0.5), size])
+  const low = 1 / tall
+  for (let index = 0; index < 85; index += 1) {
+    const share = low + rand() * (1 - low)
+    // Une masse presque droite : elle ne s'affine que sur son dernier tiers ; deux fois plus longue le long de la haie qu'en travers.
+    const wide = (0.3 + rand() * 0.45) * Math.min(1, (1 - share) * 3 + 0.25)
+    const turn = rand() * Math.PI * 2
+    tuft(lean.clone().multiplyScalar(share).add(new THREE.Vector3(Math.cos(turn) * wide, (rand() - 0.5) * 0.15, Math.sin(turn) * wide * 2)), 0.2 + rand() * 0.14, wide / 0.75)
+  }
+  // Les branches qui passent par-dessus la cage : elles partent du tronc au-dessus de `over`, s'allongent vers −x en retombant un peu.
+  for (let branch = 0; over < tall * 0.9 && branch < 7; branch += 1) {
+    const from = lean.clone().multiplyScalar((over + 0.15 + rand() * (tall * 0.9 - over - 0.15)) / lean.y)
+    const reach = 0.7 + rand() * 0.9
+    const to = from.clone().add(new THREE.Vector3(-reach, -0.05 - rand() * 0.2, (rand() - 0.5) * 1.6))
+    to.y = Math.max(over + 0.12, to.y)
+    wood.limb(from, to, 0.025, 0.008)
+    for (let index = 0; index < 5; index += 1) tuft(from.clone().lerp(to, 0.35 + index * 0.16).add(new THREE.Vector3(0, (rand() - 0.3) * 0.1, (rand() - 0.5) * 0.2)), 0.13 + rand() * 0.1, 0.4 + index * 0.15)
+  }
+  // Les branches qui vont se mêler au voisin : elles filent le long de la haie, garnies de touffes jusqu'au bout.
+  for (let branch = 0; mingle > 0 && branch < 7; branch += 1) {
+    const from = lean.clone().multiplyScalar(0.4 + rand() * 0.5)
+    const to = from.clone().add(new THREE.Vector3((rand() - 0.5) * 0.6, (rand() - 0.4) * 0.5, -mingle * (0.75 + rand() * 0.4)))
+    wood.limb(from, to, 0.025, 0.008)
+    for (let index = 0; index < 7; index += 1) tuft(from.clone().lerp(to, 0.3 + index * 0.115).add(new THREE.Vector3((rand() - 0.5) * 0.25, (rand() - 0.5) * 0.25, 0)), 0.15 + rand() * 0.12, 0.4 + index * 0.1)
+  }
+  wood.grow(group)
+  greens.grow(group)
+  return group
+}
+
+/** Un arbre à feuilles claires pris dans une haie : un tronc nu, quelques branches qui s'écartent, et une couronne haute de touffes vert tendre. `tall` : sa hauteur (m). */
+export const paleTree = (seed: number, tall: number): THREE.Group => {
+  const group = new THREE.Group()
+  const rand = seeded(seed)
+  const wood = woodOf(faceted(0x6a5a48, 0.95))
+  const top = new THREE.Vector3((rand() - 0.5) * 0.3, tall * 0.8, (rand() - 0.5) * 0.3)
+  wood.limb(new THREE.Vector3(0, 0, 0), top, 0.06, 0.02)
+  const greens = tuftsOf([0x8fc25a, 0xa3d16a, 0x7fb552, 0xb4d97c].map((color) => faceted(color, 0.85)))
+  const heart = top.clone().multiplyScalar(0.8)
+  for (let branch = 0; branch < 6; branch += 1) {
+    const turn = (branch / 6) * Math.PI * 2 + rand()
+    const from = top.clone().multiplyScalar(0.45 + rand() * 0.4)
+    wood.limb(from, from.clone().add(new THREE.Vector3(Math.cos(turn) * 0.7, 0.4 + rand() * 0.5, Math.sin(turn) * 0.7)), 0.025, 0.008)
+  }
+  for (let tuft = 0; tuft < 60; tuft += 1) {
+    // Une couronne en œuf : plus haute que large.
+    const turn = rand() * Math.PI * 2
+    const rise = (rand() - 0.5) * 2
+    const wide = Math.sqrt(1 - rise * rise) * (0.5 + rand() * 0.5) * 0.95
+    const size = 0.2 + rand() * 0.14
+    greens.add(tuft % greens.tints, heart.clone().add(new THREE.Vector3(Math.cos(turn) * wide, rise * tall * 0.3, Math.sin(turn) * wide)), [rand() * 3, rand() * 3, rand() * 3], [size, size * 0.8, size])
+  }
+  wood.grow(group)
+  greens.grow(group)
+  return group
+}
+
+/**
+ * Un romarin touffu : une touffe qui part de l'intérieur (un cœur dense, au pied) et file vers l'extérieur : une quinzaine de tiges ligneuses
+ * rayonnent du centre, montent puis s'arquent vers le dehors, de plus en plus garnies de touffes d'aiguilles sombres vers le bout, où se
+ * trouvent de petites fleurs bleu pâle.
+ */
+export const rosemary = (seed: number): THREE.Group => {
+  const group = new THREE.Group()
+  const rand = seeded(seed)
+  const wood = woodOf(faceted(0x5b4a38, 0.95))
+  const greens = tuftsOf([0x4a6b45, 0x3d5c3b, 0x56774a, 0x33503a].map((color) => faceted(color, 0.9)))
+  const blue = tuftsOf([faceted(0x9db8e0, 0.7)], 1)
+  // Le cœur : quelques touffes serrées au centre.
+  for (let core = 0; core < 12; core += 1) {
+    const turn = rand() * Math.PI * 2
+    const wide = rand() * 0.18
+    const size = 0.1 + rand() * 0.07
+    greens.add(Math.floor(rand() * greens.tints), new THREE.Vector3(Math.cos(turn) * wide, 0.12 + rand() * 0.22, Math.sin(turn) * wide), [rand() * 3, rand() * 3, rand() * 3], [size, size * 1.1, size])
+  }
+  for (let stem = 0; stem < 15; stem += 1) {
+    const turn = (stem / 15) * Math.PI * 2 + (rand() - 0.5) * 0.4
+    const out = new THREE.Vector3(Math.cos(turn), 0, Math.sin(turn))
+    const reach = 0.55 + rand() * 0.45
+    const rise = 0.35 + rand() * 0.3
+    let last = new THREE.Vector3(0, 0.03, 0)
+    for (let step = 1; step <= 6; step += 1) {
+      const t = step / 6
+      // La tige monte vite puis s'arque : de plus en plus vers l'extérieur, de moins en moins vers le haut.
+      const at = out.clone().multiplyScalar(reach * t * t * 0.8 + reach * t * 0.2).setY(0.03 + rise * (1 - (1 - t) ** 2) * (1 - t * 0.25))
+      wood.limb(last, at, 0.014 * (1 - t * 0.6), 0.014 * (1 - (t + 1 / 6) * 0.6))
+      last = at
+      // Les touffes se multiplient et grossissent vers le bout.
+      for (let tuft = 0; tuft < (step >= 3 ? 2 : 1); tuft += 1) {
+        const size = 0.07 + t * 0.06 + rand() * 0.03
+        greens.add(Math.floor(rand() * greens.tints), at.clone().add(new THREE.Vector3((rand() - 0.5) * 0.1, (rand() - 0.3) * 0.08, (rand() - 0.5) * 0.1)), [rand() * 3, rand() * 3, rand() * 3], [size * 0.8, size * 1.15, size * 0.8])
+      }
+      if (step >= 5 && rand() < 0.7) blue.add(0, at.clone().add(new THREE.Vector3(0, 0.07, 0)), [0, 0, 0], [0.022, 0.022, 0.022])
+    }
+  }
+  wood.grow(group)
+  greens.grow(group)
+  blue.grow(group)
+  return group
 }

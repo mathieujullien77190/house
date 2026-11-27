@@ -17,18 +17,29 @@ export const CAGE = { width: 4 * PANEL, depth: 5 * PANEL }
 export const CAGE_WEST = PLAN_CAGE.x + PANEL * UNITS_PER_METER
 /** Son bord nord : la cage est translatée de 70 cm vers la maison (vers le sud, vers la pompe à chaleur) ; les haies, elles, ne bougent pas. */
 export const CAGE_NORTH = PLAN_CAGE.y + 0.7 * UNITS_PER_METER
-/** Le terrain : un quart de cercle de 1014 unités autour de ce centre (l'arc côté rue, au sud-ouest), plus une bande au nord jusqu'à `north`. */
-export const LOT = { centerX: 700, centerY: -190, radius: 1014, north: -268, east: 748 }
+/** Le terrain : un quart de cercle de 1014 unités autour de ce centre (l'arc côté rue, au sud-ouest), plus une bande au nord jusqu'à `north` (mesuré : la limite est à 6,87 m du mur extérieur de la cuisine, soit 30 cm plus loin que sur le plan). */
+export const LOT = { centerX: 700, centerY: -190, radius: 1014, north: -280, east: 748 }
 /**
  * La haie court à 14 unités en dedans de la limite : sur l'arc, sur le bord ouest et nord de la bande du haut, et sur le bord est. Le bord
  * est est à 1 m de plus que sur le plan : mesuré, la haie est à 1,69 m du mur du sas (au droit du bord est de la cage), et elle y est
  * épaisse de 85 cm (`eastThickness`).
  */
-export const HEDGE = { radius: 1000, west: -300, north: -254, east: 732, height: 1.5, thickness: 0.5, eastThickness: 0.85 }
+export const HEDGE = { radius: 1000, west: -300, north: -266, east: 732, height: 1.5, thickness: 0.5, eastThickness: 0.85 }
 /** L'allée du portillon est 10 cm plus à l'est que sur le plan (elle a été reculée de 50 cm vers l'ouest, puis ramenée de 60 cm vers l'est : à droite pour qui regarde la maison), en unités du plan. Ce qu'on en retranche des abscisses. */
 export const PATH_SHIFT = -0.1 * UNITS_PER_METER
 /** Le pavage : à l'est de la maison jusqu'à la limite, du bas de la cage jusqu'au sud de la terrasse ; et le chemin du portillon. */
 export const PAVING = { south: 358, pathWest: 498 - PATH_SHIFT, pathEast: 556 - PATH_SHIFT, pathEnd: 800, pathEndWest: 789 }
+/**
+ * Sur l'allée du portillon, entre le romarin et le néflier, le chemin descend de trois marches et s'enfonce dans le terrain : où elles
+ * commencent (ordonnée du plan), leur nombre, leur giron (unités du plan), la hauteur de chacune (m) ; `PATH_DROP` : de combien le chemin est plus bas ensuite.
+ */
+export const PATH_STEPS = { from: 615, count: 3, tread: 15, drop: 0.17 }
+export const PATH_DROP = PATH_STEPS.count * PATH_STEPS.drop
+/**
+ * L'allée du garage : du portail, au niveau du chemin du portillon (`PATH_DROP` sous le terrain), elle descend en rampe jusqu'au pied de la
+ * terrasse, devant la fenêtre de la chambre d'invité, où le garage est en dessous : 2 m plus bas que le terrain (m).
+ */
+export const GARAGE_DEPTH = 2
 /** La terrasse qui fait le tour de la maison (m). */
 export const TERRACE = 1.5
 /** La hauteur de la cage à perruches, puis celle du portail (m). */

@@ -1,9 +1,9 @@
 import * as THREE from 'three'
-import { BASE, CAGE_CAMERA, GARDEN_CAMERA, MAST, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
+import { BASE, CAGE_CAMERA, GARDEN_CAMERA, INNER_CAGE_CAMERA, MAST, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
 import { box, cylinder, standard, woodTexture } from '@/components/Kitchen3D/primitives'
 import { reolink } from '@/components/Kitchen3D/reolink'
-import { DECK, GRASS, HEDGE, TERRACE } from './constants'
+import { DECK, GRASS, HEDGE, PANEL, TERRACE } from './constants'
 import { SITE } from './layout'
 import { gardenX, gardenZ } from './plan'
 
@@ -36,8 +36,9 @@ export const gardenTable = (group: THREE.Group): void => {
   const { house } = SITE
   const plastic = standard(0xf2f2ee, 0.6)
   // Décalée d'1,50 m vers le prunus (vers l'est, un rien vers la maison).
-  const tableX = house[0] - TERRACE - 4 + 0.35
-  const tableZ = REST.west + 1.5 + 1.45
+  // Puis d'un mètre vers le cerisier (vers le nord et l'ouest : 65 cm et 76 cm).
+  const tableX = house[0] - TERRACE - 4 + 0.35 + 0.65
+  const tableZ = REST.west + 1.5 + 1.45 - 0.76
   const top = cylinder(0.55, 0.55, 0.04, plastic, tableX, 0.72, tableZ, 28)
   top.scale.z = 1.5
   group.add(top)
@@ -62,12 +63,12 @@ export const heatPump = (group: THREE.Group, m: GardenMaterials): void => {
   const pumpX = SAS.north + OUTER_WALL + 1.25
   const pumpZ = ROOM.zMax + OUTER_WALL + 0.3
   // La dalle court le long de la façade, du mur du sas jusqu'au bout de la maison.
-  const slabFrom = SAS.north + OUTER_WALL
+  const slabFrom = SAS.north + OUTER_WALL - 0.05
   // Elle ne dépasse pas de la maison : elle s'arrête au nu des murets de soubassement (en retrait des murs), au nord comme à l'est.
   const slabNorth = house[1] - BASE.setback
-  const slabWest = house[3] - BASE.setback
+  const slabWest = house[3] - BASE.setback - 0.03
   const slabEast = SAS.east + OUTER_WALL - BASE.setback
-  group.add(box(slabNorth - slabFrom, 0.12, slabEast - slabWest, concrete, (slabNorth + slabFrom) / 2, 0.06, (slabEast + slabWest) / 2))
+  group.add(box(slabNorth - slabFrom, 0.14, slabEast - slabWest, concrete, (slabNorth + slabFrom) / 2, 0.05, (slabEast + slabWest) / 2))
   group.add(box(0.85, 0.6, 0.33, standard(0xf0f0ee, 0.5), pumpX, 0.5, pumpZ))
   for (const side of [-1, 1]) group.add(box(0.1, 0.08, 0.4, iron, pumpX + side * 0.28, 0.16, pumpZ))
   const grille = cylinder(0.24, 0.24, 0.012, standard(0x9da1a6, 0.5, 0.4), pumpX - 0.1, 0.5, pumpZ + 0.17, 28)
@@ -84,15 +85,20 @@ export const deck = (group: THREE.Group, m: GardenMaterials): void => {
   const { post, soil } = m
   const { stepLine, cageZ1, treeX, treeZ } = SITE
   const slat = { long: DECK.long, wide: 0.14, gap: 0.01, thick: DECK.thick }
-  const ipeWood = standard(woodTexture(0x6e4a34, 151), 0.7)
+  const ipeWood = standard(woodTexture(0x9a6f4e, 151), 0.7)
   // Elle recouvre toute l'herbe à droite et à gauche du bac : de la bande de béton derrière la maison jusqu'à la haie du fond.
   const deckFrom = stepLine + TERRACE + BASE.setback + 0.03
-  const deckEnd = gardenX(HEDGE.north) - HEDGE.thickness / 2 - 0.03
+  const deckEnd = gardenX(HEDGE.north) - HEDGE.thickness / 2 - 0.005
   const deckNear = cageZ1 - 0.4
   const deckFar = deckNear - slat.long
   const deckTop = DECK.top
+  // Au pied de la haie du fond, une bande de béton de 30 cm la longe, de la terrasse en ipé jusqu'à la haie de l'ouest : elle dépasse l'herbe de 5 cm.
+  const stripWest = gardenZ(HEDGE.west) + HEDGE.thickness / 2
+  group.add(box(0.3, 0.1, deckFar - stripWest, m.concrete, deckEnd + 0.005 - 0.15, GRASS, (deckFar + stripWest) / 2))
   const pot = 0.5
-  const count = Math.floor((deckEnd - deckFrom + slat.gap) / (slat.wide + slat.gap))
+  const count = Math.round((deckEnd - deckFrom + slat.gap) / (slat.wide + slat.gap))
+  // Les lattes sont ajustées pour que la dernière touche la haie.
+  slat.wide = (deckEnd - deckFrom + slat.gap) / count - slat.gap
   const deckTo = deckFrom + count * (slat.wide + slat.gap) - slat.gap
   // Chaque latte : d'un bout à l'autre, ou en deux morceaux de part et d'autre du carré de l'arbre.
   const pieces: [number, number, number][] = []
@@ -151,5 +157,25 @@ export const powerLine = (group: THREE.Group): void => {
 export const gardenCamera = (group: THREE.Group): void => {
   const { cageX2, cageZ1, treeX, binX, binEnd } = SITE
   group.add(reolink(new THREE.Vector3(cageX2 - 0.08, GRASS + 1, cageZ1 - 0.06), new THREE.Vector3(treeX - 1, GRASS + 0.4, cageZ1 - 5), GARDEN_CAMERA))
-  group.add(reolink(new THREE.Vector3(cageX2 - 0.2, 0.5, cageZ1 + 0.14), new THREE.Vector3(binX, 0.6, binEnd - 1), CAGE_CAMERA))
+  group.add(reolink(new THREE.Vector3(cageX2 - 0.2, 0.5, cageZ1 + 0.14 + PANEL), new THREE.Vector3(binX, 0.6, binEnd - 1), CAGE_CAMERA))
+  // Dans la cage, sur le pan de bois plein à côté de la porte intérieure, à 70 cm du sol : elle regarde droit devant elle, vers le fond de la cage.
+  group.add(reolink(new THREE.Vector3(SITE.backX + 0.08, 0.7, SITE.cageZ2 - PANEL / 2), new THREE.Vector3(cageX2, 0.7, SITE.cageZ2 - PANEL / 2), INNER_CAGE_CAMERA))
+}
+
+/**
+ * Une poubelle grise renversée dans le petit coin de terre derrière la cage, au fond : la même que les poubelles à roulettes, sans son
+ * couvercle et un cinquième plus grosse, retournée (son ouverture contre la terre, ses deux roulettes en l'air).
+ */
+export const upturnedBin = (group: THREE.Group, m: GardenMaterials, at: THREE.Vector3): void => {
+  const bin = new THREE.Group()
+  const [wide, tall, deep] = [0.68, 1.08, 0.6]
+  bin.add(box(wide, tall, deep, standard(0x7f8388, 0.7), 0, tall / 2, 0))
+  for (const side of [-1, 1]) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.045, 14), m.iron)
+    wheel.rotation.x = Math.PI / 2
+    wheel.position.set(wide / 2 - 0.05, tall - 0.1, side * (deep / 2 - 0.05))
+    bin.add(wheel)
+  }
+  bin.position.copy(at)
+  group.add(bin)
 }

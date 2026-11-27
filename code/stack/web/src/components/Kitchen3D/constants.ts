@@ -21,12 +21,16 @@ export const MAST_CAMERA = 'voliere-toit'
 export const GARDEN_CAMERA = 'salon-de-jardin'
 /** La caméra posée dans la cage, juste derrière celle du jardin : elle regarde vers les poubelles, à travers la cage. */
 export const CAGE_CAMERA = 'voliere-exterieur'
+/** La caméra de l'intérieur de la cage, à côté de sa porte intérieure : son nom dans la maison. */
+export const INNER_CAGE_CAMERA = 'voliere-interieur'
 /** La caméra accrochée au pommier : elle regarde vers le prunus, un peu à sa droite. */
 export const APPLE_CAMERA = 'pommier'
 /** La caméra accrochée de l'autre côté du même tronc : elle regarde à l'opposé. */
 export const APPLE_BACK_CAMERA = 'pommier-inverse'
 export const RESET_LABEL = 'Réinitialiser la vue'
 export const TOP_LABEL = 'Vue du dessus'
+/** Le bouton de la vue « Matrix » (arêtes vertes sur fond noir, caméras telles quelles) : activer, puis revenir à la vue normale. */
+export const MATRIX_LABEL = { on: 'Vue Matrix', off: 'Vue normale' }
 export const NO_WEBGL_TEXT = 'La vue 3D demande WebGL, que ce navigateur ne propose pas.'
 /**
  * Le choix de la lumière, au-dessus de la vue : « Jour » (plein jour forcé, quels que soient l'heure, la météo et les volets) ou
@@ -41,11 +45,11 @@ export const LIGHT_OPTIONS: { id: LightMode; label: string }[] = [
 /**
  * La qualité du rendu, selon l'appareil (téléphone : moins de 1024 px de large, `useMobile`), choisie une fois à l'ouverture de la vue :
  * le plus de pixels dessinés par pixel d'écran, le lissage des bords (MSAA), le côté de la carte d'ombre du soleil (px), et la part des
- * bouquets d'herbe semés.
+ * bouquets d'herbe semés, et si les haies de spirées gardent leurs feuilles et leurs fleurs (sur téléphone : le bloc vert seul).
  */
 export const QUALITY = {
-  desktop: { pixelRatio: 2, antialias: true, shadowMap: 4096, grass: 1 },
-  phone: { pixelRatio: 1.5, antialias: false, shadowMap: 2048, grass: 0.5 },
+  desktop: { pixelRatio: 2, antialias: true, shadowMap: 4096, grass: 1, leafyHedges: true },
+  phone: { pixelRatio: 1, antialias: false, shadowMap: 2048, grass: 0.5, leafyHedges: false },
 }
 export type Quality = (typeof QUALITY)['desktop']
 
@@ -210,6 +214,8 @@ export const RECESS = { width: 0.62, bottom: 0.28, top: 0.86, depth: 0.35 }
 
 /** Un clic sur une ampoule : la souris n'a pas glissé de plus de tant de pixels entre l'appui et le relâchement. */
 export const CLICK_SLOP = 5
+/** Un cran de molette : de combien la caméra avance vers la souris (m), quelle que soit la distance. */
+export const WHEEL_STEP = 0.5
 /** La couleur d'un écran éteint : les deux du bureau et la télé. */
 export const SCREEN_OFF = 0x06070a
 
@@ -226,7 +232,8 @@ export const REST = {
   west: GUEST_EAST - 2.54,
   // La chambre d'invité, mesurée : 3,77 m du nord au sud (depuis le mur nord) sur 2,54 m d'est en ouest.
   guestEast: GUEST_EAST,
-  guestSouth: ROOM.xMax - 3.77,
+  // (Mesurée à 3,77 m ; ramenée à 3,84 m pour que le mur entre la chambre d'invité et la chambre 2 soit dans le prolongement du mur du couloir, droit : pas de décalage.)
+  guestSouth: LAYOUT.door.x - 0.39,
   // Le couloir des chambres, mesuré : 1,80 m de long (du mur de la télé au mur de la chambre 1) sur 78 cm de large, centré sur sa porte.
   middle: ROOM.zMin - 1.8,
   corridorNorth: LAYOUT.door.x + 0.39,
@@ -262,7 +269,7 @@ export const SAS = {
   // Mesuré : 1,34 m de large. Son mur nord (côté groupe de la pompe à chaleur) est donc plus au nord que celui de l’entrée.
   north: ENTRY.x + 0.06 + 1.34,
   west: ENTRY.doorZ,
-  east: ROOM.zMax + 1.5,
+  east: ROOM.zMax + 1.7,
   laundry: [ENTRY.doorZ + 0.1, ENTRY.doorZ + 0.8] as [number, number],
   door: [ROOM.zMax + 0.4, ROOM.zMax + 1.3] as [number, number],
   window: { z: ENTRY.x + 0.06 + 1.34 / 2, width: 0.86, bottom: 1.0, height: 1.0 },

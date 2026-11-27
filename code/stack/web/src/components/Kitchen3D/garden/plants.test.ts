@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { CAGE_HEIGHT, GRASS, HEDGE, LOT } from './constants'
 import type { PlanPoint } from './constants'
+import { BATH_WINDOW } from '@/components/Kitchen3D/constants'
 import { SITE } from './layout'
 import { PERGOLA } from './pergola'
-import { gardenX, gardenZ } from './plan'
-import { instancedIn, limbsIn, near, plainIn, tuftsIn } from '@/test/batched'
-import { bush, choisya, creeper, fern, flowerPatch, hydrangea, passionflower, spireaHedge, wisteria } from './plants'
+import { gardenX, gardenZ, inLot } from './plan'
+import { instancedIn, limbsIn, limbsOf, near, plainIn, tuftsIn } from '@/test/batched'
+import { bush, choisya, fern, flowerPatch, hydrangea, paleTree, passionflower, rosemary, spireaHedge, vineArch, wildConifer, wisteria } from './plants'
 
 const meshesOf = (group: THREE.Group): THREE.Mesh[] => group.children as THREE.Mesh[]
 const colorOf = (mesh: THREE.Mesh): number => (mesh.material as THREE.MeshStandardMaterial).color.getHex()
@@ -24,7 +25,7 @@ const placeOf = (mesh: THREE.InstancedMesh, index: number): THREE.Vector3 => {
 const placesIn = (mesh: THREE.InstancedMesh): THREE.Vector3[] => Array.from({ length: mesh.count }, (_, index) => placeOf(mesh, index))
 
 describe('fern', () => {
-  it('onze à quatorze frondes de trois lames, qui partent du cœur ; les lames d’un même vert font un seul maillage', () => {
+  it('onze à quatorze frondes de trois nervures à folioles, qui partent du cœur ; les lames d’un même vert font un seul maillage', () => {
     const plant = fern(21)
     const greens = plainIn(plant)
     // Trois verts au plus, vus des deux côtés : un maillage chacun, rien d'autre.
@@ -32,11 +33,11 @@ describe('fern', () => {
     expect(plant.children).toHaveLength(greens.length)
     expect(new Set(greens.map((green) => green.material)).size).toBe(greens.length)
     for (const green of greens) expect((green.material as THREE.MeshStandardMaterial).side).toBe(THREE.DoubleSide)
-    // Une lame est un pavé : 24 sommets.
-    const blades = greens.reduce((sum, green) => sum + green.geometry.attributes.position.count / 24, 0)
-    expect(blades % 3).toBe(0)
-    expect(blades / 3).toBeGreaterThanOrEqual(11)
-    expect(blades / 3).toBeLessThanOrEqual(14)
+    // Une fronde : trois nervures (des pavés de 24 sommets), et à chacune dix folioles plates (4 sommets) : 192 sommets.
+    const fronds = greens.reduce((sum, green) => sum + green.geometry.attributes.position.count, 0) / (3 * 24 + 3 * 10 * 4)
+    expect(Number.isInteger(fronds)).toBe(true)
+    expect(fronds).toBeGreaterThanOrEqual(11)
+    expect(fronds).toBeLessThanOrEqual(14)
     // Tout tient dans un rond de 70 cm autour du cœur, au-dessus du sol (à l'épaisseur d'une lame près).
     for (const green of greens) {
       green.geometry.computeBoundingBox()
@@ -110,17 +111,43 @@ describe('passionflower', () => {
     return group
   }
 
-  it('huit cents feuilles en un seul maillage, au plus quarante fleurs violettes, et trois tiges derrière le bac', () => {
+  it('une tige courte, des feuilles plates palmées en un seul maillage sans ombre, et dix fleurs de passiflore devant elles', () => {
     const group = grown()
-    const [leaves, flowers] = instancedOf(group)
-    expect(leaves.count).toBe(800)
-    expect(flowers.count).toBeGreaterThan(10)
-    expect(flowers.count).toBeLessThanOrEqual(40)
-    expect(colorOf(flowers)).toBe(0x7b4fd0)
-    const stems = ofType(group, 'BoxGeometry')
-    expect(stems).toHaveLength(3)
-    for (const stem of stems) expect(stem.position.x).toBeCloseTo(SITE.backX - 0.03)
-    expect(new Set(stems.map((stem) => stem.material)).size).toBe(1)
+    // Le bois (un maillage fondu), les feuilles (un `InstancedMesh`), puis dix fleurs.
+    expect(group.children).toHaveLength(12)
+    expect(limbsIn(group)).toHaveLength(2)
+    const [leaves] = instancedOf(group)
+    expect(instancedOf(group)).toHaveLength(1)
+    expect(leaves.count).toBeGreaterThan(1000)
+    expect(leaves.userData.noShadow).toBe(true)
+    expect(leaves.instanceColor).not.toBeNull()
+    // Une feuille palmée : un contour de quarante points, plat.
+    const outline = ((leaves.geometry as THREE.ShapeGeometry).parameters.shapes as THREE.Shape).getPoints()
+    expect(outline).toHaveLength(40)
+    // Les fleurs : des pétales pâles, une couronne violette, un cœur sombre, une colonne, cinq étamines et trois stigmates.
+    const flowers = group.children.filter((child) => child.type === 'Group') as THREE.Group[]
+    expect(flowers).toHaveLength(10)
+    for (const flower of flowers) {
+      expect(flower.children).toHaveLength(12)
+      expect(colorOf(flower.children[0] as THREE.Mesh)).toBe(0xe6def2)
+      expect(colorOf(flower.children[1] as THREE.Mesh)).toBe(0x6d3fc4)
+    }
+    // Elles sont près du bac, à moins de 10 cm devant un pan, et toutes tournées vers le dehors.
+    for (const flower of flowers) {
+      expect(flower.position.y).toBeGreaterThan(0.6)
+      expect(flower.position.y).toBeLessThan(CAGE_HEIGHT)
+    }
+  })
+
+  it('la tige sort de la terre du bac et monte au pan de l’ouest', () => {
+    const [low, high] = limbsIn(grown())
+    expect(low.from.x).toBeCloseTo(SITE.backX - 0.3)
+    expect(low.from.y).toBeCloseTo(0.44)
+    expect(low.to.y).toBeCloseTo(0.85)
+    expect(high.from.y).toBeCloseTo(0.85)
+    expect(high.to.y).toBeCloseTo(1.25)
+    // Elle finit sur le pan de l'ouest, côté bac.
+    expect(low.to.x).toBeCloseTo(SITE.backX - 0.04)
   })
 
   it('les feuilles restent sur la cage : contre ses pans ou juste au-dessus', () => {
@@ -172,6 +199,42 @@ describe('spireaHedge', () => {
     const wallZ = gardenZ(HEDGE.east)
     const inward = placesIn(leaves).filter((at) => Math.sign(at.z - wallZ) === Math.sign(heartZ - wallZ)).length
     expect(inward).toBeGreaterThan(leaves.count / 2)
+  })
+
+  it('le lierre (`ivy`) : un bloc plus étroit et plus sombre, des feuilles vert foncé et pas de fleurs blanches', () => {
+    const ivy = spireaHedge(line, 2.6, 0, 79, true, true)
+    // Un seul maillage de copies : les feuilles ; pas de fleurs.
+    expect(instancedOf(ivy)).toHaveLength(1)
+    expect(colorOf(instancedOf(ivy)[0])).toBe(0x28592d)
+    const [body] = ofType(ivy, 'BoxGeometry')
+    expect((body.geometry as THREE.BoxGeometry).parameters.width).toBe(0.56)
+    expect(colorOf(body)).toBe(0x1f4524)
+    expect(colorOf(ofType(spireaHedge(line, 2.6, 0, 79), 'BoxGeometry')[0])).toBe(0x3f7a3a)
+  })
+
+  it('sans `leafy` (téléphone) : le bloc vert seul, sans feuilles ni fleurs', () => {
+    const bare = spireaHedge(line, 2.6, 0, 79, false)
+    expect(bare.children).toHaveLength(1)
+    expect(bare.children[0].type).toBe('Mesh')
+    // Le lierre aussi.
+    expect(spireaHedge(line, 2.6, 0, 79, false, true).children).toHaveLength(1)
+  })
+
+  it('`spread` et `toGround` : les rameaux avancent plus loin sur le terrain et descendent jusqu’à terre, avec moins de bouquets', () => {
+    const normal = instancedOf(spireaHedge(line, 2.6, 0, 79))[0]
+    const wide = instancedOf(spireaHedge(line, 2.6, 0, 79, true, false, 1.9, true))[0]
+    expect(wide.count).toBeLessThan(normal.count)
+    const wallZ = gardenZ(HEDGE.east)
+    const reach = (mesh: THREE.InstancedMesh) => Math.max(...placesIn(mesh).map((at) => Math.abs(at.z - wallZ)))
+    expect(reach(wide)).toBeGreaterThan(reach(normal))
+    // Plus bas : des feuilles près de l'herbe.
+    const low = (mesh: THREE.InstancedMesh) => placesIn(mesh).filter((at) => at.y < 0.5).length
+    expect(low(wide)).toBeGreaterThan(low(normal))
+  })
+
+  it('rien ne dépasse de la propriété : les bouquets sont tous dans les limites du terrain', () => {
+    const hedge = spireaHedge([[HEDGE.east, LOT.centerY + 40], [HEDGE.east, LOT.centerY + HEDGE.radius]], 2.6, 0, 79, true, false, 1.9, true)
+    for (const mesh of instancedOf(hedge)) for (const at of placesIn(mesh)) expect(inLot(at.x, at.z)).toBe(true)
   })
 
   it('la même graine donne la même haie', () => {
@@ -279,75 +342,122 @@ describe('flowerPatch', () => {
   })
 })
 
-describe('creeper', () => {
-  const grown = (): THREE.Group => {
+describe('vineArch', () => {
+  const grown = (): { group: THREE.Group; timber: THREE.Material } => {
     const group = new THREE.Group()
-    creeper(group)
-    return group
+    const timber = new THREE.MeshStandardMaterial({ color: 0x8a6a45 })
+    vineArch(group, timber)
+    return { group, timber }
   }
 
-  it('un seul maillage de feuilles, chacune à sa teinte, et deux tiges qui partent du bac', () => {
-    const group = grown()
-    const [leaves] = instancedOf(group)
-    expect(instancedOf(group)).toHaveLength(1)
-    expect(leaves.userData).toEqual({})
-    // Les cent soixante du dessus, plus celles du grillage (une partie des neuf cents tirages).
-    expect(leaves.count).toBeGreaterThan(160 + 200)
-    expect(leaves.count).toBeLessThan(160 + 900)
-    expect(leaves.instanceColor).not.toBeNull()
-    // Ses deux tiges : un seul maillage.
-    expect(plainIn(group)).toHaveLength(1)
-    expect(limbsIn(group)).toHaveLength(2)
+  it('une arche carrée en treillis de bois (un seul maillage, le bois donné), un cep, des feuilles, des grappes et des feuilles par terre', () => {
+    const { group, timber } = grown()
+    const [arch, vine] = plainIn(group)
+    expect(arch.material).toBe(timber)
+    expect(plainIn(group)).toHaveLength(2)
+    expect(colorOf(vine)).toBe(0x5a4a3a)
+    // Le cep : soixante tronçons de plus en plus fins.
+    expect(limbsOf(vine)).toHaveLength(60)
+    // Des feuilles (trois verts), des grappes (trois violets, sans ombre), des feuilles au sol (trois verts, sans ombre).
+    const batches = instancedIn(group)
+    expect(batches).toHaveLength(9)
+    expect(batches.filter((mesh) => mesh.userData.noShadow === true)).toHaveLength(6)
+    expect(tuftsIn(group).length).toBe(90 + 12 * 9 + 45)
   })
 
-  it('serrée près du pied, plus clairsemée en s’éloignant ; elle déborde sur le dessus de la cage', () => {
-    const [leaves] = instancedOf(grown())
-    const places = placesIn(leaves)
-    const onTop = places.filter((at) => at.y > CAGE_HEIGHT)
-    expect(onTop).toHaveLength(160)
-    const onWire = places.filter((at) => at.y <= CAGE_HEIGHT)
-    for (const at of onWire) {
-      expect(at.y).toBeGreaterThanOrEqual(GRASS + 0.3)
-      expect(at.z).toBeLessThan(SITE.cageZ1)
-    }
-    const near = onWire.filter((at) => at.x - SITE.backX < 1.05).length
-    expect(near).toBeGreaterThan((onWire.length - near) * 2)
-    expect(matricesOf(instancedOf(grown())[0])).toEqual(matricesOf(leaves))
+  it('l’arche fait 1,20 m de large et 2,10 m de haut, en face de la fenêtre de la salle de bain, devant la bande de béton de la haie du nord', () => {
+    const { group } = grown()
+    const [arch] = plainIn(group)
+    arch.geometry.computeBoundingBox()
+    const box = arch.geometry.boundingBox as THREE.Box3
+    expect(box.max.y - GRASS).toBeCloseTo(2.1, 1)
+    expect(box.min.y).toBeCloseTo(GRASS, 1)
+    expect(box.max.z - box.min.z).toBeCloseTo(1.2, 1)
+    expect((box.max.z + box.min.z) / 2).toBeCloseTo(BATH_WINDOW.z, 1)
+    // Les deux côtés sont à 40 cm l'un de l'autre.
+    expect(box.max.x - box.min.x).toBeCloseTo(0.4, 1)
+    expect((box.max.x + box.min.x) / 2).toBeLessThan(gardenX(HEDGE.north) - HEDGE.thickness / 2)
   })
 
-  it('une feuille de vigne : un seul limbe large, à cinq lobes pointus séparés par des creux peu profonds, au bord denté', () => {
-    const [leaves] = instancedOf(grown())
-    const shape = (leaves.geometry as THREE.ShapeGeometry).parameters.shapes as THREE.Shape
-    const outline = shape.getPoints()
-    expect(outline).toHaveLength(120)
-    // Le contour autour du pétiole : l'écart de chaque point, par son angle (0 : le bout de la feuille).
-    const reachAt = (turn: number): number => {
-      const nearest = outline.reduce((best, point) => (Math.abs(Math.atan2(point.x, point.y) - turn) < Math.abs(Math.atan2(best.x, best.y) - turn) ? point : best))
-      return nearest.length()
+  it('toujours la même', () => {
+    expect(shapeOf(grown().group)).toEqual(shapeOf(grown().group))
+  })
+})
+
+describe('wildConifer', () => {
+  it('un tronc, et une masse de quatre verts du plus sombre au plus clair ; rien par-dessus la cage si l’arbre est trop bas', () => {
+    const tree = wildConifer(151, 3, 99)
+    expect(plainIn(tree)).toHaveLength(1)
+    const greens = tuftsIn(tree)
+    // Quatre teintes au plus, une copie par touffe.
+    expect(instancedIn(tree).length).toBeLessThanOrEqual(4)
+    expect(greens.length).toBe(85)
+    // Le tronc monte à 95 % de la hauteur.
+    const [trunk] = limbsIn(tree)
+    expect(trunk.to.y).toBeCloseTo(3 * 0.95, 1)
+    // Rien ne passe par-dessus la cage (`over` plus haut que l'arbre) ni vers un voisin (`mingle` à 0) : un seul tronçon de bois.
+    expect(limbsIn(tree)).toHaveLength(1)
+  })
+
+  it('au-dessus de `over`, sept branches partent vers −x, par-dessus la cage, avec leurs touffes', () => {
+    const tree = wildConifer(137, 4.3, 2)
+    expect(limbsIn(tree)).toHaveLength(1 + 7)
+    expect(tuftsIn(tree).length).toBe(85 + 7 * 5)
+    // Elles s'étendent vers −x, et aucune n'est sous `over`.
+    const [, ...branches] = limbsIn(tree)
+    for (const branch of branches) {
+      expect(branch.to.x).toBeLessThan(branch.from.x)
+      expect(branch.to.y).toBeGreaterThanOrEqual(2 + 0.12 - 1e-5)
     }
-    const tip = reachAt(0)
-    expect(tip).toBeCloseTo(0.097)
-    const axes = [0, 1.1, -1.1, 2.05, -2.05]
-    const sinuses = [0.55, -0.55, 1.575, -1.575]
-    // Cinq lobes : celui du bout est le plus long, ceux du bas les plus courts.
-    expect(reachAt(1.1)).toBeLessThan(tip)
-    expect(reachAt(2.05)).toBeLessThan(reachAt(1.1))
-    expect(reachAt(-1.1)).toBeCloseTo(reachAt(1.1), 2)
-    for (const sinus of sinuses) {
-      // Entre deux lobes, le limbe se creuse, mais reste large : ce ne sont pas cinq folioles séparées.
-      for (const axis of axes) if (Math.abs(axis - sinus) < 0.6) expect(reachAt(sinus)).toBeLessThan(reachAt(axis))
-      expect(reachAt(sinus)).toBeGreaterThan(tip * 0.4)
+  })
+
+  it('`mingle` : sept branches de plus filent le long de la haie vers −z, pour se mêler à l’arbre voisin', () => {
+    const alone = wildConifer(137, 4.3, 2)
+    const mingled = wildConifer(137, 4.3, 2, 3)
+    expect(limbsIn(mingled)).toHaveLength(limbsIn(alone).length + 7)
+    expect(tuftsIn(mingled).length).toBe(tuftsIn(alone).length + 7 * 7)
+    const reach = limbsIn(mingled).slice(-7)
+    for (const branch of reach) expect(branch.to.z).toBeLessThan(branch.from.z - 2)
+  })
+})
+
+describe('paleTree', () => {
+  it('un tronc, six branches qui s’écartent et une couronne de soixante touffes de quatre verts tendres, plus haute que large', () => {
+    const tree = paleTree(139, 4.3)
+    expect(limbsIn(tree)).toHaveLength(1 + 6)
+    const crown = tuftsIn(tree)
+    expect(crown).toHaveLength(60)
+    expect(instancedIn(tree).length).toBeLessThanOrEqual(4)
+    // Le tronc monte aux quatre cinquièmes de la hauteur.
+    expect(limbsIn(tree)[0].to.y).toBeCloseTo(4.3 * 0.8, 1)
+    // La couronne : en œuf, centrée en haut de l'arbre.
+    const ys = crown.map((tuft) => tuft.at.y)
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(2)
+    expect(Math.max(...crown.map((tuft) => Math.hypot(tuft.at.x, tuft.at.z)))).toBeLessThan(1.5)
+    expect(shapeOf(paleTree(139, 4.3))).toEqual(shapeOf(tree))
+  })
+})
+
+describe('rosemary', () => {
+  it('quinze tiges ligneuses (six tronçons chacune) qui rayonnent et s’arquent, garnies de touffes sombres, et de petites fleurs bleu pâle au bout', () => {
+    const bush = rosemary(149)
+    expect(limbsIn(bush)).toHaveLength(15 * 6)
+    const all = tuftsIn(bush)
+    const flowers = all.filter((tuft) => tuft.material.color.getHex() === 0x9db8e0)
+    const needles = all.filter((tuft) => tuft.material.color.getHex() !== 0x9db8e0)
+    // Douze touffes au cœur, puis une (deux premiers tronçons) ou deux (les quatre derniers) par tronçon.
+    expect(needles).toHaveLength(12 + 15 * (2 * 1 + 4 * 2))
+    expect(new Set(needles.map((tuft) => tuft.material)).size).toBe(4)
+    // Les fleurs ne sont que sur les deux derniers tronçons de chaque tige : tout au plus trente.
+    expect(flowers.length).toBeGreaterThan(5)
+    expect(flowers.length).toBeLessThanOrEqual(30)
+    for (const flower of flowers) expect(flower.size.x).toBeCloseTo(0.022)
+    // Tout tient dans un rond d'un mètre, sous 80 cm.
+    for (const tuft of all) {
+      expect(Math.hypot(tuft.at.x, tuft.at.z)).toBeLessThan(1.1)
+      expect(tuft.at.y).toBeLessThan(0.9)
     }
-    // Vers le pétiole, il se creuse en cœur.
-    expect(reachAt(Math.PI - 0.01)).toBeLessThan(tip * 0.2)
-    // Plus large que haute.
-    const xs = outline.map((point) => point.x)
-    const ys = outline.map((point) => point.y)
-    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(Math.max(...ys) - Math.min(...ys))
-    // Les dents : le bord monte et redescend bien plus souvent que cinq fois.
-    const reaches = outline.map((point) => point.length())
-    const peaks = reaches.filter((reach, index) => reach > reaches[(index + 119) % 120] && reach > reaches[(index + 1) % 120]).length
-    expect(peaks).toBeGreaterThan(12)
+    expect(shapeOf(rosemary(149))).toEqual(shapeOf(bush))
   })
 })
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
-import { BASE, ENTRY, MAST, MAST_CAMERA, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
+import { BASE, ENTRY, MAST, MAST_CAMERA, NOOK_WINDOW, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import { kitchenMaps, kitchenMaterials } from '@/components/Kitchen3D/materials'
 import { outerWalls } from './outer'
 import { wallKit } from './walls'
@@ -79,6 +79,35 @@ describe('outerWalls', () => {
     expect(steps[1].position.x).toBeCloseTo(steps[0].position.x - 0.3)
     expect(steps[0].position.z).toBeCloseTo((SAS.door[0] + SAS.door[1]) / 2)
     expect(((steps[0].material as THREE.MeshStandardMaterial).map as THREE.Texture).repeat.toArray()).toEqual([0.3, expect.closeTo(1.2)])
+  })
+
+  it('la lanterne de l’entrée, à droite de la porte du sas vers 1,80 m, tournée vers le dehors : un luminaire non nommé, sur sa platine', () => {
+    const shell = built()
+    const lantern = shell.group.children.find((child) => child.type === 'Group' && child.children.some((part) => part.userData.fixture === true)) as THREE.Group
+    expect(lantern.position.y).toBe(1.8)
+    expect(lantern.position.z).toBeCloseTo((SAS.door[1] + SAS.east) / 2)
+    // Contre le mur sud du sas, la face vers le dehors (−x).
+    expect(lantern.position.x).toBeCloseTo(SAS.south - OUTER_WALL - 0.002)
+    expect(new THREE.Vector3(0, 0, 1).applyEuler(lantern.rotation).x).toBeCloseTo(-1)
+    // Platine, bras, quatre montants, deux plateaux, pointe, verre, toit, ampoule.
+    const bulb = lantern.children.find((part) => part.userData.fixture === true) as THREE.Mesh
+    expect(bulb.userData.fixtureName).toBeUndefined()
+    expect(lantern.children.filter((part) => (part as THREE.Mesh).geometry?.type === 'ConeGeometry')).toHaveLength(1)
+    expect(lantern.children.filter((part) => (part as THREE.Mesh).geometry?.type === 'CylinderGeometry')).toHaveLength(1)
+  })
+
+  it('le soupirail de la cave sous la fenêtre du coin repas : un cadre clair, une vitre sombre et trois barreaux, dans le soubassement', () => {
+    const shell = built()
+    const vent = boxes(shell).filter((mesh) => mesh.position.y === -BASE.rise / 2 && mesh.position.x > ROOM.xMax + OUTER_WALL - BASE.setback)
+    // Le cadre, la vitre, trois barreaux.
+    expect(vent).toHaveLength(5)
+    const [frame, glass, ...bars] = vent
+    expect(boxOf(frame).depth).toBeCloseTo(0.55 + 0.06)
+    expect(boxOf(glass).depth).toBeCloseTo(0.55)
+    expect(boxOf(glass).height).toBeCloseTo(0.2)
+    expect(colorOf(frame)).toBe(0xf1efe8)
+    expect(glass.position.z).toBeCloseTo(NOOK_WINDOW.z)
+    bars.forEach((bar, index) => expect(bar.position.z - NOOK_WINDOW.z).toBeCloseTo(((index - 1) * 0.55) / 3))
   })
 
   it('le poteau d’acier du sas, ses deux pattes, et la caméra du mât tournée vers la cage', () => {

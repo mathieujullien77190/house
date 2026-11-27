@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
-import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, CAGE_CAMERA, GARDEN_CAMERA, REST } from '@/components/Kitchen3D/constants'
+import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, CAGE_CAMERA, GARDEN_CAMERA, INNER_CAGE_CAMERA, REST } from '@/components/Kitchen3D/constants'
 import { cameraMeshes } from '@/components/Kitchen3D/live'
-import { GRASS, TERRACE } from './constants'
+import { GRASS, HEDGE, LOT, TERRACE } from './constants'
 import { buildGarden } from './garden'
 import { laurelBush } from './laurel'
 import { SITE } from './layout'
+import { gardenX, gardenZ } from './plan'
 import { PERGOLA } from './pergola'
 import { cherryTree, clippedTree, medlarTree, prunusTree } from './trees'
 
@@ -29,17 +30,17 @@ describe('buildGarden', () => {
     expect(again.children).toHaveLength(garden.children.length)
     expect(again.children.map((child) => child.position.toArray())).toEqual(garden.children.map((child) => child.position.toArray()))
     expect(garden.children.length).toBeGreaterThan(150)
-    // Les arbres et les arbustes sont dessinés par lots : tout le jardin tient en quelques centaines de maillages.
+    // Les arbres et les arbustes sont dessinés par lots : tout le jardin tient en moins de mille maillages (avant que la scène les fonde par matière).
     let meshes = 0
     garden.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) meshes += 1
     })
-    expect(meshes).toBeLessThan(500)
+    expect(meshes).toBeLessThan(1000)
   })
 
-  it('les caméras du jardin portent le nom de la vraie : celle du coin de la cage, celle posée dedans et les deux du pommier', () => {
+  it('les caméras du jardin portent le nom de la vraie : celle du salon de jardin, celle du coin de la cage, celle posée dedans et les deux du pommier', () => {
     const cameras = cameraMeshes(buildGarden())
-    expect(cameras.map((camera) => camera.name).sort()).toEqual([APPLE_BACK_CAMERA, APPLE_CAMERA, CAGE_CAMERA, GARDEN_CAMERA].sort())
+    expect(cameras.map((camera) => camera.name).sort()).toEqual([APPLE_BACK_CAMERA, APPLE_CAMERA, CAGE_CAMERA, GARDEN_CAMERA, INNER_CAGE_CAMERA].sort())
     const position = (name: string) => (cameras.find((camera) => camera.name === name) as (typeof cameras)[number]).object.position
     const [corner, inside] = [position(GARDEN_CAMERA), position(CAGE_CAMERA)]
     // Toutes deux au coin de la cage ; celle du jardin est plus haute.
@@ -82,13 +83,62 @@ describe('buildGarden', () => {
     const garden = buildGarden()
     const { binSouth, binWest, binEast } = SITE
     const prunus = groupsLike(garden, prunusTree(47)).find((tree) => tree.position.x === binSouth - 1.1) as THREE.Group
-    expect(prunus.position.z).toBe(binEast - 1.6)
+    expect(prunus.position.z).toBe(binEast - 0.8)
     // Penché de 0,45 rad.
     expect(2 * Math.acos(prunus.quaternion.w)).toBeCloseTo(0.45)
     const clipped = groupsLike(garden, clippedTree(61)).find((tree) => tree.position.z === binWest + 0.075 + 0.1) as THREE.Group
     expect(clipped.position.x).toBeCloseTo(binSouth - 0.25)
     const medlar = groupsLike(garden, medlarTree(53))
     expect(medlar.length).toBeGreaterThan(0)
+  })
+
+  it('les arbres portent le nom « tree » (la vue Matrix les distingue du reste du jardin) : le conifère et l’arbre clair derrière la cage, le romarin, les deux gros buissons', () => {
+    const garden = buildGarden()
+    const trees = (garden.children as THREE.Group[]).filter((child) => child.name === 'tree')
+    // Le cerisier du fond, le second, le pommier, le néflier, le conifère et le laurier à droite du portillon, le prunus, le romarin, l'arbre taillé, les deux derrière la cage, le laurier de la cage.
+    expect(trees).toHaveLength(12)
+    // Derrière la cage, dans la haie du nord : le conifère au droit du milieu du toit, l'arbre clair du côté du salon de jardin, tous deux hauts de plus de 4 m.
+    const behind = trees.filter((tree) => tree.position.x === gardenX(HEDGE.north))
+    expect(behind).toHaveLength(2)
+    const [conifer, pale] = behind
+    expect(conifer.position.toArray()).toEqual([gardenX(HEDGE.north), GRASS, (SITE.cageZ1 + SITE.cageZ2) / 2])
+    expect(pale.position.toArray()).toEqual([gardenX(HEDGE.north), GRASS, SITE.cageZ1 - 0.9])
+    // La pergola porte sa glycine, elle aussi nommée.
+    const pergola = (garden.children as THREE.Group[]).find((child) => child.rotation.y === Math.PI / 2 && child.position.y === SITE.raised) as THREE.Group
+    expect((pergola.children.at(-1) as THREE.Group).name).toBe('tree')
+  })
+
+  it('derrière la cage : de la terre à la place de l’herbe, une poubelle renversée, les outils de la cage', () => {
+    const garden = buildGarden()
+    // De la terre jusqu'à la haie du nord et à la limite de l'est.
+    const soil = (garden.children as THREE.Mesh[]).find((child) => child.isMesh && child.position.y === GRASS && (child.geometry as THREE.BoxGeometry).parameters.height === 0.02) as THREE.Mesh
+    const bounds = new THREE.Box3().setFromObject(soil)
+    expect(bounds.min.x).toBeCloseTo(SITE.cageX2)
+    expect(bounds.max.x).toBeCloseTo(gardenX(HEDGE.north))
+    expect(bounds.min.z).toBeCloseTo(SITE.cageZ1)
+    expect(bounds.max.z).toBeCloseTo(gardenZ(LOT.east))
+    // La poubelle renversée : le gris des poubelles, retournée, au pied de la haie, près de la cage.
+    const bin = (garden.children as THREE.Group[]).find((child) => child.type === 'Group' && child.position.z === SITE.cageZ2 - 0.35) as THREE.Group
+    expect(bin.position.y).toBe(GRASS)
+    expect(bin.children).toHaveLength(3)
+    // Les six outils : accrochés dans la partie de la cage derrière la porte d'entrée.
+    const tools = (garden.children as THREE.Group[]).filter((child) => child.type === 'Group' && child.position.z === SITE.cageZ2 - 0.012)
+    expect(tools).toHaveLength(4)
+  })
+
+  it('sur téléphone (`leafyHedges` faux) : les haies sont réduites à leur bloc vert, tout le reste du jardin est le même', () => {
+    const copies = (garden: THREE.Group): number => {
+      let count = 0
+      garden.traverse((child) => {
+        if ((child as THREE.InstancedMesh).isInstancedMesh) count += (child as THREE.InstancedMesh).count
+      })
+      return count
+    }
+    const leafy = buildGarden()
+    const bare = buildGarden(1, false)
+    expect(copies(bare)).toBeLessThan(copies(leafy) - 1000)
+    // Les mêmes enfants directs, sauf les feuilles et les fleurs des haies.
+    expect(bare.children).toHaveLength(leafy.children.length)
   })
 
   it('la pergola contre la façade des baies, sur la terrasse surélevée, avec sa glycine ; cinq arbustes dans les jardinières', () => {

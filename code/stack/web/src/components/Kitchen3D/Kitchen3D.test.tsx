@@ -5,7 +5,7 @@ import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT } from '@/components/MapPlan/constants'
 import { stubCanvasContext } from '@/test/canvas'
 import type { AcUnit, ShutterCommand, ShuttersState } from '@/types'
-import { DAYLIGHT, LAMP_LIGHT, NO_WEBGL_TEXT, PLAN_HOUSE, QUALITY, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
+import { DAYLIGHT, LAMP_LIGHT, MATRIX_LABEL, NO_WEBGL_TEXT, PLAN_HOUSE, QUALITY, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT, WHEEL_STEP } from './constants'
 import type { Quality } from './constants'
 import Kitchen3D from './Kitchen3D'
 import { LIGHT_KEY } from './light'
@@ -18,6 +18,7 @@ interface FakeRenderer {
   domElement: HTMLCanvasElement
   shadowMap: { enabled: boolean; type: number; autoUpdate: boolean; needsUpdate: boolean }
   setPixelRatio: ReturnType<typeof vi.fn>
+  setClearColor: ReturnType<typeof vi.fn>
   setSize: ReturnType<typeof vi.fn>
   render: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
@@ -30,6 +31,8 @@ interface FakeControls {
   target: THREE.Vector3
   mouseButtons: Record<string, number>
   enableDamping: boolean
+  minDistance: number
+  maxDistance: number
   /** Le nombre d'images pendant lesquelles la caméra finit encore sa course (amortissement) : `update` la fait alors bouger. */
   settling: number
   listeners: Set<() => void>
@@ -70,6 +73,7 @@ vi.mock('three', async (original) => {
     domElement = document.createElement('canvas')
     shadowMap = { enabled: false, type: 0, autoUpdate: true, needsUpdate: false }
     setPixelRatio = vi.fn()
+    setClearColor = vi.fn()
     setSize = vi.fn()
     // Comme le vrai : une fois l'ombre refaite, elle n'est plus à refaire.
     render = vi.fn(() => {
@@ -92,6 +96,8 @@ vi.mock('three/examples/jsm/controls/OrbitControls.js', async () => {
     target = new Vector3()
     mouseButtons: Record<string, number> = {}
     enableDamping = false
+    minDistance = -1
+    maxDistance = -1
     settling = 0
     listeners = new Set<() => void>()
     move = () => {
@@ -360,7 +366,7 @@ describe('Kitchen3D', () => {
   it('les boutons : la vue du dessus et le retour à la vue de départ ; ni « Hotte » ni « Volets réels » (la hotte est toujours là)', () => {
     render(<Kitchen3D apiKey="k" />)
     // (Plus de bouton « Vent ».)
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue'])
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue', 'Vue Matrix'])
     expect(h.parts[0].hood.visible).toBe(true)
     frame()
     fireEvent.click(screen.getByRole('button', { name: 'Vue du dessus' }))
@@ -585,11 +591,105 @@ describe('Kitchen3D : les caméras', () => {
     expect(h.send).not.toHaveBeenCalled()
   })
 
+  it('deux modèles sur le même rayon : le clic ouvre celui de devant, dans un sens comme dans l’autre', () => {
+    const onOpenCamera = vi.fn()
+    render(<Kitchen3D apiKey="k" onOpenCamera={onOpenCamera} />)
+    const names = ['voliere-toit', 'salon-de-jardin']
+    for (const [front, back] of [names, [...names].reverse()]) {
+      const behind = tagged('camera', back)
+      const ahead = tagged('camera', front)
+      // Le modèle de devant est une copie de celui de derrière, rapprochée de l'œil le long du rayon.
+      aim(behind, [0.2, 2, 0.2])
+      const eye = camera().position.clone()
+      const at = worldOf(behind)
+      const quaternion = behind.getWorldQuaternion(new THREE.Quaternion())
+      root().add(ahead)
+      ahead.quaternion.copy(quaternion)
+      ahead.position.copy(at).addScaledVector(eye.clone().sub(at).normalize(), 0.5)
+      aim(behind, [0.2, 2, 0.2])
+      click()
+      expect(onOpenCamera).toHaveBeenLastCalledWith(front)
+    }
+  })
+
   it('sans `onOpenCamera`, le clic sur une caméra ne fait rien', () => {
     render(<Kitchen3D apiKey="k" />)
     aim(tagged('camera', 'voliere-toit'), [0.2, 2, 0.2])
     click()
     expect(h.send).not.toHaveBeenCalled()
+  })
+})
+
+describe('Kitchen3D : la molette et la vue Matrix', () => {
+  const wheel = (deltaY: number) => {
+    vi.spyOn(canvas(), 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 1000, height: 520 } as DOMRect)
+    const event = new WheelEvent('wheel', { clientX: 500, clientY: 260, deltaY, bubbles: true, cancelable: true })
+    act(() => {
+      canvas().dispatchEvent(event)
+    })
+    return event
+  }
+
+  it('la molette avance la caméra d’un pas fixe vers le pointeur, le pivot avec elle, sans limite de zoom', () => {
+    render(<Kitchen3D apiKey="k" />)
+    frame()
+    const [controls] = h.controls
+    expect(controls.minDistance).toBe(0)
+    expect(controls.maxDistance).toBe(Infinity)
+    const before = camera().position.clone()
+    const pivot = controls.target.clone()
+    const event = wheel(-100)
+    expect(event.defaultPrevented).toBe(true)
+    // Le pas est le même, quelle que soit la distance : une encoche = WHEEL_STEP.
+    expect(camera().position.distanceTo(before)).toBeCloseTo(WHEEL_STEP)
+    expect(controls.target.distanceTo(pivot)).toBeCloseTo(WHEEL_STEP)
+    // Le zoom est dessiné.
+    expect(h.frames).toHaveLength(1)
+    frame()
+    // Vers l'arrière : le même pas dans l'autre sens ; un grand coup de molette vaut au plus trois pas.
+    const forward = camera().position.clone()
+    wheel(100)
+    expect(camera().position.distanceTo(forward)).toBeCloseTo(WHEEL_STEP)
+    expect(camera().position.distanceTo(before)).toBeCloseTo(0)
+    wheel(5000)
+    expect(camera().position.distanceTo(before)).toBeCloseTo(3 * WHEEL_STEP)
+    // Aucun cran : rien ne bouge.
+    const still = camera().position.clone()
+    wheel(0)
+    expect(camera().position.distanceTo(still)).toBe(0)
+  })
+
+  it('à la fermeture, la molette n’est plus écoutée', () => {
+    const view = render(<Kitchen3D apiKey="k" />)
+    const target = canvas()
+    const remove = vi.spyOn(target, 'removeEventListener')
+    view.unmount()
+    expect(remove).toHaveBeenCalledWith('wheel', expect.any(Function), { capture: true })
+  })
+
+  it('le bouton Matrix passe à la vue en arêtes sur fond noir, et revient à la vue normale', () => {
+    render(<Kitchen3D apiKey="k" />)
+    frame()
+    const edges = () => {
+      const lines: THREE.LineSegments[] = []
+      root().traverse((child) => {
+        if ((child as THREE.LineSegments).isLineSegments && child.visible) lines.push(child as THREE.LineSegments)
+      })
+      return lines
+    }
+    expect(edges()).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.on }))
+    expect(screen.getByRole('button', { name: MATRIX_LABEL.off })).toBeInTheDocument()
+    expect(h.renderers[0].setClearColor).toHaveBeenLastCalledWith(0x000000, 1)
+    expect(edges().length).toBeGreaterThan(0)
+    // Le changement de vue est dessiné, ombre comprise.
+    expect(h.frames).toHaveLength(1)
+    frame()
+    expect(drawn()).toBe(2)
+    fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.off }))
+    expect(screen.getByRole('button', { name: MATRIX_LABEL.on })).toBeInTheDocument()
+    expect(h.renderers[0].setClearColor).toHaveBeenLastCalledWith(0x000000, 0)
+    expect(edges()).toHaveLength(0)
   })
 })
 
@@ -979,7 +1079,8 @@ describe('Kitchen3D : la qualité selon l’appareil', () => {
     render(<Kitchen3D apiKey="k" />)
     const [renderer] = h.renderers
     expect(renderer.options).toEqual({ antialias: false, alpha: true })
-    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(1.5)
+    // Sur téléphone : un pixel par pixel, même sur un écran dense.
+    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(1)
     expect(sunOf().shadow.mapSize.toArray()).toEqual([2048, 2048])
     expect(h.qualities).toEqual([QUALITY.phone])
     expect(QUALITY.phone.grass).toBeLessThan(1)
@@ -988,9 +1089,9 @@ describe('Kitchen3D : la qualité selon l’appareil', () => {
 
   it('un écran moins dense que le plafond garde sa densité', () => {
     h.mobile = true
-    vi.stubGlobal('devicePixelRatio', 1)
+    vi.stubGlobal('devicePixelRatio', 0.75)
     render(<Kitchen3D apiKey="k" />)
-    expect(h.renderers[0].setPixelRatio).toHaveBeenCalledExactlyOnceWith(1)
+    expect(h.renderers[0].setPixelRatio).toHaveBeenCalledExactlyOnceWith(0.75)
   })
 
   it('la qualité est choisie à l’ouverture : tourner le téléphone (ou rétrécir la fenêtre) ne reconstruit rien', () => {

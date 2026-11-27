@@ -3,11 +3,11 @@ import { PLAN_GARAGE_CORNERS, UNITS_PER_METER } from '@/components/Lights/consta
 import { BASE, ENTRY, OUTER_WALL, PATIO_DOOR, SAS } from '@/components/Kitchen3D/constants'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
 import { box, standard } from '@/components/Kitchen3D/primitives'
-import { CAGE_NORTH, CAGE_WEST, GRASS, LOT, LOW, PAVING, PLAN, TERRACE } from './constants'
+import { CAGE_NORTH, CAGE_WEST, GARAGE_DEPTH, GRASS, LOT, LOW, PATH_DROP, PATH_STEPS, PAVING, PLAN, TERRACE } from './constants'
 import type { PlanPoint } from './constants'
 import { SITE } from './layout'
 import { PERGOLA_FRONT } from './pergola'
-import { arc, flat, gardenX, gardenZ, tiledOn } from './plan'
+import { arc, flat, gardenX, gardenZ, quad, tiledOn } from './plan'
 
 /**
  * La pelouse, en deux niveaux. Derrière la maison (au nord de sa façade, à l'ouest du pavage et de la cage), le jardin est 20 cm plus
@@ -17,7 +17,10 @@ export const lawns = (group: THREE.Group, m: GardenMaterials): void => {
   const { grass } = m
   const { stepY, stepX, stepWest, midPlan, recessPlan } = SITE
   const lawn: PlanPoint[] = [[LOT.east, CAGE_NORTH], [stepX, CAGE_NORTH], [stepX, recessPlan], [midPlan, recessPlan], [midPlan, stepY], ...arc(LOT.radius, stepWest, [LOT.centerX, LOT.centerY + LOT.radius]), [LOT.east, LOT.centerY + LOT.radius]]
-  group.add(flat(lawn, grass, -0.02))
+  // Le chemin du portillon s'enfonce dans le terrain après ses trois marches : la pelouse y est trouée.
+  const trench: PlanPoint[] = [[PAVING.pathWest, PATH_STEPS.from], [PAVING.pathEast, PATH_STEPS.from], [PAVING.pathEast, PAVING.pathEnd], [PAVING.pathWest, PAVING.pathEndWest]]
+  // L'allée du garage descend aussi en contrebas : elle troue la pelouse.
+  group.add(flat(lawn, grass, -0.02, [trench, PLAN_GARAGE_CORNERS]))
   const lowLawn: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LOT.radius, LOT.north], ...arc(LOT.radius, [LOT.centerX - LOT.radius, LOT.centerY], stepWest), [midPlan, stepY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
   group.add(flat(lowLawn, grass, -LOW - 0.02))
   // L'herbe de la partie basse est surélevée de 10 cm par rapport au béton qui longe la maison : la même surface, moins la bande de béton.
@@ -77,10 +80,32 @@ export const paving = (group: THREE.Group, m: GardenMaterials): void => {
   const { stepY, cageSouth, cageEast, midPlan, recessPlan } = SITE
   const east = PLAN.west + PLAN.width
   group.add(flat([[east, stepY], [midPlan, stepY], [midPlan, cageSouth], [LOT.east, cageSouth], [LOT.east, PAVING.south], [east, PAVING.south]], terrace, -0.008))
-  group.add(flat([[CAGE_WEST, CAGE_NORTH], [cageEast, CAGE_NORTH], [cageEast, cageSouth], [midPlan, cageSouth], [midPlan, recessPlan], [CAGE_WEST, recessPlan]], terrace, -0.008))
-  group.add(flat([[PAVING.pathWest, PAVING.south], [PAVING.pathEast, PAVING.south], [PAVING.pathEast, PAVING.pathEnd], [PAVING.pathWest, PAVING.pathEndWest]], terrace, -0.008))
-  // L'allée de béton, du portail à la terrasse.
-  group.add(flat(PLAN_GARAGE_CORNERS, concrete, -0.012))
+  // Le sol de la cage : carrelé, sauf le long du grillage de devant (le grand côté, derrière le bac), où c'est de la terre.
+  group.add(flat([[midPlan, CAGE_NORTH], [cageEast, CAGE_NORTH], [cageEast, cageSouth], [midPlan, cageSouth]], terrace, -0.008))
+  group.add(flat([[CAGE_WEST, CAGE_NORTH], [midPlan, CAGE_NORTH], [midPlan, recessPlan], [CAGE_WEST, recessPlan]], m.soil, -0.008))
+  // Le chemin du portillon : de plain-pied jusqu'aux marches, puis trois marches qui descendent, puis il continue en contrebas jusqu'au portillon.
+  const { from, count, tread, drop } = PATH_STEPS
+  const level = (steps: number): number => -0.008 - drop * steps
+  const pathWide = gardenZ(PAVING.pathEast) - gardenZ(PAVING.pathWest)
+  group.add(flat([[PAVING.pathWest, PAVING.south], [PAVING.pathEast, PAVING.south], [PAVING.pathEast, from], [PAVING.pathWest, from]], terrace, level(0)))
+  for (let step = 0; step < count; step += 1) {
+    const [top, bottom] = [from + step * tread, from + (step + 1) * tread]
+    group.add(flat([[PAVING.pathWest, top], [PAVING.pathEast, top], [PAVING.pathEast, bottom], [PAVING.pathWest, bottom]], terrace, level(step + 1)))
+    // La contremarche, au haut de chaque marche.
+    group.add(box(0.02, drop, pathWide, terrace, gardenX(top), level(step) - drop / 2, (gardenZ(PAVING.pathWest) + gardenZ(PAVING.pathEast)) / 2))
+  }
+  const low = from + count * tread
+  group.add(flat([[PAVING.pathWest, low], [PAVING.pathEast, low], [PAVING.pathEast, PAVING.pathEnd], [PAVING.pathWest, PAVING.pathEndWest]], terrace, level(count)))
+  // L'allée de béton, du portail à la terrasse : une rampe, du niveau du portillon (au portail) à 2 m sous le terrain (au pied de la terrasse, où est le garage),
+  // entre trois murs de soutènement (les deux côtés, et le fond sous la terrasse).
+  const [gateNorth, gateSouth, backSouth, backNorth] = PLAN_GARAGE_CORNERS
+  const at = ([planX, planY]: PlanPoint, y: number): THREE.Vector3 => new THREE.Vector3(gardenX(planY), y, gardenZ(planX))
+  const [shallow, deep] = [-0.012 - PATH_DROP, -GARAGE_DEPTH]
+  group.add(quad([at(gateNorth, shallow), at(gateSouth, shallow), at(backSouth, deep), at(backNorth, deep)], concrete))
+  const retain = m.wall
+  group.add(quad([at(backNorth, deep), at(gateNorth, shallow), at(gateNorth, 0), at(backNorth, 0)], retain))
+  group.add(quad([at(backSouth, deep), at(gateSouth, shallow), at(gateSouth, 0), at(backSouth, 0)], retain))
+  group.add(quad([at(backNorth, deep), at(backSouth, deep), at(backSouth, 0), at(backNorth, 0)], retain))
 }
 
 /**

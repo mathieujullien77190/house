@@ -3,7 +3,7 @@ import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { stubCanvasContext } from '@/test/canvas'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
 import { binWalls, hedges, pathAndGates } from './borders'
-import { GATE_HEIGHT, HEDGE, LOT, LOW, PAVING } from './constants'
+import { GATE_HEIGHT, HEDGE, LOT, LOW, PATH_DROP, PAVING } from './constants'
 import { SITE } from './layout'
 import { gardenX, gardenZ } from './plan'
 
@@ -21,62 +21,102 @@ beforeEach(() => {
 })
 
 describe('hedges', () => {
-  it('l’arc en trois haies de spirées, la haie taillée du nord, les spirées de l’ouest, les thuyas de l’est puis encore des spirées', () => {
+  it('l’arc en cinq haies (spirées, lierre, spirées), la haie taillée du nord, les spirées de l’ouest, les thuyas de l’est puis encore des spirées', () => {
     const { children, m } = built(hedges)
-    expect(children.map((child) => child.type)).toEqual(['Group', 'Group', 'Group', 'Mesh', 'Group', 'Mesh', 'Group'])
+    expect(children.map((child) => child.type)).toEqual(['Group', 'Group', 'Group', 'Group', 'Group', 'Mesh', 'Group', 'Mesh', 'Group'])
     // La haie taillée du nord : d'un seul tenant, elle descend jusqu'au sol de la partie basse.
-    const north = children[3] as THREE.Mesh
+    const north = children[5] as THREE.Mesh
     expect(north.material).toBe(m.hedge)
     expect(sizeOf(north).width).toBe(HEDGE.thickness)
     expect(sizeOf(north).height).toBeCloseTo(HEDGE.height + LOW)
     expect(north.position.y + sizeOf(north).height / 2).toBeCloseTo(HEDGE.height)
     expect(north.position.x).toBeCloseTo(gardenX(HEDGE.north))
-    // Les thuyas : 2,50 m de haut, 85 cm d'épaisseur, sur la limite est, du ras de la cage jusqu'au muret des poubelles.
-    const thuja = children[5] as THREE.Mesh
+    // Les thuyas : 2,50 m de haut, 85 cm d'épaisseur, sur la limite est, de 20 cm avant la cage jusqu'à 35 cm au-delà du muret des poubelles.
+    const thuja = children[7] as THREE.Mesh
     expect(sizeOf(thuja).height).toBe(2.5)
     expect(sizeOf(thuja).width).toBe(HEDGE.eastThickness)
     expect(thuja.position.z).toBeCloseTo(gardenZ(HEDGE.east))
     const box = new THREE.Box3().setFromObject(thuja)
-    expect(box.max.x).toBeLessThan(SITE.cageX1)
-    expect(box.max.x).toBeGreaterThan(SITE.cageX1 - 0.1)
+    expect(box.max.x).toBeLessThan(SITE.cageX1 - 0.15)
+    expect(box.max.x).toBeGreaterThan(SITE.cageX1 - 0.3)
     // (Un tronçon déborde d'un quart de son épaisseur à chaque bout.)
-    expect(box.min.x).toBeCloseTo(SITE.binSouth - 0.15 - HEDGE.eastThickness / 4)
+    expect(box.min.x).toBeCloseTo(SITE.binSouth - 0.15 - 0.35 - HEDGE.eastThickness / 4)
   })
 
-  it('les spirées de l’arc qui bordent la partie basse (le premier morceau, le bord ouest) ont le pied 20 cm plus bas', () => {
+  it('les haies qui bordent la partie basse (le bord ouest de l’arc, le lierre au-delà du portail, le bord ouest du terrain) ont le pied 20 cm plus bas', () => {
     const { children } = built(hedges)
     const bodyOf = (hedge: THREE.Object3D) => hedge.children[0] as THREE.Mesh
     const footOf = (hedge: THREE.Object3D) => bodyOf(hedge).position.y - sizeOf(bodyOf(hedge)).height / 2
     expect(footOf(children[0])).toBeCloseTo(-LOW)
-    expect(footOf(children[1])).toBeCloseTo(0)
-    expect(footOf(children[2])).toBeCloseTo(0)
-    expect(footOf(children[4])).toBeCloseTo(-LOW)
-    expect(footOf(children[6])).toBeCloseTo(0)
-    // Chaque haie : un bloc par tronçon, puis ses feuilles et ses fleurs (deux maillages).
-    for (const index of [0, 1, 2, 4, 6]) {
+    expect(footOf(children[1])).toBeCloseTo(-LOW)
+    for (const index of [2, 3, 4, 8]) expect(footOf(children[index])).toBeCloseTo(0)
+    expect(footOf(children[6])).toBeCloseTo(-LOW)
+    // Chaque haie : un bloc par tronçon, puis ses feuilles (et ses fleurs, sauf pour le lierre : deux maillages, ou un seul).
+    for (const [index, copies] of [[0, 2], [1, 1], [2, 1], [3, 2], [4, 2], [6, 2], [8, 2]]) {
       const parts = children[index].children
-      expect(parts.slice(-2).every((part) => (part as THREE.InstancedMesh).isInstancedMesh)).toBe(true)
-      expect(parts.slice(0, -2).every((part) => part.type === 'Mesh')).toBe(true)
+      expect(parts.slice(-copies).every((part) => (part as THREE.InstancedMesh).isInstancedMesh)).toBe(true)
+      expect(parts.slice(0, -copies).every((part) => part.type === 'Mesh')).toBe(true)
     }
     // Les deux haies droites n'ont qu'un tronçon.
-    expect(children[4].children).toHaveLength(3)
     expect(children[6].children).toHaveLength(3)
+    expect(children[8].children).toHaveLength(3)
     // La dernière finit au bas de l'arc.
-    expect(new THREE.Box3().setFromObject(bodyOf(children[6])).min.x).toBeCloseTo(gardenX(LOT.centerY + HEDGE.radius) - 0.15, 1)
+    expect(new THREE.Box3().setFromObject(bodyOf(children[8])).min.x).toBeCloseTo(gardenX(LOT.centerY + HEDGE.radius) - 0.15, 1)
+  })
+
+  it('le lierre (du portail du garage au cerisier, et sur 3 m de l’autre côté) est plus foncé et sans fleurs ; les spirées gardent leur vert clair', () => {
+    const { children } = built(hedges)
+    const colorOf = (hedge: THREE.Object3D) => ((hedge.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial).color.getHex()
+    const leavesOf = (hedge: THREE.Object3D) => ((hedge.children.at(-1) as THREE.InstancedMesh).material as THREE.MeshStandardMaterial).color.getHex()
+    expect(colorOf(children[0])).toBe(colorOf(children[3]))
+    expect(colorOf(children[1])).toBe(colorOf(children[2]))
+    expect(colorOf(children[1])).not.toBe(colorOf(children[0]))
+    expect(leavesOf(children[1])).toBe(0x28592d)
+    expect(leavesOf(children[3])).not.toBe(0x28592d)
+    // Le lierre n'a pas de fleurs blanches : son dernier maillage est celui des feuilles.
+    expect(leavesOf(children[2])).toBe(0x28592d)
+  })
+
+  it('les deux tronçons du lierre et des spirées se chevauchent : le lierre jusqu’au cerisier se mêle aux spirées, sans coupure nette', () => {
+    const { children } = built(hedges)
+    const reach = (hedge: THREE.Object3D) => {
+      const boxes = hedge.children.filter((part) => part.type === 'Mesh').map((part) => new THREE.Box3().setFromObject(part))
+      return new THREE.Box3().union(boxes[0]).union(boxes.at(-1) as THREE.Box3)
+    }
+    // Les deux blocs se recouvrent sur plus d'un segment.
+    expect(reach(children[2]).intersectsBox(reach(children[3]))).toBe(true)
+    // Le lierre d'après le portail se termine avant les poteaux du portail du garage (20 cm).
+    expect(reach(children[1]).intersectsBox(reach(children[2]))).toBe(false)
+  })
+
+  it('sur téléphone (`leafy` faux), il ne reste que le bloc vert de chaque haie : ni feuilles ni fleurs', () => {
+    const group = new THREE.Group()
+    hedges(group, gardenMaterials(), false)
+    const spireas = group.children.filter((child) => child.type === 'Group')
+    expect(spireas).toHaveLength(7)
+    for (const hedge of spireas) expect(hedge.children.every((part) => part.type === 'Mesh')).toBe(true)
   })
 })
 
 describe('pathAndGates', () => {
-  it('les murets du chemin du portillon et sa jardinière, les deux piliers, le portail et le portillon', () => {
+  it('les murets du chemin du portillon et sa jardinière, le portail, le portillon et leurs poteaux de béton', () => {
     const { children, m } = built(pathAndGates)
-    expect(children).toHaveLength(8)
+    expect(children).toHaveLength(12)
     const meshes = children as THREE.Mesh[]
-    const [west, east, outer, earth, pillarOne, pillarTwo, gate, wicket] = meshes
-    // Trois murets de la hauteur des carreaux surélevés, épais de 15 cm.
+    const [west, east, westLow, eastLow, outer, earth, gate, wicket, ...posts] = meshes
+    // Trois murets de la hauteur des carreaux surélevés, épais de 15 cm ; après les marches, les deux du chemin descendent avec lui.
     for (const muret of [west, east, outer]) {
       expect(muret.material).toBe(m.wall)
       expect(sizeOf(muret).height).toBeCloseTo(SITE.raised)
       expect(sizeOf(muret).width).toBe(0.15)
+    }
+    for (const [low, high] of [[westLow, west], [eastLow, east]]) {
+      expect(low.material).toBe(m.wall)
+      expect(sizeOf(low).height).toBeCloseTo(SITE.raised + PATH_DROP)
+      expect(low.position.y).toBeCloseTo(high.position.y)
+      expect(low.position.z).toBeCloseTo(high.position.z)
+      // Il continue le haut, vers le portillon.
+      expect(low.position.x).toBeLessThan(high.position.x)
     }
     expect(west.position.z).toBeCloseTo(gardenZ(PAVING.pathWest))
     expect(east.position.z).toBeCloseTo(gardenZ(PAVING.pathEast))
@@ -86,19 +126,36 @@ describe('pathAndGates', () => {
     expect(earth.position.z).toBeCloseTo((west.position.z + outer.position.z) / 2)
     expect(sizeOf(earth).height).toBeCloseTo(SITE.raised - 0.04)
     expect(sizeOf(earth).width).toBeCloseTo(0.28)
-    // Les piliers de pierre claire, aux deux bouts du portillon.
-    expect(pillarOne.material).toBe(pillarTwo.material)
-    expect(sizeOf(pillarOne)).toMatchObject({ width: 0.3, height: 1.6, depth: 0.3 })
-    expect(pillarOne.position.toArray()).toEqual([gardenX(SITE.wicket.y1), 0.8, gardenZ(SITE.wicket.x1)])
-    expect(pillarTwo.position.toArray()).toEqual([gardenX(SITE.wicket.y2), 0.8, gardenZ(SITE.wicket.x2)])
-    // Le portail et le portillon, en fer sombre, de 1,40 m.
+    // Le portail du garage monte à 2,10 m, le portillon reste à 1,40 m ; tous deux en fer sombre.
     for (const door of [gate, wicket]) {
       expect(door.material).toBe(m.iron)
-      expect(sizeOf(door).height).toBe(GATE_HEIGHT)
       expect(sizeOf(door).width).toBe(0.06)
+      // Au niveau du chemin en contrebas.
+      expect(door.position.y + sizeOf(door).height / 2).toBeCloseTo(sizeOf(door).height - PATH_DROP)
     }
+    expect(sizeOf(gate).height).toBe(2.1)
+    expect(sizeOf(wicket).height).toBe(GATE_HEIGHT)
     expect(sizeOf(gate).depth).toBeGreaterThan(sizeOf(wicket).depth)
-    expect(wicket.position.z).toBeCloseTo((pillarOne.position.z + pillarTwo.position.z) / 2)
+    // Un poteau de béton de 30 cm à chaque bout : 2,50 m au portail du garage, 2,20 m au portillon, dans l'axe de la porte.
+    expect(posts).toHaveLength(4)
+    expect(posts.every((post) => post.material === m.concrete)).toBe(true)
+    expect(posts.map((post) => sizeOf(post))).toEqual([2.5, 2.5, 2.2, 2.2].map((height) => ({ width: 0.3, height, depth: 0.3, widthSegments: 1, heightSegments: 1, depthSegments: 1 })))
+    // En contrebas, le poteau descend avec le chemin : même sommet, plus long (le pied est au niveau du chemin).
+    const planned = [SITE.gate, SITE.gate, SITE.wicket, SITE.wicket]
+    posts.forEach((post, index) => {
+      const door = planned[index]
+      const tall = index < 2 ? 2.5 : 2.2
+      const [x, z] = index % 2 === 0 ? [gardenX(door.y1), gardenZ(door.x1)] : [gardenX(door.y2), gardenZ(door.x2)]
+      expect(post.position.x).toBeCloseTo(x)
+      expect(post.position.z).toBeCloseTo(z)
+      expect(post.scale.y).toBeCloseTo((tall + PATH_DROP) / tall)
+      expect(post.position.y + (tall * post.scale.y) / 2).toBeCloseTo(tall)
+      expect(post.position.y - (tall * post.scale.y) / 2).toBeCloseTo(-PATH_DROP)
+    })
+    // Chaque poteau est tourné comme sa porte.
+    const turn = (door: typeof SITE.gate) => Math.atan2(gardenX(door.y2) - gardenX(door.y1), gardenZ(door.x2) - gardenZ(door.x1))
+    ;[SITE.gate, SITE.gate, SITE.wicket, SITE.wicket].forEach((door, index) => expect(posts[index].rotation.y).toBeCloseTo(turn(door)))
+    expect(wicket.position.z).toBeCloseTo((posts[2].position.z + posts[3].position.z) / 2)
   })
 })
 

@@ -139,6 +139,16 @@ describe('createLighting', () => {
     expect(group.children).toHaveLength(0)
   })
 
+  it('l’ampoule nue d’une lampe est marquée `lampBulb` (la vue Matrix la montre) ; celle d’un luminaire ne l’est pas', () => {
+    const { lighting, group, first } = stage()
+    lighting.apply([lamp('a', 0, 0), lamp('b', 4, 4)])
+    const bare = group.children.flatMap((child) => child.children.filter((part) => (part as THREE.Mesh).isMesh && (part as THREE.Mesh).geometry.type === 'SphereGeometry'))
+    expect(bare.length).toBeGreaterThanOrEqual(2)
+    expect(bare.every((bulb) => bulb.userData.lampBulb === true)).toBe(true)
+    expect(first.userData.lampBulb).toBeUndefined()
+    expect(first.userData.fixture).toBe(true)
+  })
+
   it('le nom passe avant la place : la lampe qui porte le nom d’un luminaire est la sienne, où qu’elle soit', () => {
     const { lighting, lights, owns, first, second, colorOf } = stage('salon')
     // « near » est tout contre le luminaire nommé, mais c'est « Salon », loin de tout, qui le prend ; une seconde lampe du même nom n'en a pas.

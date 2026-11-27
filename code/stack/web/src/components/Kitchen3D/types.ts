@@ -64,6 +64,8 @@ export interface SceneHandle {
   invalidate: (shadows?: boolean) => void
   resetView: () => void
   topView: () => void
+  /** La vue « Matrix » : seulement les arêtes de la scène, en vert sur fond noir, et les caméras telles quelles. */
+  matrix: (on: boolean) => void
 }
 
 /** La lumière de la scène : plein jour forcé (`day`), ou le jour qu'il fait vraiment à cette heure (`now`). */

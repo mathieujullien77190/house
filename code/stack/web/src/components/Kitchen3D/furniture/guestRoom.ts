@@ -78,7 +78,7 @@ export const guestRoom = (m: RoomMaterials): THREE.Group => {
   const mirrorZ = west + 0.3
   const mirror = new THREE.Group()
   mirror.position.set(south + 0.3, 0, mirrorZ)
-  mirror.rotation.set(0, -Math.PI / 4, -0.1)
+  mirror.rotation.set(0, -Math.PI / 4, 0.1)
   mirror.add(box(0.04, 1.6, 0.5, m.acacia, 0, 0.85, 0), box(0.006, 1.48, 0.4, mirrorGlass(), 0.023, 0.85, 0))
   group.add(mirror)
   // La porte, ouverte d'un quart de tour contre le mur du sud.

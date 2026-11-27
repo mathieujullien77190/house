@@ -133,11 +133,18 @@ describe('l’espace de vie', () => {
     expect(lid.rotation.x).toBeCloseTo(-Math.PI / 2)
   })
 
-  it('l’entrée : trois pans à plinthe et le mur plein qui prolonge le claustra', () => {
+  it('l’entrée : trois pans, dont celui de la porte sans plinthe sous elle, et le mur plein qui prolonge le claustra', () => {
     const shell = emptyShell()
     entryWalls(shell)
-    expect(shell.group.children).toHaveLength(7)
+    expect(shell.group.children).toHaveLength(8)
     expect(planes(shell)).toHaveLength(3)
+    // Le mur de la porte : deux plinthes, une de chaque côté de la porte, rien dessous.
+    const skirtings = meshes(shell).filter((mesh) => mesh.geometry.type === 'BoxGeometry' && mesh.material === shell.materials.beam && Math.abs(mesh.position.z - ENTRY.doorZ) < 0.1)
+    expect(skirtings).toHaveLength(2)
+    const [west, east] = skirtings.sort((a, b) => a.position.x - b.position.x)
+    expect(west.position.x).toBeLessThan(ENTRY.doorX - ENTRY.doorWidth / 2)
+    expect(east.position.x).toBeGreaterThan(ENTRY.doorX + ENTRY.doorWidth / 2)
+    expect(skirtings.every((skirting) => skirting.position.x < ENTRY.doorX - ENTRY.doorWidth / 2 || skirting.position.x > ENTRY.doorX + ENTRY.doorWidth / 2)).toBe(true)
     const thick = meshes(shell).at(-1) as THREE.Mesh
     expect(boxOf(thick)).toMatchObject({ width: 0.12, height: ROOM.height, depth: expect.closeTo(ROOM.zMax - ENTRY.wallZ) })
     expect(thick.position.x).toBe(ENTRY.x)

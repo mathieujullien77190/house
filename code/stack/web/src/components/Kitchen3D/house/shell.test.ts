@@ -50,9 +50,9 @@ describe('buildShell', () => {
     const { group } = built()
     const tiles = (group.children as THREE.Mesh[]).filter((child) => child.geometry?.type === 'PlaneGeometry' && (child.geometry as THREE.PlaneGeometry).parameters.height === TILES.height)
     expect(tiles).toHaveLength(2)
-    // Deux luminaires nommés : le plafonnier du couloir, puis la suspension de la cuisine (posée en dernier).
+    // Trois luminaires : le plafonnier du couloir, la lanterne de l'entrée (que la maison ne nomme pas), puis la suspension de la cuisine (posée en dernier).
     const bulbs = meshesOf(group).filter((mesh) => mesh.userData.fixture === true)
-    expect(bulbs.map((bulb) => bulb.userData.fixtureName)).toEqual(['couloir', 'cuisine 1'])
+    expect(bulbs.map((bulb) => bulb.userData.fixtureName)).toEqual(['couloir', undefined, 'cuisine 1'])
     expect(group.children.at(-1)?.type).toBe('Mesh')
     expect(group.children.filter((child) => child.userData.camera === MAST_CAMERA)).toHaveLength(1)
     // Le même gros œuvre à chaque ouverture.

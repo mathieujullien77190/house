@@ -46,6 +46,15 @@ const flip = (geometry: THREE.BufferGeometry): THREE.BufferGeometry => {
   return geometry.setIndex(index)
 }
 
+/** Les genres d'objets, par le nom de leur groupe : le gros œuvre, le mobilier, les arbres, le reste du jardin. */
+export const KINDS = ['shell', 'furniture', 'tree', 'garden']
+
+/** Le genre d'un objet : le nom du groupe le plus proche qui en porte un (`KINDS`), sinon `furniture` (les caissons de cuisine). */
+export const kindOf = (object: THREE.Object3D): string => {
+  for (let up: THREE.Object3D | null = object; up; up = up.parent) if (KINDS.includes(up.name)) return up.name
+  return 'furniture'
+}
+
 /**
  * Fond en un seul maillage par matériau tout ce qui ne bouge jamais : chaque maillage simple, visible et opaque de `root` est retiré de
  * son groupe et sa géométrie, mise à sa place dans le repère de `root`, rejoint celles du même matériau (un appel de dessin au lieu d'un
@@ -63,22 +72,25 @@ export const mergeStatic = (root: THREE.Object3D, live: THREE.Object3D[]): void 
     for (let up: THREE.Object3D | null = mesh; up && up !== root; up = up.parent) if (!up.visible || held.has(up) || Object.keys(up.userData).length > 0) return false
     return true
   }
-  const batches = new Map<THREE.Material, THREE.BufferGeometry[]>()
+  const batches = new Map<THREE.Material, Map<string, THREE.BufferGeometry[]>>()
   const merged: THREE.Mesh[] = []
   root.traverse((child) => {
     const mesh = child as THREE.Mesh
     if (!mesh.isMesh || (mesh as unknown as THREE.InstancedMesh).isInstancedMesh || Array.isArray(mesh.material) || mesh.material.transparent || !still(mesh)) return
     const place = toRoot.clone().multiply(mesh.matrixWorld)
     const geometry = mesh.geometry.clone().applyMatrix4(place)
-    const pieces = batches.get(mesh.material) ?? []
+    // Les morceaux d'un même matériau sont fondus par genre (le nom du groupe qui les porte : voir `kindOf`), pour que la vue Matrix les distingue.
+    const kinds = batches.get(mesh.material) ?? new Map<string, THREE.BufferGeometry[]>()
+    const pieces = kinds.get(kindOf(mesh)) ?? []
     pieces.push(place.determinant() < 0 ? flip(geometry) : geometry)
-    batches.set(mesh.material, pieces)
+    kinds.set(kindOf(mesh), pieces)
+    batches.set(mesh.material, kinds)
     merged.push(mesh)
   })
   for (const mesh of merged) mesh.removeFromParent()
   const group = new THREE.Group()
   group.name = 'static'
-  for (const [material, pieces] of batches) {
+  for (const [material, kinds] of batches) for (const [kind, pieces] of kinds) {
     // Les géométries fondues doivent avoir les mêmes attributs, et être toutes indexées ou aucune : une par jeu d'attributs.
     const sets = new Map<string, THREE.BufferGeometry[]>()
     const indexed = pieces.every((piece) => piece.index !== null)
@@ -88,7 +100,11 @@ export const mergeStatic = (root: THREE.Object3D, live: THREE.Object3D[]): void 
       set.push(indexed || piece.index === null ? piece : piece.toNonIndexed())
       sets.set(names, set)
     }
-    for (const set of sets.values()) group.add(new THREE.Mesh(mergeGeometries(set), material))
+    for (const set of sets.values()) {
+      const mesh = new THREE.Mesh(mergeGeometries(set), material)
+      mesh.name = kind
+      group.add(mesh)
+    }
   }
   root.add(group)
 }

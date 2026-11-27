@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
 import { SAS } from '@/components/Kitchen3D/constants'
 import { roomMaterials } from '@/components/Kitchen3D/materials'
+import { BULB_OFF } from '@/components/Kitchen3D/primitives'
 import { sas } from './sas'
 
 const meshesOf = (root: THREE.Object3D): THREE.Mesh[] => {
@@ -92,9 +93,45 @@ describe('sas', () => {
     expect(cage.position.z).toBeCloseTo((SAS.laundry[1] + SAS.nook[0]) / 2)
     // Ce n'est pas une lampe Hue : rien à relier.
     expect(meshes.filter((mesh) => mesh.userData.fixture !== undefined)).toHaveLength(0)
-    const mirror = meshes.at(-1) as THREE.Mesh
+    const mirror = meshes.find((mesh) => (mesh.material as THREE.MeshStandardMaterial).metalness === 0.8) as THREE.Mesh
     expect(mirror.position.toArray()).toEqual([SAS.south + 0.033, 1.15, SAS.west + 0.5])
-    expect((mirror.material as THREE.MeshStandardMaterial).metalness).toBe(0.8)
+  })
+
+  it('le porte-manteau (une barre de chêne et cinq patères) et la plante sur la planche, dans la niche', () => {
+    const { m, meshes } = build()
+    const [from, to] = SAS.nook
+    const rail = meshes.find((mesh) => mesh.material === m.oak && mesh.position.y === 1.55) as THREE.Mesh
+    expect(rail.position.z).toBeCloseTo((from + to) / 2)
+    expect(meshes.filter((mesh) => mesh.material === m.black && mesh.position.y === 1.55)).toHaveLength(5)
+    // La plante : des feuilles et des fleurs (icosaèdres), sur la planche de chêne du haut ou qui retombent devant elle.
+    const bits = meshes.filter((mesh) => mesh.geometry.type === 'IcosahedronGeometry')
+    expect(bits).toHaveLength(20)
+    expect(bits.filter((mesh) => mesh.position.y > 1.9)).toHaveLength(12)
+    expect(bits.every((mesh) => mesh.position.z >= from && mesh.position.z <= to)).toBe(true)
+  })
+
+  it('la seconde applique du mur du fond : un abat-jour noir en dôme, une ampoule éteinte, rien à relier', () => {
+    const { m, meshes } = build()
+    const dome = meshes.find((mesh) => mesh.geometry.type === 'SphereGeometry' && mesh.material === m.black) as THREE.Mesh
+    expect(worldOf(dome).z).toBeGreaterThan(SAS.west)
+    expect(worldOf(dome).y).toBeCloseTo(1.86)
+    const bulb = meshes.find((mesh) => mesh.material !== m.bulb && (mesh.material as THREE.MeshBasicMaterial).color?.getHex() === BULB_OFF) as THREE.Mesh
+    expect(worldOf(bulb).y).toBeLessThan(worldOf(dome).y)
+    expect(bulb.userData.fixture).toBeUndefined()
+  })
+
+  it('deux petits tableaux encadrés de noir : un sur le mur nord, un sur le mur sud, face à la pièce', () => {
+    const { group } = build()
+    const frames = group.children.filter((child) => child.type === 'Group' && child.position.y === 1.5)
+    expect(frames).toHaveLength(2)
+    const [north, south] = frames
+    expect(north.position.x).toBeLessThan(SAS.north)
+    expect(north.rotation.y).toBeCloseTo(-Math.PI / 2)
+    expect(south.position.x).toBeGreaterThan(SAS.south)
+    expect(south.rotation.y).toBeCloseTo(Math.PI / 2)
+    // Cadre, passe-partout, liseré, ciel et dôme : cinq pièces chacun.
+    expect(meshesOf(north)).toHaveLength(5)
+    expect(meshesOf(south)).toHaveLength(5)
   })
 
   it('le tapis sombre couvre le sas d’un mur à l’autre jusqu’à la fenêtre, et entre dans l’embrasure de la porte', () => {

@@ -71,7 +71,10 @@ export const createLighting = (root: THREE.Group): Lighting => {
     const ownBulb = new THREE.MeshBasicMaterial({ color: BULB_OFF })
     const own = new THREE.Group()
     const cord = ROOM.height - LAMP_LIGHT.height
-    own.add(new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), ownBulb), box(0.01, cord, 0.01, cordMaterial, 0, cord / 2 + 0.05, 0))
+    // Marquée `lampBulb` : la vue Matrix la montre comme les ampoules des luminaires.
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), ownBulb)
+    bulb.userData.lampBulb = true
+    own.add(bulb, box(0.01, cord, 0.01, cordMaterial, 0, cord / 2 + 0.05, 0))
     group.add(light, own)
     const rig = { light, own, ownBulb }
     rigs.set(id, rig)

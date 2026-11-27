@@ -20,7 +20,9 @@ export const buildScene = (quality: Quality = QUALITY.desktop): SceneParts => {
   const materials = kitchenMaterials(maps)
   const root = new THREE.Group()
   const hoodParts = new THREE.Group()
-  root.add(buildShell(materials, maps), buildFurniture(), buildGarden(quality.grass))
+  // Chaque partie porte son genre (`KINDS`) : la vue Matrix colore les arêtes selon lui.
+  const named = (name: string, group: THREE.Object3D): THREE.Object3D => Object.assign(group, { name })
+  root.add(named('shell', buildShell(materials, maps)), named('furniture', buildFurniture()), named('garden', buildGarden(quality.grass, quality.leafyHedges)))
   for (const spec of RUNS) root.add(run(materials, spec, hoodParts))
   // Une ampoule et un voyant de clim gardent leur matériau : leur couleur suit la maison.
   shareMaterials(root, (mesh) => mesh.userData.fixture === true || mesh.userData.acLed !== undefined)

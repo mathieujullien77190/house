@@ -1,11 +1,13 @@
 import * as THREE from 'three'
+import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, PATIO_DOOR, REST } from '@/components/Kitchen3D/constants'
+import { box } from '@/components/Kitchen3D/primitives'
 import { reolink } from '@/components/Kitchen3D/reolink'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
-import { cageFrame, cagePanels, cageRoof, cageWire, planters } from './aviary'
+import { cageFrame, cagePanels, cageRoof, cageTools, cageWire, planters } from './aviary'
 import { binWalls, hedges, pathAndGates } from './borders'
-import { GRASS, PAVING, TERRACE } from './constants'
-import { bins, deck, gardenCamera, gardenTable, heatPump, powerLine } from './equipment'
+import { CAGE_HEIGHT, GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
+import { bins, deck, gardenCamera, gardenTable, heatPump, powerLine, upturnedBin } from './equipment'
 import { grassTufts, lawnFlowers } from './grass'
 import { groundTerrace, lawns, paving, raisedTerrace, retainingWalls } from './ground'
 import { laurelBush } from './laurel'
@@ -13,13 +15,14 @@ import { SITE } from './layout'
 import { lounge } from './lounge'
 import { buildPergola, PERGOLA, PERGOLA_FRONT } from './pergola'
 import { gardenX, gardenZ } from './plan'
-import { bush, choisya, creeper, flowerPatch, passionflower, wisteria } from './plants'
+import { bush, choisya, flowerPatch, paleTree, passionflower, rosemary, vineArch, wildConifer, wisteria } from './plants'
 import { cherryTree, cherryTrunk, clippedTree, medlarTree, prunusTree } from './trees'
 
 /** Le cerisier, au coin de la maison côté chambre d’invité (le coin nord-ouest), dans la partie basse du jardin. */
 const backCherry = (group: THREE.Group): void => {
   const { house } = SITE
   const cherry = cherryTree(7)
+  cherry.name = 'tree'
   cherry.position.set(house[1] + 2, GRASS, house[2] - 2.5)
   group.add(cherry)
 }
@@ -29,8 +32,10 @@ const frontTrees = (group: THREE.Group): void => {
   const { house, wicket, binSouth, binWest, binEast } = SITE
   // Près de la table blanche, entre elle et la maison, devant la chambre de Matou : un second cerisier, et à côté un pommier (plus trapu, avec ses pommes).
   const cherryTwo = cherryTree(19)
+  cherryTwo.name = 'tree'
   cherryTwo.position.set(house[0] - TERRACE - 0.6, 0, REST.west - 0.6)
   const apple = cherryTree(31, true)
+  apple.name = 'tree'
   apple.scale.set(1.1, 0.85, 1.1)
   apple.position.set(house[0] - TERRACE - 2.1, 0, REST.west + 3.6)
   group.add(cherryTwo, apple)
@@ -42,16 +47,40 @@ const frontTrees = (group: THREE.Group): void => {
     patch.position.copy(tree.position)
     group.add(patch)
   }
-  // Dans le coin de la propriété, près du portillon (le coin sud-est) : un petit néflier, aux branches qui montent.
+  // Près du coin de la propriété, près du portillon (le coin sud-est ; 1 m à l'écart des spirées de l'est) : un petit néflier, aux branches qui montent.
   const medlar = medlarTree(53)
-  medlar.position.set(gardenX(735), 0, gardenZ(668))
+  medlar.name = 'tree'
+  medlar.position.set(gardenX(735), 0, gardenZ(668) - 1)
   group.add(medlar)
-  // Près des poubelles, devant leur muret : un prunus au feuillage bordeaux, qui penche beaucoup du côté du portillon.
+  // À droite du portillon, quand on va vers le portail le long de la haie : deux gros buissons, à 1,50 m de la haie. Le plus proche de la table blanche est
+  // un conifère (3 m, sans branches qui dépassent) ; à côté, un laurier palme très grand (4 m).
+  const inside = (planY: number): [number, number] => {
+    const radius = HEDGE.radius - 1.5 * UNITS_PER_METER
+    return [LOT.centerX - Math.sqrt(radius ** 2 - (planY - LOT.centerY) ** 2), planY]
+  }
+  const [coniferPlanX, coniferPlanY] = inside(560)
+  const bigConifer = wildConifer(151, 3, 99)
+  bigConifer.name = 'tree'
+  bigConifer.position.set(gardenX(coniferPlanY), 0, gardenZ(coniferPlanX))
+  const [palmPlanX, palmPlanY] = inside(600)
+  const palmLaurel = laurelBush(14)
+  palmLaurel.name = 'tree'
+  palmLaurel.scale.setScalar(0.75)
+  palmLaurel.position.set(gardenX(palmPlanY), 0, gardenZ(palmPlanX))
+  group.add(bigConifer, palmLaurel)
+  // Près des poubelles, devant leur muret : un prunus au feuillage bordeaux, qui penche beaucoup du côté du portillon (décalé de 80 cm vers les spirées de l'est, pour l'éloigner du coin).
   const prunus = prunusTree(47)
-  prunus.position.set(binSouth - 1.1, 0, binEast - 1.6)
+  prunus.name = 'tree'
+  prunus.position.set(binSouth - 1.1, 0, binEast - 0.8)
   const toWicket = new THREE.Vector3(gardenX((wicket.y1 + wicket.y2) / 2) - prunus.position.x, 0, gardenZ((wicket.x1 + wicket.x2) / 2) - prunus.position.z).normalize()
   prunus.quaternion.setFromAxisAngle(new THREE.Vector3(toWicket.z, 0, -toWicket.x), 0.45)
   group.add(prunus)
+  // Entre le prunus et le portillon, contre le muret du chemin : un gros romarin touffu.
+  const rosemaryBush = rosemary(149)
+  rosemaryBush.name = 'tree'
+  rosemaryBush.position.set((prunus.position.x + gardenX((wicket.y1 + wicket.y2) / 2)) / 2, 0, gardenZ(PAVING.pathEast) + 0.55)
+  rosemaryBush.scale.setScalar(0.95)
+  group.add(rosemaryBush)
   // Sur le tronc du pommier, à mi-hauteur : une caméra qui regarde vers le prunus, un peu à sa droite.
   const toPrunus = prunus.position.clone().sub(apple.position).setY(0).normalize()
   const aim = prunus.position.clone().add(new THREE.Vector3(-toPrunus.z, 0, toPrunus.x).multiplyScalar(1.2)).setY(1.2)
@@ -62,6 +91,7 @@ const frontTrees = (group: THREE.Group): void => {
   // À côté du prunus, dans l'angle que font le muret des poubelles et celui du chemin : un arbre haut et touffu qui a pris la forme
   // du coin (posé dans l'angle même : ses deux flancs longent les murets), avec des branches folles.
   const clipped = clippedTree(61)
+  clipped.name = 'tree'
   clipped.position.set(binSouth - 0.15 - 0.1, 0, binWest + 0.075 + 0.1)
   group.add(clipped)
 }
@@ -80,7 +110,9 @@ const pergolaOnTerrace = (group: THREE.Group): void => {
   const pergolaZ = terraceEnd - PERGOLA.rafters.long / 2
   pergola.position.set(pergolaFront, raised, pergolaZ)
   // Une glycine y monte par un seul pied et en couvre la moitié.
-  pergola.add(wisteria(83))
+  const vine = wisteria(83)
+  vine.name = 'tree'
+  pergola.add(vine)
   group.add(pergola)
   // Dans la jardinière, du passage de la porte-fenêtre au chemin du portillon : deux orangers du Mexique, encore petits, répartis
   // également sur sa longueur (au tiers et aux deux tiers).
@@ -108,6 +140,7 @@ const pergolaOnTerrace = (group: THREE.Group): void => {
 const laurelByCage = (group: THREE.Group): void => {
   const { treeX, treeZ } = SITE
   const laurel = laurelBush(11)
+  laurel.name = 'tree'
   laurel.position.set(treeX, GRASS, treeZ)
   group.add(laurel)
 }
@@ -119,7 +152,7 @@ const laurelByCage = (group: THREE.Group): void => {
  * terrasse en ipé, les arbres et la pergola. Tout est ajouté à un seul groupe, dans cet ordre. `grass` : la part des bouquets d'herbe
  * semés (1 : tous).
  */
-export const buildGarden = (grass = 1): THREE.Group => {
+export const buildGarden = (grass = 1, leafyHedges = true): THREE.Group => {
   const group = new THREE.Group()
   // Le terrain est plus bas que le sol de la maison, qui est surélevée.
   group.position.y = -BASE.rise
@@ -130,7 +163,7 @@ export const buildGarden = (grass = 1): THREE.Group => {
   retainingWalls(group, m)
   groundTerrace(group, m)
   paving(group, m)
-  hedges(group, m)
+  hedges(group, m, leafyHedges)
   pathAndGates(group, m)
   cageFrame(group, m)
   cageWire(group, m)
@@ -140,9 +173,25 @@ export const buildGarden = (grass = 1): THREE.Group => {
   raisedTerrace(group, m)
   gardenTable(group)
   cagePanels(group, m)
+  cageTools(group, m)
   planters(group, m)
   passionflower(group)
-  creeper(group)
+  vineArch(group, m.post)
+  // Derrière la cage, jusqu'à la haie du nord et à la limite de l'est : pas d'herbe, de la terre.
+  const [soilNorth, soilEast] = [gardenX(HEDGE.north), gardenZ(LOT.east)]
+  group.add(box(soilNorth - SITE.cageX2, 0.02, soilEast - SITE.cageZ1, m.soil, (soilNorth + SITE.cageX2) / 2, GRASS, (soilEast + SITE.cageZ1) / 2))
+  upturnedBin(group, m, new THREE.Vector3(gardenX(HEDGE.north) - HEDGE.thickness / 2 - 0.38, GRASS, SITE.cageZ2 - 0.35))
+  // Derrière la cage, son tronc dans la haie du nord, au droit du milieu du toit : un conifère jamais taillé, qui suit la haie, dépasse la cage et tend des branches par-dessus.
+  const [coniferZ, paleZ] = [(SITE.cageZ1 + SITE.cageZ2) / 2, SITE.cageZ1 - 0.9]
+  const conifer = wildConifer(137, 4.3, CAGE_HEIGHT - GRASS, coniferZ - paleZ)
+  conifer.name = 'tree'
+  conifer.position.set(gardenX(HEDGE.north), GRASS, coniferZ)
+  group.add(conifer)
+  // À côté de lui, du côté du salon de jardin, dans la haie aussi : un arbre aussi haut, à feuilles claires ; les branches du conifère vont jusqu'à lui et s'y mêlent.
+  const pale = paleTree(139, 4.3)
+  pale.name = 'tree'
+  pale.position.set(gardenX(HEDGE.north), GRASS, paleZ)
+  group.add(pale)
   heatPump(group, m)
   powerLine(group)
   gardenCamera(group)
