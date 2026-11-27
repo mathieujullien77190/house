@@ -35,6 +35,9 @@ import { readServoConfig } from './lib/servoConfig.ts'
 import { createShutterLog } from './lib/shutterLog.ts'
 import { createMitsubishiClient } from './lib/mitsubishiClient.ts'
 import { createAcService } from './services/acService.ts'
+import { createReolinkClient } from './lib/reolinkClient.ts'
+import { createZoomService } from './services/zoomService.ts'
+import { createRecorderPause, createZoomPause } from './services/zoomPauseService.ts'
 import { createShuttersService } from './services/shuttersService.ts'
 import { createShutterAutoStore } from './lib/shutterAutoStore.ts'
 import { createShuttersAuto } from './services/shuttersAutoService.ts'
@@ -106,6 +109,17 @@ export const createApp = (config: Config): Express => {
   const box = config.freebox ? createBoxService(createFreeboxClient(config.freebox)) : null
   // Les appareils de la box : House Sync les surveille et les range dans la base, l'API les lit (et écrit les ajouts à la maison faits par l'utilisateur).
   const boxRepository = box ? createBoxRepository(db) : null
+  // Le zoom optique : tant qu'une caméra n'est pas au grand angle, l'enregistreur (RECORDER_URL) met ses analyses en pause ; un tour au démarrage puis chaque minute le lui redit.
+  const reolink = createReolinkClient()
+  const zoomPause =
+    config.cameraZooms.length > 0 && config.recorderUrl
+      ? createZoomPause({
+          cameras: config.cameraZooms,
+          read: reolink.getZoom,
+          push: createRecorderPause(config.recorderUrl),
+        })
+      : null
+  zoomPause?.start()
   const services = {
     cameras: createCamerasService(cameras),
     events: createEventsService(createEventsRepository(db), savedClips, clipNotes, clipEmojis),
@@ -120,6 +134,8 @@ export const createApp = (config: Config): Express => {
     hue: hueClient ? createHueService(hueClient, createPositionsStore(createDocStore(db, 'lights-positions'))) : null,
     plug,
     ac,
+    // Le zoom optique des caméras qui en ont un (CAMERA_ZOOMS) ; aucune : /cameras/<nom>/zoom répond 404.
+    zoom: config.cameraZooms.length > 0 ? createZoomService({ cameras: config.cameraZooms, client: reolink, pause: zoomPause }) : null,
     shutters,
     shuttersAuto,
     heating: plug

@@ -51,6 +51,11 @@ export const ZONE_FAILED_CLASS = 'text-[0.8rem] text-danger'
 export const CONTROLS_OVERLAY_CLASS = 'absolute inset-x-0 bottom-0 pr-24'
 /** Les deux commandes en haut à gauche de la vidéo (cacher les composants, enregistrer), côte à côte. */
 export const TOP_LEFT_CLASS = 'flex items-center gap-2'
+/** Le niveau du zoom optique (objectif motorisé, de ×1 à ×5) affiché pendant qu'il change : « Zoom ×3,2 ». */
+export const ZOOM_LABEL_PREFIX = 'Zoom ×'
+/** Montré pendant le geste, puis effacé en fondu ; ne prend jamais les clics ni les gestes de la vidéo. */
+export const ZOOM_LEVEL_CLASS = 'pointer-events-none opacity-100 transition-opacity duration-200'
+export const ZOOM_LEVEL_HIDDEN_CLASS = 'pointer-events-none opacity-0 transition-opacity duration-700'
 /** Le cadre de la vidéo, sur lequel se pose le polygone. */
 export const MEDIA_HOST_CLASS = 'relative overflow-hidden rounded-md'
 

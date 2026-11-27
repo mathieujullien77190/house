@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
-import { loadConfig, parseAcUnits, parseShutters } from './config.ts'
+import { loadConfig, parseAcUnits, parseCameraZooms, parseShutters } from './config.ts'
 import { withTempDir } from './testing/helpers.ts'
 
 test('sans clé ou avec une clé trop courte, la configuration est refusée', () => {
@@ -174,6 +174,18 @@ test('parseAcUnits : id:nom:adresse, une entrée mal écrite est ignorée', () =
   ])
   assert.deepEqual(parseAcUnits(''), [])
   assert.deepEqual(loadConfig({ API_KEY: '12345678', AC_UNITS: 'a:A:1.2.3.4' }).acUnits, [{ id: 'a', name: 'A', host: '1.2.3.4' }])
+})
+
+test('CAMERA_ZOOMS : nom:numéro, adresse et compte pris dans CAMERA<n>_*, entrée incomplète ignorée', () => {
+  const env = { CAMERA7_IP: ' 10.0.0.7 ', CAMERA7_USER: 'zoom', CAMERA7_PASSWORD: 'p7', CAMERA8_IP: '10.0.0.8', CAMERA8_PASSWORD: 'p8', CAMERA5_IP: '10.0.0.5', CAMERA6_PASSWORD: 'p6' }
+  assert.deepEqual(parseCameraZooms('pommier:7, portail : 8 ,sans-mdp:5,sans-ip:6,absente:9,faux,autre:x', env), [
+    { camera: 'pommier', host: '10.0.0.7', user: 'zoom', password: 'p7' },
+    { camera: 'portail', host: '10.0.0.8', user: 'admin', password: 'p8' },
+  ])
+  assert.deepEqual(loadConfig({ API_KEY: '12345678' }).cameraZooms, [])
+  assert.deepEqual(loadConfig({ API_KEY: '12345678', ...env }).cameraZooms.map((zoom) => zoom.camera), ['pommier', 'portail'])
+  assert.deepEqual(loadConfig({ API_KEY: '12345678', ...env, CAMERA_ZOOMS: 'entree:8' }).cameraZooms, [{ camera: 'entree', host: '10.0.0.8', user: 'admin', password: 'p8' }])
+  assert.deepEqual(loadConfig({ API_KEY: '12345678', ...env, CAMERA_ZOOMS: '' }).cameraZooms, [])
 })
 
 test('TV_HOST : l\'IP du Player par défaut', () => {

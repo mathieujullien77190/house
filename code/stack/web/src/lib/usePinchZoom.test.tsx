@@ -1,15 +1,16 @@
 import { act, fireEvent, render } from '@testing-library/react'
-import { usePinchZoom } from './usePinchZoom'
+import { usePinchZoom, type OpticalStage } from './usePinchZoom'
 
 interface Options {
   active: boolean
   rotated?: boolean
   resetKey?: string
   wheel?: boolean
+  optical?: OpticalStage | null
 }
 
-const Zone = ({ active, rotated, resetKey, wheel }: Options) => {
-  const { handlers, style } = usePinchZoom(active, rotated, resetKey, wheel)
+const Zone = ({ active, rotated, resetKey, wheel, optical }: Options) => {
+  const { handlers, style } = usePinchZoom(active, rotated, resetKey, wheel, optical)
   return <div data-testid="zone" {...handlers} style={style} />
 }
 
@@ -126,7 +127,7 @@ describe('usePinchZoom : doigts', () => {
     vi.setSystemTime(10_100)
     down(element, 1, 150, 50)
     up(element, 1, 150, 50)
-    expect(transform()).toContain('scale(2.5)')
+    expect(transform()).toContain('scale(5)')
     vi.setSystemTime(10_500)
     down(element, 1, 150, 50)
     up(element, 1, 150, 50)
@@ -335,5 +336,107 @@ describe('usePinchZoom : molette et souris', () => {
   it('démonter retire l’écouteur de molette', () => {
     const { unmount } = zone({ active: false, wheel: true })
     expect(() => act(() => unmount())).not.toThrow()
+  })
+})
+
+describe('usePinchZoom : zoom optique au double toucher', () => {
+  const wheelTo = (element: Element, deltaY: number) => fireEvent.wheel(element, { deltaY, clientX: 100, clientY: 50 })
+  const doubleTap = (element: Element, at: number) => {
+    vi.setSystemTime(at)
+    down(element, 1, 100, 50)
+    up(element, 1, 100, 50)
+    vi.setSystemTime(at + 100)
+    down(element, 1, 100, 50)
+    up(element, 1, 100, 50)
+  }
+  /** Un étage optique de ×1 à ×`max` qui note les facteurs pris. */
+  const stageOf = (max = 5) => {
+    const state = { level: 1, taken: [] as number[], commits: 0 }
+    const stage: OpticalStage = {
+      zoomBy: (factor) => {
+        const next = Math.min(max, Math.max(1, state.level * factor))
+        if (next === state.level) return false
+        state.level = next
+        state.taken.push(factor)
+        return true
+      },
+      commit: () => {
+        state.commits += 1
+      },
+    }
+    return { state, stage }
+  }
+
+  it('molette : le zoom reste numérique, l’optique n’est pas appelée', () => {
+    const { state, stage } = stageOf()
+    const { element, transform } = zone({ active: false, wheel: true, optical: stage })
+    wheelTo(element, -500)
+    expect(state.taken).toEqual([])
+    expect(transform()).toMatch(/scale\(2\.1\d*\)/)
+  })
+
+  it('pincement : le zoom reste numérique, l’optique n’est pas appelée', () => {
+    const { state, stage } = stageOf()
+    const { element, transform } = zone({ active: true, rotated: false, optical: stage })
+    down(element, 1, 80, 50)
+    down(element, 2, 120, 50)
+    move(element, 2, 160, 50)
+    expect(transform()).toContain('scale(2)')
+    up(element, 2, 160, 50)
+    up(element, 1, 80, 50)
+    expect(state.taken).toEqual([])
+    expect(state.commits).toBe(0)
+  })
+
+  it('double toucher à l’échelle 1 : l’optique zoome à fond, puis revient en grand angle, sans zoom numérique', () => {
+    const { state, stage } = stageOf()
+    const { element, transform } = zone({ active: true, rotated: false, optical: stage })
+    doubleTap(element, 10_000)
+    expect(state.taken).toEqual([5])
+    expect(state.level).toBe(5)
+    expect(state.commits).toBe(1)
+    expect(transform()).toContain('scale(1)')
+    doubleTap(element, 11_000)
+    expect(state.taken).toEqual([5, 1 / 5])
+    expect(state.level).toBe(1)
+    expect(state.commits).toBe(2)
+    expect(transform()).toContain('scale(1)')
+  })
+
+  it('double toucher : un optique qui ne peut ni monter ni descendre laisse le zoom numérique', () => {
+    const { state, stage } = stageOf(1)
+    const { element, transform } = zone({ active: true, rotated: false, optical: stage })
+    doubleTap(element, 10_000)
+    expect(state.commits).toBe(0)
+    expect(transform()).toContain('scale(5)')
+  })
+
+  it('double toucher sur une image déjà zoomée numériquement : retour à la taille normale, l’optique n’est pas appelée', () => {
+    const { state, stage } = stageOf()
+    const view = render(<Zone active wheel rotated={false} optical={stage} />)
+    const element = view.getByTestId('zone')
+    wheelTo(element, -500)
+    expect(element.style.transform).toMatch(/scale\(2\.1\d*\)/)
+    doubleTap(element, 10_000)
+    expect(element.style.transform).toContain('scale(1)')
+    expect(state.taken).toEqual([])
+    expect(state.commits).toBe(0)
+  })
+
+  it('l’étage optique donné après coup sert au double toucher, retiré il ne sert plus', () => {
+    const { state, stage } = stageOf()
+    const view = render(<Zone active rotated={false} />)
+    const element = view.getByTestId('zone')
+    doubleTap(element, 10_000)
+    expect(element.style.transform).toContain('scale(5)')
+    doubleTap(element, 11_000)
+    expect(element.style.transform).toContain('scale(1)')
+    view.rerender(<Zone active rotated={false} optical={stage} />)
+    doubleTap(element, 12_000)
+    expect(state.taken).toEqual([5])
+    view.rerender(<Zone active rotated={false} optical={null} />)
+    doubleTap(element, 13_000)
+    expect(state.taken).toEqual([5])
+    expect(element.style.transform).toContain('scale(5)')
   })
 })

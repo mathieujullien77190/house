@@ -9,6 +9,7 @@ const flag: Schema = { type: 'boolean' }
 const bool = (description: string): Schema => ({ type: 'boolean', description })
 
 const CAMERA = { camera: 'Nom de la caméra (lettres, chiffres, tiret) : voliere-exterieur, voliere-interieur…' }
+const ZOOM_CAMERA = { name: 'Nom d’une caméra à zoom optique : pommier, portail' }
 const CLIP = { id: 'Identifiant de l’événement (lettres, chiffres, point, tiret)' }
 
 const cameraQuery: QueryParam = { name: 'camera', description: 'Nom de la caméra', required: true, schema: text, example: 'voliere-exterieur' }
@@ -112,6 +113,19 @@ export const ROUTES: RouteDoc[] = [
   { method: 'get', path: '/frame', group: 'Caméra', summary: 'L’image à l’instant', secured: true, query: [cameraQuery, { name: 'quality', description: 'hd : le flux principal', schema: { type: 'string', enum: ['hd'] } }, { name: 'screen', description: 'mobile : le flux réduit', schema: { type: 'string', enum: ['mobile'] } }], ok: { description: 'L’image.', contentType: 'image/jpeg' }, errors: [400, 404, 502] },
   { method: 'get', path: '/audio', group: 'Caméra', summary: 'Le son en direct', description: 'AAC en flux continu, tant que le client reste connecté.', secured: true, query: [cameraQuery], ok: { description: 'Le flux audio.', contentType: 'audio/aac' }, errors: [400, 404, 502] },
   { method: 'get', path: '/poe', group: 'Caméra', summary: 'L’alimentation PoE de chaque caméra', description: 'Lue sur le switch : PoE activé, alimentée, watts, streaming.', secured: true, ok: { description: 'Une entrée par caméra.' }, errors: [503] },
+  { method: 'get', path: '/cameras/{name}/zoom', group: 'Caméra', summary: 'Le zoom optique d’une caméra', description: 'La position de l’objectif motorisé (RLC-811A) et sa plage, lues sur la caméra. `paused` : les analyses de l’enregistreur (mouvement, yeux, clips liés) sont en pause pour cette caméra, ce qui dure tant que le zoom n’est pas au grand angle (`min`). 404 : cette caméra n’a pas de zoom optique (CAMERA_ZOOMS).', secured: true, params: ZOOM_CAMERA, ok: { description: 'La position, sa plage, et si les analyses sont en pause.', example: { pos: 0, min: 0, max: 28, paused: false } }, errors: [404, 502] },
+  {
+    method: 'put',
+    path: '/cameras/{name}/zoom',
+    group: 'Caméra',
+    summary: 'Régler le zoom optique d’une caméra',
+    description: 'Une position hors de la plage est ramenée à sa borne. L’objectif met quelques secondes à bouger et refait la mise au point tout seul. Au-dessus du grand angle (`min`), l’enregistreur met tout de suite en pause les analyses de la caméra ; au retour à `min`, elles reprennent 20 s plus tard. Un enregistreur muet ne fait pas échouer le réglage.',
+    secured: true,
+    params: ZOOM_CAMERA,
+    body: { description: 'La position voulue (entier).', schema: { type: 'object', properties: { pos: { type: 'integer', minimum: 0, maximum: 28 } }, required: ['pos'] }, example: { pos: 14 } },
+    ok: { description: 'La position demandée à la caméra, sa plage, et si les analyses sont en pause.', example: { pos: 14, min: 0, max: 28, paused: true } },
+    errors: [400, 404, 502],
+  },
   { method: 'post', path: '/poe/{camera}', group: 'Caméra', summary: 'Allumer ou éteindre une caméra', description: 'Coupe ou rend le PoE de son port sur le switch.', secured: true, params: CAMERA, body: onBody('true : alimenter, false : couper.'), ok: { description: 'L’état de la caméra.' }, errors: [400, 404, 503] },
   { method: 'get', path: '/zones', group: 'Caméra', summary: 'Les zones de surveillance', description: 'Un polygone par caméra (3 à 1000 sommets, parts de l’image de 0 à 1). Sans entrée : toute l’image.', secured: true, ok: { description: 'Les zones par caméra.', example: { 'voliere-exterieur': [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]] } } },
   { method: 'put', path: '/zones/{camera}', group: 'Caméra', summary: 'Fixer la zone d’une caméra', secured: true, params: CAMERA, body: { description: 'Le polygone, ou null pour toute l’image.', schema: { type: 'object', properties: { points: { type: 'array', nullable: true, minItems: 3, maxItems: 1000, items: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0, maximum: 1 } } } }, required: ['points'] }, example: { points: [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]] } }, ok: { description: 'Toutes les zones.' }, errors: [400] },

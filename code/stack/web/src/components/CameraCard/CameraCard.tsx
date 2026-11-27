@@ -22,6 +22,7 @@ import { useOffCameras } from '@/lib/useOffCameras'
 import { useMobile } from '@/lib/useMobile'
 import { formatClock, useClock } from '@/lib/useClock'
 import { usePinchZoom } from '@/lib/usePinchZoom'
+import { useOpticalZoom } from '@/lib/useOpticalZoom'
 import { useLamp } from '@/lib/useLamp'
 import { usePlug } from '@/lib/usePlug'
 import { useSensors } from '@/lib/useSensors'
@@ -63,8 +64,10 @@ import {
   ZONE_FAILED_CLASS,
   ZONE_FAILED_TEXT,
   ZONE_RESET_LABEL,
+  ZOOM_LEVEL_CLASS,
+  ZOOM_LEVEL_HIDDEN_CLASS,
 } from './constants'
-import { clipLead, fadeFor, clipPathOf, orientationShown, temperatureItems } from './helpers'
+import { clipLead, fadeFor, clipPathOf, orientationShown, temperatureItems, zoomLabel } from './helpers'
 import type { CameraCardProps, LiveChoice, LiveQuality } from './types'
 
 /**
@@ -116,6 +119,9 @@ const CameraCard = ({
   const bigView = useBigView(turned)
   // Le zoom au doigt de la vue en grand (pincer, déplacer, double toucher).
   // Zoom au doigt : en vue en grand, et sur la vidéo de l'écran du téléphone (où elle n'est pas tournée) ; un autre média (direct, image, autre clip) ou l'entrée et la sortie de la vue en grand le remettent à zéro.
+  // Le zoom optique (caméra à objectif motorisé) : seulement en vue en grand et sur le direct d'une caméra allumée. Molette et pincement le montent avant le zoom numérique et le baissent après lui.
+  // Une caméra sans objectif motorisé (l'API répond 404) n'a pas d'étage optique : rien ne change pour elle.
+  const optical = useOpticalZoom(apiKey, camera.name, bigView.big && picked === null && cursor === null && (power === null || (power.on && power.streaming)))
   const pinchZoom = usePinchZoom(
     bigView.big || mobile,
     bigView.big && !turned,
@@ -256,6 +262,14 @@ const CameraCard = ({
 
   // Les flèches du défilement des images : à côté de « 10 min, 1 h… » sous la vidéo, et sur la vidéo (en bas à gauche) en vue en grand, où la frise ne se voit pas.
   const fastScroll = !selected && cursor !== null ? <FastScroll rate={rate} onRate={setRate} onStep={step} /> : undefined
+
+  // Le niveau du zoom optique (« Zoom ×3,2 »), en bas à gauche de la vue en grand : montré pendant le geste, effacé en fondu un moment après.
+  const zoomLevel =
+    optical.stage && optical.level !== null ? (
+      <div className={optical.changing ? ZOOM_LEVEL_CLASS : ZOOM_LEVEL_HIDDEN_CLASS} aria-hidden={!optical.changing}>
+        <ValueChips values={[zoomLabel(optical.level)]} />
+      </div>
+    ) : null
 
   const back = () => {
     setFailedClip('')
@@ -427,11 +441,13 @@ const CameraCard = ({
           </div>
         ) : undefined
       }
+      // Le niveau du zoom optique s'affiche pendant qu'il change puis s'efface en fondu, même quand les composants sont cachés (c'est la réponse au geste).
       overlay={
-        shown && ((!mobile && indicators) || (bigView.big && fastScroll)) ? (
+        (shown && ((!mobile && indicators) || (bigView.big && fastScroll))) || zoomLevel ? (
           <div className="flex flex-col items-start gap-1">
-            {!mobile ? indicators : null}
-            {bigView.big ? fastScroll : null}
+            {shown && !mobile ? indicators : null}
+            {shown && bigView.big ? fastScroll : null}
+            {zoomLevel}
           </div>
         ) : undefined
       }

@@ -45,6 +45,7 @@ const baseConfig = (dir: string): Config => ({
   hue: null,
   plug: null,
   acUnits: [],
+  cameraZooms: [],
   freebox: null,
   tv: { host: '127.0.0.1' },
   shutters: [],
@@ -222,6 +223,45 @@ test('les climatisations : une unité configurée, module injoignable = reachabl
       assert.deepEqual((reply.body as { units: { reachable: boolean }[] }).units.map((unit) => unit.reachable), [false])
     })
   })
+})
+
+test('le zoom optique : derrière la clé ; caméra configurée mais injoignable = 502, caméra sans zoom = 404', async () => {
+  await withTempDir(async (dir) => {
+    const config: Config = { ...prepare(dir), cameraZooms: [{ camera: 'pommier', host: '127.0.0.1:1', user: 'admin', password: 'secret-zoom' }] }
+    await serveApp(config, async (url) => {
+      assert.equal((await call(`${url}/cameras/pommier/zoom`)).status, 401)
+      const reply = await call(`${url}/cameras/pommier/zoom`, 'GET', undefined, { 'X-House-Key': KEY })
+      assert.equal(reply.status, 502)
+      assert.doesNotMatch(JSON.stringify(reply.body), /secret-zoom|127\.0\.0\.1/)
+      assert.equal((await call(`${url}/cameras/voliere-toit/zoom`, 'GET', undefined, { 'X-House-Key': KEY })).status, 404)
+    })
+  })
+})
+
+test('le zoom optique avec un enregistreur : l’état de la pause des analyses lui est dit dès le démarrage', async () => {
+  const asked: string[] = []
+  const recorder = await listen((req, res) => {
+    asked.push(`${req.method} ${req.url}`)
+    res.end('{}')
+  })
+  try {
+    await withTempDir(async (dir) => {
+      const config: Config = { ...prepare(dir), recorderUrl: recorder.url, cameraZooms: [{ camera: 'pommier', host: '127.0.0.1:1', user: 'admin', password: 'secret-zoom' }] }
+      const logged = mock.method(console, 'log', () => undefined)
+      try {
+        await serveApp(config, async () => {
+          for (let tries = 0; tries < 100 && asked.length === 0; tries += 1) await new Promise((resolve) => setTimeout(resolve, 50))
+          // La caméra ne répond pas : pas de pause connue, et c'est ce qui est dit à l'enregistreur.
+          assert.deepEqual(asked, ['PUT /api/cameras/pommier/pause?enabled=0'])
+          assert.doesNotMatch(JSON.stringify(logged.mock.calls.map((entry) => entry.arguments)), /secret-zoom|127\.0\.0\.1/)
+        })
+      } finally {
+        logged.mock.restore()
+      }
+    })
+  } finally {
+    await recorder.close()
+  }
 })
 
 test('les volets avec un ESP32 : le pilote réel, un ordre qui échoue rend 502', async () => {

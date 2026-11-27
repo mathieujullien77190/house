@@ -40,6 +40,15 @@ Vue d'ensemble et réglages : `../CLAUDE.md`. Par caméra de `CAMERAS` :
 
 - **Caméras liées** : `LINKS` = des **groupes** (`a+b+c,d+e`, compose : `voliere-toit+voliere-interieur`) + `PUT …/link?enabled=0|1` sur la caméra (réglage « Clip sur la caméra liée » de House Sync, **éteint** tant qu'il ne l'a pas dit, répété chaque minute). Les caméras dont l'interrupteur est sur ON sont **liées entre elles** : quand l'une voit un mouvement **ou** des yeux, un événement s'ouvre sur **chaque autre caméra liée (ON) du groupe**. Une caméra OFF est indépendante : elle ne déclenche rien, ne reçoit rien, et ne réagit qu'à ses propres mouvements ; il se ferme quand la dernière caméra qui l'a demandé a fini (`openLinked`, `closeLinked` dans `index.ts`). Un événement lié n'en déclenche pas d'autre. Les segments sont toujours enregistrés, le clip se fait comme les autres. Distinct de l'événement propre de la cible : s'ils se recouvrent, la fusion les réunit.
 
+## 5 bis. Pause des analyses (House API, zoom optique)
+
+- `PUT /api/cameras/<caméra>/pause?enabled=0|1` (400 sans `enabled` valant 0 ou 1, 404 caméra inconnue) ; `GET` sur la même adresse rend `{camera, paused}` ; `GET /api/config` porte aussi `paused` par caméra.
+- Demandée par House API tant que le zoom optique de la caméra n'est pas au grand angle (`../../api/src/routes/CLAUDE.md`, « Zoom optique ») : l'objectif qui bouge ferait un clip, et l'image zoomée ne correspond plus à la zone.
+- **À part de la détection** (§ 5) : House Sync répète `detection`, `eyes`, `link`… chaque minute et ne peut pas lever la pause. La détection ne tourne que si elle est allumée **et** que la caméra n'est pas en pause.
+- En pause : flux léger arrêté (pas de mouvement, pas de contours ni de hauteurs notés, donc pas de feuillage ni de pluie), recherche des yeux arrêtée, aucun événement ouvert (celui qui l'est est **fermé tout de suite**, comme l'événement lié reçu d'une autre caméra), aucun clip lié lancé par cette caméra ni reçu par elle.
+- **Continuent** : les segments, les clips des événements déjà finis, l'enregistrement à la main (§ 6).
+- **En mémoire seulement** (`paused` dans `index.ts`, pas dans `detection.json`) : après un redémarrage, pas de pause tant que l'API ne l'a pas redite (elle la redit chaque minute). Une ligne de journal par changement (`analyses en pause`, `analyses reprises`).
+
 ## 6. Enregistrement manuel
 
 - `GET`, `POST`, `DELETE /api/cameras/<caméra>/record` (bouton « Enregistrer un clip »).

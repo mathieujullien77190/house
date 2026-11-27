@@ -18,6 +18,8 @@ const h = vi.hoisted(() => {
     big: { ref: { current: null }, big: false, open: () => undefined, close: () => undefined } as any,
     now: 1_800_000_000,
     pinchArgs: null as any,
+    opticalArgs: null as any,
+    optical: { stage: null, level: null, changing: false } as any,
     markers: { markers: [{ target: 'b', x: 0.2, y: 0.3 }], move: () => undefined, commit: () => undefined, remove: () => undefined } as any,
     markersVisible: { visible: true, toggle: () => undefined } as any,
     offCameras: [] as string[],
@@ -44,6 +46,12 @@ vi.mock('@/lib/useMarkers', () => ({ useMarkers: () => h.s.markers }))
 vi.mock('@/lib/useMarkersVisible', () => ({ useMarkersVisible: () => h.s.markersVisible }))
 vi.mock('@/lib/useOffCameras', () => ({ useOffCameras: () => h.s.offCameras }))
 vi.mock('@/lib/useZone', () => ({ useZone: () => h.s.zone }))
+vi.mock('@/lib/useOpticalZoom', () => ({
+  useOpticalZoom: (...args: unknown[]) => {
+    h.s.opticalArgs = args
+    return h.s.optical
+  },
+}))
 vi.mock('@/lib/useBigView', () => ({ useBigView: () => h.s.big }))
 vi.mock('@/lib/useClock', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/useClock')>()),
@@ -886,5 +894,68 @@ describe('CameraCard : cacher les composants sur la vidéo', () => {
     fireEvent.click(eye(true))
     expect(screen.getByTestId('zone-editor')).toBeInTheDocument()
     expect(screen.queryByTestId('layer')).toBeNull()
+  })
+})
+
+describe('CameraCard : le zoom optique', () => {
+  const stage = { zoomBy: () => true, commit: () => undefined }
+
+  it('demandé seulement en vue en grand, sur le direct d’une caméra allumée', () => {
+    mount()
+    expect(h.s.opticalArgs).toEqual(['k', 'voliere-interieur', false])
+    h.s.big = { ...h.s.big, big: true }
+    const live = mount({ events: [event('a')] })
+    expect(h.s.opticalArgs[2]).toBe(true)
+    pick(event('a'))
+    expect(h.s.opticalArgs[2]).toBe(false)
+    live.unmount()
+    mount()
+    act(() => h.timeline.onCursor(500))
+    expect(h.s.opticalArgs[2]).toBe(false)
+  })
+  it('caméra éteinte ou en démarrage : pas de zoom optique ; allumée : oui', () => {
+    h.s.big = { ...h.s.big, big: true }
+    h.s.power = power({ on: false })
+    mount().unmount()
+    expect(h.s.opticalArgs[2]).toBe(false)
+    h.s.power = power({ streaming: false })
+    mount().unmount()
+    expect(h.s.opticalArgs[2]).toBe(false)
+    h.s.power = power()
+    mount()
+    expect(h.s.opticalArgs[2]).toBe(true)
+  })
+  it('l’étage optique n’est pas donné au zoom au doigt (numérique) ; le niveau s’affiche pendant le geste puis s’efface', () => {
+    h.s.big = { ...h.s.big, big: true }
+    h.s.optical = { stage, level: 3.1857, changing: true }
+    const shown = mount()
+    expect(h.s.pinchArgs[4]).toBeUndefined()
+    const chip = screen.getByText('Zoom ×3,2')
+    expect(chip.closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'false')
+    expect(chip.closest('[aria-hidden]')?.className).toContain('opacity-100')
+    shown.unmount()
+    h.s.optical = { stage, level: 3.1857, changing: false }
+    mount()
+    expect(screen.getByText('Zoom ×3,2').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Zoom ×3,2').closest('[aria-hidden]')?.className).toContain('opacity-0')
+  })
+  it('le niveau reste visible quand les composants sont cachés, à côté des indicateurs sinon', () => {
+    h.s.big = { ...h.s.big, big: true }
+    h.s.sensors = [sensor]
+    h.s.optical = { stage, level: 1, changing: true }
+    mount()
+    expect(screen.getByTestId('overlay')).toHaveTextContent('9,5 °C')
+    expect(screen.getByTestId('overlay')).toHaveTextContent('Zoom ×1,0')
+    fireEvent.click(screen.getByRole('button', { name: 'Cacher les composants sur la vidéo' }))
+    expect(screen.getByTestId('overlay')).not.toHaveTextContent('9,5 °C')
+    expect(screen.getByTestId('overlay')).toHaveTextContent('Zoom ×1,0')
+  })
+  it('sans étage ou sans niveau connu : rien', () => {
+    h.s.optical = { stage: null, level: 2, changing: true }
+    mount().unmount()
+    expect(screen.queryByText(/Zoom ×/)).toBeNull()
+    h.s.optical = { stage, level: null, changing: false }
+    mount()
+    expect(screen.queryByText(/Zoom ×/)).toBeNull()
   })
 })

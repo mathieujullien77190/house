@@ -11,6 +11,16 @@ export interface PinchZoom {
   style: CSSProperties
 }
 
+/**
+ * Un zoom optique (l'objectif motorisé de la caméra, `useOpticalZoom`) que le double toucher peut piloter : il zoome à fond puis revient en grand angle, avant le zoom numérique.
+ */
+export interface OpticalStage {
+  /** Multiplie le niveau optique par `factor` ; rend faux s'il est déjà en butée dans ce sens (le zoom numérique prend alors le geste). */
+  zoomBy: (factor: number) => boolean
+  /** Les doigts sont levés : la position voulue part tout de suite, sans attendre. */
+  commit: () => void
+}
+
 interface View {
   scale: number
   x: number
@@ -44,7 +54,7 @@ interface Gesture {
 const MAX_SCALE = 6
 /** Le zoom d'un cran de molette : e^(-deltaY × WHEEL_SPEED). */
 const WHEEL_SPEED = 0.0015
-const DOUBLE_TAP_SCALE = 2.5
+const DOUBLE_TAP_SCALE = 5
 const DOUBLE_TAP_MS = 300
 const TAP_MS = 250
 const TAP_MOVE = 10
@@ -75,9 +85,10 @@ const limit = (view: View, element: HTMLElement): View => {
 
 /**
  * `active` : le zoom au doigt est permis. `wheel` : la molette zoome aussi, autour du pointeur (bureau). `rotated` : le média est tourné d'un quart de tour en portrait (la vue en grand ; vrai par défaut). `resetKey` : un
- * changement de média (direct, image, autre clip) remet le zoom à zéro.
+ * changement de média (direct, image, autre clip) remet le zoom à zéro. `optical` : le zoom optique de la caméra, piloté par le seul double toucher (à l'échelle 1) ; molette, pincement et déplacement restent
+ * numériques ; null : zoom numérique seul.
  */
-export const usePinchZoom = (active: boolean, rotated = true, resetKey = '', wheel = false): PinchZoom => {
+export const usePinchZoom = (active: boolean, rotated = true, resetKey = '', wheel = false, optical: OpticalStage | null = null): PinchZoom => {
   // Le zoom vit tant que les doigts ou la molette le permettent.
   const zoomable = active || wheel
   const [view, setView] = useState<View>(IDENTITY)
@@ -208,6 +219,12 @@ export const usePinchZoom = (active: boolean, rotated = true, resetKey = '', whe
       gesture.lastTap = null
       pointers.clear()
       gesture.anchor = null
+      // Une caméra à objectif motorisé (zoom optique) le fait zoomer à fond, puis le ramène en grand angle au double toucher suivant (l'objectif vise toujours
+      // le centre) ; sinon c'est le zoom numérique, sur le point touché.
+      if (view.scale <= 1 && optical && (optical.zoomBy(DOUBLE_TAP_SCALE) || optical.zoomBy(1 / DOUBLE_TAP_SCALE))) {
+        optical.commit()
+        return
+      }
       setView(
         view.scale > 1
           ? IDENTITY

@@ -45,10 +45,27 @@ La page « Chez Matou » (`https://chezmatou.local:8080/chezmatou?k=<LAN_KEY>`, 
 - `GET /poe` : par caméra, PoE activé, alimentée, watts, `streaming` (octets go2rtc qui augmentent = démarrée).
 - `POST /poe/:camera` `{"on": bool}` ; 503 sans switch.
 - Variables : `SWITCH_URL`, `SWITCH_USER`, `SWITCH_PASSWORD` (absent = PoE désactivé), `SWITCH_PORTS` (`voliere-exterieur:3,voliere-interieur:4`).
-- **Deuxième switch** (facultatif, même modèle) : `SWITCH2_URL`, `SWITCH2_USER` (défaut `admin`), `SWITCH2_PASSWORD`, `SWITCH2_PORTS` (même format, p. ex. `potager:1,cerisier:2`). Ignoré sans adresse ni mot de passe, et sans le premier switch (`SWITCH_PASSWORD`) : le comportement est alors celui d'un seul switch. Une caméra est pilotée par le switch où elle est listée ; `GET /poe` les rassemble toutes (le premier switch d'abord) et la panne d'un switch fait échouer toute la liste. Une caméra listée dans les deux est pilotée sur le premier.
+- **Deuxième switch** (facultatif, même modèle) : `SWITCH2_URL`, `SWITCH2_USER` (défaut `admin`), `SWITCH2_PASSWORD`, `SWITCH2_PORTS` (même format, p. ex. `potager:1,pommier-inverse:2`). Ignoré sans adresse ni mot de passe, et sans le premier switch (`SWITCH_PASSWORD`) : le comportement est alors celui d'un seul switch. Une caméra est pilotée par le switch où elle est listée ; `GET /poe` les rassemble toutes (le premier switch d'abord) et la panne d'un switch fait échouer toute la liste. Une caméra listée dans les deux est pilotée sur le premier.
 - Pas d'API officielle : le client imite la page web du firmware 1.0.1 (`logon.cgi`, `poe_port_config.cgi`, `logout.cgi`). Un autre firmware peut casser.
 - Après un refus de connexion, aucun nouvel essai pendant 1 min (le switch pourrait verrouiller le compte).
 - Couper le PoE éteint la caméra ; l'enregistreur réessaie jusqu'au retour du courant.
+
+## Zoom optique des caméras (`/cameras/<nom>/zoom`)
+
+Fichiers : `lib/reolinkClient.ts`, `services/zoomService.ts`, `services/zoomPauseService.ts`, `routes/zoom.ts`. Pour les caméras à objectif motorisé (RLC-811A, zoom ×5) : `pommier`, et `portail` quand elle sera branchée.
+
+- `GET /cameras/<nom>/zoom` : `{pos, min, max, paused}` ; position et plage lues sur la caméra (0 à 28 sur la RLC-811A), `paused` = les analyses de l'enregistreur sont en pause pour cette caméra (état de l'API, sans appel à l'enregistreur ; toujours `false` sans `RECORDER_URL`).
+- `PUT /cameras/<nom>/zoom` `{"pos": entier}` : une position hors de la plage est **ramenée à sa borne** ; rend `{pos, min, max, paused}` avec la position demandée, sans relire (l'objectif met quelques secondes à bouger et refait la mise au point tout seul). La plage est lue une fois puis gardée.
+- 404 : la caméra n'a pas de zoom optique configuré ; 400 : `pos` absent ou pas entier ; 502 : la caméra ne répond pas ou refuse.
+- Le zoom optique est **coupé en production** : `CAMERA_ZOOMS=none` dans le `.env` du mini PC (aucune caméra n'a d'objectif commandé, l'API répond 404). Pour le rallumer : `CAMERA_ZOOMS=pommier:7,portail:8` dans le `.env`, puis `docker compose up -d api`.
+- Configuration : `CAMERA_ZOOMS="pommier:7,portail:8"` (défaut du code et du compose ; nom de la caméra puis numéro de ses variables) ; l'adresse et le compte viennent de `CAMERA<n>_IP`, `CAMERA<n>_USER` (défaut `admin`), `CAMERA<n>_PASSWORD`, les mêmes que go2rtc, passées aussi au service `api` du compose. Sans adresse ou sans mot de passe, la caméra est ignorée (404).
+- API HTTP de la caméra (port 80, à activer dans ses réglages réseau), vérifiée sur le firmware v3.1.0.4695 : `POST http://<ip>/cgi-bin/api.cgi?cmd=GetZoomFocus&user=&password=` avec `[{"cmd":"GetZoomFocus","action":1,"param":{"channel":0}}]`, et `cmd=StartZoomFocus` avec `[{"cmd":"StartZoomFocus","action":0,"param":{"ZoomFocus":{"channel":0,"pos":<n>,"op":"ZoomPos"}}}]`. Délai de 5 s.
+- **Pause des analyses pendant le zoom** (`services/zoomPauseService.ts`) : tant que le zoom n'est pas au grand angle (`min`), l'enregistreur met en pause **toutes** les analyses de la caméra (mouvement, yeux, clips liés, feuillage et pluie ; les segments continuent) : `PUT <RECORDER_URL>/api/cameras/<caméra>/pause?enabled=0|1` (`../../../motion/src/CLAUDE.md` § 5 bis ; sans clé, réseau `sync_net`, comme `/record`).
+  - Après un `PUT` réussi : position au-dessus de `min` → pause **tout de suite** ; position `min` → la pause n'est levée qu'après **20 s** (`GRACE_MS` : trajet de l'objectif et mise au point), et un nouveau zoom avant d'ici là annule la levée. Un `PUT` à `min` alors que rien n'est en pause ne fait rien.
+  - **Tour** au démarrage puis chaque minute : relit la vraie position de chaque caméra (`GetZoomFocus`) et redit l'état à l'enregistreur (redémarrage de `motion` ou de l'API, zoom changé depuis l'appli Reolink). Pendant les 20 s qui suivent un `PUT`, la caméra n'est pas relue (position de passage) : l'état voulu est seulement redit. Un `GET` du zoom met aussi l'état à jour avec la position qu'il vient de lire.
+  - Caméra muette : l'état connu est gardé. Enregistreur muet : le `PUT` du zoom répond quand même 200 (l'envoi n'est pas attendu), le tour le redira. Une ligne de journal quand une panne commence, une quand elle finit, plus une par changement de pause ; texte fixe, jamais l'erreur.
+  - L'état n'est qu'en mémoire : l'API qui redémarre le retrouve au premier tour. Sans `RECORDER_URL` : pas de pause, pas de tour.
+- **Secret** : le compte est dans l'adresse de l'appel. Le client ne lève que des erreurs à texte fixe (`ReolinkError`, jamais l'adresse ni l'erreur de `fetch`), la route répond `camera unreachable` sans détail et ne passe rien au journal.
 
 ## Pont Hue
 

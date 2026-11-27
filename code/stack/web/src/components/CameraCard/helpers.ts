@@ -9,7 +9,11 @@ import {
   IMAGE_SECONDS,
   TEMPERATURE_LABEL,
   TEMPERATURE_UNKNOWN_TEXT,
+  ZOOM_LABEL_PREFIX,
 } from './constants'
+
+/** Le niveau du zoom optique à l'écran : « Zoom ×3,2 » (une décimale, virgule). */
+export const zoomLabel = (level: number): string => `${ZOOM_LABEL_PREFIX}${level.toFixed(1).replace('.', ',')}`
 
 /** Une ligne par capteur demandé, dans l'ordre des identifiants : « Température · <nom du capteur> » et sa valeur. Un capteur absent du pont n'a pas de ligne. */
 export const temperatureItems = (sensors: HueSensor[], ids: string[]): SpecItem[] =>

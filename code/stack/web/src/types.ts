@@ -63,6 +63,13 @@ export interface CameraPower {
   streaming: boolean
 }
 
+/** Le zoom optique d'une caméra à objectif motorisé : sa position et sa plage (`GET /cameras/<nom>/zoom`). */
+export interface CameraZoom {
+  pos: number
+  min: number
+  max: number
+}
+
 export type TabId = 'home' | 'cameras' | 'lights' | 'shutters' | 'ac' | 'plug' | 'box' | 'tv' | 'guest'
 
 /** Les touches de la télécommande du Freebox Player (liste de l'API Freebox). */

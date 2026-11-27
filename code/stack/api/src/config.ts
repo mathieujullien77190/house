@@ -28,6 +28,8 @@ export interface Config {
   tv: { host: string }
   /** Les climatisations Mitsubishi (AC_UNITS="salon:Salon:192.168.1.130" : identifiant, nom, adresse du module Wi-Fi de l'unité, séparés par des virgules) ; vide : ac répond 503. */
   acUnits: { id: string; name: string; host: string }[]
+  /** Les caméras à zoom optique motorisé (CAMERA_ZOOMS="pommier:7,portail:8" : le nom de la caméra puis le numéro de ses variables CAMERA<n>_IP, CAMERA<n>_USER et CAMERA<n>_PASSWORD) ; une caméra sans adresse ou sans mot de passe est ignorée ; aucune : le zoom répond 404. */
+  cameraZooms: { camera: string; host: string; user: string; password: string }[]
   /** Les volets roulants (SHUTTERS="1:Salon,2:Chambre:19" : le numéro du volet dans le firmware de l'ESP32, son nom, puis, facultatif, le temps qu'il met à se fermer en entier, en secondes : il donne le bouton « Fermer à moitié ») ; vide : shutters répond 503. Par défaut les quatre volets de la maison : PC, salon, porte, cuisine. */
   shutters: { id: string; name: string; shadeId: number; closeSeconds?: number }[]
   /** Les volets qui ont l'action automatique « ouvrir au lever du soleil, fermer à son coucher » (SHUTTERS_AUTO, leurs identifiants séparés par des virgules ; par défaut tous les volets). */
@@ -80,6 +82,23 @@ export const parseAcUnits = (text: string): { id: string; name: string; host: st
     .filter((match): match is RegExpExecArray => match !== null)
     .map((match) => ({ id: match[1], name: match[2], host: match[3] }))
 
+/** Par défaut les deux RLC-811A : pommier (CAMERA7_*) et portail (CAMERA8_*). */
+const DEFAULT_CAMERA_ZOOMS = 'pommier:7,portail:8'
+
+/** « pommier:7,portail:8 » en caméras à zoom optique : l'adresse et le compte viennent des variables CAMERA<n>_* (celles de go2rtc). Une entrée mal écrite, sans adresse ou sans mot de passe est ignorée. */
+export const parseCameraZooms = (text: string, env: NodeJS.ProcessEnv): Config['cameraZooms'] =>
+  text
+    .split(',')
+    .map((part) => /^\s*([\w-]+)\s*:\s*(\d+)\s*$/.exec(part))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => ({
+      camera: match[1],
+      host: (env[`CAMERA${match[2]}_IP`] ?? '').trim(),
+      user: env[`CAMERA${match[2]}_USER`] || 'admin',
+      password: env[`CAMERA${match[2]}_PASSWORD`] ?? '',
+    }))
+    .filter((camera) => camera.host !== '' && camera.password !== '')
+
 /** « voliere-exterieur:7,jardin:3 » (caméra:port du switch). */
 const parsePorts = (text: string): Record<string, number> => {
   const ports: Record<string, number> = {}
@@ -130,6 +149,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
       : null,
     tv: { host: env.TV_HOST?.trim() || '192.168.1.47' },
     acUnits: parseAcUnits(env.AC_UNITS ?? ''),
+    cameraZooms: parseCameraZooms(env.CAMERA_ZOOMS ?? DEFAULT_CAMERA_ZOOMS, env),
     shutters: parseShutters(env.SHUTTERS ?? DEFAULT_SHUTTERS),
     shuttersAuto: env.SHUTTERS_AUTO
       ? env.SHUTTERS_AUTO.split(',').map((id) => id.trim()).filter(Boolean)

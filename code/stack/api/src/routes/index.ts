@@ -13,6 +13,7 @@ import type { HeatingService } from '../services/heatingService.ts'
 import type { HueService } from '../services/hueService.ts'
 import type { PlugService } from '../services/plugService.ts'
 import type { AcService } from '../services/acService.ts'
+import type { ZoomService } from '../services/zoomService.ts'
 import type { ShuttersService } from '../services/shuttersService.ts'
 import type { ShuttersAuto } from '../services/shuttersAutoService.ts'
 import type { BoxService } from '../services/boxService.ts'
@@ -31,6 +32,7 @@ import { boxRouter } from './box.ts'
 import { tvRouter } from './tv.ts'
 import { plugRouter } from './plug.ts'
 import { acRouter } from './ac.ts'
+import { zoomRouter } from './zoom.ts'
 import { shuttersRouter } from './shutters.ts'
 import { poeRouter } from './poe.ts'
 import { snapshotsRouter } from './snapshots.ts'
@@ -54,6 +56,8 @@ export interface Services {
   plug: PlugService | null
   /** Les climatisations Mitsubishi ; null sans AC_UNITS. */
   ac: AcService | null
+  /** Le zoom optique des caméras qui en ont un ; null sans caméra à zoom configurée (les routes répondent 404). */
+  zoom: ZoomService | null
   /** Les volets roulants ; null sans volets configurés. */
   shutters: ShuttersService | null
   /** L'action automatique des volets (lever et coucher du soleil) ; null sans volets. */
@@ -94,6 +98,7 @@ export const SECURED_PATHS = [
   '/frame',
   '/audio',
   '/poe',
+  '/cameras',
   '/plug',
   '/shutters',
   '/ac',
@@ -136,6 +141,7 @@ export const createRoutes = (apiKey: string, services: Services, caCert = '', la
   router.use(snapshotsRouter(services.snapshots, services.files))
   router.use(liveRouter(services.live))
   router.use(poeRouter(services.poe))
+  router.use(zoomRouter(services.zoom))
   router.use(plugRouter(services.plug, services.heating))
   router.use(acRouter(services.ac))
   router.use(shuttersRouter(services.shutters, services.shuttersAuto))

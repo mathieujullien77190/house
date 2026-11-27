@@ -10,6 +10,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 - `lib/api.ts` : client de House API. La clé n'est jamais gardée : l'en-tête `X-House-Key` sert le temps de la saisie, `/auth` ouvre la session par cookie (`../docs/securite.md`).
 - `lib/useHouse.ts` : la clé et son statut (essaie d'abord le cookie), caméras et événements rafraîchis chaque seconde.
 - `lib/useAcUnits.ts`, `lib/useShutters.ts` : lecture et ordres, **partagés** entre l'onglet et la vue 3D de Home.
+- `lib/usePinchZoom.ts`, `lib/useOpticalZoom.ts` : le zoom de la vue en grand d'une caméra (numérique, et optique pour une caméra à objectif motorisé) ; détail : `components/CameraCard/CLAUDE.md`.
 - `lib/useBox.ts` : la Freebox (lecture, WiFi), pour l'onglet Box.
 - `lib/usePlan.ts`, `lib/useLampPlan.ts` : le plan gardé par l'API et les lampes Hue à leur place, pour la vue 3D (plus rien ne modifie le plan depuis la WebApp).
 - `lib/useClipThumb.ts`, `lib/useClipDuration.ts` : vignette (image fixe) et durée d'un clip, sans garder de vidéo ouverte (`components/SavedClips/CLAUDE.md`).
@@ -30,7 +31,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 
 | Je travaille sur… | Je lis |
 |---|---|
-| Home : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, caméras, volets) ; saison du jardin et météo (pluie, neige, vent) au choix | `Home/`, `Kitchen3D/` |
+| Home : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, caméras, volets) ; lumière au choix (plein jour ou heure actuelle) ; dessinée à la demande, allégée sur téléphone | `Home/`, `Kitchen3D/` |
 | Repère du plan gardé par l'API (unités, cadastre, haies de départ) | `MapPlan/` |
 | Onglet Caméras : mosaïque, clips sauvegardés | `CameraMosaic/`, `SavedClips/` |
 | Détail d'une caméra, frise | `CameraCard/`, `Timeline/` |

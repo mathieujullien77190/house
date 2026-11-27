@@ -114,10 +114,16 @@ const open = new Map<string, string>()
 const linkedOpen = new Map<string, { id: string; sources: Set<string> }>()
 // L'interrupteur de House Sync, par caméra source : éteint tant qu'il n'a rien dit (il répète son état chaque minute).
 const linkOn = new Map<string, boolean>()
+// La pause des analyses, par caméra : House API la demande tant que le zoom optique de la caméra n'est pas au grand angle (l'image ne correspond plus à la zone, et l'objectif qui bouge
+// ferait un clip). À part de `detecting`, que House Sync répète chaque minute : il ne peut pas l'annuler. En mémoire seulement : après un redémarrage, pas de pause tant que l'API ne l'a pas redite.
+// En pause : ni détection de mouvement, ni recherche des yeux, ni événement (celui qui est ouvert est fermé), ni clip lié lancé ou reçu, ni zones notées pour le feuillage et la pluie.
+// Les segments continuent d'être enregistrés, et l'enregistrement à la main reste possible.
+const paused = new Set<string>()
 const openLinked = (source: string, at: number) => {
   if (linkOn.get(source) !== true) return
   // Seules les caméras dont l'interrupteur est allumé sont liées entre elles : une caméra éteinte ne reçoit rien et ne déclenche rien, elle ne réagit qu'à ses propres mouvements.
-  for (const link of config.links.filter((candidate) => candidate.source === source && linkOn.get(candidate.target) === true)) {
+  // Une caméra en pause ne reçoit rien non plus.
+  for (const link of config.links.filter((candidate) => candidate.source === source && linkOn.get(candidate.target) === true && !paused.has(candidate.target))) {
     const current = linkedOpen.get(link.target)
     if (current) {
       current.sources.add(source)
@@ -136,6 +142,32 @@ const closeLinked = (source: string, at: number) => {
     linkedOpen.delete(link.target)
     log(`${link.target} : fin de l’événement lié ${current.id}`)
   }
+}
+// Ferme l'événement de mouvement ouvert de la caméra (détection suspendue, flux arrêté, pause) : il ne recevrait jamais sa fin.
+const closeOpen = (camera: string) => {
+  const id = open.get(camera)
+  if (!id) return
+  store.close(id, Date.now() / 1000)
+  open.delete(camera)
+  closeLinked(camera, Date.now() / 1000)
+}
+const setPause = (camera: string, enabled: boolean) => {
+  if (paused.has(camera) === enabled) return
+  log(`${camera} : analyses ${enabled ? 'en pause' : 'reprises'}`)
+  if (!enabled) {
+    paused.delete(camera)
+    return
+  }
+  paused.add(camera)
+  // Tout de suite, sans attendre que ffmpeg s'arrête : l'événement ouvert de la caméra, celui qu'une caméra liée lui a fait ouvrir, et les yeux vus.
+  closeOpen(camera)
+  const linked = linkedOpen.get(camera)
+  if (linked) {
+    store.close(linked.id, Date.now() / 1000)
+    linkedOpen.delete(camera)
+    log(`${camera} : fin de l’événement lié ${linked.id}`)
+  }
+  lastEyes.delete(camera)
 }
 // Les contours du mouvement de chaque caméra sont notés image par image dans un journal (shapes.ts), dont on tire le fichier des contours de chaque clip.
 const shapesDirOf = (camera: string) => `${config.recordingsDir}/${camera}/shapes`
@@ -166,6 +198,8 @@ for (const camera of config.cameras) {
     `${config.go2rtcRtsp}/${camera}_sub`,
     { ...config, detector: detectors.get(camera) ?? config.detector },
     (event) => {
+      // En pause : aucun événement (ffmpeg met jusqu'à une seconde à s'arrêter, une image peut encore arriver).
+      if (paused.has(camera)) return
       if (event.type === 'start') {
         // Le flux léger arrive `shapesDelaySeconds` après la vidéo : l'événement (la barre orange de la frise) commence à l'instant où le mouvement apparaît dans la vidéo, comme le premier contour.
         const record = store.open(camera, event.at - config.shapesDelaySeconds, false, eyesSeen(camera).length > 0 ? 'eyes' : 'motion')
@@ -183,18 +217,13 @@ for (const camera of config.cameras) {
       }
     },
     (m) => log(`${camera} : ${m}`),
-    () => detecting.get(camera) !== false,
-    () => {
-      // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là.
-      const id = open.get(camera)
-      if (id) {
-        store.close(id, Date.now() / 1000)
-        open.delete(camera)
-        closeLinked(camera, Date.now() / 1000)
-      }
-    },
+    () => detecting.get(camera) !== false && !paused.has(camera),
+    // Un mouvement ouvert quand la détection s'arrête ne serait jamais fermé : on le ferme là.
+    () => closeOpen(camera),
     () => zones.get(camera)?.mask ?? null,
     (hulls) => {
+      // En pause : rien n'est noté (ni contours, ni hauteurs pour le feuillage et la pluie).
+      if (paused.has(camera) && hulls.length > 0) return
       // Chaque contour est découpé par la zone : rien n'est montré hors de ce qui est surveillé.
       const zone = zones.get(camera)?.points ?? null
       const clipped = hulls.map((hull) => clipToZone(hull, zone)).filter((shape): shape is Point[] => shape !== null)
@@ -209,10 +238,10 @@ for (const camera of config.cameras) {
     `${config.go2rtcRtsp}/${camera}_main`,
     { width: EYES_WIDTH, height: EYES_HEIGHT },
     // Pas de recherche tant que la zone n'est pas connue (reprise du fichier ou envoi de House Sync) : sinon des reflets hors zone seraient pris pour des yeux.
-    () => eyesOn.get(camera) === true && zones.has(camera),
+    () => eyesOn.get(camera) === true && zones.has(camera) && !paused.has(camera),
     () => eyesMasks.get(camera) ?? null,
     (boxes) => {
-      if (boxes.length === 0) return
+      if (boxes.length === 0 || paused.has(camera)) return
       lastEyes.set(camera, { at: Date.now() / 1000, boxes })
       // Un événement où des yeux sont vus prend l'étiquette `eyes` : la frise le montre en violet.
       const id = open.get(camera)
@@ -265,6 +294,8 @@ startServer(
       if (linkOn.get(camera) !== enabled) log(`${camera} : clip sur la caméra liée ${enabled ? 'allumé' : 'éteint'}`)
       linkOn.set(camera, enabled)
     },
+    setPause,
+    paused: (camera) => paused.has(camera),
     setEyes: (camera, enabled) => {
       if (eyesOn.get(camera) !== enabled) log(`${camera} : recherche des yeux ${enabled ? 'allumée' : 'éteinte'}`)
       eyesOn.set(camera, enabled)

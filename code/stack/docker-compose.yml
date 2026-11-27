@@ -35,7 +35,7 @@ services:
       CAMERA5_IP: ${CAMERA5_IP:-}
       CAMERA5_USER: ${CAMERA5_USER:-admin}
       CAMERA5_PASSWORD: ${CAMERA5_PASSWORD:-}
-      # La sixième caméra (cerisier, prévue : pas encore branchée) : adresse et compte, lus par go2rtc.yaml.
+      # La sixième caméra (pommier-inverse, prévue : pas encore branchée) : adresse et compte, lus par go2rtc.yaml.
       CAMERA6_IP: ${CAMERA6_IP:-}
       CAMERA6_USER: ${CAMERA6_USER:-admin}
       CAMERA6_PASSWORD: ${CAMERA6_PASSWORD:-}
@@ -60,7 +60,7 @@ services:
       # Le réseau de la page invité : elle ne voit que go2rtc.
       - guest_net
 
-  # L'enregistreur (voir motion/CLAUDE.md), pour les caméras de CAMERAS (les quatre en service par défaut : voliere-exterieur, voliere-interieur, salon-de-jardin et voliere-toit ; potager, cerisier, pommier et portail s'y ajoutent depuis le .env quand elles sont branchées) : enregistre le flux principal
+  # L'enregistreur (voir motion/CLAUDE.md), pour les caméras de CAMERAS (les quatre en service par défaut : voliere-exterieur, voliere-interieur, salon-de-jardin et voliere-toit ; potager, pommier-inverse, pommier et portail s'y ajoutent depuis le .env quand elles sont branchées) : enregistre le flux principal
   # par segments, détecte le mouvement sur le flux léger, fabrique les clips, et offre à House Sync une petite API (non publiée, sans mot de passe).
   motion:
     build: ./motion
@@ -68,7 +68,7 @@ services:
     depends_on:
       - go2rtc
     environment:
-      # Surchargeable par le .env (CAMERAS=…,potager,cerisier,pommier,portail) : les quatre caméras en service par défaut.
+      # Surchargeable par le .env (CAMERAS=…,potager,pommier-inverse,pommier,portail) : les quatre caméras en service par défaut.
       CAMERAS: ${CAMERAS:-voliere-exterieur,voliere-interieur,salon-de-jardin,voliere-toit}
       GO2RTC_RTSP: rtsp://go2rtc:8554
       GO2RTC_API: http://go2rtc:1984
@@ -215,6 +215,15 @@ services:
       SWITCH2_USER: ${SWITCH2_USER:-admin}
       SWITCH2_PASSWORD: ${SWITCH2_PASSWORD:-}
       SWITCH2_PORTS: ${SWITCH2_PORTS:-}
+      # Le zoom optique des caméras à objectif motorisé (RLC-811A) : « caméra:numéro de ses variables CAMERA<n>_* », séparés par des virgules. L'API parle à l'API HTTP de la caméra
+      # (port 80, à activer dans ses réglages réseau) avec le même compte que go2rtc. Une caméra sans adresse ou sans mot de passe est ignorée (zoom : 404).
+      CAMERA_ZOOMS: ${CAMERA_ZOOMS:-pommier:7,portail:8}
+      CAMERA7_IP: ${CAMERA7_IP:-}
+      CAMERA7_USER: ${CAMERA7_USER:-admin}
+      CAMERA7_PASSWORD: ${CAMERA7_PASSWORD:-}
+      CAMERA8_IP: ${CAMERA8_IP:-}
+      CAMERA8_USER: ${CAMERA8_USER:-admin}
+      CAMERA8_PASSWORD: ${CAMERA8_PASSWORD:-}
       # Le pont Philips Hue (réseau de la maison) : l'adresse et la clé d'application, créée par un appui sur le bouton du pont.
       # Sans clé, le service hue répond 503.
       HUE_BRIDGE_IP: ${HUE_BRIDGE_IP:-}
@@ -246,7 +255,7 @@ services:
       PLUG_TEMPERATURE_SENSOR: ${PLUG_TEMPERATURE_SENSOR:-}
       HOUSE_LATITUDE: ${HOUSE_LATITUDE:-48.52}
       HOUSE_LONGITUDE: ${HOUSE_LONGITUDE:-2.64}
-      # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API.
+      # L'enregistreur : le bouton « Enregistrer » de la WebApp (un clip lancé à la main) lui parle par l'API, qui lui demande aussi de mettre en pause les analyses d'une caméra tant que son zoom optique n'est pas au grand angle.
       RECORDER_URL: http://motion:8080
       # Le dossier d'état de l'API (data/house, créé par l'utilisateur de la machine) : seulement tv/ (certificat du Player). Les autres documents sont dans la table house_state.
       STATE_DIR: /state

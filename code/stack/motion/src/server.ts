@@ -38,6 +38,10 @@ export interface Detection {
   setRain: (camera: string, zones: number, height: number) => void
   /** Le clip lié de la caméra (LINKS) : allumé ou éteint par House Sync (éteint tant qu'on ne lui dit rien). */
   setLink: (camera: string, enabled: boolean) => void
+  /** La pause des analyses de la caméra (House API, tant que son zoom optique n'est pas au grand angle) : à part de `set`, que House Sync répète chaque minute. */
+  setPause: (camera: string, paused: boolean) => void
+  /** Vrai tant que les analyses de la caméra sont en pause. */
+  paused: (camera: string) => boolean
 }
 
 /** L'enregistrement lancé à la main, caméra par caméra : un mouvement fictif qu'on ouvre puis qu'on ferme, dont le clip se fait comme les autres. */
@@ -95,6 +99,18 @@ export const startServer = (
       if (!config.cameras.includes(toggle[1])) return json(res, 404, { error: 'unknown camera' })
       detection.set(toggle[1], searchParams.get('enabled') !== '0')
       return json(res, 200, { camera: toggle[1], enabled: searchParams.get('enabled') !== '0' })
+    }
+    // GET et PUT /api/cameras/<caméra>/pause?enabled=0|1 : la pause de toutes les analyses de la caméra (mouvement, yeux, clips liés), demandée par House API tant que le zoom optique
+    // n'est pas au grand angle. À part de la détection : House Sync ne la connaît pas et ne peut pas l'annuler. En mémoire seulement.
+    const pause = /^\/api\/cameras\/([\w-]+)\/pause$/.exec(pathname)
+    if (pause && (req.method === 'PUT' || req.method === 'GET')) {
+      if (!config.cameras.includes(pause[1])) return json(res, 404, { error: 'unknown camera' })
+      if (req.method === 'PUT') {
+        const enabled = searchParams.get('enabled')
+        if (enabled !== '0' && enabled !== '1') return json(res, 400, { error: 'enabled must be 0 or 1' })
+        detection.setPause(pause[1], enabled === '1')
+      }
+      return json(res, 200, { camera: pause[1], paused: detection.paused(pause[1]) })
     }
     // PUT /api/cameras/<caméra>/sensitivity?level=1..5 : la sensibilité de la détection de mouvement de la caméra.
     const sensitivity = /^\/api\/cameras\/([\w-]+)\/sensitivity$/.exec(pathname)
@@ -185,7 +201,7 @@ export const startServer = (
     if (pathname === '/api/config') {
       return json(res, 200, {
         cameras: Object.fromEntries(
-          config.cameras.map((camera) => [camera, { live: { go2rtc: config.go2rtcApi, streams: { Léger: `${camera}_sub` } } }]),
+          config.cameras.map((camera) => [camera, { live: { go2rtc: config.go2rtcApi, streams: { Léger: `${camera}_sub` } }, paused: detection.paused(camera) }]),
         ),
       })
     }

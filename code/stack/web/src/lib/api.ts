@@ -2,7 +2,7 @@
 // La clé n'est jamais dans le code : elle vient de l'utilisateur, la saisie ouvre une session par cookie (voir /auth).
 import type { ZonePoint } from '@house/ui'
 import type { GuestLanLink } from '@/components/GuestPanel'
-import type { TvKey, TvState, AcPatch, AcUnit, BoxGuests, BoxState, GuestWifi, CameraMarker, CameraPower, CameraRow, EventRow, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
+import type { TvKey, TvState, AcPatch, AcUnit, BoxGuests, BoxState, GuestWifi, CameraMarker, CameraPower, CameraRow, CameraZoom, EventRow, HeatingSettingsBody, HeatingStatus, HueAutomation, HueRoom, HueSensor, HueState, PlugState, ShutterAuto, ShutterCommand, ShutterInfo, ShuttersState } from '@/types'
 
 export const KEY_STORAGE = 'house-key'
 const KEY_HEADER = 'X-House-Key'
@@ -79,6 +79,21 @@ export const setCameraPower = async (key: string, camera: string, on: boolean): 
   })
   if (res.status === 401) throw new ApiError(401, 'clé refusée')
   if (!res.ok) throw new ApiError(res.status, `/poe : HTTP ${res.status}`)
+  return res.json()
+}
+
+/** Le zoom optique d'une caméra : position et plage (404 si la caméra n'a pas d'objectif motorisé, 502 si elle ne répond pas). */
+export const fetchCameraZoom = async (key: string, camera: string): Promise<CameraZoom> => (await request(key, `/cameras/${encodeURIComponent(camera)}/zoom`)).json()
+
+/** Règle la position du zoom optique (entière, ramenée dans la plage par l'API) ; l'objectif met quelques secondes à bouger. */
+export const setCameraZoom = async (key: string, camera: string, pos: number): Promise<CameraZoom> => {
+  const res = await fetch(`/cameras/${encodeURIComponent(camera)}/zoom`, {
+    method: 'PUT',
+    headers: { [KEY_HEADER]: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pos }),
+  })
+  if (res.status === 401) throw new ApiError(401, 'clé refusée')
+  if (!res.ok) throw new ApiError(res.status, `/cameras/zoom : HTTP ${res.status}`)
   return res.json()
 }
 

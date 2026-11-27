@@ -28,6 +28,7 @@ const services: Services = {
   box: null,
   boxRepository: null,
   poe: null,
+  zoom: null,
   files: {} as BackupFiles,
   zones: { get: () => ({}) } as unknown as ZonesStore,
   markers: { get: () => ({}) } as unknown as MarkersStore,

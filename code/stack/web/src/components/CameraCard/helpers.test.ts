@@ -1,4 +1,11 @@
-import { fadeFor } from './helpers'
+import { fadeFor, zoomLabel } from './helpers'
+
+describe('zoomLabel', () => {
+  it('une décimale, avec une virgule', () => {
+    expect(zoomLabel(1)).toBe('Zoom ×1,0')
+    expect(zoomLabel(3.1857)).toBe('Zoom ×3,2')
+  })
+})
 
 describe('fadeFor', () => {
   it('temps réel : le fondu est plafonné', () => {

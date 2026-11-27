@@ -31,6 +31,7 @@ const services: Services = {
   box: null,
   boxRepository: null,
   poe: null,
+  zoom: null,
   files: {} as BackupFiles,
   zones: {} as ZonesStore,
   markers: {} as MarkersStore,

@@ -103,9 +103,15 @@ Conteneur de `CameraCard` de `@house/ui` (`../../../../ui/src/components/CLAUDE.
 - `lib/useBigView.ts` : état de la page d'abord, puis `requestFullscreen` et verrou paysage ; un refus ne gêne pas.
 - Verrou refusé et écran droit : le plein écran réel est quitté (il imposerait `transform: none`, cas du mode mobile de Chrome). Écran resté en portrait : vue tournée par CSS (`portrait:`).
 - Zoom (`lib/usePinchZoom.ts`, jusqu'à ×6, `mediaGesture`) :
-  - doigts : pincer, déplacer, double toucher ; actif en vue en grand et sur la vidéo du téléphone ;
+  - doigts : pincer, déplacer, double toucher (×5 sur le point touché, `DOUBLE_TAP_SCALE`) ; actif en vue en grand et sur la vidéo du téléphone ;
   - molette : **seulement en vue en grand** (sinon la page défile) ;
   - remis à zéro à l'entrée, à la sortie et au changement de média.
+- **Zoom optique** (**coupé en production** : `CAMERA_ZOOMS=none` côté API, donc pas d'étage ; pour le rallumer, voir `api/src/routes/CLAUDE.md`) (`lib/useOpticalZoom.ts`, `GET`/`PUT /cameras/<nom>/zoom`) : pour une caméra à objectif motorisé (`pommier`, plus tard `portail`), **en vue en grand, sur le direct, caméra allumée** seulement (ni clip ni image passée).
+  - La position est lue à l'ouverture de la vue en grand ; si l'API ne répond pas (404 : pas d'objectif motorisé, 502 : caméra muette), il n'y a pas d'étage optique et rien ne change.
+  - `CameraCard` ne donne **pas** l'étage optique à `usePinchZoom` : molette, pincement et déplacement sont numériques. L'étage (`OpticalStage`) ne sert que si on le passe : alors le double toucher à l'échelle 1 zoome l'objectif à fond (`zoomBy(5)`) ou le ramène en grand angle (`zoomBy(1/5)`), puis `commit()` ; sur une image déjà zoomée numériquement, il revient à la taille normale. Le niveau « Zoom ×N » reste affiché si le hook lit une position.
+  - La position visée change tout de suite à l'écran et part à l'API 300 ms après le dernier cran de molette, ou dès que les doigts se lèvent ; une requête à la fois, la dernière valeur gagne ; un échec est ignoré. L'objectif met quelques secondes à suivre.
+  - Le niveau (« Zoom ×3,2 », de ×1 à ×5, calculé de la position sur sa plage : `zoomLabel`) s'affiche en bas à gauche pendant le geste et s'efface en fondu après 1,5 s, même quand les composants sont cachés.
+  - Le zoom optique n'est pas remis à zéro à la sortie : c'est l'objectif de la caméra, l'enregistrement le suit aussi.
 
 ## Défilement des images
 
