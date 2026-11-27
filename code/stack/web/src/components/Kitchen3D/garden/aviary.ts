@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
-import { box, snowTop, standard } from '@/components/Kitchen3D/primitives'
+import { box, noShadow, standard } from '@/components/Kitchen3D/primitives'
 import { wireTexture } from '@/components/Kitchen3D/textures'
 import { CAGE_HEIGHT, CAGE_LOW, GRASS, LOW, PANEL } from './constants'
 import { SITE } from './layout'
@@ -35,7 +35,7 @@ export const cageFrame = (group: THREE.Group, m: GardenMaterials): void => {
   group.add(box(step, 0.06, 0.06, post, cageX1 + step / 2, CAGE_HEIGHT, turnZ), box(0.06, 0.06, step * 2, post, backX, CAGE_HEIGHT, cageZ1 + step))
 }
 
-/** Le grillage de la cage : des pans gris à peine opaques, là où il n’y a pas de bois, et sur le dessus. */
+/** Le grillage de la cage : des pans gris à peine opaques, là où il n’y a pas de bois, et sur le dessus. Il laisse passer le soleil : pas d'ombre portée. */
 export const cageWire = (group: THREE.Group, m: GardenMaterials): void => {
   const { post } = m
   const { cageX1, cageX2, cageZ1, cageDepth, middleX, backX, turnZ } = SITE
@@ -45,7 +45,7 @@ export const cageWire = (group: THREE.Group, m: GardenMaterials): void => {
     const map = wireMap.clone()
     map.repeat.set(long / 0.2, tall / 0.2)
     map.needsUpdate = true
-    return new THREE.Mesh(new THREE.PlaneGeometry(long, tall), new THREE.MeshStandardMaterial({ map, transparent: true, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4, depthWrite: false }))
+    return noShadow(new THREE.Mesh(new THREE.PlaneGeometry(long, tall), new THREE.MeshStandardMaterial({ map, transparent: true, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4, depthWrite: false })))
   }
   // Du grillage seulement là où il n'y a pas de bois : le côté ouest, le retour d'un panneau à gauche de la porte, puis les deux panneaux
   // en retrait (ni derrière la porte, ni derrière les pans de bois).
@@ -77,8 +77,7 @@ export const cageRoof = (group: THREE.Group): void => {
   // Il déborde de 10 cm de chaque côté : côté haie, et côté milieu de la cage, par-dessus l'arête.
   roof.position.set(middleX, (CAGE_HEIGHT + CAGE_LOW) / 2 + 0.04, (cageZ2 + turnZ) / 2)
   roof.rotation.x = Math.atan2(CAGE_HEIGHT - CAGE_LOW, roofSpan)
-  // La neige tient sur la tôle, par-dessus ses ondes.
-  roof.add(snowTop(box(roofLong, 0.012, roofSpan + 0.2, sheet, 0, 0, 0), 0.035))
+  roof.add(box(roofLong, 0.012, roofSpan + 0.2, sheet, 0, 0, 0))
   for (let wave = 0; wave < 24; wave += 1) roof.add(box(0.05, 0.02, roofSpan + 0.2, sheet, -roofLong / 2 + 0.05 + wave * ((roofLong - 0.1) / 23), 0.01, 0))
   group.add(roof)
 }

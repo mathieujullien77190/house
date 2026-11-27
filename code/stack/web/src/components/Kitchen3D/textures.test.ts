@@ -5,10 +5,10 @@ import {
   butcherTexture,
   clockDialTexture,
   lambrisTexture,
+  onPhotoLoad,
   photoTexture,
   showerTilesTexture,
   sisalTexture,
-  flakeTexture,
   terracottaTexture,
   tileTexture,
   wireTexture,
@@ -100,16 +100,6 @@ describe('les textures dessinées', () => {
     expect(dark(tiles.slice(-64))).toBeGreaterThan(dark(tiles.slice(0, 64)))
   })
 
-  it('le flocon : un rond blanc sur un fond transparent', () => {
-    const { context, size, rects } = drawn(flakeTexture)
-    expect(size).toBe(32)
-    expect(rects).toHaveLength(0)
-    expect(context.clearRect).toHaveBeenCalledExactlyOnceWith(0, 0, 32, 32)
-    expect(context.ellipse).toHaveBeenCalledExactlyOnceWith(16, 16, 14, 14, 0, 0, Math.PI * 2)
-    expect(context.fill).toHaveBeenCalledTimes(1)
-    expect(context.fillStyle).toBe('#ffffff')
-  })
-
   it('le grillage : cinq fils dans chaque sens sur un fond transparent, des mailles de 64 px', () => {
     const { context, size, rects } = drawn(wireTexture)
     expect(size).toBe(256)
@@ -144,8 +134,27 @@ describe('photoTexture', () => {
     const loaded = new THREE.Texture<HTMLImageElement>()
     const load = vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(() => loaded)
     const texture = photoTexture('city.jpg')
-    expect(load).toHaveBeenCalledExactlyOnceWith(`${import.meta.env.BASE_URL}kitchen3d/city.jpg`)
+    expect(load).toHaveBeenCalledExactlyOnceWith(`${import.meta.env.BASE_URL}kitchen3d/city.jpg`, expect.any(Function))
     expect(texture).toBe(loaded)
     expect(texture.colorSpace).toBe(THREE.SRGBColorSpace)
+  })
+
+  it('prévient quand une photo a fini de se charger (la scène, dessinée à la demande, a une image de plus à faire) ; on peut se désabonner', () => {
+    const load = vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(() => new THREE.Texture<HTMLImageElement>())
+    const first = vi.fn()
+    const second = vi.fn()
+    const stopFirst = onPhotoLoad(first)
+    const stopSecond = onPhotoLoad(second)
+    photoTexture('city.jpg')
+    expect(first).not.toHaveBeenCalled()
+    const done = load.mock.calls[0][1] as (texture: THREE.Texture) => void
+    done(new THREE.Texture())
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(1)
+    stopFirst()
+    done(new THREE.Texture())
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(2)
+    stopSecond()
   })
 })

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { REST, ROOM } from '@/components/Kitchen3D/constants'
-import { box, SNOW_DEEP, snowTop } from '@/components/Kitchen3D/primitives'
+import { box } from '@/components/Kitchen3D/primitives'
 import { LOT, PLAN } from './constants'
 import type { PlanPoint } from './constants'
 
@@ -55,11 +55,11 @@ export const along = (points: PlanPoint[], material: THREE.Material, height: num
     return piece
   })
 
-/** Pose sur `group` des surfaces à plat de ce matériau, données en mètres de la scène (le motif de terre cuite s'y répète tout seul). La neige y tient. */
+/** Pose sur `group` des surfaces à plat de ce matériau, données en mètres de la scène (le motif de terre cuite s'y répète tout seul). */
 export const tiledOn = (group: THREE.Group, material: THREE.Material) => (x1: number, x2: number, z1: number, z2: number, y: number): void => {
   const shape = new THREE.Shape([new THREE.Vector2(x1, -z1), new THREE.Vector2(x2, -z1), new THREE.Vector2(x2, -z2), new THREE.Vector2(x1, -z2)])
   const surface = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
   surface.rotation.x = -Math.PI / 2
   surface.position.y = y
-  group.add(snowTop(surface, SNOW_DEEP))
+  group.add(surface)
 }

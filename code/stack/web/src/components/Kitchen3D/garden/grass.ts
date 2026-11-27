@@ -1,11 +1,10 @@
 import * as THREE from 'three'
 import { PLAN_GARAGE_CORNERS } from '@/components/Lights/constants'
 import { ROOM } from '@/components/Kitchen3D/constants'
-import { seeded } from '@/components/Kitchen3D/primitives'
+import { noShadow, seeded } from '@/components/Kitchen3D/primitives'
 import { DECK, GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
 import { SITE } from './layout'
 import { PERGOLA_FRONT } from './pergola'
-import { inSeason } from './seasons'
 import { gardenX, gardenZ } from './plan'
 
 /** Les bouquets d'herbe : combien on en tire au hasard sur le terrain (ceux qui tombent hors de l'herbe sont écartés), et leur taille (m). */
@@ -72,13 +71,13 @@ const grassLevel = (planX: number, planY: number): number | null => {
 
 /**
  * Des bouquets d'herbe çà et là : quelques gerbes de brins fins semées au hasard sur les pelouses unies (un seul maillage), de tailles, d'orientations
- * et de verts variés.
+ * et de verts variés. `share` : la part des tirages qu'on fait (moins de 1 sur téléphone : moins de bouquets). Ils ne portent pas d'ombre.
  */
-export const grassTufts = (group: THREE.Group): void => {
+export const grassTufts = (group: THREE.Group, share = 1): void => {
   const rand = seeded(97)
   const dummy = new THREE.Object3D()
   const places: THREE.Matrix4[] = []
-  for (let attempt = 0; attempt < TUFTS.tries; attempt += 1) {
+  for (let attempt = 0; attempt < Math.round(TUFTS.tries * share); attempt += 1) {
     const planX = LOT.centerX - LOT.radius + rand() * (LOT.east - LOT.centerX + LOT.radius)
     const planY = LOT.north + rand() * (LOT.centerY + LOT.radius - LOT.north)
     const level = grassLevel(planX, planY)
@@ -96,9 +95,7 @@ export const grassTufts = (group: THREE.Group): void => {
     tufts.setMatrixAt(index, matrix)
     tufts.setColorAt(index, tint.setHSL(0.25 + rand() * 0.06, 0.4 + rand() * 0.2, 0.3 + rand() * 0.14))
   })
-  // Dans le vent, les brins se couchent et se relèvent.
-  tufts.userData.sway = 0.25
-  group.add(tufts)
+  group.add(noShadow(tufts))
 }
 
 /** Des places tirées au hasard sur l'herbe (celles qui tombent ailleurs sont écartées) : leurs coordonnées dans la scène. */
@@ -115,8 +112,7 @@ const onGrass = (tries: number, rand: () => number): THREE.Vector3[] => {
 
 /**
  * Les fleurs de la pelouse, éparses : des pâquerettes (une collerette blanche à plat, un cœur jaune) et, plus rares, de petites fleurs de
- * couleur (jaunes, violettes, roses, bleues) un peu plus hautes. Trois maillages en tout. Les pâquerettes sont là au printemps et en
- * été, les fleurs de couleur au printemps seulement.
+ * couleur (jaunes, violettes, roses, bleues) un peu plus hautes. Trois maillages en tout. Elles ne portent pas d'ombre.
  */
 export const lawnFlowers = (group: THREE.Group): void => {
   const rand = seeded(103)
@@ -148,5 +144,5 @@ export const lawnFlowers = (group: THREE.Group): void => {
     blooms.setMatrixAt(index, dummy.matrix)
     blooms.setColorAt(index, tint.setHex(tints[Math.floor(rand() * tints.length)]))
   })
-  group.add(inSeason(petals, 'daisies'), inSeason(hearts, 'daisies'), inSeason(blooms, 'blossom'))
+  group.add(noShadow(petals), noShadow(hearts), noShadow(blooms))
 }

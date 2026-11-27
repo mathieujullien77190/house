@@ -92,6 +92,8 @@ describe('createLighting', () => {
     expect(far.position.toArray()).toEqual([4, LAMP_LIGHT.height - 0.12, 4])
     // Allumée au minimum, une lampe garde un plancher de lumière.
     expect(far.intensity).toBeCloseTo(LAMP_LIGHT.floor * LAMP_LIGHT.intensity)
+    // Allumées, leurs sources comptent toutes dans le rendu.
+    expect(lights().map((light) => light.visible)).toEqual([true, true, true, true])
     const [ownA, ownB, ownC, ownFar] = owns()
     expect([ownA.visible, ownB.visible, ownC.visible, ownFar.visible]).toEqual([false, true, false, true])
     expect(ownB.position.toArray()).toEqual([0.2, LAMP_LIGHT.height, 0])
@@ -105,6 +107,13 @@ describe('createLighting', () => {
     const { lighting, lights, owns, first, colorOf } = stage()
     lighting.apply([lamp('a', 0, 0, { on: false, color: '#00ff00' }), lamp('far', 4, 4, { reachable: false })])
     expect(lights().map((light) => light.intensity)).toEqual([0, 0])
+    // Sa source est cachée : three.js ne la compte plus dans ses programmes (une lampe éteinte ne coûte rien à chaque pixel).
+    expect(lights().map((light) => light.visible)).toEqual([false, false])
+    // Rallumée, elle revient ; l'autre, toujours injoignable, reste cachée.
+    lighting.apply([lamp('a', 0, 0, { color: '#00ff00' }), lamp('far', 4, 4, { reachable: false })])
+    expect(lights().map((light) => light.visible)).toEqual([true, false])
+    lighting.apply([lamp('a', 0, 0, { on: false, color: '#00ff00' }), lamp('far', 4, 4, { reachable: false })])
+    expect(lights().map((light) => light.visible)).toEqual([false, false])
     expect(colorOf(first).getHex()).toBe(BULB_OFF)
     expect(colorOf(owns()[1].children[0] as THREE.Mesh).getHex()).toBe(BULB_OFF)
   })

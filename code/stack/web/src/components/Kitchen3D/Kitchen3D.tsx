@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Button, Tabs } from '@house/ui'
 import { disposeObject, supportsWebGL } from '@/lib/three'
 import { useAcUnits } from '@/lib/useAcUnits'
+import { useMobile } from '@/lib/useMobile'
 import { useLampPlan } from '@/lib/useLampPlan'
 import { usePlan } from '@/lib/usePlan'
 import { useShutters } from '@/lib/useShutters'
@@ -11,7 +12,6 @@ import { useWeather } from '@/lib/useWeather'
 import { HOUSE_LATITUDE, HOUSE_LONGITUDE } from '@/components/Weather/constants'
 import {
   ARIA_LABEL,
-  ALWAYS_DAY,
   DAYLIGHT,
   BUTTONS_CLASS,
   SHUTTER_ANIMATE_MS,
@@ -22,12 +22,11 @@ import {
   HOST_CLASS,
   INTRO_CLASS,
   LAMPS_ON_TEXT,
+  LIGHT_LABEL,
+  LIGHT_OPTIONS,
   NO_WEBGL_TEXT,
+  QUALITY,
   RESET_LABEL,
-  SEASON_LABEL,
-  SEASON_OPTIONS,
-  SKY_LABEL,
-  SKY_OPTIONS,
   START,
   TARGET,
   TITLE,
@@ -35,17 +34,14 @@ import {
   TOP,
   TOP_LABEL,
   VIEW_HEIGHT,
-  WIND_LABEL,
 } from './constants'
-import { loadClimate, saveClimate } from './climate'
-import type { Climate } from './climate'
-import { applySeason, seasonOf } from './garden/seasons'
+import { loadLight, saveLight } from './light'
 import { acMeshes, applyAcLed, applyClock, cameraMeshes } from './live'
 import { buildScene } from './helpers'
 import { createLighting, lampPlace } from './lighting'
-import { applyShutters, closedOf, SHUTTER_KEYS, shutterWindows, skyOf, stepShutters } from './shutters'
-import type { Kitchen3DProps, SceneHandle, SceneLamp } from './types'
-import { createWeather, WEATHER_LOOK } from './weather'
+import { applyShutters, closedOf, SHUTTER_KEYS, shutterSlats, shutterWindows, skyOf, stepShutters } from './shutters'
+import { onPhotoLoad } from './textures'
+import type { Kitchen3DProps, LightMode, SceneHandle, SceneLamp } from './types'
 
 /**
  * La maison et le jardin en 3D (la vue de Home), éclairés par les vraies lampes Hue : chaque lampe
@@ -55,13 +51,18 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   const hostRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<SceneHandle | null>(null)
   const [supported] = useState(supportsWebGL)
-  // La saison du jardin et le temps qu'il fait : choisis au-dessus de la vue, gardés sur l'appareil.
-  const [climate, setClimate] = useState(loadClimate)
-  const choose = (change: Partial<Climate>) => {
-    const next = { ...climate, ...change }
-    setClimate(next)
-    saveClimate(next)
+  // La qualité du rendu est choisie une fois, à l'ouverture, selon l'appareil : un téléphone qu'on tourne (ou une fenêtre qu'on
+  // rétrécit) garde celle du départ, la scène n'est pas reconstruite.
+  const mobile = useMobile()
+  const [quality] = useState(() => (mobile ? QUALITY.phone : QUALITY.desktop))
+  // La lumière : plein jour forcé, ou le jour qu'il fait vraiment ; choisie au-dessus de la vue, gardée sur l'appareil.
+  const [light, setLight] = useState(loadLight)
+  const chooseLight = (next: LightMode) => {
+    setLight(next)
+    saveLight(next)
   }
+  // L'heure du moment, remise à jour avec la pendule : sans météo, c'est elle qui dit s'il fait jour.
+  const [hour, setHour] = useState(() => new Date().getHours())
   const plan = usePlan(apiKey)
   const { lamps, toggle } = useLampPlan(apiKey, plan.items, true)
   // La scène est construite une fois : elle appelle le `toggle` du moment par cette référence.
@@ -90,7 +91,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   })
   // La clarté du ciel du moment (météo de la maison, relue toutes les 15 min).
   const weather = useWeather(HOUSE_LATITUDE, HOUSE_LONGITUDE)
-  const sky = skyOf(weather, new Date().getHours())
+  const sky = skyOf(weather, hour)
   // Les lampes du pont qui sont dans l'espace de vie, à leur place dans la scène.
   const sceneLamps: SceneLamp[] = lamps.flatMap((lamp) => {
     // Une lampe dont le luminaire est nommé dans la scène y est toujours, même sans place sur le plan (sa place est celle du luminaire).
@@ -122,14 +123,16 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     const host = hostRef.current
     if (!host || !supported) return
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, alpha: true })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio))
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    // L'ombre du soleil n'est refaite que sur demande (`invalidate(true)`) : la scène n'est pas dessinée deux fois par image.
+    renderer.shadowMap.autoUpdate = false
     host.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    const parts = buildScene()
+    const parts = buildScene(quality)
     scene.add(parts.root)
     // Une lumière d'ambiance faible, et le soleil : dosés plus bas selon le jour qui entre ; le reste vient des lampes de la maison.
     const ambient = new THREE.HemisphereLight(0xffffff, 0xb59a7a, DAYLIGHT.night)
@@ -137,7 +140,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     const sun = new THREE.DirectionalLight(0xfff4e0, 0)
     sun.position.set(3, 9, 7)
     sun.castShadow = true
-    sun.shadow.mapSize.set(4096, 4096)
+    sun.shadow.mapSize.set(quality.shadowMap, quality.shadowMap)
     sun.shadow.camera.left = -8
     sun.shadow.camera.right = 8
     sun.shadow.camera.top = 8
@@ -147,11 +150,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     sun.shadow.bias = -0.0005
     scene.add(sun)
     const lighting = createLighting(parts.root)
-    // La pluie, la neige et ce qui se balance dans le vent : préparés une fois, cachés par beau temps.
-    const weather = createWeather(scene, parts.root)
-    // La pendule de la cuisine donne l'heure, remise à jour quatre fois par minute.
     applyClock(parts.root, new Date())
-    const clockTimer = setInterval(() => applyClock(parts.root, new Date()), 15_000)
 
     const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 260)
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -164,6 +163,61 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     controls.maxPolarAngle = Math.PI / 2 - 0.02
     // Le clic molette tourne la vue comme le clic gauche (par défaut il zoomait) ; sans preventDefault, le navigateur lance son défilement automatique.
     controls.mouseButtons.MIDDLE = THREE.MOUSE.ROTATE
+
+    // Rendu à la demande : une image n'est dessinée que si quelque chose a changé (`invalidate`), ou tant que quelque chose bouge
+    // (un volet, la caméra qui finit sa course). Au repos, rien ne tourne : ni boucle, ni rendu.
+    let visible = true
+    let frame = 0
+    let last = 0
+    let dirty = false
+    // L'ombre du soleil est à refaire (à la première image, puis quand ce qui la porte change).
+    let stale = true
+    const shutters = shutterSlats(parts.root)
+    // Une lame de volet apparaît ou disparaît : il faut une image, et son ombre change aussi.
+    const onSlat = () => {
+      dirty = true
+      stale = true
+    }
+    const tick = () => {
+      frame = 0
+      const now = performance.now()
+      // Les volets en mouvement avancent du temps écoulé (au plus un quart de seconde, après une pause de l'onglet), même hors de l'écran.
+      const elapsed = Math.min(0.25, (now - last) / 1000)
+      last = now
+      const moving = stepShutters(shutters, elapsed, onSlat)
+      // Hors de l'écran, rien n'est dessiné.
+      if (visible) {
+        // La caméra finit sa course (amortissement) : tant qu'elle bouge, son `change` redemande une image.
+        controls.update()
+        if (dirty) {
+          dirty = false
+          if (stale) renderer.shadowMap.needsUpdate = true
+          stale = false
+          renderer.render(scene, camera)
+        }
+      }
+      if (moving && frame === 0) frame = requestAnimationFrame(tick)
+    }
+    const invalidate = (shadows = false) => {
+      dirty = true
+      if (shadows) stale = true
+      if (frame !== 0) return
+      // Après un repos, le temps repart de maintenant : le premier pas ne compte pas la pause.
+      last = performance.now()
+      frame = requestAnimationFrame(tick)
+    }
+    // La caméra a bougé (à la souris, au doigt, ou en finissant sa course) : une image.
+    const onMove = () => invalidate()
+    controls.addEventListener('change', onMove)
+    // Une photo accrochée au mur finit de se charger : une image pour la montrer.
+    const unwatch = onPhotoLoad(invalidate)
+    // La pendule de la cuisine donne l'heure, remise à jour quatre fois par minute (ses aiguilles portent une ombre).
+    const clockTimer = setInterval(() => {
+      const now = new Date()
+      applyClock(parts.root, now)
+      setHour(now.getHours())
+      invalidate(true)
+    }, 15_000)
     const noAutoscroll = (e: MouseEvent) => {
       if (e.button === 1) e.preventDefault()
     }
@@ -171,10 +225,11 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
 
     // Les ampoules se cliquent : la souris devient une main au-dessus d'une ampoule, un clic sans glisser l'allume ou l'éteint.
     const raycaster = new THREE.Raycaster()
+    const aim = new THREE.Vector2()
     const canvas = renderer.domElement
     const lampUnder = (e: PointerEvent): string | null => {
       const rect = canvas.getBoundingClientRect()
-      raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, 1 - ((e.clientY - rect.top) / rect.height) * 2), camera)
+      raycaster.setFromCamera(aim.set(((e.clientX - rect.left) / rect.width) * 2 - 1, 1 - ((e.clientY - rect.top) / rect.height) * 2), camera)
       return lighting.pick(raycaster.ray)
     }
     // La clim se clique aussi : son bloc, visé pour de bon par le rayon.
@@ -233,6 +288,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       camera.position.set(from.x, from.y, from.z)
       controls.target.set(TARGET.x, TARGET.y, TARGET.z)
       controls.update()
+      invalidate()
     }
     lookFrom(START)
 
@@ -242,39 +298,28 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       renderer.setSize(width, VIEW_HEIGHT)
       camera.aspect = width / VIEW_HEIGHT
       camera.updateProjectionMatrix()
+      invalidate()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(host)
     resize()
 
-    // Pas de rendu quand la vue est hors de l'écran.
-    let visible = true
+    // Pas de rendu quand la vue est hors de l'écran ; à son retour, une image.
     const visibility = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting
+      if (visible) invalidate()
     })
     visibility.observe(host)
 
-    let frame = 0
-    let last = performance.now()
-    const loop = () => {
-      frame = requestAnimationFrame(loop)
-      const now = performance.now()
-      // Les volets en mouvement avancent du temps écoulé (au plus un quart de seconde, après une pause de l'onglet).
-      const elapsed = Math.min(0.25, (now - last) / 1000)
-      stepShutters(parts.root, elapsed)
-      last = now
-      if (!visible) return
-      weather.step(elapsed)
-      controls.update()
-      renderer.render(scene, camera)
-    }
-    loop()
+    invalidate()
 
-    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, weather, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
+    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, invalidate, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
 
     return () => {
       cancelAnimationFrame(frame)
+      unwatch()
       clearInterval(clockTimer)
+      controls.removeEventListener('change', onMove)
       observer.disconnect()
       host.removeEventListener('mousedown', noAutoscroll)
       canvas.removeEventListener('pointerdown', onPointerDown)
@@ -290,11 +335,14 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       renderer.domElement.remove()
       sceneRef.current = null
     }
-  }, [supported])
+  }, [supported, quality])
 
   // Les lampes du pont éclairent la scène : à chaque changement d'état (allumée, intensité, couleur) ou de place.
   useEffect(() => {
-    sceneRef.current?.lighting.apply(JSON.parse(lampsKey) as SceneLamp[])
+    const current = sceneRef.current
+    if (!current) return
+    current.lighting.apply(JSON.parse(lampsKey) as SceneLamp[])
+    current.invalidate()
   }, [lampsKey, supported])
 
   // Les volets de la scène se règlent, et le jour qui entre avec eux : la part de vitre découverte, fois la clarté du ciel, éclaire toute
@@ -303,26 +351,21 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     const current = sceneRef.current
     if (!current) return
     const open = applyShutters(current.root, JSON.parse(closedKey) as Record<string, number>, performance.now() < animateUntil.current)
-    const daylight = ALWAYS_DAY ? 1 : open * sky
-    // Le temps choisi dose le tout : un ciel de pluie ou de neige laisse moins de jour et presque plus de soleil.
-    const look = WEATHER_LOOK[climate.sky]
-    current.ambient.intensity = DAYLIGHT.night + DAYLIGHT.day * daylight * look.ambient
-    current.sun.intensity = DAYLIGHT.sun * daylight * look.sun
-  }, [closedKey, sky, climate.sky, supported])
-
-  // Le jardin se met à la saison choisie (« auto » : celle du jour), sans être reconstruit.
-  useEffect(() => {
-    if (sceneRef.current) applySeason(sceneRef.current.root, climate.season === 'auto' ? seasonOf(new Date()) : climate.season)
-  }, [climate.season, supported])
-
-  // Le temps qu'il fait : la pluie ou la neige, le ciel, le vent.
-  useEffect(() => {
-    sceneRef.current?.weather.apply(climate.sky, climate.wind)
-  }, [climate.sky, climate.wind, supported])
+    // « Jour » : plein jour, quels que soient l'heure et les volets ; « Heure actuelle » : le jour qui entre vraiment.
+    const daylight = light === 'day' ? 1 : open * sky
+    current.ambient.intensity = DAYLIGHT.night + DAYLIGHT.day * daylight
+    current.sun.intensity = DAYLIGHT.sun * daylight
+    // Un soleil éteint ne compte plus dans les programmes ni dans la carte d'ombre.
+    current.sun.visible = current.sun.intensity > 0
+    current.invalidate(true)
+  }, [closedKey, sky, light, supported])
 
   // Le voyant de la clim suit la vraie.
   useEffect(() => {
-    if (sceneRef.current) applyAcLed(sceneRef.current.root, JSON.parse(acKey) as Record<string, boolean | null>)
+    const current = sceneRef.current
+    if (!current) return
+    applyAcLed(current.root, JSON.parse(acKey) as Record<string, boolean | null>)
+    current.invalidate()
   }, [acKey, supported])
 
   const lit = sceneLamps.filter((lamp) => lamp.on && lamp.reachable).length
@@ -339,11 +382,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
             <span className={HINT_CLASS}>{LAMPS_ON_TEXT(lit, sceneLamps.length)}</span>
           </div>
           <div className={BUTTONS_CLASS}>
-            <Tabs compact label={SEASON_LABEL} options={SEASON_OPTIONS} value={climate.season} onChange={(season) => choose({ season })} />
-            <Tabs compact label={SKY_LABEL} options={SKY_OPTIONS} value={climate.sky} onChange={(sky) => choose({ sky })} />
-            <Button variant={climate.wind ? 'active' : 'default'} aria-pressed={climate.wind} onClick={() => choose({ wind: !climate.wind })}>
-              {WIND_LABEL}
-            </Button>
+            <Tabs compact label={LIGHT_LABEL} options={LIGHT_OPTIONS} value={light} onChange={chooseLight} />
           </div>
           <div ref={hostRef} className={HOST_CLASS} style={{ height: VIEW_HEIGHT }} role="img" aria-label={ARIA_LABEL} />
           <p className={HINT_CLASS}>{HINT}</p>

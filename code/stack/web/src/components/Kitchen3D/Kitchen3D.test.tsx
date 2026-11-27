@@ -5,17 +5,18 @@ import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT } from '@/components/MapPlan/constants'
 import { stubCanvasContext } from '@/test/canvas'
 import type { AcUnit, ShutterCommand, ShuttersState } from '@/types'
-import { CLIMATE_KEY } from './climate'
-import { DAYLIGHT, LAMP_LIGHT, NO_WEBGL_TEXT, PLAN_HOUSE, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
+import { DAYLIGHT, LAMP_LIGHT, NO_WEBGL_TEXT, PLAN_HOUSE, QUALITY, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
+import type { Quality } from './constants'
 import Kitchen3D from './Kitchen3D'
+import { LIGHT_KEY } from './light'
 import { AC_LED } from './live'
 import { SHUTTER_KEYS, SHUTTER_TRAVEL_S } from './shutters'
 import type { SceneParts } from './types'
-import { WEATHER_LOOK } from './weather'
 
 interface FakeRenderer {
+  options: { antialias?: boolean; alpha?: boolean }
   domElement: HTMLCanvasElement
-  shadowMap: { enabled: boolean; type: number }
+  shadowMap: { enabled: boolean; type: number; autoUpdate: boolean; needsUpdate: boolean }
   setPixelRatio: ReturnType<typeof vi.fn>
   setSize: ReturnType<typeof vi.fn>
   render: ReturnType<typeof vi.fn>
@@ -29,13 +30,20 @@ interface FakeControls {
   target: THREE.Vector3
   mouseButtons: Record<string, number>
   enableDamping: boolean
+  /** Le nombre d'images pendant lesquelles la caméra finit encore sa course (amortissement) : `update` la fait alors bouger. */
+  settling: number
+  listeners: Set<() => void>
+  /** La caméra bouge : l'événement `change` des vrais contrôles. */
+  move: () => void
   update: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
 const h = vi.hoisted(() => ({
   supported: true,
-  alwaysDay: false,
+  mobile: false,
+  qualities: [] as Quality[],
+  frameId: 0,
   lamps: [] as PlanLamp[],
   toggle: (() => undefined) as (id: string) => void,
   units: null as AcUnit[] | null,
@@ -58,14 +66,19 @@ const h = vi.hoisted(() => ({
 vi.mock('three', async (original) => {
   const actual = await original<typeof import('three')>()
   class WebGLRenderer implements FakeRenderer {
+    options: FakeRenderer['options']
     domElement = document.createElement('canvas')
-    shadowMap = { enabled: false, type: 0 }
+    shadowMap = { enabled: false, type: 0, autoUpdate: true, needsUpdate: false }
     setPixelRatio = vi.fn()
     setSize = vi.fn()
-    render = vi.fn()
+    // Comme le vrai : une fois l'ombre refaite, elle n'est plus à refaire.
+    render = vi.fn(() => {
+      this.shadowMap.needsUpdate = false
+    })
     dispose = vi.fn()
     forceContextLoss = vi.fn()
-    constructor() {
+    constructor(options: FakeRenderer['options']) {
+      this.options = options
       h.renderers.push(this)
     }
   }
@@ -79,8 +92,23 @@ vi.mock('three/examples/jsm/controls/OrbitControls.js', async () => {
     target = new Vector3()
     mouseButtons: Record<string, number> = {}
     enableDamping = false
-    update = vi.fn()
+    settling = 0
+    listeners = new Set<() => void>()
+    move = () => {
+      for (const listener of this.listeners) listener()
+    }
+    update = vi.fn(() => {
+      if (this.settling === 0) return
+      this.settling -= 1
+      this.move()
+    })
     dispose = vi.fn()
+    addEventListener = (type: string, listener: () => void) => {
+      if (type === 'change') this.listeners.add(listener)
+    }
+    removeEventListener = (_type: string, listener: () => void) => {
+      this.listeners.delete(listener)
+    }
     constructor(object: THREE.PerspectiveCamera, domElement: HTMLElement) {
       this.object = object
       this.domElement = domElement
@@ -89,17 +117,8 @@ vi.mock('three/examples/jsm/controls/OrbitControls.js', async () => {
   }
   return { OrbitControls }
 })
-// Le plein jour forcé (`ALWAYS_DAY`) est un réglage du code : les tests le choisissent pour passer par ses deux valeurs.
-vi.mock('./constants', async (original) => {
-  const actual = await original<typeof import('./constants')>()
-  return {
-    ...actual,
-    get ALWAYS_DAY() {
-      return h.alwaysDay
-    },
-  }
-})
 vi.mock('@/lib/three', async (original) => ({ ...(await original<typeof import('@/lib/three')>()), supportsWebGL: () => h.supported }))
+vi.mock('@/lib/useMobile', () => ({ useMobile: () => h.mobile }))
 vi.mock('@/lib/usePlan', () => ({ usePlan: () => ({ items: { l1: { x: 1, y: 2 } } }) }))
 vi.mock('@/lib/useLampPlan', () => ({
   useLampPlan: (apiKey: string, items: Record<string, unknown>, enabled: boolean) => {
@@ -115,8 +134,9 @@ vi.mock('./helpers', async (original) => {
   const actual = await original<typeof import('./helpers')>()
   return {
     ...actual,
-    buildScene: () => {
-      const parts = actual.buildScene()
+    buildScene: (quality: Quality) => {
+      const parts = actual.buildScene(quality)
+      h.qualities.push(quality)
       h.parts.push(parts)
       return parts
     },
@@ -144,7 +164,8 @@ const shuttersOf = (commands: Record<string, ShutterCommand | null>): ShuttersSt
 
 beforeEach(() => {
   h.supported = true
-  h.alwaysDay = false
+  h.mobile = false
+  h.frameId = 0
   h.lamps = []
   h.toggle = vi.fn()
   h.units = null
@@ -153,7 +174,9 @@ beforeEach(() => {
   h.send = vi.fn()
   h.weather = { isDay: true, code: 0 }
   localStorage.clear()
-  for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
+  // Presque tous les tests regardent le jour qui entre vraiment : le choix « Heure actuelle » (au départ, la vue est sur « Jour »).
+  localStorage.setItem(LIGHT_KEY, 'now')
+  for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.qualities, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
   stubCanvasContext(null)
   vi.stubGlobal(
     'ResizeObserver',
@@ -175,9 +198,23 @@ beforeEach(() => {
       disconnect = () => h.disconnected.push('visibility')
     },
   )
-  vi.stubGlobal('requestAnimationFrame', (callback: () => void) => h.frames.push(callback))
+  // Les images demandées attendent dans `h.frames` : `frame()` fait passer la suivante, comme le navigateur.
+  vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+    h.frames.push(callback)
+    h.frameId += 1
+    return h.frameId
+  })
   vi.stubGlobal('cancelAnimationFrame', (id: number) => h.cancelled.push(id))
 })
+
+/** Fait passer la prochaine image demandée (il en faut une en attente). */
+const frame = () => {
+  const next = h.frames.shift()
+  if (!next) throw new Error('aucune image demandée')
+  act(() => next())
+}
+/** Le nombre d'images dessinées depuis l'ouverture. */
+const drawn = () => h.renderers[0].render.mock.calls.length
 
 const host = () => screen.getByRole('img')
 const camera = () => h.controls[0].object
@@ -259,32 +296,48 @@ describe('Kitchen3D', () => {
     expect(h.controls[0].enableDamping).toBe(true)
     // Le clic molette tourne la vue, comme le clic gauche.
     expect(h.controls[0].mouseButtons.MIDDLE).toBe(0)
-    // Une première image est dessinée, et la suivante est demandée.
+    // L'ombre du soleil n'est refaite que sur demande.
+    expect(renderer.shadowMap.autoUpdate).toBe(false)
+    // Une première image est demandée, puis dessinée, avec l'ombre du soleil.
+    expect(renderer.render).not.toHaveBeenCalled()
+    expect(h.frames).toHaveLength(1)
+    const stale: boolean[] = []
+    renderer.render.mockImplementationOnce(() => {
+      stale.push(renderer.shadowMap.needsUpdate)
+      renderer.shadowMap.needsUpdate = false
+    })
+    frame()
     expect(renderer.render).toHaveBeenCalledTimes(1)
-    const [scene, drawn] = renderer.render.mock.calls[0] as [THREE.Scene, THREE.Camera]
-    expect(drawn).toBe(camera())
+    expect(stale).toEqual([true])
+    const [scene, shot] = renderer.render.mock.calls[0] as unknown as [THREE.Scene, THREE.Camera]
+    expect(shot).toBe(camera())
     expect(scene.children[0]).toBe(h.parts[0].root)
     expect(scene.children.filter((child) => (child as THREE.Light).isLight)).toHaveLength(2)
-    expect(h.frames).toHaveLength(1)
-    act(() => h.frames[0]())
-    expect(renderer.render).toHaveBeenCalledTimes(2)
+    // Au repos : plus aucune image n'est demandée, rien ne tourne.
+    expect(h.frames).toHaveLength(0)
     // Un nouveau rendu du composant ne recrée rien.
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(h.renderers).toHaveLength(1)
     expect(h.planKeys.at(-1)).toBe('k l1 true')
   })
 
-  it('pas de rendu quand la vue est hors de l’écran', () => {
+  it('pas de rendu quand la vue est hors de l’écran ; à son retour, une image', () => {
     render(<Kitchen3D apiKey="k" />)
-    const [renderer] = h.renderers
+    frame()
+    expect(drawn()).toBe(1)
     act(() => h.visibility[0]([{ isIntersecting: false }]))
-    act(() => h.frames[0]())
-    expect(renderer.render).toHaveBeenCalledTimes(1)
-    // La boucle continue pourtant : au retour à l'écran, le rendu reprend.
-    expect(h.frames).toHaveLength(2)
+    expect(h.frames).toHaveLength(0)
+    // Ce qui change pendant ce temps demande une image, qui ne dessine rien.
+    act(() => h.controls[0].move())
+    frame()
+    expect(drawn()).toBe(1)
+    expect(h.controls[0].update).toHaveBeenCalledTimes(2)
+    expect(h.frames).toHaveLength(0)
+    // De retour à l'écran : une image, qui montre ce qui a changé.
     act(() => h.visibility[0]([{ isIntersecting: true }]))
-    act(() => h.frames[1]())
-    expect(renderer.render).toHaveBeenCalledTimes(2)
+    frame()
+    expect(drawn()).toBe(2)
+    expect(h.frames).toHaveLength(0)
   })
 
   it('suit la largeur de son bloc ; une largeur nulle est ignorée', () => {
@@ -295,16 +348,30 @@ describe('Kitchen3D', () => {
     act(() => h.resize[0]())
     expect(renderer.setSize).toHaveBeenCalledExactlyOnceWith(1040, VIEW_HEIGHT)
     expect(camera().aspect).toBe(1040 / VIEW_HEIGHT)
+    // La vue redimensionnée est redessinée.
+    frame()
+    expect(drawn()).toBe(1)
+    act(() => h.resize[0]())
+    frame()
+    expect(drawn()).toBe(2)
+    expect(h.frames).toHaveLength(0)
   })
 
   it('les boutons : la vue du dessus et le retour à la vue de départ ; ni « Hotte » ni « Volets réels » (la hotte est toujours là)', () => {
     render(<Kitchen3D apiKey="k" />)
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue', 'Vent'])
+    // (Plus de bouton « Vent ».)
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue'])
     expect(h.parts[0].hood.visible).toBe(true)
+    frame()
     fireEvent.click(screen.getByRole('button', { name: 'Vue du dessus' }))
     expect(camera().position.toArray()).toEqual([TOP.x, TOP.y, TOP.z])
+    // Chaque changement de vue est dessiné.
+    frame()
+    expect(drawn()).toBe(2)
     fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser la vue' }))
     expect(camera().position.toArray()).toEqual([START.x, START.y, START.z])
+    frame()
+    expect(drawn()).toBe(3)
     expect(h.renderers).toHaveLength(1)
   })
 
@@ -325,17 +392,32 @@ describe('Kitchen3D', () => {
     expect(screen.getByText('1 lampe allumée sur 2 dans la pièce')).toBeInTheDocument()
     const lights = lightsOf(h.parts[0])
     expect(lights.map((light) => light.intensity)).toEqual([expect.closeTo((127 / 254) * LAMP_LIGHT.intensity), 0])
+    // Une lampe éteinte ne compte pas dans le rendu : sa source est cachée.
+    expect(lights.map((light) => light.visible)).toEqual([true, false])
     expect(lights[0].color.getHexString()).toBe('ff8800')
+    frame()
+    expect(drawn()).toBe(1)
+    expect(h.frames).toHaveLength(0)
     // La lampe du salon s'allume, sans couleur ni luminosité : blanc chaud, pleine puissance.
     h.lamps = [h.lamps[0], lamp('plan-salon', 300, 220), h.lamps[2], h.lamps[3]]
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(screen.getByText('2 lampes allumées sur 2 dans la pièce')).toBeInTheDocument()
     expect(lightsOf(h.parts[0]).map((light) => light.intensity)).toEqual([expect.closeTo((127 / 254) * LAMP_LIGHT.intensity), LAMP_LIGHT.intensity])
+    expect(lightsOf(h.parts[0]).map((light) => light.visible)).toEqual([true, true])
+    // Le changement est dessiné, une fois ; l'ombre du soleil n'est pas refaite (les lampes n'en portent pas).
+    frame()
+    expect(drawn()).toBe(2)
+    expect(h.renderers[0].shadowMap.needsUpdate).toBe(false)
+    expect(h.frames).toHaveLength(0)
+    // Une relecture du pont sans changement ne redessine rien.
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(h.frames).toHaveLength(0)
     // Une lampe injoignable n'éclaire pas ; une lampe retirée du pont quitte la scène.
     h.lamps = [lamp('plan-cuisine', 300, 70, { reachable: false })]
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(screen.getByText('0 lampe allumée sur 1 dans la pièce')).toBeInTheDocument()
     expect(lightsOf(h.parts[0]).map((light) => light.intensity)).toEqual([0])
+    expect(lightsOf(h.parts[0]).map((light) => light.visible)).toEqual([false])
     expect(h.renderers).toHaveLength(1)
   })
 
@@ -355,7 +437,7 @@ describe('Kitchen3D', () => {
     const view = render(<Kitchen3D apiKey="k" />)
     const [renderer] = h.renderers
     const drawing = renderer.domElement
-    const floor = h.parts[0].root.children[0].children[0] as THREE.Mesh
+    const floor = (h.parts[0].root.getObjectByName('static') as THREE.Group).children[0] as THREE.Mesh
     const dispose = vi.spyOn(floor.geometry, 'dispose')
     const element = host()
     aim(tagged('fixtureName', 'salon'), [1, -0.5, 1])
@@ -363,6 +445,7 @@ describe('Kitchen3D', () => {
     expect(h.cancelled).toEqual([1])
     expect(h.disconnected.sort()).toEqual(['resize', 'visibility'])
     expect(h.controls[0].dispose).toHaveBeenCalledTimes(1)
+    expect(h.controls[0].listeners.size).toBe(0)
     expect(dispose).toHaveBeenCalledTimes(1)
     expect(renderer.dispose).toHaveBeenCalledTimes(1)
     expect(renderer.forceContextLoss).toHaveBeenCalledTimes(1)
@@ -475,6 +558,11 @@ describe('Kitchen3D : les clims', () => {
     h.units = [unit('salon'), unit('chambre-invite', { power: false })]
     view.rerender(<Kitchen3D apiKey="k" />)
     expect([colorOf('salon'), colorOf('chambre-invite')]).toEqual([AC_LED.on, AC_LED.off])
+    // Le voyant qui change est dessiné.
+    expect(h.frames).toHaveLength(1)
+    frame()
+    expect(drawn()).toBe(1)
+    expect(h.frames).toHaveLength(0)
     h.units = [unit('salon', { reachable: false }), unit('chambre-invite')]
     view.rerender(<Kitchen3D apiKey="k" />)
     expect([colorOf('salon'), colorOf('chambre-invite')]).toEqual([AC_LED.unknown, AC_LED.on])
@@ -509,7 +597,7 @@ describe('Kitchen3D : les volets et le jour', () => {
   const slatsOf = (key: string) => tagged('shutter', key)
   const shownOf = (key: string) => slatsOf(key).children.filter((slat) => slat.visible).length
   const lightsOfScene = () => {
-    const [scene] = h.renderers[0].render.mock.calls[0] as [THREE.Scene]
+    const scene = root().parent as THREE.Scene
     const ambient = scene.children.find((child) => (child as THREE.HemisphereLight).isHemisphereLight) as THREE.HemisphereLight
     const sun = scene.children.find((child) => (child as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight
     return { ambient, sun }
@@ -533,12 +621,26 @@ describe('Kitchen3D : les volets et le jour', () => {
     // Tout fermé : il ne reste que l'ambiance de nuit.
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
     expect(sun.intensity).toBe(0)
+    // Un soleil éteint est caché : il ne compte ni dans le rendu ni dans la carte d'ombre.
+    expect(sun.visible).toBe(false)
+    frame()
+    expect(h.frames).toHaveLength(0)
     // Tout ouvert : plein jour.
     h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(shownOf('cuisine')).toBe(0)
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
     expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
+    expect(sun.visible).toBe(true)
+    // Les lames ont bougé et le soleil revient : une image, avec l'ombre refaite.
+    expect(h.renderers[0].shadowMap.needsUpdate).toBe(false)
+    const stale: boolean[] = []
+    h.renderers[0].render.mockImplementationOnce(() => {
+      stale.push(h.renderers[0].shadowMap.needsUpdate)
+    })
+    frame()
+    expect(stale).toEqual([true])
+    expect(h.frames).toHaveLength(0)
     // Le ciel se couvre, puis la nuit tombe.
     h.weather = { isDay: true, code: 3 }
     view.rerender(<Kitchen3D apiKey="k" />)
@@ -549,8 +651,8 @@ describe('Kitchen3D : les volets et le jour', () => {
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
   })
 
-  it('plein jour forcé : la scène est éclairée comme en journée, volets fermés et de nuit compris ; les volets suivent quand même la maison', () => {
-    h.alwaysDay = true
+  it('« Jour » : la scène est éclairée comme en journée, volets fermés et de nuit compris ; les volets suivent quand même la maison', () => {
+    localStorage.setItem(LIGHT_KEY, 'day')
     h.weather = { isDay: false, code: 3 }
     h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'down', 'Volet PC': 'down', 'Volet porte': 'down' })
     render(<Kitchen3D apiKey="k" />)
@@ -601,19 +703,47 @@ describe('Kitchen3D : les volets et le jour', () => {
     h.shutters = shuttersOf({ 'Volet cuisine': 'up' })
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(slats.userData).toMatchObject({ goal: 0, level: 1 })
+    // (L'image de l'ouverture n'est pas encore passée : elle sert de premier pas.)
+    expect(h.frames).toHaveLength(1)
     now += 100
-    act(() => h.frames[0]())
+    frame()
     expect(slats.userData.level).toBeCloseTo(1 - 0.1 / SHUTTER_TRAVEL_S)
+    expect(drawn()).toBe(1)
+    // Tant qu'il bouge, la boucle continue ; une image n'est dessinée que si une lame a disparu (son ombre est alors refaite).
+    expect(h.frames).toHaveLength(1)
+    const before = shownOf('cuisine')
+    now += 10
+    frame()
+    expect(shownOf('cuisine')).toBe(before)
+    expect(drawn()).toBe(1)
     // Après une pause de l'onglet, un pas d'un quart de seconde au plus.
     now += 60_000
-    act(() => h.frames[1]())
-    expect(slats.userData.level).toBeCloseTo(1 - 0.35 / SHUTTER_TRAVEL_S)
+    const stale: boolean[] = []
+    h.renderers[0].render.mockImplementationOnce(() => {
+      stale.push(h.renderers[0].shadowMap.needsUpdate)
+    })
+    frame()
+    expect(slats.userData.level).toBeCloseTo(1 - 0.36 / SHUTTER_TRAVEL_S)
+    expect(shownOf('cuisine')).toBe(before - 1)
+    expect(drawn()).toBe(2)
+    expect(stale).toEqual([true])
+    // Hors de l'écran, le volet continue sa course, sans rien dessiner.
+    act(() => h.visibility[0]([{ isIntersecting: false }]))
+    now += 250
+    frame()
+    expect(slats.userData.level).toBeCloseTo(1 - 0.61 / SHUTTER_TRAVEL_S)
+    expect(drawn()).toBe(2)
+    expect(h.frames).toHaveLength(1)
+    act(() => h.visibility[0]([{ isIntersecting: true }]))
     // Le délai d'animation est passé : un changement venu d'ailleurs se place d'un coup.
     expect(now).toBeGreaterThan(1000 + SHUTTER_ANIMATE_MS)
     h.shutters = shuttersOf({ 'Volet cuisine': 'down' })
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(slats.userData.level).toBe(1)
     expect(shownOf('cuisine')).toBe(slats.children.length)
+    // Arrivé : une dernière image, puis plus rien ne tourne.
+    frame()
+    expect(h.frames).toHaveLength(0)
   })
 })
 
@@ -623,7 +753,8 @@ describe('Kitchen3D : l’heure', () => {
   })
 
   it('la pendule de la cuisine donne l’heure, remise à jour toutes les quinze secondes', () => {
-    vi.useFakeTimers()
+    // (Les images demandées restent celles du test : seuls l'horloge et ses minuteries sont simulées.)
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
     vi.setSystemTime(new Date(2026, 10, 26, 9, 0, 0))
     const view = render(<Kitchen3D apiKey="k" />)
     const hour = tagged('clockHand', 'hour')
@@ -634,45 +765,54 @@ describe('Kitchen3D : l’heure', () => {
       vi.advanceTimersByTime(30_000)
     })
     expect(minute.rotation.z).toBeCloseTo((0.5 / 60) * Math.PI * 2)
+    // Chaque pas de la pendule est dessiné, avec l'ombre de ses aiguilles ; entre deux, rien ne tourne.
+    frame()
+    expect(h.renderers[0].render).toHaveBeenCalledTimes(1)
+    expect(h.frames).toHaveLength(0)
+    const stale: boolean[] = []
+    h.renderers[0].render.mockImplementationOnce(() => {
+      stale.push(h.renderers[0].shadowMap.needsUpdate)
+    })
+    act(() => {
+      vi.advanceTimersByTime(15_000)
+    })
+    frame()
+    expect(stale).toEqual([true])
+    expect(h.frames).toHaveLength(0)
     // Démontée, la pendule s'arrête.
     view.unmount()
     act(() => {
       vi.advanceTimersByTime(60_000)
     })
-    expect(minute.rotation.z).toBeCloseTo((0.5 / 60) * Math.PI * 2)
-    // (Trente secondes d'horloge font tourner la boucle de dessin près de deux mille fois : ce test est long quand toute la suite tourne.)
-  }, 20_000)
+    expect(minute.rotation.z).toBeCloseTo((0.75 / 60) * Math.PI * 2)
+    expect(h.frames).toHaveLength(0)
+  })
 
-  it('sans météo, le jour qui entre suit l’heure : jour moyen à midi, nuit à 22 h', () => {
+  it('sans météo, le jour qui entre suit l’heure, relue avec la pendule : jour moyen à midi, nuit à 22 h', () => {
     h.weather = null
     h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 10, 26, 12, 0, 0))
-    const view = render(<Kitchen3D apiKey="k" />)
-    const [scene] = h.renderers[0].render.mock.calls[0] as [THREE.Scene]
+    render(<Kitchen3D apiKey="k" />)
+    const scene = root().parent as THREE.Scene
     const ambient = scene.children.find((child) => (child as THREE.HemisphereLight).isHemisphereLight) as THREE.HemisphereLight
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * 0.7)
+    // La pendule avance (toutes les 15 s) sans que l'heure change : rien ne bouge.
+    act(() => {
+      vi.advanceTimersByTime(15_000)
+    })
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * 0.7)
+    // À 22 h, au prochain pas de la pendule : la nuit.
     vi.setSystemTime(new Date(2026, 10, 26, 22, 0, 0))
-    view.rerender(<Kitchen3D apiKey="k" />)
+    act(() => {
+      vi.advanceTimersByTime(15_000)
+    })
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
   })
 })
 
-describe('Kitchen3D : les saisons et le temps', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
+describe('Kitchen3D : la lumière', () => {
   const sceneOf = () => root().parent as THREE.Scene
-  /** Ce que le jardin montre sous cette marque de saison : `true` si tout se voit, `false` si rien. */
-  const shown = (key: string): boolean => {
-    const states = new Set<boolean>()
-    root().traverse((child) => {
-      if (child.userData.season === key) states.add(child.visible)
-    })
-    expect(states.size).toBe(1)
-    return [...states][0]
-  }
   const selected = (group: string) => screen.getByRole('tablist', { name: group }).querySelector('[aria-selected="true"]')?.textContent
   const pick = (name: string) => fireEvent.click(screen.getByRole('tab', { name }))
   const lights = () => {
@@ -680,150 +820,185 @@ describe('Kitchen3D : les saisons et le temps', () => {
     const sun = sceneOf().children.find((child) => (child as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight
     return { ambient, sun }
   }
-  const snowCaps = (): THREE.Object3D[] => {
-    const caps: THREE.Object3D[] = []
-    root().traverse((child) => {
-      if (((child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined)?.polygonOffset) caps.push(child)
-    })
-    return caps
-  }
-  const swayers = (): THREE.Object3D[] => {
-    const found: THREE.Object3D[] = []
-    root().traverse((child) => {
-      if (typeof child.userData.sway === 'number') found.push(child)
-    })
-    return found
-  }
 
-  it('au départ : le printemps, du soleil, pas de vent ; les deux choix et le bouton du vent sont au-dessus de la vue', () => {
+  it('au départ : « Jour », plein jour même de nuit et volets fermés ; un seul choix au-dessus de la vue, ni saison ni météo', () => {
+    localStorage.clear()
+    h.weather = { isDay: false, code: 3 }
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'down', 'Volet PC': 'down', 'Volet porte': 'down' })
     render(<Kitchen3D apiKey="k" />)
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Printemps', 'Été', 'Automne', 'Hiver', 'Auto', 'Soleil', 'Pluie', 'Neige'])
-    expect(selected('Saison')).toBe('Printemps')
-    expect(selected('Météo')).toBe('Soleil')
-    expect(screen.getByRole('button', { name: 'Vent' })).toHaveAttribute('aria-pressed', 'false')
-    // Le jardin au printemps : feuilles, fleurs, cerises, pâquerettes ; ni pommes ni raisin, ni bois nu.
-    expect(['leaves', 'blossom', 'cherries', 'daisies', 'medlars', 'evergreen'].map(shown)).toEqual([true, true, true, true, true, true])
-    expect(['harvest', 'twigs'].map(shown)).toEqual([false, false])
-    // Ni pluie ni neige, pas de fond, rien ne se balance.
-    expect(sceneOf().getObjectByName('rain')?.visible).toBe(false)
-    expect(sceneOf().getObjectByName('snow')?.visible).toBe(false)
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Jour', 'Heure actuelle'])
+    expect(selected('Lumière')).toBe('Jour')
+    const { ambient, sun } = lights()
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
+    expect(sun.visible).toBe(true)
+    // Ni pluie ni neige dans la scène, pas de fond, et rien n'y est marqué d'une saison ou caché pour une autre.
+    expect(sceneOf().children).toHaveLength(3)
     expect(sceneOf().background).toBeNull()
-    expect(snowCaps().length).toBeGreaterThan(60)
-    expect(snowCaps().every((cap) => !cap.visible)).toBe(true)
-    act(() => h.frames[0]())
-    expect(swayers().length).toBeGreaterThan(20)
-    expect(swayers().every((object) => object.matrixAutoUpdate)).toBe(true)
+    root().traverse((child) => {
+      expect(child.userData.season).toBeUndefined()
+      expect(child.userData.snow).toBeUndefined()
+    })
+    // Rien ne bouge : la boucle s'arrête après la première image.
+    frame()
+    expect(drawn()).toBe(1)
+    expect(h.frames).toHaveLength(0)
+    // L'ancien choix de saison et de météo n'est plus lu ni écrit.
+    expect(localStorage.getItem('house-garden-climate')).toBeNull()
   })
 
-  it('le choix de la saison met le jardin à cette saison, sans reconstruire la scène', () => {
-    render(<Kitchen3D apiKey="k" />)
-    pick('Été')
-    expect(selected('Saison')).toBe('Été')
-    expect(['leaves', 'daisies', 'blossom', 'cherries', 'harvest'].map(shown)).toEqual([true, true, false, false, false])
-    pick('Automne')
-    expect(['leaves', 'harvest', 'daisies', 'blossom'].map(shown)).toEqual([true, true, false, false])
-    pick('Hiver')
-    expect(['evergreen', 'twigs', 'leaves', 'blossom', 'harvest', 'medlars', 'daisies'].map(shown)).toEqual([true, true, false, false, false, false, false])
-    pick('Printemps')
-    expect(['leaves', 'blossom', 'twigs'].map(shown)).toEqual([true, true, false])
+  it('« Heure actuelle » : le jour qui entre vraiment (la nuit, seules les lampes éclairent) ; le choix refait l’ombre et est gardé sur l’appareil', () => {
+    localStorage.clear()
+    h.weather = { isDay: false, code: 0 }
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
+    const view = render(<Kitchen3D apiKey="k" />)
+    const { ambient, sun } = lights()
+    frame()
+    expect(h.renderers[0].shadowMap.needsUpdate).toBe(false)
+    pick('Heure actuelle')
+    expect(selected('Lumière')).toBe('Heure actuelle')
+    expect(localStorage.getItem(LIGHT_KEY)).toBe('now')
+    // Il fait nuit : il ne reste que l'ambiance de nuit, le soleil est éteint et caché.
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
+    expect(sun.intensity).toBe(0)
+    expect(sun.visible).toBe(false)
+    // Une image, avec l'ombre du soleil refaite ; puis plus rien.
+    const stale: boolean[] = []
+    h.renderers[0].render.mockImplementationOnce(() => {
+      stale.push(h.renderers[0].shadowMap.needsUpdate)
+    })
+    frame()
+    expect(drawn()).toBe(2)
+    expect(stale).toEqual([true])
+    expect(h.frames).toHaveLength(0)
+    // La scène n'est pas reconstruite.
     expect(h.parts).toHaveLength(1)
     expect(h.renderers).toHaveLength(1)
-  })
-
-  it('« Auto » : la saison du jour', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 6, 14, 12))
-    const view = render(<Kitchen3D apiKey="k" />)
-    pick('Auto')
-    expect(selected('Saison')).toBe('Auto')
-    // Un 14 juillet : l'été.
-    expect(['leaves', 'daisies', 'blossom', 'harvest'].map(shown)).toEqual([true, true, false, false])
-    view.unmount()
-    // Rouverte un 27 novembre, toujours sur « Auto » : l'automne.
-    vi.setSystemTime(new Date(2026, 10, 27, 12))
-    for (const list of [h.parts, h.renderers, h.controls]) list.length = 0
-    render(<Kitchen3D apiKey="k" />)
-    expect(selected('Saison')).toBe('Auto')
-    expect(['leaves', 'harvest', 'daisies', 'blossom'].map(shown)).toEqual([true, true, false, false])
-  })
-
-  it('le choix est gardé sur l’appareil : la vue se rouvre comme on l’a laissée', () => {
-    const view = render(<Kitchen3D apiKey="k" />)
-    pick('Hiver')
-    pick('Neige')
-    fireEvent.click(screen.getByRole('button', { name: 'Vent' }))
-    expect(JSON.parse(localStorage.getItem(CLIMATE_KEY) ?? '')).toEqual({ season: 'winter', sky: 'snow', wind: true })
+    // Rouverte, la vue est comme on l'a laissée.
     view.unmount()
     for (const list of [h.parts, h.renderers, h.controls, h.frames]) list.length = 0
     render(<Kitchen3D apiKey="k" />)
-    expect(selected('Saison')).toBe('Hiver')
-    expect(selected('Météo')).toBe('Neige')
-    expect(screen.getByRole('button', { name: 'Vent' })).toHaveAttribute('aria-pressed', 'true')
-    expect(shown('leaves')).toBe(false)
-    expect(sceneOf().getObjectByName('snow')?.visible).toBe(true)
+    expect(selected('Lumière')).toBe('Heure actuelle')
+    expect(lights().sun.visible).toBe(false)
+    // Retour au plein jour.
+    pick('Jour')
+    expect(localStorage.getItem(LIGHT_KEY)).toBe('day')
+    expect(lights().ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
+    expect(lights().sun.intensity).toBeCloseTo(DAYLIGHT.sun)
+    expect(lights().sun.visible).toBe(true)
+  })
+})
+
+describe('Kitchen3D : le rendu à la demande', () => {
+  it('la caméra bouge : une image par mouvement ; tant qu’elle finit sa course, les images se suivent, puis tout s’arrête', () => {
+    render(<Kitchen3D apiKey="k" />)
+    const [controls] = h.controls
+    frame()
+    expect(drawn()).toBe(1)
+    expect(h.frames).toHaveLength(0)
+    // Deux mouvements avant la prochaine image : une seule image demandée.
+    act(() => controls.move())
+    act(() => controls.move())
+    expect(h.frames).toHaveLength(1)
+    frame()
+    expect(drawn()).toBe(2)
+    expect(h.frames).toHaveLength(0)
+    // On lâche la vue : l'amortissement la fait encore glisser pendant trois images.
+    controls.settling = 3
+    act(() => controls.move())
+    for (let step = 0; step < 3; step += 1) {
+      frame()
+      expect(drawn()).toBe(3 + step)
+      expect(h.frames).toHaveLength(1)
+    }
+    // Arrêtée : la dernière image demandée constate que rien n'a bougé, ne dessine rien et n'en demande pas d'autre.
+    frame()
+    expect(drawn()).toBe(5)
+    expect(h.frames).toHaveLength(0)
+    // L'ombre du soleil n'a pas été refaite pour autant.
+    expect(h.renderers[0].shadowMap.needsUpdate).toBe(false)
   })
 
-  it('la pluie : des gouttes qui tombent à chaque image, un ciel gris, moins de jour et presque plus de soleil', () => {
-    h.alwaysDay = true
-    render(<Kitchen3D apiKey="k" />)
-    const { ambient, sun } = lights()
-    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
-    pick('Pluie')
-    expect(selected('Météo')).toBe('Pluie')
-    const rain = sceneOf().getObjectByName('rain') as THREE.LineSegments
-    expect(rain.visible).toBe(true)
-    expect((sceneOf().background as THREE.Color).getHex()).toBe(WEATHER_LOOK.rain.background)
-    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * WEATHER_LOOK.rain.ambient)
-    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun * WEATHER_LOOK.rain.sun)
-    // Les gouttes avancent à chaque image dessinée, pas quand la vue est hors de l'écran.
-    const points = rain.geometry.attributes.position as THREE.BufferAttribute
-    expect((points.array as Float32Array).every((value) => value === 0)).toBe(true)
-    act(() => h.visibility[0]([{ isIntersecting: false }]))
-    act(() => h.frames[0]())
-    expect(points.version).toBe(0)
-    act(() => h.visibility[0]([{ isIntersecting: true }]))
-    act(() => h.frames[1]())
-    expect(points.version).toBe(1)
-    expect((points.array as Float32Array).some((value) => value !== 0)).toBe(true)
-    // Le beau temps revient.
-    pick('Soleil')
-    expect(rain.visible).toBe(false)
-    expect(sceneOf().background).toBeNull()
-    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
-    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
+  it('une photo qui finit de se charger est montrée par une image de plus', () => {
+    const loaded: (() => void)[] = []
+    vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation((_url, onLoad) => {
+      const texture = new THREE.Texture<HTMLImageElement>()
+      loaded.push(() => onLoad?.(texture))
+      return texture
+    })
+    const view = render(<Kitchen3D apiKey="k" />)
+    expect(loaded.length).toBeGreaterThan(0)
+    frame()
+    expect(h.frames).toHaveLength(0)
+    act(() => loaded[0]())
+    frame()
+    expect(drawn()).toBe(2)
+    // Démontée, la vue n'écoute plus.
+    view.unmount()
+    h.frames.length = 0
+    act(() => loaded[0]())
+    expect(h.frames).toHaveLength(0)
   })
 
-  it('la neige : des flocons, une couche blanche sur le jardin, un ciel clair ; le temps dose aussi le jour qui entre par les fenêtres', () => {
-    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
-    h.weather = { isDay: true, code: 3 }
+  it('le temps repart de maintenant après un repos : le premier pas d’un volet ne compte pas la pause', () => {
+    let now = 1000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down' })
+    const view = render(<Kitchen3D apiKey="k" />)
+    frame()
+    expect(h.frames).toHaveLength(0)
+    // Une minute de repos, puis un clic sur la fenêtre.
+    now += 60_000
+    const slats = tagged('shutter', 'cuisine')
+    aim(slats, [-1.5, 0, 0])
+    click()
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up' })
+    view.rerender(<Kitchen3D apiKey="k" />)
+    now += 16
+    frame()
+    expect(slats.userData.level).toBeCloseTo(1 - 0.016 / SHUTTER_TRAVEL_S)
+  })
+})
+
+describe('Kitchen3D : la qualité selon l’appareil', () => {
+  const sunOf = () => (root().parent as THREE.Scene).children.find((child) => (child as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight
+
+  it('sur un bureau : la pleine qualité', () => {
+    vi.stubGlobal('devicePixelRatio', 3)
     render(<Kitchen3D apiKey="k" />)
-    pick('Neige')
-    expect(sceneOf().getObjectByName('snow')?.visible).toBe(true)
-    expect(sceneOf().getObjectByName('rain')?.visible).toBe(false)
-    expect(snowCaps().every((cap) => cap.visible)).toBe(true)
-    expect((sceneOf().background as THREE.Color).getHex()).toBe(WEATHER_LOOK.snow.background)
-    const { ambient, sun } = lights()
-    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * 0.7 * WEATHER_LOOK.snow.ambient)
-    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun * 0.7 * WEATHER_LOOK.snow.sun)
-    pick('Pluie')
-    expect(snowCaps().every((cap) => !cap.visible)).toBe(true)
+    const [renderer] = h.renderers
+    expect(renderer.options).toEqual({ antialias: true, alpha: true })
+    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(2)
+    expect(sunOf().shadow.mapSize.toArray()).toEqual([4096, 4096])
+    expect(h.qualities).toEqual([QUALITY.desktop])
   })
 
-  it('le vent s’ajoute à tout : arbres, spirées et herbe se balancent à chaque image, même par beau temps ; il tombe, tout se redresse', () => {
+  it('sur téléphone : moins de pixels, pas de lissage, une carte d’ombre plus petite, moins d’herbe', () => {
+    h.mobile = true
+    vi.stubGlobal('devicePixelRatio', 3)
     render(<Kitchen3D apiKey="k" />)
-    const wind = screen.getByRole('button', { name: 'Vent' })
-    fireEvent.click(wind)
-    expect(wind).toHaveAttribute('aria-pressed', 'true')
-    expect(selected('Météo')).toBe('Soleil')
-    act(() => h.frames[0]())
-    expect(swayers().every((object) => !object.matrixAutoUpdate)).toBe(true)
-    // Avec la pluie : les deux à la fois.
-    pick('Pluie')
-    expect(wind).toHaveAttribute('aria-pressed', 'true')
-    expect(sceneOf().getObjectByName('rain')?.visible).toBe(true)
-    fireEvent.click(wind)
-    expect(wind).toHaveAttribute('aria-pressed', 'false')
-    expect(swayers().every((object) => object.matrixAutoUpdate)).toBe(true)
-    expect(selected('Météo')).toBe('Pluie')
+    const [renderer] = h.renderers
+    expect(renderer.options).toEqual({ antialias: false, alpha: true })
+    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(1.5)
+    expect(sunOf().shadow.mapSize.toArray()).toEqual([2048, 2048])
+    expect(h.qualities).toEqual([QUALITY.phone])
+    expect(QUALITY.phone.grass).toBeLessThan(1)
+    expect(renderer.shadowMap.autoUpdate).toBe(false)
+  })
+
+  it('un écran moins dense que le plafond garde sa densité', () => {
+    h.mobile = true
+    vi.stubGlobal('devicePixelRatio', 1)
+    render(<Kitchen3D apiKey="k" />)
+    expect(h.renderers[0].setPixelRatio).toHaveBeenCalledExactlyOnceWith(1)
+  })
+
+  it('la qualité est choisie à l’ouverture : tourner le téléphone (ou rétrécir la fenêtre) ne reconstruit rien', () => {
+    h.mobile = true
+    const view = render(<Kitchen3D apiKey="k" />)
+    h.mobile = false
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(h.renderers).toHaveLength(1)
+    expect(h.qualities).toEqual([QUALITY.phone])
   })
 })

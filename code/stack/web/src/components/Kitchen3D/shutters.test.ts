@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { applyShutters, closedOf, SHUTTER_KEYS, SHUTTER_TRAVEL_S, shutterWindows, skyOf, stepShutters } from './shutters'
+import { applyShutters, closedOf, SHUTTER_KEYS, SHUTTER_TRAVEL_S, shutterSlats, shutterWindows, skyOf, stepShutters } from './shutters'
 
 /** Une fenêtre à volet : son groupe, et dedans le groupe de ses lames (marqué par le nom du volet et la surface de la vitre). */
 const windowOf = (key: string, area: number, slats = 10): { frame: THREE.Group; shutter: THREE.Group } => {
@@ -79,21 +79,51 @@ describe('stepShutters', () => {
     root.add(frame)
     applyShutters(root, { cuisine: 0 })
     applyShutters(root, { cuisine: 1 }, true)
-    stepShutters(root, SHUTTER_TRAVEL_S / 2)
+    const shutters = shutterSlats(root)
+    const changed = vi.fn()
+    // Tant qu'un volet est en route, la boucle de dessin continue.
+    expect(stepShutters(shutters, SHUTTER_TRAVEL_S / 2, changed)).toBe(true)
     expect(shutter.userData.level).toBeCloseTo(0.5)
     expect(shown(shutter)).toBe(5)
-    stepShutters(root, SHUTTER_TRAVEL_S)
+    expect(changed).toHaveBeenCalledTimes(1)
+    expect(stepShutters(shutters, SHUTTER_TRAVEL_S, changed)).toBe(true)
     expect(shutter.userData.level).toBe(1)
     expect(shown(shutter)).toBe(10)
-    // Arrivé : plus rien ne bouge.
-    stepShutters(root, 1)
+    // Arrivé : plus rien ne bouge, plus rien à dessiner.
+    expect(stepShutters(shutters, 1, changed)).toBe(false)
     expect(shutter.userData.level).toBe(1)
+    expect(changed).toHaveBeenCalledTimes(2)
     applyShutters(root, { cuisine: 0.5 }, true)
-    stepShutters(root, SHUTTER_TRAVEL_S / 4)
+    stepShutters(shutters, SHUTTER_TRAVEL_S / 4, changed)
     expect(shutter.userData.level).toBeCloseTo(0.75)
-    stepShutters(root, SHUTTER_TRAVEL_S)
+    stepShutters(shutters, SHUTTER_TRAVEL_S, changed)
     expect(shutter.userData.level).toBe(0.5)
     expect(shown(shutter)).toBe(5)
+  })
+
+  it('un pas trop court pour montrer ou cacher une lame avance le volet sans rien demander à redessiner', () => {
+    const root = new THREE.Group()
+    const { frame, shutter } = windowOf('cuisine', 1)
+    root.add(frame)
+    applyShutters(root, { cuisine: 0 })
+    applyShutters(root, { cuisine: 1 }, true)
+    const changed = vi.fn()
+    // Dix lames : il faut un vingtième de la course pour que la première apparaisse.
+    expect(stepShutters(shutterSlats(root), SHUTTER_TRAVEL_S / 100, changed)).toBe(true)
+    expect(shutter.userData.level).toBeCloseTo(0.01)
+    expect(shown(shutter)).toBe(0)
+    expect(changed).not.toHaveBeenCalled()
+  })
+})
+
+describe('shutterSlats', () => {
+  it('rend les groupes de lames des volets reliés, et rien d’autre', () => {
+    const root = new THREE.Group()
+    const kitchen = windowOf('cuisine', 1)
+    const living = windowOf('salon', 1)
+    root.add(kitchen.frame, living.frame, new THREE.Group())
+    expect(shutterSlats(root)).toEqual([kitchen.shutter, living.shutter])
+    expect(shutterSlats(new THREE.Group())).toEqual([])
   })
 })
 

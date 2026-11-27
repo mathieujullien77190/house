@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
-import { BASE, CAGE_CAMERA, GARDEN_CAMERA, REST } from '@/components/Kitchen3D/constants'
+import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, CAGE_CAMERA, GARDEN_CAMERA, REST } from '@/components/Kitchen3D/constants'
 import { cameraMeshes } from '@/components/Kitchen3D/live'
 import { GRASS, TERRACE } from './constants'
 import { buildGarden } from './garden'
@@ -9,9 +9,13 @@ import { SITE } from './layout'
 import { PERGOLA } from './pergola'
 import { cherryTree, clippedTree, medlarTree, prunusTree } from './trees'
 
-/** Les enfants directs du jardin qui sont des groupes faits de ce nombre de pièces, à cette place près. */
+/** Les maillages d'une plante, par leur forme et leur couleur (une plante tient en quelques maillages : son bois, ses touffes par teinte, ses fleurs, ses fruits). */
+const partsOf = (plant: THREE.Object3D): string =>
+  (plant.children as THREE.Mesh[]).map((child) => (child.isMesh ? `${child.geometry.type} ${(child.material as THREE.MeshStandardMaterial).color.getHex()}` : child.type)).join()
+
+/** Les enfants directs du jardin qui sont des groupes faits des mêmes pièces que ce modèle, à leur place près. */
 const groupsLike = (garden: THREE.Group, model: THREE.Group): THREE.Group[] =>
-  (garden.children as THREE.Group[]).filter((child) => child.type === 'Group' && child.children.length === model.children.length && child.children.length > 0)
+  (garden.children as THREE.Group[]).filter((child) => child.type === 'Group' && child.children.length > 0 && partsOf(child) === partsOf(model))
 
 describe('buildGarden', () => {
   beforeEach(() => {
@@ -25,12 +29,19 @@ describe('buildGarden', () => {
     expect(again.children).toHaveLength(garden.children.length)
     expect(again.children.map((child) => child.position.toArray())).toEqual(garden.children.map((child) => child.position.toArray()))
     expect(garden.children.length).toBeGreaterThan(150)
+    // Les arbres et les arbustes sont dessinés par lots : tout le jardin tient en quelques centaines de maillages.
+    let meshes = 0
+    garden.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) meshes += 1
+    })
+    expect(meshes).toBeLessThan(500)
   })
 
-  it('les deux caméras du jardin portent le nom de la vraie : celle du coin de la cage et celle posée dedans', () => {
+  it('les caméras du jardin portent le nom de la vraie : celle du coin de la cage, celle posée dedans et les deux du pommier', () => {
     const cameras = cameraMeshes(buildGarden())
-    expect(cameras.map((camera) => camera.name)).toEqual([GARDEN_CAMERA, CAGE_CAMERA])
-    const [corner, inside] = cameras.map((camera) => camera.object.position)
+    expect(cameras.map((camera) => camera.name).sort()).toEqual([APPLE_BACK_CAMERA, APPLE_CAMERA, CAGE_CAMERA, GARDEN_CAMERA].sort())
+    const position = (name: string) => (cameras.find((camera) => camera.name === name) as (typeof cameras)[number]).object.position
+    const [corner, inside] = [position(GARDEN_CAMERA), position(CAGE_CAMERA)]
     // Toutes deux au coin de la cage ; celle du jardin est plus haute.
     expect(corner.x).toBeCloseTo(SITE.cageX2 - 0.08)
     expect(inside.x).toBeCloseTo(SITE.cageX2 - 0.2)
@@ -46,12 +57,12 @@ describe('buildGarden', () => {
     expect(cherries.some((tree) => tree.position.x === house[1] + 2 && tree.position.y === GRASS && tree.position.z === house[2] - 2.5)).toBe(true)
   })
 
-  it('devant : un second cerisier, un pommier trapu avec ses pommes, un massif de fleurs fuchsia sous chacun', () => {
+  it('devant : un second cerisier, un pommier trapu, un massif de fleurs fuchsia sous chacun', () => {
     const garden = buildGarden()
     const { house } = SITE
     const apple = (garden.children as THREE.Group[]).find((child) => child.scale.y === 0.85) as THREE.Group
     expect(apple.scale.toArray()).toEqual([1.1, 0.85, 1.1])
-    expect(apple.children).toHaveLength(cherryTree(31, 0xc8402f).children.length)
+    expect(apple.children).toHaveLength(cherryTree(31, true).children.length)
     expect(apple.position.z).toBeCloseTo(REST.west + 3.6)
     const cherryTwo = groupsLike(garden, cherryTree(19)).find((tree) => tree.position.y === 0) as THREE.Group
     expect(cherryTwo.position.x).toBeCloseTo(house[0] - TERRACE - 0.6)

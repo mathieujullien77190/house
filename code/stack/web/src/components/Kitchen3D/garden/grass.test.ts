@@ -43,8 +43,8 @@ describe('grassTufts', () => {
     expect(children).toHaveLength(1)
     const [tufts] = children
     expect(tufts.isInstancedMesh).toBe(true)
-    // Dans le vent, les brins se couchent.
-    expect(tufts.userData.sway).toBe(0.25)
+    // Trop fins pour porter une ombre.
+    expect(tufts.userData).toEqual({ noShadow: true })
     // 11 brins × 3 tronçons × 2 triangles.
     expect(tufts.geometry.getAttribute('position').count).toBe(11 * 3 * 6)
     expect(tufts.geometry.getAttribute('normal').count).toBe(11 * 3 * 6)
@@ -85,6 +85,16 @@ describe('grassTufts', () => {
     const [second] = build()
     expect(Array.from(second.instanceMatrix.array)).toEqual(Array.from(first.instanceMatrix.array))
   })
+
+  it("avec une part des tirages (sur téléphone) : moins de bouquets, les premiers du tirage complet, aux mêmes places", () => {
+    const [all] = build()
+    const group = new THREE.Group()
+    grassTufts(group, 0.5)
+    const [half] = group.children as THREE.InstancedMesh[]
+    expect(half.count).toBeGreaterThan(all.count * 0.35)
+    expect(half.count).toBeLessThan(all.count * 0.65)
+    expect(Array.from(half.instanceMatrix.array)).toEqual(Array.from(all.instanceMatrix.array.slice(0, half.count * 16)))
+  })
 })
 
 describe('lawnFlowers', () => {
@@ -99,6 +109,8 @@ describe('lawnFlowers', () => {
     expect(children).toHaveLength(3)
     const [petals, hearts, blooms] = children
     expect(children.every((mesh) => mesh.isInstancedMesh)).toBe(true)
+    // Trop petites pour porter une ombre.
+    expect(children.every((mesh) => mesh.userData.noShadow === true)).toBe(true)
     // Une collerette blanche et un cœur jaune par pâquerette.
     expect(hearts.count).toBe(petals.count)
     expect(petals.count).toBeGreaterThan(200)

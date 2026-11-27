@@ -1,6 +1,5 @@
 import type * as THREE from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { Weather } from './weather'
 
 /** Ce qu'un caisson montre en façade : une porte, des tiroirs, le four et son tiroir, le lave-vaisselle, la porte sous l'évier ou le casier à bouteilles. */
 export type ModuleKind = 'door' | 'drawers' | 'oven' | 'dishwasher' | 'sink' | 'wine'
@@ -61,11 +60,14 @@ export interface SceneHandle {
   sun: THREE.DirectionalLight
   controls: OrbitControls
   lighting: Lighting
-  /** Le temps qu'il fait dans la scène (pluie, neige, vent). */
-  weather: Weather
+  /** Demande une image : la scène n'est dessinée que quand quelque chose a changé. `shadows` : l'ombre du soleil est aussi à refaire. */
+  invalidate: (shadows?: boolean) => void
   resetView: () => void
   topView: () => void
 }
+
+/** La lumière de la scène : plein jour forcé (`day`), ou le jour qu'il fait vraiment à cette heure (`now`). */
+export type LightMode = 'day' | 'now'
 
 export interface Vec3 {
   x: number

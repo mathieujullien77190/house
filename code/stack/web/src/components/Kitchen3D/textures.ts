@@ -156,19 +156,24 @@ export const clockDialTexture = (): THREE.CanvasTexture =>
     ctx.fillText('Q U A R T Z', 256, 330)
   })
 
-/** Un flocon de neige : un rond blanc sur un fond transparent. */
-export const flakeTexture = (): THREE.CanvasTexture =>
-  canvasTexture(32, (ctx) => {
-    ctx.clearRect(0, 0, 32, 32)
-    ctx.fillStyle = '#ffffff'
-    ctx.beginPath()
-    ctx.ellipse(16, 16, 14, 14, 0, 0, Math.PI * 2)
-    ctx.fill()
-  })
+const watchers = new Set<() => void>()
+
+/**
+ * Prévient à chaque photo qui finit de se charger (la scène n'est redessinée que sur demande : il faut une image de plus pour la montrer).
+ * Rend de quoi se désabonner.
+ */
+export const onPhotoLoad = (watcher: () => void): (() => void) => {
+  watchers.add(watcher)
+  return () => {
+    watchers.delete(watcher)
+  }
+}
 
 /** Une photo de `public/kitchen3d/` (cadres, puzzles), chargée comme texture. */
 export const photoTexture = (file: string): THREE.Texture => {
-  const texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}kitchen3d/${file}`)
+  const texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}kitchen3d/${file}`, () => {
+    for (const watcher of watchers) watcher()
+  })
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
 }

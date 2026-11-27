@@ -66,6 +66,8 @@ describe('cageWire', () => {
       expect(material.transparent).toBe(true)
       expect(material.side).toBe(THREE.DoubleSide)
       expect(material.depthWrite).toBe(false)
+      // Le grillage laisse passer le soleil : pas d'ombre portée.
+      expect(wire.userData.noShadow).toBe(true)
       // Une image couvre 20 cm : elle se répète sur tout le pan.
       const { width, height } = (wire.geometry as THREE.PlaneGeometry).parameters
       expect(material.map?.repeat.x).toBeCloseTo(width / 0.2)
@@ -160,7 +162,7 @@ describe('planters', () => {
     expect(side.position.x + sizeOf(side).width / 2).toBeCloseTo(SITE.cageX2)
     // Les plantes : des groupes posés sur la terre du long bac, les fougères vers le grand bac, l'hortensia au bout.
     const plants = children.slice(4)
-    expect(plants.every((plant) => plant.type === 'Group' && plant.children.length > 20)).toBe(true)
+    expect(plants.every((plant) => plant.type === 'Group' && plant.children.length > 0)).toBe(true)
     for (const plant of plants) {
       expect(plant.position.y).toBeCloseTo(GRASS + 0.24)
       expect(plant.position.z).toBeCloseTo(SITE.cageZ1 - 0.2)
@@ -168,6 +170,6 @@ describe('planters', () => {
     expect(plants.map((plant) => plant.position.x)).toEqual([...plants.map((plant) => plant.position.x)].sort((a, b) => a - b))
     expect(plants[3].position.x).toBeCloseTo(SITE.cageX2 - 0.55)
     // Trois fougères différentes (une graine chacune).
-    expect(new Set(plants.slice(0, 3).map((plant) => plant.children.length + plant.children[0].rotation.y)).size).toBe(3)
+    expect(new Set(plants.slice(0, 3).map((plant) => (plant.children[0] as THREE.Mesh).geometry.attributes.position.getX(0))).size).toBe(3)
   })
 })

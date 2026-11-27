@@ -121,14 +121,11 @@ export const fixtureBulb = (mesh: THREE.Mesh, name?: string): THREE.Mesh => {
   return mesh
 }
 
-/** L'épaisseur de la neige sur le sol (pelouses, carrelages, béton) (m). */
-export const SNOW_DEEP = 0.04
-
 /**
- * Marque un objet du dehors sur lequel la neige tient (un sol, le dessus d'une haie, d'un muret, d'une table) : quand il neige,
- * `weather.ts` le coiffe d'une couche blanche, soulevée de `lift` mètres (`userData.snow`).
+ * Marque un objet trop petit ou trop léger pour porter une ombre qui se voie (herbe, fleurs, fruits, feuilles semées par milliers,
+ * grillage) : `buildScene` ne lui en fait pas porter (`userData.noShadow`), ce qui allège d'autant la carte d'ombre du soleil.
  */
-export const snowTop = <T extends THREE.Object3D>(object: T, lift = 0.03): T => {
-  object.userData.snow = lift
+export const noShadow = <T extends THREE.Object3D>(object: T): T => {
+  object.userData.noShadow = true
   return object
 }

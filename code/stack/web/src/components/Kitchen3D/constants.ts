@@ -1,6 +1,4 @@
-import type { SeasonChoice } from './garden/seasons'
-import type { RunSpec, Vec3 } from './types'
-import type { Sky } from './weather'
+import type { LightMode, RunSpec, Vec3 } from './types'
 
 // Dimensions en mètres (1 unité three.js = 1 m), d'après les photos : la cuisine est un U de 2,8 m de large, son fond (la hotte) à z = -1.2,
 // le mur des fenêtres à x = 1.4 et, de l'autre côté, la cloison de bar. Le U est ouvert vers +z (l'est). Voir `ROOM` pour les axes.
@@ -15,35 +13,41 @@ export const ARIA_LABEL =
 export const LAMP_FIXTURES = ['salon', 'salle à manger', 'ordi 1', 'ordi 2', 'cuisine 1', 'cuisine 2', 'bar 1', 'bar 2', 'entrée', 'couloir', 'chambre', 'sdb 1', 'sdb 3', 'sdb 4', 'sdb 5', 'sdb 6', 'sdb 7', 'hue ambiance lamp 1']
 /**
  * La lumière du jour, mise d'une manière générale (pas de rayon par fenêtre) : l'ambiance de nuit (`night`), ce que le plein jour y ajoute
- * tous volets ouverts (`day`), et la force du soleil qui porte les ombres (`sun`). Entre les deux, elle suit la part de vitre découverte et le ciel.
+ * tous volets ouverts (`day`), et la force du soleil qui porte les ombres (`sun`). Entre les deux, elle suit la part de vitre découverte et le ciel (choix « Heure actuelle » : `LIGHT_OPTIONS`).
  */
 export const DAYLIGHT = { night: 0.2, day: 1.9, sun: 1.5 }
-/** Plein jour forcé : la scène est éclairée comme en journée, volets ouverts, quelle que soit l'heure (plus simple pour la retoucher). À `false`, elle suit l'heure, la météo et les volets. */
-export const ALWAYS_DAY = true
 /** Les vraies caméras des deux modèles de la scène : celle du mât de l'entrée et celle du coin de la cage (les mêmes liens que `PLAN_CAMERA_LINKS` de `Lights/constants.ts`). */
 export const MAST_CAMERA = 'voliere-toit'
 export const GARDEN_CAMERA = 'salon-de-jardin'
 /** La caméra posée dans la cage, juste derrière celle du jardin : elle regarde vers les poubelles, à travers la cage. */
 export const CAGE_CAMERA = 'voliere-exterieur'
+/** La caméra accrochée au pommier : elle regarde vers le prunus, un peu à sa droite. */
+export const APPLE_CAMERA = 'pommier'
+/** La caméra accrochée de l'autre côté du même tronc : elle regarde à l'opposé. */
+export const APPLE_BACK_CAMERA = 'pommier-inverse'
 export const RESET_LABEL = 'Réinitialiser la vue'
 export const TOP_LABEL = 'Vue du dessus'
 export const NO_WEBGL_TEXT = 'La vue 3D demande WebGL, que ce navigateur ne propose pas.'
-/** Le choix de la saison du jardin (« Auto » : celle du jour) et du temps qu'il fait, au-dessus de la vue. */
-export const SEASON_LABEL = 'Saison'
-export const SEASON_OPTIONS: { id: SeasonChoice; label: string }[] = [
-  { id: 'spring', label: 'Printemps' },
-  { id: 'summer', label: 'Été' },
-  { id: 'autumn', label: 'Automne' },
-  { id: 'winter', label: 'Hiver' },
-  { id: 'auto', label: 'Auto' },
+/**
+ * Le choix de la lumière, au-dessus de la vue : « Jour » (plein jour forcé, quels que soient l'heure, la météo et les volets) ou
+ * « Heure actuelle » (le jour qui entre vraiment : la nuit, seules les lampes allumées éclairent).
+ */
+export const LIGHT_LABEL = 'Lumière'
+export const LIGHT_OPTIONS: { id: LightMode; label: string }[] = [
+  { id: 'day', label: 'Jour' },
+  { id: 'now', label: 'Heure actuelle' },
 ]
-export const SKY_LABEL = 'Météo'
-export const SKY_OPTIONS: { id: Sky; label: string }[] = [
-  { id: 'sun', label: 'Soleil' },
-  { id: 'rain', label: 'Pluie' },
-  { id: 'snow', label: 'Neige' },
-]
-export const WIND_LABEL = 'Vent'
+
+/**
+ * La qualité du rendu, selon l'appareil (téléphone : moins de 1024 px de large, `useMobile`), choisie une fois à l'ouverture de la vue :
+ * le plus de pixels dessinés par pixel d'écran, le lissage des bords (MSAA), le côté de la carte d'ombre du soleil (px), et la part des
+ * bouquets d'herbe semés.
+ */
+export const QUALITY = {
+  desktop: { pixelRatio: 2, antialias: true, shadowMap: 4096, grass: 1 },
+  phone: { pixelRatio: 1.5, antialias: false, shadowMap: 2048, grass: 0.5 },
+}
+export type Quality = (typeof QUALITY)['desktop']
 
 /**
  * Tout l'espace de vie, d'après le plan de la maison de la WebApp (`PLAN_ROOMS` de `web/src/components/Lights/constants.ts`, 43,5 unités par mètre d'ouest en est).

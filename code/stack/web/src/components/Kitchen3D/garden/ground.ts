@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { PLAN_GARAGE_CORNERS, UNITS_PER_METER } from '@/components/Lights/constants'
 import { BASE, ENTRY, OUTER_WALL, PATIO_DOOR, SAS } from '@/components/Kitchen3D/constants'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
-import { box, SNOW_DEEP, snowTop, standard } from '@/components/Kitchen3D/primitives'
+import { box, standard } from '@/components/Kitchen3D/primitives'
 import { CAGE_NORTH, CAGE_WEST, GRASS, LOT, LOW, PAVING, PLAN, TERRACE } from './constants'
 import type { PlanPoint } from './constants'
 import { SITE } from './layout'
@@ -17,15 +17,14 @@ export const lawns = (group: THREE.Group, m: GardenMaterials): void => {
   const { grass } = m
   const { stepY, stepX, stepWest, midPlan, recessPlan } = SITE
   const lawn: PlanPoint[] = [[LOT.east, CAGE_NORTH], [stepX, CAGE_NORTH], [stepX, recessPlan], [midPlan, recessPlan], [midPlan, stepY], ...arc(LOT.radius, stepWest, [LOT.centerX, LOT.centerY + LOT.radius]), [LOT.east, LOT.centerY + LOT.radius]]
-  // La neige tient sur les trois pelouses.
-  group.add(snowTop(flat(lawn, grass, -0.02), SNOW_DEEP))
+  group.add(flat(lawn, grass, -0.02))
   const lowLawn: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LOT.radius, LOT.north], ...arc(LOT.radius, [LOT.centerX - LOT.radius, LOT.centerY], stepWest), [midPlan, stepY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
-  group.add(snowTop(flat(lowLawn, grass, -LOW - 0.02), SNOW_DEEP))
+  group.add(flat(lowLawn, grass, -LOW - 0.02))
   // L'herbe de la partie basse est surélevée de 10 cm par rapport au béton qui longe la maison : la même surface, moins la bande de béton.
   const bandY = stepY - (TERRACE + BASE.setback) * UNITS_PER_METER
   const bandWest = PLAN.west - (OUTER_WALL + TERRACE) * UNITS_PER_METER
   const highGrass: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LOT.radius, LOT.north], ...arc(LOT.radius, [LOT.centerX - LOT.radius, LOT.centerY], stepWest), [bandWest, stepY], [bandWest, bandY], [midPlan, bandY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
-  group.add(snowTop(flat(highGrass, grass, GRASS), SNOW_DEEP))
+  group.add(flat(highGrass, grass, GRASS))
   const bandNorth = gardenX(bandY)
   const bandFrom = gardenZ(bandWest)
   // Un muret de béton tient ce terrain surélevé, tout le long de la bande derrière la maison : il dépasse un peu de l'herbe.
@@ -67,9 +66,9 @@ export const groundTerrace = (group: THREE.Group, m: GardenMaterials): void => {
   tiled(house[0] + foot, stepLine, house[3] - foot, house[3] + TERRACE, -0.004)
   // Derrière la maison (au nord), pas de carreaux : une bande de béton, dans la partie basse du jardin.
   const lowWest = house[2] - TERRACE
-  group.add(snowTop(box(TERRACE + BASE.setback, 0.004, midZ - lowWest, concrete, stepLine + (TERRACE + BASE.setback) / 2, -LOW - 0.001, (midZ + lowWest) / 2), SNOW_DEEP))
+  group.add(box(TERRACE + BASE.setback, 0.004, midZ - lowWest, concrete, stepLine + (TERRACE + BASE.setback) / 2, -LOW - 0.001, (midZ + lowWest) / 2))
   const porchFrom = ENTRY.doorZ + OUTER_WALL
-  group.add(snowTop(box(SAS.north - SAS.south, 0.004, house[3] - porchFrom, terrace, (SAS.north + SAS.south) / 2, -0.006, (house[3] + porchFrom) / 2), SNOW_DEEP))
+  group.add(box(SAS.north - SAS.south, 0.004, house[3] - porchFrom, terrace, (SAS.north + SAS.south) / 2, -0.006, (house[3] + porchFrom) / 2))
 }
 
 /** Le pavage : à l’est de la maison, du bas de la cage au sud de la terrasse ; le sol de la cage ; le chemin du portillon ; et l’allée de béton du portail. */
@@ -77,12 +76,11 @@ export const paving = (group: THREE.Group, m: GardenMaterials): void => {
   const { terrace, concrete } = m
   const { stepY, cageSouth, cageEast, midPlan, recessPlan } = SITE
   const east = PLAN.west + PLAN.width
-  // La neige tient sur le pavage, le chemin et l'allée ; pas sur le sol de la cage, à l'abri.
-  group.add(snowTop(flat([[east, stepY], [midPlan, stepY], [midPlan, cageSouth], [LOT.east, cageSouth], [LOT.east, PAVING.south], [east, PAVING.south]], terrace, -0.008), SNOW_DEEP))
+  group.add(flat([[east, stepY], [midPlan, stepY], [midPlan, cageSouth], [LOT.east, cageSouth], [LOT.east, PAVING.south], [east, PAVING.south]], terrace, -0.008))
   group.add(flat([[CAGE_WEST, CAGE_NORTH], [cageEast, CAGE_NORTH], [cageEast, cageSouth], [midPlan, cageSouth], [midPlan, recessPlan], [CAGE_WEST, recessPlan]], terrace, -0.008))
-  group.add(snowTop(flat([[PAVING.pathWest, PAVING.south], [PAVING.pathEast, PAVING.south], [PAVING.pathEast, PAVING.pathEnd], [PAVING.pathWest, PAVING.pathEndWest]], terrace, -0.008), SNOW_DEEP))
+  group.add(flat([[PAVING.pathWest, PAVING.south], [PAVING.pathEast, PAVING.south], [PAVING.pathEast, PAVING.pathEnd], [PAVING.pathWest, PAVING.pathEndWest]], terrace, -0.008))
   // L'allée de béton, du portail à la terrasse.
-  group.add(snowTop(flat(PLAN_GARAGE_CORNERS, concrete, -0.012), SNOW_DEEP))
+  group.add(flat(PLAN_GARAGE_CORNERS, concrete, -0.012))
 }
 
 /**
@@ -114,7 +112,7 @@ export const raisedTerrace = (group: THREE.Group, m: GardenMaterials): void => {
   // l'autre (comme tous les murets du jardin).
   const muretEnd = gardenZ(PAVING.pathWest) + 0.075
   const muretX = house[0] - PERGOLA_FRONT
-  group.add(snowTop(box(0.15, raised, terraceEnd - terraceWest, wall, muretX, raised / 2, (terraceEnd + terraceWest) / 2)), snowTop(box(0.15, raised, muretEnd - terraceEnd, wall, muretX, raised / 2, (muretEnd + terraceEnd) / 2)))
+  group.add(box(0.15, raised, terraceEnd - terraceWest, wall, muretX, raised / 2, (terraceEnd + terraceWest) / 2), box(0.15, raised, muretEnd - terraceEnd, wall, muretX, raised / 2, (muretEnd + terraceEnd) / 2))
   // Devant lui, à 30 cm, un second muret de même hauteur, du muret du chemin du portillon jusqu'au bout de la maison ; entre
   // les deux, de la terre (une jardinière), fermée au bout ouest (à l'est, c'est le muret du chemin qui la ferme).
   const bed = 0.3
@@ -127,7 +125,7 @@ export const raisedTerrace = (group: THREE.Group, m: GardenMaterials): void => {
   for (const [from, to, closedEnd] of [[terraceWest, gap[0], false], [gap[1], bedEnd, true]] as [number, number, boolean][]) {
     // Au bout du chemin, le second muret s'arrête au second muret du chemin (30 cm avant le premier) ; la terre, elle, va jusqu'au premier.
     const muretTo = closedEnd ? to - bed : to
-    group.add(snowTop(box(0.15, raised, muretTo - from, wall, frontX, raised / 2, (from + muretTo) / 2)), snowTop(box(bed - 0.02, raised - 0.04, to - from - 0.04, earth, middleX, (raised - 0.04) / 2, (from + to) / 2)))
+    group.add(box(0.15, raised, muretTo - from, wall, frontX, raised / 2, (from + muretTo) / 2), box(bed - 0.02, raised - 0.04, to - from - 0.04, earth, middleX, (raised - 0.04) / 2, (from + to) / 2))
     // (La terre est un rien plus étroite et plus courte que son bac : ses faces ne se confondent pas avec celles des murets.)
     // Un petit muret ferme chaque bout (sauf au chemin du portillon, dont le muret la ferme déjà).
     group.add(box(bed, raised, 0.15, wall, middleX, raised / 2, from + 0.075))

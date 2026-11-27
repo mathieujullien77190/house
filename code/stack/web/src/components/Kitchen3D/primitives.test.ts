@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { fakeContext2d, stubCanvasContext } from '@/test/canvas'
-import { BULB_OFF, box, bulbBall, canvasTexture, cylinder, fixtureBulb, seeded, SNOW_DEEP, snowTop, standard, woodTexture } from './primitives'
+import { BULB_OFF, box, bulbBall, canvasTexture, cylinder, fixtureBulb, noShadow, seeded, standard, woodTexture } from './primitives'
 
 describe('seeded', () => {
   it('rend la même suite pour la même graine, entre 0 et 1', () => {
@@ -115,12 +115,11 @@ describe('bulbBall', () => {
   })
 })
 
-describe('snowTop', () => {
-  it('marque un objet où la neige tient, de son épaisseur (3 cm par défaut), et le rend', () => {
-    const wall = box(1, 1, 1, standard(0xffffff, 1), 0, 0, 0)
-    expect(snowTop(wall)).toBe(wall)
-    expect(wall.userData.snow).toBe(0.03)
-    expect(snowTop(new THREE.Group(), SNOW_DEEP).userData.snow).toBe(0.04)
+describe('noShadow', () => {
+  it('marque un objet qui ne porte pas d’ombre, et le rend', () => {
+    const tuft = box(1, 1, 1, standard(0xffffff, 1), 0, 0, 0)
+    expect(noShadow(tuft)).toBe(tuft)
+    expect(tuft.userData.noShadow).toBe(true)
   })
 })
 

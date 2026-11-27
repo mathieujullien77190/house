@@ -45,6 +45,10 @@ const colorOf = (bulb: THREE.Mesh): THREE.Color => (bulb.material as THREE.MeshB
  * luminaire qui porte son nom, sinon du luminaire dessiné le plus proche (à moins de `matchDistance`, un luminaire par lampe, les plus proches d'abord), sinon d'une ampoule
  * nue pendue au plafond à sa place. Allumée, sa lumière prend la couleur et l'intensité de la lampe ; éteinte ou injoignable, elle
  * n'éclaire pas et son ampoule est grise. `apply` se rappelle à chaque relecture du pont.
+ *
+ * Une lampe qui n'éclaire pas a sa source cachée (`visible = false`) : three.js ne compte dans ses programmes que les lumières visibles,
+ * et chaque pixel de chaque matériau boucle sur toutes celles-là, même d'intensité nulle. Le prix : quand le nombre de lampes allumées
+ * change, three.js recompile ses programmes (un à-coup d'une image), ce qui n'arrive qu'à un clic ou à une relecture du pont.
  */
 export const createLighting = (root: THREE.Group): Lighting => {
   root.updateMatrixWorld(true)
@@ -107,6 +111,7 @@ export const createLighting = (root: THREE.Group): Lighting => {
       const color = new THREE.Color(lamp.color ?? LAMP_LIGHT.color)
       rig.light.color.copy(color)
       rig.light.intensity = level * LAMP_LIGHT.intensity
+      rig.light.visible = lit
       const bulbColor = lit ? color.clone().lerp(new THREE.Color(0xffffff), 0.35) : new THREE.Color(BULB_OFF)
       if (fixture) {
         // Un peu sous l'ampoule dessinée : une lumière collée à son abat-jour l'éclairerait à blanc.

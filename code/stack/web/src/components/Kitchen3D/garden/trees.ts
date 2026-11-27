@@ -1,35 +1,43 @@
 import * as THREE from 'three'
 import { faceted } from '@/components/Kitchen3D/materials'
 import { seeded } from '@/components/Kitchen3D/primitives'
-import { berriesOf, blossomOf, limbOf, sprinkleOf, tuftOf } from './branches'
-import { AUTUMN, foliage, inSeason } from './seasons'
+import { berriesOf, blossomOf, fruitsOf, sprinkleOf, tuftOf, tuftsOf, woodOf } from './branches'
 
 /**
  * Un cerisier à facettes (peu de polygones) : un tronc qui penche un peu, des branches maîtresses qui partent au hasard vers le haut et
  * le dehors, chacune avec ses rameaux et leurs brindilles, et beaucoup de petites touffes de feuilles au bout et le long du bois. `seed` fixe le hasard :
- * le même nombre donne le même arbre. `fruit` : la couleur de fruits ronds à pendre sous quelques touffes (un pommier, en automne) ; sans
- * elle, c'est un cerisier, et ses cerises (au printemps).
- *
- * Selon la saison (`seasons.ts`) : en fleurs au printemps (blanches, rosées pour le pommier), feuilles aux couleurs d'automne, bois nu
- * l'hiver. Les fleurs et les cerises ont leur propre tirage : l'arbre a la même forme toute l'année.
+ * le même nombre donne le même arbre. Il est en fleurs (blanches) et porte ses cerises ; `apple` : c'est un pommier, aux fleurs rosées,
+ * sans fruits. Les fleurs et les cerises ont leur propre tirage : la forme de l'arbre n'en dépend pas.
  */
-export const cherryTree = (seed: number, fruit?: number): THREE.Group => {
+/** Le tronc d'un cerisier, en deux tronçons qui ne sont pas d'aplomb : son genou et sa fourche (les quatre premiers tirages de l'arbre). */
+const trunkOf = (rand: () => number): { knee: THREE.Vector3; fork: THREE.Vector3 } => {
+  const knee = new THREE.Vector3((rand() - 0.5) * 0.2, 0.9, (rand() - 0.5) * 0.2)
+  const fork = new THREE.Vector3(knee.x + (rand() - 0.5) * 0.25, 1.7, knee.z + (rand() - 0.5) * 0.25)
+  return { knee, fork }
+}
+
+/** Le milieu du haut du tronc du cerisier de cette graine (entre le genou et la fourche), dans le repère de l'arbre : pour y accrocher quelque chose. */
+export const cherryTrunk = (seed: number): THREE.Vector3 => {
+  const { knee, fork } = trunkOf(seeded(seed))
+  return knee.lerp(fork, 0.5)
+}
+
+export const cherryTree = (seed: number, apple = false): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
-  const greens = foliage([0x4f8a3a, 0x5f9a44, 0x437a34], 0.9, { autumn: fruit === undefined ? AUTUMN.cherry : AUTUMN.apple })
-  const limb = limbOf(group, faceted(0x5a3a2a, 0.95))
-  // Une touffe de feuilles, un peu écrasée, et parfois un fruit dessous.
-  const leaves = tuftOf(group, rand, greens, [0.75, 0.2], 'leaves')
+  const greens = [0x4f8a3a, 0x5f9a44, 0x437a34].map((color) => faceted(color, 0.9))
+  const wood = woodOf(faceted(0x5a3a2a, 0.95))
+  const { limb } = wood
+  // Une touffe de feuilles, un peu écrasée.
+  const crown = tuftsOf(greens)
+  const leaves = tuftOf(rand, crown, [0.75, 0.2])
   // La place et la taille de chaque touffe : les fleurs et les cerises s'y posent.
   const tufts: [THREE.Vector3, number][] = []
   const tuft = (at: THREE.Vector3, size: number) => {
     leaves(at, size)
     tufts.push([at.clone(), size])
-    if (fruit !== undefined && rand() < 0.14) {
-      const ball = inSeason(new THREE.Mesh(new THREE.IcosahedronGeometry(0.045, 0), faceted(fruit, 0.6)), 'harvest')
-      ball.position.set(at.x, at.y - size * 0.8, at.z)
-      group.add(ball)
-    }
+    // Le pommier tire un nombre par touffe (autrefois : y pendre ou non une pomme) : sans ce tirage, sa forme changerait.
+    if (apple) rand()
   }
   // Les touffes déjà posées : celles du cœur de la couronne s'accrochent à la plus proche.
   const nodes: THREE.Vector3[] = []
@@ -45,8 +53,7 @@ export const cherryTree = (seed: number, fruit?: number): THREE.Group => {
     }
   }
   // Le tronc, en deux tronçons qui ne sont pas d'aplomb.
-  const knee = new THREE.Vector3((rand() - 0.5) * 0.2, 0.9, (rand() - 0.5) * 0.2)
-  const fork = new THREE.Vector3(knee.x + (rand() - 0.5) * 0.25, 1.7, knee.z + (rand() - 0.5) * 0.25)
+  const { knee, fork } = trunkOf(rand)
   limb(new THREE.Vector3(0, 0, 0), knee, 0.16, 0.13)
   limb(knee, fork, 0.13, 0.11)
   // Les branches maîtresses : chacune part de la fourche (ou d'un peu plus bas) dans sa direction, monte, puis se divise en rameaux, qui
@@ -113,33 +120,32 @@ export const cherryTree = (seed: number, fruit?: number): THREE.Group => {
     limb(near, at, 0.01, 0.005)
     tuft(at, 0.17 + rand() * 0.09)
   }
-  // Au printemps : l'arbre est en fleurs (blanches, rosées pour le pommier), et le cerisier porte déjà ses cerises, par deux sous une touffe sur cinq.
-  group.add(blossomOf(tufts, fruit === undefined ? 0xfff3f7 : 0xffdbe6, seed + 5000, 3))
-  if (fruit === undefined) {
+  // Tout le bois fait un seul maillage, les touffes un par teinte.
+  wood.grow(group)
+  crown.grow(group)
+  // L'arbre est en fleurs (blanches, rosées pour le pommier), et le cerisier porte ses cerises, par deux sous une touffe sur cinq.
+  group.add(blossomOf(tufts, apple ? 0xffdbe6 : 0xfff3f7, seed + 5000, 3))
+  if (!apple) {
     const pick = seeded(seed + 6000)
     const cherries = tufts.filter(() => pick() < 0.2).flatMap(([at, size]) => [-1, 1].map((side) => new THREE.Vector3(at.x + side * 0.022, at.y - size * 0.8 - 0.02, at.z + (pick() - 0.5) * 0.03)))
-    group.add(berriesOf(cherries, 0.02, 0xb3122a, 'cherries'))
+    group.add(berriesOf(cherries, 0.02, 0xb3122a))
   }
-  // Dans le vent, tout l'arbre penche et se balance depuis son pied.
-  group.userData.sway = 0.03
   return group
 }
 
 /**
  * Un prunus à feuillage bordeaux, à facettes : un tronc qui se sépare tôt en deux charpentières bien écartées, chacune avec son bouquet de
  * branches, et rien entre les deux. Un feuillage léger : de petites touffes espacées, chacune sur sa brindille. `seed` fixe le hasard.
- * Au printemps il est couvert de fleurs fuchsia ; en automne son feuillage vire au rouge cuivré ; l'hiver il est nu.
+ * Il n'a pas de fleurs.
  */
 export const prunusTree = (seed: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
-  const limb = limbOf(group, faceted(0x3f2c2a, 0.95))
-  const leaves = tuftOf(group, rand, foliage([0x6b1f33, 0x7d2a3d, 0x561a2b], 0.85, { autumn: AUTUMN.prunus }), undefined, 'leaves')
-  const tufts: [THREE.Vector3, number][] = []
-  const tuft = (at: THREE.Vector3) => {
-    leaves(at, 0.14 + rand() * 0.08)
-    tufts.push([at.clone(), 0.18])
-  }
+  const wood = woodOf(faceted(0x3f2c2a, 0.95))
+  const { limb } = wood
+  const crown = tuftsOf([0x6b1f33, 0x7d2a3d, 0x561a2b].map((color) => faceted(color, 0.85)))
+  const leaves = tuftOf(rand, crown)
+  const tuft = (at: THREE.Vector3) => leaves(at, 0.14 + rand() * 0.08)
   // Des touffes espacées le long d'un tronçon (une tous les 25 cm environ), chacune au bout d'une brindille.
   const along = sprinkleOf(rand, limb, tuft, 0.25, 0.2)
   const fork = new THREE.Vector3((rand() - 0.5) * 0.15, 1.1, (rand() - 0.5) * 0.15)
@@ -168,8 +174,8 @@ export const prunusTree = (seed: number): THREE.Group => {
       tuft(twig)
     }
   }
-  group.add(blossomOf(tufts, 0xe23d9c, seed + 5000, 4))
-  group.userData.sway = 0.035
+  wood.grow(group)
+  crown.grow(group)
   return group
 }
 
@@ -177,20 +183,16 @@ export const prunusTree = (seed: number): THREE.Group => {
  * L'arbre du coin : il a pris la forme de l'angle où il pousse. Vu de dessus, sa masse est un triangle : deux flancs droits le long des
  * deux murets (l'angle droit à l'origine, un flanc vers −x, l'autre vers +z) et un grand côté en biais ; elle monte droit, touffue dès le
  * bas, et s'arrondit en haut. Des boules de feuilles sombres posées sans régularité, et des branches folles qui en sortent n'importe où.
- * L'hiver, il perd ses feuilles comme les autres : il n'en reste que le tronc et les branches folles.
  */
 export const clippedTree = (seed: number): THREE.Group => {
   const clipped = new THREE.Group()
-  const dark = foliage([0x23472a, 0x2b5432, 0x1d3d24], 0.9)
+  const dark = [0x23472a, 0x2b5432, 0x1d3d24].map((color) => faceted(color, 0.9))
   const pick = seeded(seed)
   const shape = { leg: 1.5, tall: 3.3, foot: 0.2 }
-  const bough = limbOf(clipped, faceted(0x4a3a2c, 0.95))
-  const ball = (at: THREE.Vector3, size: number) => {
-    const leaves = inSeason(new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), dark[Math.floor(pick() * dark.length)]), 'leaves')
-    leaves.position.copy(at)
-    leaves.rotation.set(pick() * 3, pick() * 3, pick() * 3)
-    clipped.add(leaves)
-  }
+  const wood = woodOf(faceted(0x4a3a2c, 0.95))
+  const bough = wood.limb
+  const mass = tuftsOf(dark)
+  const ball = tuftOf(pick, mass)
   // Le tronc, au cœur du triangle.
   const heart = new THREE.Vector3(-shape.leg / 3, 0, shape.leg / 3)
   bough(heart, new THREE.Vector3(heart.x + (pick() - 0.5) * 0.15, shape.tall - 0.3, heart.z + (pick() - 0.5) * 0.15), 0.11, 0.03)
@@ -238,21 +240,23 @@ export const clippedTree = (seed: number): THREE.Group => {
     bough(from, tip, 0.025, 0.008)
     ball(tip, 0.1 + pick() * 0.06)
   }
-  clipped.userData.sway = 0.015
+  wood.grow(clipped)
+  mass.grow(clipped)
   return clipped
 }
 
 /**
  * Un néflier, petit : un tronc court, puis des branches qui partent toutes vers le haut, en vase serré ; de grosses touffes de feuilles
- * sombres au bout et le long, et quelques nèfles orangées (tant qu'il a ses feuilles). `seed` fixe le hasard. En automne son feuillage
- * roussit ; l'hiver il est nu.
+ * sombres au bout et le long, et quelques nèfles orangées. `seed` fixe le hasard.
  */
 export const medlarTree = (seed: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
-  const limb = limbOf(group, faceted(0x4a3b30, 0.95))
-  const tuft = tuftOf(group, rand, foliage([0x2f6131, 0x3a7038, 0x28552b], 0.8, { autumn: AUTUMN.medlar }), undefined, 'leaves')
-  const fruit = faceted(0xe2a23a, 0.6)
+  const wood = woodOf(faceted(0x4a3b30, 0.95))
+  const { limb } = wood
+  const crown = tuftsOf([0x2f6131, 0x3a7038, 0x28552b].map((color) => faceted(color, 0.8)))
+  const tuft = tuftOf(rand, crown)
+  const fruits: THREE.Vector3[] = []
   const fork = new THREE.Vector3((rand() - 0.5) * 0.08, 0.55, (rand() - 0.5) * 0.08)
   limb(new THREE.Vector3(0, 0, 0), fork, 0.07, 0.055)
   const branches = 6
@@ -270,13 +274,11 @@ export const medlarTree = (seed: number): THREE.Group => {
       const at = base.clone().add(new THREE.Vector3((rand() - 0.5) * 0.3, rand() * 0.15, (rand() - 0.5) * 0.3))
       limb(base, at, 0.008, 0.005)
       tuft(at, 0.13 + rand() * 0.06)
-      if (rand() < 0.35) {
-        const ball = inSeason(new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0), fruit), 'medlars')
-        ball.position.set(at.x, at.y - 0.14, at.z)
-        group.add(ball)
-      }
+      if (rand() < 0.35) fruits.push(new THREE.Vector3(at.x, at.y - 0.14, at.z))
     }
   }
-  group.userData.sway = 0.035
+  wood.grow(group)
+  crown.grow(group)
+  group.add(fruitsOf(fruits, 0.035, 0xe2a23a))
   return group
 }

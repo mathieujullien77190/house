@@ -23,11 +23,15 @@ export const skyOf = (weather: { isDay: boolean; code: number } | null, hour: nu
 /** Le temps qu'un volet de la scène met à monter ou descendre en entier, en secondes. */
 export const SHUTTER_TRAVEL_S = 8
 
-const showSlats = (object: THREE.Object3D, level: number): void => {
+/** Montre les lames d'un volet jusqu'à cette part fermée. Vrai si le nombre de lames montrées a changé (l'ombre du volet aussi, donc). */
+const showSlats = (object: THREE.Object3D, level: number): boolean => {
   const shown = Math.round(object.children.length * level)
+  let changed = false
   object.children.forEach((slat, index) => {
+    if (slat.visible !== index < shown) changed = true
     slat.visible = index < shown
   })
+  return changed
 }
 
 /**
@@ -54,17 +58,32 @@ export const applyShutters = (root: THREE.Object3D, closed: Record<string, numbe
   return total > 0 ? open / total : 0
 }
 
-/** Fait avancer les volets vers leur but pendant `seconds` : les lames se déroulent depuis le haut, ou remontent. */
-export const stepShutters = (root: THREE.Object3D, seconds: number): void => {
+/** Les volets de la scène (les groupes de lames marqués par `userData.shutter`), retrouvés une fois pour la boucle de dessin. */
+export const shutterSlats = (root: THREE.Object3D): THREE.Object3D[] => {
+  const found: THREE.Object3D[] = []
   root.traverse((object) => {
+    if (object.userData.shutter) found.push(object)
+  })
+  return found
+}
+
+/**
+ * Fait avancer ces volets vers leur but pendant `seconds` : les lames se déroulent depuis le haut, ou remontent. Rend vrai tant qu'un
+ * volet est en route (la boucle de dessin continue) ; `changed` est appelé quand une lame apparaît ou disparaît (il faut redessiner).
+ */
+export const stepShutters = (shutters: THREE.Object3D[], seconds: number, changed: () => void): boolean => {
+  let moving = false
+  for (const object of shutters) {
     const goal = object.userData.goal as number | undefined
     const level = object.userData.level as number | undefined
-    if (goal === undefined || level === undefined || goal === level) return
+    if (goal === undefined || level === undefined || goal === level) continue
     const step = seconds / SHUTTER_TRAVEL_S
     const next = goal > level ? Math.min(goal, level + step) : Math.max(goal, level - step)
     object.userData.level = next
-    showSlats(object, next)
-  })
+    if (showSlats(object, next)) changed()
+    moving = true
+  }
+  return moving
 }
 
 /** Les fenêtres à volet de la scène : pour chacune, le nom de son volet et tout ce qui la dessine (cadre, vitre, lames), à viser au clic. */

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { BASE, PATIO_DOOR, REST } from '@/components/Kitchen3D/constants'
+import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, PATIO_DOOR, REST } from '@/components/Kitchen3D/constants'
+import { reolink } from '@/components/Kitchen3D/reolink'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
 import { cageFrame, cagePanels, cageRoof, cageWire, planters } from './aviary'
 import { binWalls, hedges, pathAndGates } from './borders'
@@ -13,7 +14,7 @@ import { lounge } from './lounge'
 import { buildPergola, PERGOLA, PERGOLA_FRONT } from './pergola'
 import { gardenX, gardenZ } from './plan'
 import { bush, choisya, creeper, flowerPatch, passionflower, wisteria } from './plants'
-import { cherryTree, clippedTree, medlarTree, prunusTree } from './trees'
+import { cherryTree, cherryTrunk, clippedTree, medlarTree, prunusTree } from './trees'
 
 /** Le cerisier, au coin de la maison côté chambre d’invité (le coin nord-ouest), dans la partie basse du jardin. */
 const backCherry = (group: THREE.Group): void => {
@@ -29,7 +30,7 @@ const frontTrees = (group: THREE.Group): void => {
   // Près de la table blanche, entre elle et la maison, devant la chambre de Matou : un second cerisier, et à côté un pommier (plus trapu, avec ses pommes).
   const cherryTwo = cherryTree(19)
   cherryTwo.position.set(house[0] - TERRACE - 0.6, 0, REST.west - 0.6)
-  const apple = cherryTree(31, 0xc8402f)
+  const apple = cherryTree(31, true)
   apple.scale.set(1.1, 0.85, 1.1)
   apple.position.set(house[0] - TERRACE - 2.1, 0, REST.west + 3.6)
   group.add(cherryTwo, apple)
@@ -51,6 +52,13 @@ const frontTrees = (group: THREE.Group): void => {
   const toWicket = new THREE.Vector3(gardenX((wicket.y1 + wicket.y2) / 2) - prunus.position.x, 0, gardenZ((wicket.x1 + wicket.x2) / 2) - prunus.position.z).normalize()
   prunus.quaternion.setFromAxisAngle(new THREE.Vector3(toWicket.z, 0, -toWicket.x), 0.45)
   group.add(prunus)
+  // Sur le tronc du pommier, à mi-hauteur : une caméra qui regarde vers le prunus, un peu à sa droite.
+  const toPrunus = prunus.position.clone().sub(apple.position).setY(0).normalize()
+  const aim = prunus.position.clone().add(new THREE.Vector3(-toPrunus.z, 0, toPrunus.x).multiplyScalar(1.2)).setY(1.2)
+  const trunk = cherryTrunk(31).multiply(apple.scale).add(apple.position)
+  group.add(reolink(trunk.clone().addScaledVector(toPrunus, 0.15), aim, APPLE_CAMERA))
+  // De l'autre côté du tronc, une seconde caméra regarde à l'opposé.
+  group.add(reolink(trunk.clone().addScaledVector(toPrunus, -0.15), trunk.clone().addScaledVector(toPrunus, -6).setY(1), APPLE_BACK_CAMERA))
   // À côté du prunus, dans l'angle que font le muret des poubelles et celui du chemin : un arbre haut et touffu qui a pris la forme
   // du coin (posé dans l'angle même : ses deux flancs longent les murets), avec des branches folles.
   const clipped = clippedTree(61)
@@ -108,15 +116,16 @@ const laurelByCage = (group: THREE.Group): void => {
  * Le jardin, d'après le plan de la maison : la pelouse (un quart de cercle, l'arc côté rue, plus une bande au nord), la terrasse autour de la
  * maison et le perron, le pavage à l'est et le chemin du portillon, l'allée de béton du portail, la haie sur la limite (ouverte au portail,
  * au portillon et à droite de la cage), le portail et le portillon, la cage à perruches, les poubelles, la table, la pompe à chaleur, la
- * terrasse en ipé, les arbres et la pergola. Tout est ajouté à un seul groupe, dans cet ordre.
+ * terrasse en ipé, les arbres et la pergola. Tout est ajouté à un seul groupe, dans cet ordre. `grass` : la part des bouquets d'herbe
+ * semés (1 : tous).
  */
-export const buildGarden = (): THREE.Group => {
+export const buildGarden = (grass = 1): THREE.Group => {
   const group = new THREE.Group()
   // Le terrain est plus bas que le sol de la maison, qui est surélevée.
   group.position.y = -BASE.rise
   const m = gardenMaterials()
   lawns(group, m)
-  grassTufts(group)
+  grassTufts(group, grass)
   lawnFlowers(group)
   retainingWalls(group, m)
   groundTerrace(group, m)

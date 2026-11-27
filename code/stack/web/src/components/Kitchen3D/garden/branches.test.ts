@@ -1,68 +1,123 @@
 import * as THREE from 'three'
 import { seeded } from '@/components/Kitchen3D/primitives'
-import { berriesOf, blossomOf, limbOf, sprinkleOf, tuftOf } from './branches'
+import { copiesOf, limbsOf } from '@/test/batched'
+import { berriesOf, blossomOf, fruitsOf, piecesOf, sprinkleOf, tuftOf, tuftsOf, woodOf } from './branches'
 
-describe('limbOf', () => {
-  it('un tronçon de bois entre deux points, plus fin au bout', () => {
+describe('piecesOf', () => {
+  it('des morceaux d’un même matériau, chacun à sa place, fondus en un seul maillage', () => {
+    const group = new THREE.Group()
+    const material = new THREE.MeshStandardMaterial()
+    const pieces = piecesOf(material)
+    pieces.add(new THREE.BoxGeometry(1, 1, 1), new THREE.Matrix4().makeTranslation(2, 0, 0))
+    pieces.add(new THREE.BoxGeometry(1, 1, 1), new THREE.Matrix4().makeTranslation(-2, 3, 0))
+    const [mesh] = pieces.grow(group)
+    expect(group.children).toEqual([mesh])
+    expect(mesh.material).toBe(material)
+    expect(mesh.userData).toEqual({})
+    // Deux pavés : deux fois 24 sommets, aux places données.
+    expect(mesh.geometry.attributes.position.count).toBe(48)
+    mesh.geometry.computeBoundingBox()
+    const box = mesh.geometry.boundingBox as THREE.Box3
+    expect(box.min.toArray()).toEqual([-2.5, -0.5, -0.5])
+    expect(box.max.toArray()).toEqual([2.5, 3.5, 0.5])
+  })
+
+  it('sans morceau, rien n’est ajouté', () => {
+    const group = new THREE.Group()
+    expect(piecesOf(new THREE.MeshStandardMaterial()).grow(group)).toEqual([])
+    expect(group.children).toHaveLength(0)
+  })
+})
+
+describe('woodOf', () => {
+  it('un tronçon de bois entre deux points, plus fin au bout ; tous les tronçons font un seul maillage', () => {
     const group = new THREE.Group()
     const bark = new THREE.MeshStandardMaterial()
     const from = new THREE.Vector3(1, 0, 0)
     const to = new THREE.Vector3(1, 2, 2)
-    limbOf(group, bark)(from, to, 0.1, 0.04)
-    expect(group.children).toHaveLength(1)
-    const piece = group.children[0] as THREE.Mesh
-    expect(piece.material).toBe(bark)
-    const { radiusTop, radiusBottom, height } = (piece.geometry as THREE.CylinderGeometry).parameters
-    expect(radiusBottom).toBe(0.1)
-    expect(radiusTop).toBe(0.04)
-    expect(height).toBeCloseTo(Math.hypot(2, 2))
-    expect(piece.position.toArray()).toEqual([1, 1, 1])
-    // Son axe est tourné du pied vers le bout.
-    const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(piece.quaternion)
-    expect(axis.distanceTo(to.clone().sub(from).normalize())).toBeCloseTo(0)
+    const wood = woodOf(bark)
+    wood.limb(from, to, 0.1, 0.04)
+    wood.limb(to, new THREE.Vector3(1, 3, 2), 0.04, 0.02)
+    const [mesh] = wood.grow(group)
+    expect(group.children).toEqual([mesh])
+    expect(mesh.material).toBe(bark)
+    const [piece, next] = limbsOf(mesh)
+    expect(limbsOf(mesh)).toHaveLength(2)
+    expect(piece.thick).toBeCloseTo(0.1)
+    expect(piece.thin).toBeCloseTo(0.04)
+    // Son axe va du pied vers le bout.
+    expect(piece.from.distanceTo(from)).toBeCloseTo(0)
+    expect(piece.to.distanceTo(to)).toBeCloseTo(0)
+    expect(piece.mid.distanceTo(new THREE.Vector3(1, 1, 1))).toBeCloseTo(0)
+    expect(next.to.y).toBeCloseTo(3)
+    expect(woodOf(bark).grow(group)).toEqual([])
+  })
+})
+
+describe('tuftsOf', () => {
+  it('un maillage par teinte, quel que soit le nombre de touffes ; rien pour une teinte sans touffe', () => {
+    const group = new THREE.Group()
+    const tints = [new THREE.MeshStandardMaterial(), new THREE.MeshStandardMaterial(), new THREE.MeshStandardMaterial()]
+    const tufts = tuftsOf(tints)
+    expect(tufts.tints).toBe(3)
+    tufts.add(0, new THREE.Vector3(1, 2, 3), [0, 0, 0], [0.2, 0.1, 0.2])
+    tufts.add(2, new THREE.Vector3(4, 5, 6), [0, Math.PI / 2, 0], [0.3, 0.3, 0.3])
+    tufts.add(0, new THREE.Vector3(7, 8, 9), [0, 0, 0], [0.1, 0.1, 0.1])
+    const meshes = tufts.grow(group)
+    expect(group.children).toEqual(meshes)
+    expect(meshes.map((mesh) => mesh.material)).toEqual([tints[0], tints[2]])
+    expect(meshes.map((mesh) => mesh.count)).toEqual([2, 1])
+    for (const mesh of meshes) {
+      expect(mesh.isInstancedMesh).toBe(true)
+      expect(mesh.userData).toEqual({})
+      // Le même caillou de rayon 1 pour tous : c'est la copie qui lui donne sa taille.
+      expect((mesh.geometry as THREE.IcosahedronGeometry).parameters).toMatchObject({ radius: 1, detail: 0 })
+      expect(mesh.geometry).toBe(meshes[0].geometry)
+    }
+    const [first, third] = copiesOf(meshes[0])
+    expect(first.at.toArray()).toEqual([1, 2, 3])
+    expect(first.size.toArray()).toEqual([expect.closeTo(0.2), expect.closeTo(0.1), expect.closeTo(0.2)])
+    expect(third.at.toArray()).toEqual([7, 8, 9])
+    expect(copiesOf(meshes[1])[0].turn.angleTo(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)))).toBeCloseTo(0)
+  })
+
+  it('`detail` affine le caillou', () => {
+    const tufts = tuftsOf([new THREE.MeshStandardMaterial()], 1)
+    tufts.add(0, new THREE.Vector3(), [0, 0, 0], [1, 1, 1])
+    const [mesh] = tufts.grow(new THREE.Group())
+    expect((mesh.geometry as THREE.IcosahedronGeometry).parameters.detail).toBe(1)
   })
 })
 
 describe('tuftOf', () => {
-  it('une touffe à facettes d’une des teintes données, à sa place, tournée au hasard', () => {
-    const group = new THREE.Group()
-    const tints = [new THREE.MeshStandardMaterial(), new THREE.MeshStandardMaterial()]
-    const tuft = tuftOf(group, seeded(3), tints)
+  const grown = (seed: number, tints: THREE.Material[], squash?: [number, number]) => {
+    const tufts = tuftsOf(tints)
+    const tuft = tuftOf(seeded(seed), tufts, squash)
     for (let index = 0; index < 12; index += 1) tuft(new THREE.Vector3(index, 2, 0), 0.2)
-    const leaves = group.children as THREE.Mesh[]
+    return tufts.grow(new THREE.Group()).flatMap(copiesOf)
+  }
+
+  it('une touffe à facettes d’une des teintes données, à sa place, tournée au hasard', () => {
+    const tints = [new THREE.MeshStandardMaterial(), new THREE.MeshStandardMaterial()]
+    const leaves = grown(3, tints)
     expect(leaves).toHaveLength(12)
-    expect(leaves[4].position.toArray()).toEqual([4, 2, 0])
-    expect((leaves[0].geometry as THREE.IcosahedronGeometry).parameters.radius).toBe(0.2)
+    expect(leaves.map((leaf) => leaf.at.x).sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
     // Les deux teintes sortent, et aucune autre.
     expect(new Set(leaves.map((leaf) => leaf.material))).toEqual(new Set(tints))
-    // Sans `squash`, elle n'est pas écrasée.
-    for (const leaf of leaves) expect(leaf.scale.toArray()).toEqual([1, 1, 1])
-    expect(new Set(leaves.map((leaf) => leaf.rotation.x)).size).toBe(12)
+    // Sans `squash`, elle n'est pas écrasée : son rayon dans les trois sens.
+    for (const leaf of leaves) expect(leaf.size.toArray()).toEqual([expect.closeTo(0.2), expect.closeTo(0.2), expect.closeTo(0.2)])
+    expect(new Set(leaves.map((leaf) => leaf.turn.x)).size).toBe(12)
+    // Le même tirage donne les mêmes touffes.
+    expect(grown(3, tints).map((leaf) => leaf.turn.toArray())).toEqual(leaves.map((leaf) => leaf.turn.toArray()))
   })
 
   it('avec `squash`, elle est écrasée en hauteur seulement, entre le premier nombre et leur somme', () => {
-    const group = new THREE.Group()
-    const tuft = tuftOf(group, seeded(3), [new THREE.MeshStandardMaterial()], [0.75, 0.2])
-    for (let index = 0; index < 12; index += 1) tuft(new THREE.Vector3(0, 0, 0), 0.2)
-    for (const leaf of group.children) {
-      expect(leaf.scale.x).toBe(1)
-      expect(leaf.scale.z).toBe(1)
-      expect(leaf.scale.y).toBeGreaterThanOrEqual(0.75)
-      expect(leaf.scale.y).toBeLessThan(0.95)
+    for (const leaf of grown(3, [new THREE.MeshStandardMaterial()], [0.75, 0.2])) {
+      expect(leaf.size.x).toBeCloseTo(0.2)
+      expect(leaf.size.z).toBeCloseTo(0.2)
+      expect(leaf.size.y).toBeGreaterThanOrEqual(0.2 * 0.75 - 1e-9)
+      expect(leaf.size.y).toBeLessThan(0.2 * 0.95)
     }
-  })
-})
-
-describe('tuftOf : la marque de saison', () => {
-  it('sans `key`, la touffe n’est pas marquée ; avec, elle porte sa marque', () => {
-    const group = new THREE.Group()
-    const tints = [new THREE.MeshStandardMaterial()]
-    tuftOf(group, seeded(3), tints)(new THREE.Vector3(), 0.2)
-    tuftOf(group, seeded(3), tints, undefined, 'leaves')(new THREE.Vector3(), 0.2)
-    tuftOf(group, seeded(3), tints, [0.8, 0.3], 'evergreen')(new THREE.Vector3(), 0.2)
-    expect(group.children.map((child) => child.userData.season)).toEqual([undefined, 'leaves', 'evergreen'])
-    // La marque ne change pas le tirage : la même touffe, tournée pareil.
-    expect(group.children[1].rotation.toArray()).toEqual(group.children[0].rotation.toArray())
   })
 })
 
@@ -71,23 +126,18 @@ describe('blossomOf', () => {
     [new THREE.Vector3(0, 2, 0), 0.2],
     [new THREE.Vector3(1, 3, -1), 0.25],
   ]
-  const placesOf = (mesh: THREE.InstancedMesh): THREE.Vector3[] =>
-    Array.from({ length: mesh.count }, (_, index) => {
-      const matrix = new THREE.Matrix4()
-      mesh.getMatrixAt(index, matrix)
-      return new THREE.Vector3().setFromMatrixPosition(matrix)
-    })
 
-  it('un seul maillage de petites fleurs à facettes, `per` par touffe, sur son pourtour, marqué du printemps', () => {
+  it('un seul maillage de petites fleurs à facettes, `per` par touffe, sur son pourtour', () => {
     const blossom = blossomOf(tufts, 0xfff3f7, 9, 4)
     expect(blossom.isInstancedMesh).toBe(true)
     expect(blossom.count).toBe(8)
-    expect(blossom.userData.season).toBe('blossom')
+    // Trop petites pour porter une ombre.
+    expect(blossom.userData).toEqual({ noShadow: true })
     expect(blossom.geometry.type).toBe('OctahedronGeometry')
     const material = blossom.material as THREE.MeshStandardMaterial
     expect(material.color.getHex()).toBe(0xfff3f7)
     expect(material.flatShading).toBe(true)
-    placesOf(blossom).forEach((at, index) => {
+    copiesOf(blossom).forEach(({ at }, index) => {
       const [tuft, size] = tufts[Math.floor(index / 4)]
       // À la surface de la touffe ou tout près, plutôt dessus que dessous.
       expect(at.distanceTo(tuft)).toBeLessThanOrEqual(size)
@@ -103,17 +153,28 @@ describe('blossomOf', () => {
 })
 
 describe('berriesOf', () => {
-  it('un seul maillage de petites boules de ce rayon et de cette couleur, aux places données, marqué de sa saison', () => {
+  it('un seul maillage de petites boules de ce rayon et de cette couleur, aux places données, sans ombre portée', () => {
     const places = [new THREE.Vector3(1, 2, 3), new THREE.Vector3(-1, 0.5, 2)]
-    const berries = berriesOf(places, 0.02, 0xb3122a, 'cherries')
+    const berries = berriesOf(places, 0.02, 0xb3122a)
     expect(berries.count).toBe(2)
-    expect(berries.userData.season).toBe('cherries')
+    expect(berries.userData).toEqual({ noShadow: true })
     expect((berries.geometry as THREE.SphereGeometry).parameters.radius).toBe(0.02)
     expect((berries.material as THREE.MeshStandardMaterial).color.getHex()).toBe(0xb3122a)
-    const matrix = new THREE.Matrix4()
-    berries.getMatrixAt(1, matrix)
-    expect(new THREE.Vector3().setFromMatrixPosition(matrix).toArray()).toEqual([-1, 0.5, 2])
-    expect(berriesOf([], 0.01, 0x000000, 'harvest').count).toBe(0)
+    expect(copiesOf(berries)[1].at.toArray()).toEqual([-1, 0.5, 2])
+    expect(berriesOf([], 0.01, 0x000000).count).toBe(0)
+  })
+})
+
+describe('fruitsOf', () => {
+  it('un seul maillage de fruits à facettes de ce rayon et de cette couleur, aux places données, sans ombre portée', () => {
+    const fruits = fruitsOf([new THREE.Vector3(1, 2, 3), new THREE.Vector3(-1, 0.5, 2)], 0.045, 0xc8402f)
+    expect(fruits.count).toBe(2)
+    expect(fruits.userData).toEqual({ noShadow: true })
+    expect((fruits.geometry as THREE.IcosahedronGeometry).parameters).toMatchObject({ radius: 0.045, detail: 0 })
+    const material = fruits.material as THREE.MeshStandardMaterial
+    expect([material.color.getHex(), material.roughness, material.flatShading]).toEqual([0xc8402f, 0.6, true])
+    expect(copiesOf(fruits)[1].at.toArray()).toEqual([-1, 0.5, 2])
+    expect(fruitsOf([], 0.035, 0xe2a23a).count).toBe(0)
   })
 })
 
