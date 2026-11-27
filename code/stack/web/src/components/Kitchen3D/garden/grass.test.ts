@@ -43,6 +43,8 @@ describe('grassTufts', () => {
     expect(children).toHaveLength(1)
     const [tufts] = children
     expect(tufts.isInstancedMesh).toBe(true)
+    // Dans le vent, les brins se couchent.
+    expect(tufts.userData.sway).toBe(0.25)
     // 11 brins × 3 tronçons × 2 triangles.
     expect(tufts.geometry.getAttribute('position').count).toBe(11 * 3 * 6)
     expect(tufts.geometry.getAttribute('normal').count).toBe(11 * 3 * 6)

@@ -5,6 +5,7 @@ import { seeded } from '@/components/Kitchen3D/primitives'
 import { DECK, GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
 import { SITE } from './layout'
 import { PERGOLA_FRONT } from './pergola'
+import { inSeason } from './seasons'
 import { gardenX, gardenZ } from './plan'
 
 /** Les bouquets d'herbe : combien on en tire au hasard sur le terrain (ceux qui tombent hors de l'herbe sont écartés), et leur taille (m). */
@@ -95,6 +96,8 @@ export const grassTufts = (group: THREE.Group): void => {
     tufts.setMatrixAt(index, matrix)
     tufts.setColorAt(index, tint.setHSL(0.25 + rand() * 0.06, 0.4 + rand() * 0.2, 0.3 + rand() * 0.14))
   })
+  // Dans le vent, les brins se couchent et se relèvent.
+  tufts.userData.sway = 0.25
   group.add(tufts)
 }
 
@@ -112,7 +115,8 @@ const onGrass = (tries: number, rand: () => number): THREE.Vector3[] => {
 
 /**
  * Les fleurs de la pelouse, éparses : des pâquerettes (une collerette blanche à plat, un cœur jaune) et, plus rares, de petites fleurs de
- * couleur (jaunes, violettes, roses, bleues) un peu plus hautes. Trois maillages en tout.
+ * couleur (jaunes, violettes, roses, bleues) un peu plus hautes. Trois maillages en tout. Les pâquerettes sont là au printemps et en
+ * été, les fleurs de couleur au printemps seulement.
  */
 export const lawnFlowers = (group: THREE.Group): void => {
   const rand = seeded(103)
@@ -144,5 +148,5 @@ export const lawnFlowers = (group: THREE.Group): void => {
     blooms.setMatrixAt(index, dummy.matrix)
     blooms.setColorAt(index, tint.setHex(tints[Math.floor(rand() * tints.length)]))
   })
-  group.add(petals, hearts, blooms)
+  group.add(inSeason(petals, 'daisies'), inSeason(hearts, 'daisies'), inSeason(blooms, 'blossom'))
 }

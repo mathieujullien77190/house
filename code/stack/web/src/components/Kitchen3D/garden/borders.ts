@@ -3,7 +3,7 @@ import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { ROOM } from '@/components/Kitchen3D/constants'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
 import { faceted } from '@/components/Kitchen3D/materials'
-import { box, standard } from '@/components/Kitchen3D/primitives'
+import { box, snowTop, standard } from '@/components/Kitchen3D/primitives'
 import { GATE_HEIGHT, HEDGE, LOT, LOW, PAVING, PLAN } from './constants'
 import type { PlanPoint } from './constants'
 import { SITE } from './layout'
@@ -32,7 +32,7 @@ export const hedges = (group: THREE.Group, m: GardenMaterials): void => {
     }
     for (const piece of along(line, hedge, HEDGE.height + low, HEDGE.thickness)) {
       piece.position.y -= low
-      group.add(piece)
+      group.add(snowTop(piece))
     }
   })
   // Les spirées continuent, au bout de l'arc, le long du bord ouest de la bande du haut, jusqu'au coin de la propriété.
@@ -43,7 +43,7 @@ export const hedges = (group: THREE.Group, m: GardenMaterials): void => {
   const spireaFrom = PLAN.height + (ROOM.xMin - (SITE.binSouth - 0.15)) * UNITS_PER_METER
   // C'est une haie de thuyas : un simple bloc vert (un tronçon déborde d'un quart de son épaisseur à chaque bout : le départ en tient compte).
   const thujaStart = cageSouth + (HEDGE.eastThickness / 4) * UNITS_PER_METER + 2
-  group.add(...along([[HEDGE.east, thujaStart], [HEDGE.east, spireaFrom]], faceted(0x2f6a34, 1), 2.5, HEDGE.eastThickness))
+  group.add(...along([[HEDGE.east, thujaStart], [HEDGE.east, spireaFrom]], faceted(0x2f6a34, 1), 2.5, HEDGE.eastThickness).map((piece) => snowTop(piece)))
   group.add(spireaHedge([[HEDGE.east, spireaFrom], [HEDGE.east, LOT.centerY + HEDGE.radius]], 2.6, 0, 79))
 }
 
@@ -57,17 +57,19 @@ export const pathAndGates = (group: THREE.Group, m: GardenMaterials): void => {
   const startAt = (lineX: number): number => PLAN.height + (ROOM.xMin - (lineX + 0.0375)) * UNITS_PER_METER
   const westStart = startAt(SITE.house[0] - PERGOLA_FRONT)
   const eastStart = startAt(SITE.binSouth - 0.075)
-  group.add(...along([[PAVING.pathWest, westStart], [PAVING.pathWest, PAVING.pathEndWest - 6]], wall, SITE.raised, 0.15), ...along([[PAVING.pathEast, eastStart], [PAVING.pathEast, PAVING.pathEnd - 6]], wall, SITE.raised, 0.15))
+  // La neige tient sur le dessus des murets, de la terre et des piliers.
+  const snowy = (pieces: THREE.Mesh[]): THREE.Mesh[] => pieces.map((piece) => snowTop(piece))
+  group.add(...snowy(along([[PAVING.pathWest, westStart], [PAVING.pathWest, PAVING.pathEndWest - 6]], wall, SITE.raised, 0.15)), ...snowy(along([[PAVING.pathEast, eastStart], [PAVING.pathEast, PAVING.pathEnd - 6]], wall, SITE.raised, 0.15)))
   // À gauche du chemin pour qui regarde la maison (à l'ouest), un second muret double le premier à 30 cm, du portillon jusqu'au second
   // muret de devant la maison, qu'il rejoint à angle droit ; entre les deux, de la terre, qui continue celle de la jardinière de devant.
   const bed = 0.3
   const outerPath = PAVING.pathWest - (0.15 + bed) * UNITS_PER_METER
   const earthPath = PAVING.pathWest - (0.075 + bed / 2) * UNITS_PER_METER
   const outerStart = startAt(SITE.house[0] - PERGOLA_FRONT - 0.15 - bed)
-  group.add(...along([[outerPath, outerStart], [outerPath, PAVING.pathEndWest - 6]], wall, SITE.raised, 0.15))
-  group.add(...along([[earthPath, westStart + 2], [earthPath, PAVING.pathEndWest - 10]], standard(0x4a2e22, 1), SITE.raised - 0.04, bed - 0.02))
+  group.add(...snowy(along([[outerPath, outerStart], [outerPath, PAVING.pathEndWest - 6]], wall, SITE.raised, 0.15)))
+  group.add(...snowy(along([[earthPath, westStart + 2], [earthPath, PAVING.pathEndWest - 10]], standard(0x4a2e22, 1), SITE.raised - 0.04, bed - 0.02)))
   const pillar = standard(0xd9d5cb, 0.9)
-  for (const [planX, planY] of [[wicket.x1, wicket.y1], [wicket.x2, wicket.y2]]) group.add(box(0.3, 1.6, 0.3, pillar, gardenX(planY), 0.8, gardenZ(planX)))
+  for (const [planX, planY] of [[wicket.x1, wicket.y1], [wicket.x2, wicket.y2]]) group.add(snowTop(box(0.3, 1.6, 0.3, pillar, gardenX(planY), 0.8, gardenZ(planX))))
   // Le portail et le portillon, en fer sombre.
   for (const door of [gate, wicket]) group.add(...along([[door.x1, door.y1], [door.x2, door.y2]], iron, GATE_HEIGHT, 0.06))
 }
@@ -80,5 +82,5 @@ export const binWalls = (group: THREE.Group, m: GardenMaterials): void => {
   tiled(binSouth, gardenX(PAVING.south), binWest, gardenZ(LOT.east), -0.007)
   // Le muret des poubelles part du muret est du chemin, à angle droit avec lui (il va jusqu'à sa face extérieure).
   const lineX = binSouth - 0.075
-  group.add(box(0.15, SITE.raised, binEast - binWest + 0.075, wall, lineX, SITE.raised / 2, (binEast + binWest - 0.075) / 2))
+  group.add(snowTop(box(0.15, SITE.raised, binEast - binWest + 0.075, wall, lineX, SITE.raised / 2, (binEast + binWest - 0.075) / 2)))
 }

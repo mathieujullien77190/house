@@ -18,7 +18,9 @@ describe('cherryTree', () => {
     const tree = cherryTree(7)
     const limbs = limbsOf(tree)
     const leaves = leavesOf(tree)
-    expect(limbs.length + leaves.length).toBe(tree.children.length)
+    // Tout le reste : ses fleurs et ses cerises, un maillage chacune, ajoutés à la fin.
+    expect(limbs.length + leaves.length + 2).toBe(tree.children.length)
+    expect(tree.children.slice(-2).map((child) => child.userData.season)).toEqual(['blossom', 'cherries'])
     expect(new Set(limbs.map((limb) => limb.material)).size).toBe(1)
     // Le premier tronçon part du pied et monte à 90 cm ; le second s'arrête à la fourche, à 1,70 m.
     const [trunk, upper] = limbs
@@ -132,6 +134,15 @@ describe('medlarTree', () => {
     for (const mesh of meshesOf(tree)) {
       expect(mesh.position.y).toBeLessThan(2.5)
       expect(Math.hypot(mesh.position.x, mesh.position.z)).toBeLessThan(1)
+    }
+  })
+})
+
+describe('le vent', () => {
+  it('chaque arbre se balance depuis son pied', () => {
+    for (const tree of [cherryTree(7), cherryTree(31, 0xc8402f), prunusTree(47), clippedTree(61), medlarTree(53)]) {
+      expect(tree.userData.sway).toBeGreaterThan(0)
+      expect(tree.userData.sway).toBeLessThan(0.05)
     }
   })
 })

@@ -2,17 +2,19 @@ import * as THREE from 'three'
 import { faceted } from '@/components/Kitchen3D/materials'
 import { seeded } from '@/components/Kitchen3D/primitives'
 import { limbOf, sprinkleOf, tuftOf } from './branches'
+import { foliage, LAUREL_SUMMER } from './seasons'
 
 /**
  * Un laurier à facettes : une cépée de gros troncs gris-brun, bien espacés au pied, plutôt droits mais un peu tordus, nus en bas ; à
  * mi-hauteur chaque tronc se sépare en branches, l'une qui monte haut (jusqu'à 5-6 m), les autres plus vers les côtés. Rien ne retombe. Un feuillage persistant sombre, en
- * petites touffes nombreuses mais espacées : on voit le bois et le jour à travers. `seed` fixe le hasard.
+ * petites touffes nombreuses mais espacées : on voit le bois et le jour à travers. `seed` fixe le hasard. Il garde ses feuilles l'hiver ;
+ * l'été, elles jaunissent : un mélange de touffes jaunes et vertes.
  */
 export const laurelBush = (seed: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
   const limb = limbOf(group, faceted(0x77716a, 0.95))
-  const leaves = tuftOf(group, rand, [0x2f5d2c, 0x386b33, 0x274f26].map((color) => faceted(color, 0.6)), [0.8, 0.3])
+  const leaves = tuftOf(group, rand, foliage([0x2f5d2c, 0x386b33, 0x274f26], 0.6, { summer: LAUREL_SUMMER }), [0.8, 0.3], 'evergreen')
   const tuft = (at: THREE.Vector3) => leaves(at, 0.13 + rand() * 0.08)
   // Des touffes espacées le long d'un tronçon (une tous les 30 cm environ), un peu écartées du bois.
   const along = sprinkleOf(rand, limb, tuft, 0.3, 0.5)
@@ -131,5 +133,6 @@ export const laurelBush = (seed: number): THREE.Group => {
     limb(tip, at, 0.01, 0.005)
     tuft(at)
   }
+  group.userData.sway = 0.02
   return group
 }

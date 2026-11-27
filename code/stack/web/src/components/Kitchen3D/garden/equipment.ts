@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { BASE, CAGE_CAMERA, GARDEN_CAMERA, MAST, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
-import { box, cylinder, standard, woodTexture } from '@/components/Kitchen3D/primitives'
+import { box, cylinder, snowTop, standard, woodTexture } from '@/components/Kitchen3D/primitives'
 import { reolink } from '@/components/Kitchen3D/reolink'
 import { DECK, GRASS, HEDGE, TERRACE } from './constants'
 import { SITE } from './layout'
@@ -21,7 +21,7 @@ export const bins = (group: THREE.Group, m: GardenMaterials): void => {
   // En rang d'ouest en est, le dos au bord sud du pavage, poussées contre la haie de l'est.
   colors.forEach(([body, lid], index) => {
     const z = binEnd - index * 0.62
-    group.add(box(0.56, 0.9, 0.5, body === 0x7f8388 ? grey : standard(body, 0.7), binX, 0.55, z), box(0.62, 0.06, 0.54, standard(lid, 0.6), binX + 0.02, 1.03, z))
+    group.add(box(0.56, 0.9, 0.5, body === 0x7f8388 ? grey : standard(body, 0.7), binX, 0.55, z), snowTop(box(0.62, 0.06, 0.54, standard(lid, 0.6), binX + 0.02, 1.03, z)))
     for (const side of [-1, 1]) {
       const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.04, 14), iron)
       wheel.rotation.x = Math.PI / 2
@@ -40,7 +40,7 @@ export const gardenTable = (group: THREE.Group): void => {
   const tableZ = REST.west + 1.5 + 1.45
   const top = cylinder(0.55, 0.55, 0.04, plastic, tableX, 0.72, tableZ, 28)
   top.scale.z = 1.5
-  group.add(top)
+  group.add(snowTop(top))
   for (const [dx, dz] of [[-0.3, -0.5], [0.3, -0.5], [-0.3, 0.5], [0.3, 0.5]]) group.add(box(0.04, 0.7, 0.04, plastic, tableX + dx, 0.35, tableZ + dz))
   for (const [dx, dz, turn] of [[0, -1.2, 0], [0, 1.2, Math.PI], [-0.9, 0, Math.PI / 2], [0.9, 0, -Math.PI / 2]]) {
     const chair = new THREE.Group()
@@ -67,8 +67,8 @@ export const heatPump = (group: THREE.Group, m: GardenMaterials): void => {
   const slabNorth = house[1] - BASE.setback
   const slabWest = house[3] - BASE.setback
   const slabEast = SAS.east + OUTER_WALL - BASE.setback
-  group.add(box(slabNorth - slabFrom, 0.12, slabEast - slabWest, concrete, (slabNorth + slabFrom) / 2, 0.06, (slabEast + slabWest) / 2))
-  group.add(box(0.85, 0.6, 0.33, standard(0xf0f0ee, 0.5), pumpX, 0.5, pumpZ))
+  group.add(snowTop(box(slabNorth - slabFrom, 0.12, slabEast - slabWest, concrete, (slabNorth + slabFrom) / 2, 0.06, (slabEast + slabWest) / 2)))
+  group.add(snowTop(box(0.85, 0.6, 0.33, standard(0xf0f0ee, 0.5), pumpX, 0.5, pumpZ)))
   for (const side of [-1, 1]) group.add(box(0.1, 0.08, 0.4, iron, pumpX + side * 0.28, 0.16, pumpZ))
   const grille = cylinder(0.24, 0.24, 0.012, standard(0x9da1a6, 0.5, 0.4), pumpX - 0.1, 0.5, pumpZ + 0.17, 28)
   grille.rotation.x = Math.PI / 2
@@ -109,7 +109,7 @@ export const deck = (group: THREE.Group, m: GardenMaterials): void => {
     placed.updateMatrix()
     ipe.setMatrixAt(index, placed.matrix)
   })
-  group.add(ipe)
+  group.add(snowTop(ipe))
   // La planche de rive, du sol au dessus des lattes, sur les quatre côtés.
   const rimTall = deckTop - GRASS
   const rimY = deckTop - rimTall / 2

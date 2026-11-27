@@ -8,6 +8,7 @@ import {
   photoTexture,
   showerTilesTexture,
   sisalTexture,
+  flakeTexture,
   terracottaTexture,
   tileTexture,
   wireTexture,
@@ -97,6 +98,16 @@ describe('les textures dessinées', () => {
     expect(new Set(tiles)).toEqual(new Set(['#1f4a47', '#9db7a6', '#b9cdbd', '#eeece2']))
     const dark = (rows: string[]) => rows.filter((tint) => tint === '#1f4a47').length
     expect(dark(tiles.slice(-64))).toBeGreaterThan(dark(tiles.slice(0, 64)))
+  })
+
+  it('le flocon : un rond blanc sur un fond transparent', () => {
+    const { context, size, rects } = drawn(flakeTexture)
+    expect(size).toBe(32)
+    expect(rects).toHaveLength(0)
+    expect(context.clearRect).toHaveBeenCalledExactlyOnceWith(0, 0, 32, 32)
+    expect(context.ellipse).toHaveBeenCalledExactlyOnceWith(16, 16, 14, 14, 0, 0, Math.PI * 2)
+    expect(context.fill).toHaveBeenCalledTimes(1)
+    expect(context.fillStyle).toBe('#ffffff')
   })
 
   it('le grillage : cinq fils dans chaque sens sur un fond transparent, des mailles de 64 px', () => {

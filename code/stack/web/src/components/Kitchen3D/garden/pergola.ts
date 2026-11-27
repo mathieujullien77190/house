@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { box, standard, woodTexture } from '@/components/Kitchen3D/primitives'
+import { box, snowTop, standard, woodTexture } from '@/components/Kitchen3D/primitives'
 
 /**
  * La pergola, d'après son modèle SketchUp (`pergolas.dae`, exporté en Collada et lu une fois ; il n'est pas dans le dépôt). Toutes les cotes
@@ -56,8 +56,9 @@ export const buildPergola = (): THREE.Group => {
       group.add(strut)
     }
   }
-  for (const x of ties.along) group.add(box(ties.thick, ties.tall, deep, wood, x, beamY, deep / 2))
-  for (const z of rafters.rows) group.add(box(rafters.long, rafters.tall, rafters.thick, wood, 0, beamY, z))
+  // La neige tient sur le chant des traverses et des chevrons.
+  for (const x of ties.along) group.add(snowTop(box(ties.thick, ties.tall, deep, wood, x, beamY, deep / 2)))
+  for (const z of rafters.rows) group.add(snowTop(box(rafters.long, rafters.tall, rafters.thick, wood, 0, beamY, z)))
   for (const x of wires.along) group.add(box(0.006, 0.006, wires.long, steel, x, PERGOLA.top + 0.005, wires.at))
   return group
 }

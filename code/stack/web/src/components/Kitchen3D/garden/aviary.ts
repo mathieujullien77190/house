@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
-import { box, standard } from '@/components/Kitchen3D/primitives'
+import { box, snowTop, standard } from '@/components/Kitchen3D/primitives'
 import { wireTexture } from '@/components/Kitchen3D/textures'
 import { CAGE_HEIGHT, CAGE_LOW, GRASS, LOW, PANEL } from './constants'
 import { SITE } from './layout'
@@ -77,7 +77,8 @@ export const cageRoof = (group: THREE.Group): void => {
   // Il déborde de 10 cm de chaque côté : côté haie, et côté milieu de la cage, par-dessus l'arête.
   roof.position.set(middleX, (CAGE_HEIGHT + CAGE_LOW) / 2 + 0.04, (cageZ2 + turnZ) / 2)
   roof.rotation.x = Math.atan2(CAGE_HEIGHT - CAGE_LOW, roofSpan)
-  roof.add(box(roofLong, 0.012, roofSpan + 0.2, sheet, 0, 0, 0))
+  // La neige tient sur la tôle, par-dessus ses ondes.
+  roof.add(snowTop(box(roofLong, 0.012, roofSpan + 0.2, sheet, 0, 0, 0), 0.035))
   for (let wave = 0; wave < 24; wave += 1) roof.add(box(0.05, 0.02, roofSpan + 0.2, sheet, -roofLong / 2 + 0.05 + wave * ((roofLong - 0.1) / 23), 0.01, 0))
   group.add(roof)
 }

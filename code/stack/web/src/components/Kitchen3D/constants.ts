@@ -1,4 +1,6 @@
+import type { SeasonChoice } from './garden/seasons'
 import type { RunSpec, Vec3 } from './types'
+import type { Sky } from './weather'
 
 // Dimensions en mètres (1 unité three.js = 1 m), d'après les photos : la cuisine est un U de 2,8 m de large, son fond (la hotte) à z = -1.2,
 // le mur des fenêtres à x = 1.4 et, de l'autre côté, la cloison de bar. Le U est ouvert vers +z (l'est). Voir `ROOM` pour les axes.
@@ -26,6 +28,22 @@ export const CAGE_CAMERA = 'voliere-exterieur'
 export const RESET_LABEL = 'Réinitialiser la vue'
 export const TOP_LABEL = 'Vue du dessus'
 export const NO_WEBGL_TEXT = 'La vue 3D demande WebGL, que ce navigateur ne propose pas.'
+/** Le choix de la saison du jardin (« Auto » : celle du jour) et du temps qu'il fait, au-dessus de la vue. */
+export const SEASON_LABEL = 'Saison'
+export const SEASON_OPTIONS: { id: SeasonChoice; label: string }[] = [
+  { id: 'spring', label: 'Printemps' },
+  { id: 'summer', label: 'Été' },
+  { id: 'autumn', label: 'Automne' },
+  { id: 'winter', label: 'Hiver' },
+  { id: 'auto', label: 'Auto' },
+]
+export const SKY_LABEL = 'Météo'
+export const SKY_OPTIONS: { id: Sky; label: string }[] = [
+  { id: 'sun', label: 'Soleil' },
+  { id: 'rain', label: 'Pluie' },
+  { id: 'snow', label: 'Neige' },
+]
+export const WIND_LABEL = 'Vent'
 
 /**
  * Tout l'espace de vie, d'après le plan de la maison de la WebApp (`PLAN_ROOMS` de `web/src/components/Lights/constants.ts`, 43,5 unités par mètre d'ouest en est).

@@ -5,11 +5,13 @@ import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT } from '@/components/MapPlan/constants'
 import { stubCanvasContext } from '@/test/canvas'
 import type { AcUnit, ShutterCommand, ShuttersState } from '@/types'
+import { CLIMATE_KEY } from './climate'
 import { DAYLIGHT, LAMP_LIGHT, NO_WEBGL_TEXT, PLAN_HOUSE, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT } from './constants'
 import Kitchen3D from './Kitchen3D'
 import { AC_LED } from './live'
 import { SHUTTER_KEYS, SHUTTER_TRAVEL_S } from './shutters'
 import type { SceneParts } from './types'
+import { WEATHER_LOOK } from './weather'
 
 interface FakeRenderer {
   domElement: HTMLCanvasElement
@@ -150,6 +152,7 @@ beforeEach(() => {
   h.shutters = null
   h.send = vi.fn()
   h.weather = { isDay: true, code: 0 }
+  localStorage.clear()
   for (const list of [h.planKeys, h.renderers, h.controls, h.parts, h.resize, h.visibility, h.disconnected, h.frames, h.cancelled]) list.length = 0
   stubCanvasContext(null)
   vi.stubGlobal(
@@ -296,7 +299,7 @@ describe('Kitchen3D', () => {
 
   it('les boutons : la vue du dessus et le retour à la vue de départ ; ni « Hotte » ni « Volets réels » (la hotte est toujours là)', () => {
     render(<Kitchen3D apiKey="k" />)
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue'])
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue', 'Vent'])
     expect(h.parts[0].hood.visible).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Vue du dessus' }))
     expect(camera().position.toArray()).toEqual([TOP.x, TOP.y, TOP.z])
@@ -637,7 +640,8 @@ describe('Kitchen3D : l’heure', () => {
       vi.advanceTimersByTime(60_000)
     })
     expect(minute.rotation.z).toBeCloseTo((0.5 / 60) * Math.PI * 2)
-  })
+    // (Trente secondes d'horloge font tourner la boucle de dessin près de deux mille fois : ce test est long quand toute la suite tourne.)
+  }, 20_000)
 
   it('sans météo, le jour qui entre suit l’heure : jour moyen à midi, nuit à 22 h', () => {
     h.weather = null
@@ -651,5 +655,175 @@ describe('Kitchen3D : l’heure', () => {
     vi.setSystemTime(new Date(2026, 10, 26, 22, 0, 0))
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night)
+  })
+})
+
+describe('Kitchen3D : les saisons et le temps', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const sceneOf = () => root().parent as THREE.Scene
+  /** Ce que le jardin montre sous cette marque de saison : `true` si tout se voit, `false` si rien. */
+  const shown = (key: string): boolean => {
+    const states = new Set<boolean>()
+    root().traverse((child) => {
+      if (child.userData.season === key) states.add(child.visible)
+    })
+    expect(states.size).toBe(1)
+    return [...states][0]
+  }
+  const selected = (group: string) => screen.getByRole('tablist', { name: group }).querySelector('[aria-selected="true"]')?.textContent
+  const pick = (name: string) => fireEvent.click(screen.getByRole('tab', { name }))
+  const lights = () => {
+    const ambient = sceneOf().children.find((child) => (child as THREE.HemisphereLight).isHemisphereLight) as THREE.HemisphereLight
+    const sun = sceneOf().children.find((child) => (child as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight
+    return { ambient, sun }
+  }
+  const snowCaps = (): THREE.Object3D[] => {
+    const caps: THREE.Object3D[] = []
+    root().traverse((child) => {
+      if (((child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined)?.polygonOffset) caps.push(child)
+    })
+    return caps
+  }
+  const swayers = (): THREE.Object3D[] => {
+    const found: THREE.Object3D[] = []
+    root().traverse((child) => {
+      if (typeof child.userData.sway === 'number') found.push(child)
+    })
+    return found
+  }
+
+  it('au départ : le printemps, du soleil, pas de vent ; les deux choix et le bouton du vent sont au-dessus de la vue', () => {
+    render(<Kitchen3D apiKey="k" />)
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Printemps', 'Été', 'Automne', 'Hiver', 'Auto', 'Soleil', 'Pluie', 'Neige'])
+    expect(selected('Saison')).toBe('Printemps')
+    expect(selected('Météo')).toBe('Soleil')
+    expect(screen.getByRole('button', { name: 'Vent' })).toHaveAttribute('aria-pressed', 'false')
+    // Le jardin au printemps : feuilles, fleurs, cerises, pâquerettes ; ni pommes ni raisin, ni bois nu.
+    expect(['leaves', 'blossom', 'cherries', 'daisies', 'medlars', 'evergreen'].map(shown)).toEqual([true, true, true, true, true, true])
+    expect(['harvest', 'twigs'].map(shown)).toEqual([false, false])
+    // Ni pluie ni neige, pas de fond, rien ne se balance.
+    expect(sceneOf().getObjectByName('rain')?.visible).toBe(false)
+    expect(sceneOf().getObjectByName('snow')?.visible).toBe(false)
+    expect(sceneOf().background).toBeNull()
+    expect(snowCaps().length).toBeGreaterThan(60)
+    expect(snowCaps().every((cap) => !cap.visible)).toBe(true)
+    act(() => h.frames[0]())
+    expect(swayers().length).toBeGreaterThan(20)
+    expect(swayers().every((object) => object.matrixAutoUpdate)).toBe(true)
+  })
+
+  it('le choix de la saison met le jardin à cette saison, sans reconstruire la scène', () => {
+    render(<Kitchen3D apiKey="k" />)
+    pick('Été')
+    expect(selected('Saison')).toBe('Été')
+    expect(['leaves', 'daisies', 'blossom', 'cherries', 'harvest'].map(shown)).toEqual([true, true, false, false, false])
+    pick('Automne')
+    expect(['leaves', 'harvest', 'daisies', 'blossom'].map(shown)).toEqual([true, true, false, false])
+    pick('Hiver')
+    expect(['evergreen', 'twigs', 'leaves', 'blossom', 'harvest', 'medlars', 'daisies'].map(shown)).toEqual([true, true, false, false, false, false, false])
+    pick('Printemps')
+    expect(['leaves', 'blossom', 'twigs'].map(shown)).toEqual([true, true, false])
+    expect(h.parts).toHaveLength(1)
+    expect(h.renderers).toHaveLength(1)
+  })
+
+  it('« Auto » : la saison du jour', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 14, 12))
+    const view = render(<Kitchen3D apiKey="k" />)
+    pick('Auto')
+    expect(selected('Saison')).toBe('Auto')
+    // Un 14 juillet : l'été.
+    expect(['leaves', 'daisies', 'blossom', 'harvest'].map(shown)).toEqual([true, true, false, false])
+    view.unmount()
+    // Rouverte un 27 novembre, toujours sur « Auto » : l'automne.
+    vi.setSystemTime(new Date(2026, 10, 27, 12))
+    for (const list of [h.parts, h.renderers, h.controls]) list.length = 0
+    render(<Kitchen3D apiKey="k" />)
+    expect(selected('Saison')).toBe('Auto')
+    expect(['leaves', 'harvest', 'daisies', 'blossom'].map(shown)).toEqual([true, true, false, false])
+  })
+
+  it('le choix est gardé sur l’appareil : la vue se rouvre comme on l’a laissée', () => {
+    const view = render(<Kitchen3D apiKey="k" />)
+    pick('Hiver')
+    pick('Neige')
+    fireEvent.click(screen.getByRole('button', { name: 'Vent' }))
+    expect(JSON.parse(localStorage.getItem(CLIMATE_KEY) ?? '')).toEqual({ season: 'winter', sky: 'snow', wind: true })
+    view.unmount()
+    for (const list of [h.parts, h.renderers, h.controls, h.frames]) list.length = 0
+    render(<Kitchen3D apiKey="k" />)
+    expect(selected('Saison')).toBe('Hiver')
+    expect(selected('Météo')).toBe('Neige')
+    expect(screen.getByRole('button', { name: 'Vent' })).toHaveAttribute('aria-pressed', 'true')
+    expect(shown('leaves')).toBe(false)
+    expect(sceneOf().getObjectByName('snow')?.visible).toBe(true)
+  })
+
+  it('la pluie : des gouttes qui tombent à chaque image, un ciel gris, moins de jour et presque plus de soleil', () => {
+    h.alwaysDay = true
+    render(<Kitchen3D apiKey="k" />)
+    const { ambient, sun } = lights()
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
+    pick('Pluie')
+    expect(selected('Météo')).toBe('Pluie')
+    const rain = sceneOf().getObjectByName('rain') as THREE.LineSegments
+    expect(rain.visible).toBe(true)
+    expect((sceneOf().background as THREE.Color).getHex()).toBe(WEATHER_LOOK.rain.background)
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * WEATHER_LOOK.rain.ambient)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun * WEATHER_LOOK.rain.sun)
+    // Les gouttes avancent à chaque image dessinée, pas quand la vue est hors de l'écran.
+    const points = rain.geometry.attributes.position as THREE.BufferAttribute
+    expect((points.array as Float32Array).every((value) => value === 0)).toBe(true)
+    act(() => h.visibility[0]([{ isIntersecting: false }]))
+    act(() => h.frames[0]())
+    expect(points.version).toBe(0)
+    act(() => h.visibility[0]([{ isIntersecting: true }]))
+    act(() => h.frames[1]())
+    expect(points.version).toBe(1)
+    expect((points.array as Float32Array).some((value) => value !== 0)).toBe(true)
+    // Le beau temps revient.
+    pick('Soleil')
+    expect(rain.visible).toBe(false)
+    expect(sceneOf().background).toBeNull()
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun)
+  })
+
+  it('la neige : des flocons, une couche blanche sur le jardin, un ciel clair ; le temps dose aussi le jour qui entre par les fenêtres', () => {
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
+    h.weather = { isDay: true, code: 3 }
+    render(<Kitchen3D apiKey="k" />)
+    pick('Neige')
+    expect(sceneOf().getObjectByName('snow')?.visible).toBe(true)
+    expect(sceneOf().getObjectByName('rain')?.visible).toBe(false)
+    expect(snowCaps().every((cap) => cap.visible)).toBe(true)
+    expect((sceneOf().background as THREE.Color).getHex()).toBe(WEATHER_LOOK.snow.background)
+    const { ambient, sun } = lights()
+    expect(ambient.intensity).toBeCloseTo(DAYLIGHT.night + DAYLIGHT.day * 0.7 * WEATHER_LOOK.snow.ambient)
+    expect(sun.intensity).toBeCloseTo(DAYLIGHT.sun * 0.7 * WEATHER_LOOK.snow.sun)
+    pick('Pluie')
+    expect(snowCaps().every((cap) => !cap.visible)).toBe(true)
+  })
+
+  it('le vent s’ajoute à tout : arbres, spirées et herbe se balancent à chaque image, même par beau temps ; il tombe, tout se redresse', () => {
+    render(<Kitchen3D apiKey="k" />)
+    const wind = screen.getByRole('button', { name: 'Vent' })
+    fireEvent.click(wind)
+    expect(wind).toHaveAttribute('aria-pressed', 'true')
+    expect(selected('Météo')).toBe('Soleil')
+    act(() => h.frames[0]())
+    expect(swayers().every((object) => !object.matrixAutoUpdate)).toBe(true)
+    // Avec la pluie : les deux à la fois.
+    pick('Pluie')
+    expect(wind).toHaveAttribute('aria-pressed', 'true')
+    expect(sceneOf().getObjectByName('rain')?.visible).toBe(true)
+    fireEvent.click(wind)
+    expect(wind).toHaveAttribute('aria-pressed', 'false')
+    expect(swayers().every((object) => object.matrixAutoUpdate)).toBe(true)
+    expect(selected('Météo')).toBe('Pluie')
   })
 })

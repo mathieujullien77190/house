@@ -95,7 +95,7 @@ describe('buildGarden', () => {
     expect(shrubs).toHaveLength(5)
     expect(new Set(shrubs.map((shrub) => shrub.position.x)).size).toBe(1)
     // Un seul buisson est en fleurs jaunes : le plus à l'ouest.
-    const yellow = shrubs.filter((shrub) => (shrub.children as THREE.Mesh[]).some((part) => (part.material as THREE.MeshStandardMaterial).color.getHex() === 0xf2cf2e))
+    const yellow = shrubs.filter((shrub) => (shrub.children as THREE.Mesh[]).some((part) => part.isMesh && (part.material as THREE.MeshStandardMaterial).color.getHex() === 0xf2cf2e))
     expect(yellow).toHaveLength(1)
     expect(yellow[0].position.z).toBe(Math.min(...shrubs.map((shrub) => shrub.position.z)))
   })

@@ -1,14 +1,33 @@
 import * as THREE from 'three'
 import { faceted } from '@/components/Kitchen3D/materials'
-import { box, seeded, standard } from '@/components/Kitchen3D/primitives'
+import { box, seeded, snowTop, standard } from '@/components/Kitchen3D/primitives'
 import { CAGE_HEIGHT, GRASS, LOT, PANEL } from './constants'
 import type { PlanPoint } from './constants'
-import { limbOf } from './branches'
+import { berriesOf, limbOf } from './branches'
 import { PERGOLA } from './pergola'
 import { gardenX, gardenZ } from './plan'
 import { SITE } from './layout'
+import { AUTUMN, foliage, inSeason } from './seasons'
 
-/** Une fougère : une touffe de frondes plates qui partent du cœur, montent, s'arquent et retombent tout autour, de plus en plus étroites. */
+/**
+ * Le bois nu d'un arbuste rond, qu'on ne voit qu'en hiver (ses feuilles tombées) : quelques tiges qui partent du pied en gerbe, jusqu'à
+ * cet écart et cette hauteur. Elles ont leur propre tirage : l'arbuste garde sa forme.
+ */
+const bareTwigs = (group: THREE.Group, seed: number, wide: number, tall: number): void => {
+  const rand = seeded(seed)
+  const twigs = inSeason(new THREE.Group(), 'twigs')
+  const limb = limbOf(twigs, faceted(0x5a4a3a, 0.95))
+  for (let twig = 0; twig < 7; twig += 1) {
+    const turn = (twig / 7) * Math.PI * 2 + rand()
+    const mid = new THREE.Vector3(Math.cos(turn) * wide * 0.4, tall * 0.5, Math.sin(turn) * wide * 0.4)
+    const out = turn + (rand() - 0.5)
+    limb(new THREE.Vector3(0, 0, 0), mid, 0.012, 0.008)
+    limb(mid, new THREE.Vector3(Math.cos(out) * wide, tall * (0.8 + rand() * 0.3), Math.sin(out) * wide), 0.008, 0.004)
+  }
+  group.add(twigs)
+}
+
+/** Une fougère : une touffe de frondes plates qui partent du cœur, montent, s'arquent et retombent tout autour, de plus en plus étroites. L'hiver, elle disparaît. */
 export const fern = (seed: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
@@ -30,10 +49,11 @@ export const fern = (seed: number): THREE.Group => {
       group.add(blade)
     })
   }
-  return group
+  group.userData.sway = 0.06
+  return inSeason(group, 'leaves')
 }
 
-/** Un oranger du Mexique, encore petit : une boule basse de feuilles luisantes, vert vif, piquée de quelques fleurs blanches. */
+/** Un oranger du Mexique, encore petit : une boule basse de feuilles luisantes, vert vif, piquée de quelques fleurs blanches (au printemps). L'hiver, il n'en reste que le bois. */
 export const choisya = (seed: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
@@ -45,18 +65,20 @@ export const choisya = (seed: number): THREE.Group => {
     const tuft = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07 + rand() * 0.04, 0), greens[leaf % greens.length])
     tuft.position.set(Math.cos(turn) * wide, 0.08 + rand() * 0.25, Math.sin(turn) * wide)
     tuft.rotation.set(rand() * 3, rand() * 3, rand() * 3)
-    group.add(tuft)
+    group.add(inSeason(tuft, 'leaves'))
   }
   for (let bloom = 0; bloom < 7; bloom += 1) {
     const turn = rand() * Math.PI * 2
     const flower = new THREE.Mesh(new THREE.IcosahedronGeometry(0.025, 0), white)
     flower.position.set(Math.cos(turn) * 0.16 * rand(), 0.33 + rand() * 0.08, Math.sin(turn) * 0.16 * rand())
-    group.add(flower)
+    group.add(inSeason(flower, 'blossom'))
   }
+  bareTwigs(group, seed + 3000, 0.16, 0.3)
+  group.userData.sway = 0.05
   return group
 }
 
-/** Un hortensia : un buisson rond de feuilles vertes, et dessus de grosses boules de fleurs, roses et bleues. */
+/** Un hortensia : un buisson rond de feuilles vertes, et dessus de grosses boules de fleurs, roses et bleues (au printemps). L'hiver, il n'en reste que le bois. */
 export const hydrangea = (seed: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
@@ -68,7 +90,7 @@ export const hydrangea = (seed: number): THREE.Group => {
     const tuft = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1 + rand() * 0.05, 0), greens[leaf % greens.length])
     tuft.position.set(Math.cos(turn) * wide, 0.12 + rand() * 0.38, Math.sin(turn) * wide)
     tuft.rotation.set(rand() * 3, rand() * 3, rand() * 3)
-    group.add(tuft)
+    group.add(inSeason(tuft, 'leaves'))
   }
   for (let bloom = 0; bloom < 9; bloom += 1) {
     const turn = (bloom / 9) * Math.PI * 2 + rand()
@@ -76,8 +98,10 @@ export const hydrangea = (seed: number): THREE.Group => {
     const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08 + rand() * 0.03, 1), blooms[Math.floor(rand() * blooms.length)])
     head.position.set(Math.cos(turn) * wide, bloom < 3 ? 0.6 + rand() * 0.06 : 0.42 + rand() * 0.14, Math.sin(turn) * wide)
     head.scale.y = 0.8
-    group.add(head)
+    group.add(inSeason(head, 'blossom'))
   }
+  bareTwigs(group, seed + 3000, 0.28, 0.5)
+  group.userData.sway = 0.05
   return group
 }
 
@@ -145,7 +169,8 @@ export const passionflower = (group: THREE.Group): void => {
   }
   flowers.count = flowerIndex
   const stem = standard(0x5b6b2e, 0.9)
-  group.add(leaves, flowers)
+  // Les fleurs au printemps ; l'hiver, plus de feuilles : il ne reste que les tiges.
+  group.add(inSeason(leaves, 'leaves'), inSeason(flowers, 'blossom'))
   for (const dz of [0.25, 0.7, 1.15]) group.add(box(0.015, 0.9, 0.015, stem, backX - 0.03, 0.9, cageZ1 + dz))
 }
 
@@ -153,7 +178,8 @@ export const passionflower = (group: THREE.Group): void => {
  * Une haie de spirées le long d'une ligne du plan : un bloc vert au cœur, et autour une masse très dense de rameaux. Chaque rameau part du pied, monte haut,
  * s'arque et retombe ; la plupart retombent du côté du jardin (vers le centre du terrain), quelques-uns de l'autre. Tout du long, de
  * petits amas de feuilles et des bouquets de fleurs blanches, plus serrés sur la retombée. `sink` : de combien le pied est sous le niveau
- * du terrain (là où le jardin est plus bas). Deux maillages par ligne (feuilles, fleurs), plus le bloc de chaque tronçon.
+ * du terrain (là où le jardin est plus bas). Deux maillages par ligne (feuilles, fleurs), plus le bloc de chaque tronçon. Les spirées
+ * gardent leurs feuilles toute l'année ; elles ne sont en fleurs qu'au printemps. Dans le vent, feuilles et fleurs se balancent.
  */
 export const spireaHedge = (points: PlanPoint[], height: number, sink: number, seed: number): THREE.Group => {
   const group = new THREE.Group()
@@ -175,7 +201,8 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
     const long = from.distanceTo(to)
     const body = box(0.6, block + sink, long + 0.3, core, (from.x + to.x) / 2, (block - sink) / 2, (from.z + to.z) / 2)
     body.rotation.y = Math.atan2(to.x - from.x, to.z - from.z)
-    group.add(body)
+    // La neige se pose au-dessus des bouquets qui couvrent le bloc.
+    group.add(snowTop(body, 0.2))
     // Sur ce bloc, la haie est la plus dense : de gros bouquets de feuilles posés sur ses flancs et son dessus, et des fleurs parmi eux.
     for (let clump = 0; clump < long * 70; clump += 1) {
       const at = from.clone().lerp(to, rand())
@@ -211,7 +238,7 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
     }
   })
   const dummy = new THREE.Object3D()
-  const scatter = (places: [number, number, number, number][], material: THREE.Material) => {
+  const scatter = (places: [number, number, number, number][], material: THREE.Material): THREE.InstancedMesh => {
     const mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, places.length)
     places.forEach(([x, y, z, size], index) => {
       dummy.position.set(x, y, z)
@@ -220,17 +247,20 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
       dummy.updateMatrix()
       mesh.setMatrixAt(index, dummy.matrix)
     })
+    mesh.userData.sway = 0.04
     group.add(mesh)
+    return mesh
   }
   scatter(spots, faceted(0x5c9a4a, 0.9))
-  scatter(blooms, faceted(0xf8f8f3, 0.7))
+  inSeason(scatter(blooms, faceted(0xf8f8f3, 0.7)), 'blossom')
   return group
 }
 
 /**
  * La glycine de la pergola, dans le repère de celle-ci : un seul pied, au poteau d'angle de devant, du côté des marches ; son tronc
  * s'enroule autour du poteau, puis ses sarments partent sur le dessus, chacun à sa longueur : elle gagne à peu près la moitié de la
- * pergola, mais par avancées inégales, pas en nappe. Les feuilles suivent les sarments, et dessous pendent des grappes de fleurs mauves.
+ * pergola, mais par avancées inégales, pas en nappe. Les feuilles suivent les sarments, et dessous pendent des grappes de fleurs mauves
+ * (au printemps). En automne ses feuilles jaunissent ; l'hiver il ne reste que le bois.
  */
 export const wisteria = (seed: number): THREE.Group => {
   const group = new THREE.Group()
@@ -268,7 +298,7 @@ export const wisteria = (seed: number): THREE.Group => {
     }
   }
   const dummy = new THREE.Object3D()
-  const leaves = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), faceted(0x6aa84f, 0.9), leafSpots.length)
+  const leaves = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), foliage([0x6aa84f], 0.9, { autumn: AUTUMN.wisteria })[0], leafSpots.length)
   leafSpots.forEach((at, index) => {
     // Quelques-unes retombent sous les chevrons.
     const droop = rand() < 0.2 ? rand() * 0.35 : 0
@@ -290,14 +320,16 @@ export const wisteria = (seed: number): THREE.Group => {
     dummy.updateMatrix()
     clusters.setMatrixAt(index, dummy.matrix)
   })
-  group.add(leaves, clusters)
+  leaves.userData.sway = 0.015
+  clusters.userData.sway = 0.015
+  group.add(inSeason(leaves, 'leaves'), inSeason(clusters, 'blossom'))
   return group
 }
 
 /**
  * Un buisson de cette hauteur, étiré sur cette longueur (le long de z) : une masse allongée de touffes de feuilles, pas très serrées (on
- * voit ses tiges au travers), sur une rangée de tiges ; avec `bloom`, il est piqué de fleurs de cette couleur, surtout en haut. `seed`
- * fixe le hasard.
+ * voit ses tiges au travers), sur une rangée de tiges ; avec `bloom`, il est piqué de fleurs de cette couleur, surtout en haut (au
+ * printemps). `seed` fixe le hasard. L'hiver, il n'en reste que les tiges.
  */
 export const bush = (seed: number, height: number, long: number, bloom?: number): THREE.Group => {
   const group = new THREE.Group()
@@ -321,19 +353,21 @@ export const bush = (seed: number, height: number, long: number, bloom?: number)
     const tuft = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09 + rand() * 0.06, 0), greens[leaf % greens.length])
     tuft.position.copy(at)
     tuft.rotation.set(rand() * 3, rand() * 3, rand() * 3)
-    group.add(tuft)
+    group.add(inSeason(tuft, 'leaves'))
     if (flowers && rise > 0.35 && rand() < 0.45) {
       const flower = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035 + rand() * 0.02, 0), flowers)
       flower.position.set(at.x * 1.12, at.y + 0.08, at.z)
-      group.add(flower)
+      group.add(inSeason(flower, 'blossom'))
     }
   }
+  group.userData.sway = 0.05
   return group
 }
 
 /**
  * Un massif de grandes fleurs, au pied d'un arbre : des tiges droites de cette hauteur à peu près, semées dans un rond de ce rayon, chacune
  * avec deux feuilles et, en haut, sa fleur de cette couleur. Trois maillages (tiges, feuilles, fleurs). `seed` fixe le hasard ; `keep` écarte les places où rien ne pousse.
+ * Les fleurs ne sont là qu'au printemps ; l'hiver, tout le massif disparaît.
  */
 export const flowerPatch = (seed: number, radius: number, height: number, color: number, keep: (x: number, z: number) => boolean = () => true, tries = 45): THREE.Group => {
   const group = new THREE.Group()
@@ -374,23 +408,32 @@ export const flowerPatch = (seed: number, radius: number, height: number, color:
     dummy.updateMatrix()
     blooms.setMatrixAt(stem, dummy.matrix)
   }
-  group.add(stems, leaves, blooms)
+  group.add(inSeason(stems, 'leaves'), inSeason(leaves, 'leaves'), inSeason(blooms, 'blossom'))
+  group.userData.sway = 0.08
   return group
 }
 
 /**
  * La vigne vierge de la cage : elle part du long bac, du côté des fougères, grimpe sur le grand côté grillagé (serrée près du pied, plus
- * clairsemée en s'éloignant) et déborde sur le dessus. Des feuilles plates à cinq folioles larges, d'un vert sombre, quelques-unes
- * rougies ; deux tiges. Un seul maillage pour les feuilles.
+ * clairsemée en s'éloignant) et déborde sur le dessus. Des feuilles de vigne, plates : un seul limbe large à cinq lobes pointus et
+ * dentés, d'un vert sombre, quelques-unes rougies ; deux tiges. Un seul maillage pour les feuilles. En automne, toutes rougissent et
+ * elle porte ses grappes de petites baies sombres ; l'hiver, il ne reste que les tiges.
  */
 export const creeper = (group: THREE.Group): void => {
   const { backX, cageZ1 } = SITE
   const rand = seeded(59)
-  const finger = (36 * Math.PI) / 180
-  const outline = Array.from({ length: 80 }, (_, index) => {
-    const turn = (index / 80) * Math.PI * 2 - Math.PI
-    const lobe = Math.abs(turn) <= finger * 2.5 ? Math.abs(Math.cos((Math.PI * turn) / finger)) ** 1.4 : 0
-    const reach = 0.015 + 0.075 * lobe
+  // Le contour d'une feuille, en coordonnées polaires autour du pétiole : cinq lobes (l'axe de chacun, sa longueur) : celui du bout, deux
+  // de côté, deux plus courts vers le bas.
+  const lobes: [number, number][] = [[0, 1], [1.1, 0.92], [-1.1, 0.92], [2.05, 0.7], [-2.05, 0.7]]
+  const outline = Array.from({ length: 120 }, (_, index) => {
+    const turn = (index / 120) * Math.PI * 2 - Math.PI
+    // Chaque lobe est une pointe : il s'efface en s'écartant de son axe.
+    const lobe = Math.max(...lobes.map(([axis, long]) => long * (1 - Math.min(1, Math.abs(turn - axis) / 0.62))))
+    // Entre deux lobes, le limbe reste large (les creux sont peu profonds) ; vers le pétiole, il se creuse en cœur.
+    const blade = 0.5 * Math.min(1, (Math.PI - Math.abs(turn)) / 0.5)
+    // Les dents : de petites pointes régulières sur tout le bord.
+    const tooth = 1 - 0.1 * Math.abs(((turn * 14) / Math.PI) % 1)
+    const reach = (0.012 + 0.085 * Math.max(lobe, blade)) * tooth
     return new THREE.Vector2(Math.sin(turn) * reach, Math.cos(turn) * reach)
   })
   const spread = 2.1
@@ -417,7 +460,20 @@ export const creeper = (group: THREE.Group): void => {
     leaves.setMatrixAt(index, dummy.matrix)
     leaves.setColorAt(index, rand() < 0.12 ? tint.setHSL(0.02 + rand() * 0.03, 0.6, 0.32 + rand() * 0.08) : tint.setHSL(0.3 + rand() * 0.04, 0.45 + rand() * 0.1, 0.22 + rand() * 0.1))
   })
-  group.add(leaves)
+  group.add(inSeason(leaves, 'leaves'))
   const limb = limbOf(group, faceted(0x5a4a3a, 0.95))
   for (const lean of [0.5, 1.3]) limb(new THREE.Vector3(backX + 0.2, GRASS + 0.22, cageZ1 - 0.2), new THREE.Vector3(backX + 0.2 + lean, CAGE_HEIGHT - 0.1, cageZ1 - 0.02), 0.014, 0.006)
+  // L'automne a son propre tirage (les feuilles ne changent pas de place) : chaque feuille a sa teinte d'automne, rouge, parfois orangée.
+  const extra = seeded(5059)
+  const autumn = new Float32Array(spots.length * 3)
+  spots.forEach((_, index) => tint.setHSL(extra() < 0.2 ? 0.07 + extra() * 0.04 : extra() * 0.03, 0.65 + extra() * 0.15, 0.3 + extra() * 0.12).toArray(autumn, index * 3))
+  leaves.userData.tints = { base: (leaves.instanceColor as THREE.InstancedBufferAttribute).array.slice(), autumn }
+  // Et ses grappes : de petites baies bleu-noir qui pendent devant le grillage, sous quelques feuilles.
+  const wall = spots.filter(([, , , flatOnTop]) => !flatOnTop)
+  const berries: THREE.Vector3[] = []
+  for (let bunch = 0; bunch < 28; bunch += 1) {
+    const [x, y, z] = wall[Math.floor(extra() * wall.length)]
+    for (let berry = 0; berry < 9; berry += 1) berries.push(new THREE.Vector3(x + (extra() - 0.5) * 0.035 * (1 - berry / 12), y - 0.03 - berry * 0.009, z - 0.03 + (extra() - 0.5) * 0.03))
+  }
+  group.add(berriesOf(berries, 0.011, 0x2b2147, 'harvest'))
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { Button } from '@house/ui'
+import { Button, Tabs } from '@house/ui'
 import { disposeObject, supportsWebGL } from '@/lib/three'
 import { useAcUnits } from '@/lib/useAcUnits'
 import { useLampPlan } from '@/lib/useLampPlan'
@@ -24,6 +24,10 @@ import {
   LAMPS_ON_TEXT,
   NO_WEBGL_TEXT,
   RESET_LABEL,
+  SEASON_LABEL,
+  SEASON_OPTIONS,
+  SKY_LABEL,
+  SKY_OPTIONS,
   START,
   TARGET,
   TITLE,
@@ -31,12 +35,17 @@ import {
   TOP,
   TOP_LABEL,
   VIEW_HEIGHT,
+  WIND_LABEL,
 } from './constants'
+import { loadClimate, saveClimate } from './climate'
+import type { Climate } from './climate'
+import { applySeason, seasonOf } from './garden/seasons'
 import { acMeshes, applyAcLed, applyClock, cameraMeshes } from './live'
 import { buildScene } from './helpers'
 import { createLighting, lampPlace } from './lighting'
 import { applyShutters, closedOf, SHUTTER_KEYS, shutterWindows, skyOf, stepShutters } from './shutters'
 import type { Kitchen3DProps, SceneHandle, SceneLamp } from './types'
+import { createWeather, WEATHER_LOOK } from './weather'
 
 /**
  * La maison et le jardin en 3D (la vue de Home), éclairés par les vraies lampes Hue : chaque lampe
@@ -46,6 +55,13 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   const hostRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<SceneHandle | null>(null)
   const [supported] = useState(supportsWebGL)
+  // La saison du jardin et le temps qu'il fait : choisis au-dessus de la vue, gardés sur l'appareil.
+  const [climate, setClimate] = useState(loadClimate)
+  const choose = (change: Partial<Climate>) => {
+    const next = { ...climate, ...change }
+    setClimate(next)
+    saveClimate(next)
+  }
   const plan = usePlan(apiKey)
   const { lamps, toggle } = useLampPlan(apiKey, plan.items, true)
   // La scène est construite une fois : elle appelle le `toggle` du moment par cette référence.
@@ -131,6 +147,8 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     sun.shadow.bias = -0.0005
     scene.add(sun)
     const lighting = createLighting(parts.root)
+    // La pluie, la neige et ce qui se balance dans le vent : préparés une fois, cachés par beau temps.
+    const weather = createWeather(scene, parts.root)
     // La pendule de la cuisine donne l'heure, remise à jour quatre fois par minute.
     applyClock(parts.root, new Date())
     const clockTimer = setInterval(() => applyClock(parts.root, new Date()), 15_000)
@@ -242,15 +260,17 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       frame = requestAnimationFrame(loop)
       const now = performance.now()
       // Les volets en mouvement avancent du temps écoulé (au plus un quart de seconde, après une pause de l'onglet).
-      stepShutters(parts.root, Math.min(0.25, (now - last) / 1000))
+      const elapsed = Math.min(0.25, (now - last) / 1000)
+      stepShutters(parts.root, elapsed)
       last = now
       if (!visible) return
+      weather.step(elapsed)
       controls.update()
       renderer.render(scene, camera)
     }
     loop()
 
-    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
+    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, weather, resetView: () => lookFrom(START), topView: () => lookFrom(TOP) }
 
     return () => {
       cancelAnimationFrame(frame)
@@ -284,9 +304,21 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     if (!current) return
     const open = applyShutters(current.root, JSON.parse(closedKey) as Record<string, number>, performance.now() < animateUntil.current)
     const daylight = ALWAYS_DAY ? 1 : open * sky
-    current.ambient.intensity = DAYLIGHT.night + DAYLIGHT.day * daylight
-    current.sun.intensity = DAYLIGHT.sun * daylight
-  }, [closedKey, sky, supported])
+    // Le temps choisi dose le tout : un ciel de pluie ou de neige laisse moins de jour et presque plus de soleil.
+    const look = WEATHER_LOOK[climate.sky]
+    current.ambient.intensity = DAYLIGHT.night + DAYLIGHT.day * daylight * look.ambient
+    current.sun.intensity = DAYLIGHT.sun * daylight * look.sun
+  }, [closedKey, sky, climate.sky, supported])
+
+  // Le jardin se met à la saison choisie (« auto » : celle du jour), sans être reconstruit.
+  useEffect(() => {
+    if (sceneRef.current) applySeason(sceneRef.current.root, climate.season === 'auto' ? seasonOf(new Date()) : climate.season)
+  }, [climate.season, supported])
+
+  // Le temps qu'il fait : la pluie ou la neige, le ciel, le vent.
+  useEffect(() => {
+    sceneRef.current?.weather.apply(climate.sky, climate.wind)
+  }, [climate.sky, climate.wind, supported])
 
   // Le voyant de la clim suit la vraie.
   useEffect(() => {
@@ -305,6 +337,13 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
             <Button onClick={() => sceneRef.current?.topView()}>{TOP_LABEL}</Button>
             <Button onClick={() => sceneRef.current?.resetView()}>{RESET_LABEL}</Button>
             <span className={HINT_CLASS}>{LAMPS_ON_TEXT(lit, sceneLamps.length)}</span>
+          </div>
+          <div className={BUTTONS_CLASS}>
+            <Tabs compact label={SEASON_LABEL} options={SEASON_OPTIONS} value={climate.season} onChange={(season) => choose({ season })} />
+            <Tabs compact label={SKY_LABEL} options={SKY_OPTIONS} value={climate.sky} onChange={(sky) => choose({ sky })} />
+            <Button variant={climate.wind ? 'active' : 'default'} aria-pressed={climate.wind} onClick={() => choose({ wind: !climate.wind })}>
+              {WIND_LABEL}
+            </Button>
           </div>
           <div ref={hostRef} className={HOST_CLASS} style={{ height: VIEW_HEIGHT }} role="img" aria-label={ARIA_LABEL} />
           <p className={HINT_CLASS}>{HINT}</p>

@@ -7,6 +7,12 @@ const footOf = (limb: THREE.Mesh): number => (limb.geometry as THREE.CylinderGeo
 const placesOf = (bush: THREE.Group): number[][] => bush.children.map((child) => child.position.toArray())
 
 describe('laurelBush', () => {
+  it('il se balance dans le vent, peu (il est haut) ; ses touffes sont un feuillage qui reste', () => {
+    const bush = laurelBush(11)
+    expect(bush.userData.sway).toBe(0.02)
+    expect(new Set(leavesOf(bush).map((leaf) => leaf.userData.season))).toEqual(new Set(['evergreen']))
+  })
+
   it('la même graine donne le même laurier, une autre un laurier différent', () => {
     expect(placesOf(laurelBush(11))).toEqual(placesOf(laurelBush(11)))
     expect(placesOf(laurelBush(11))).not.toEqual(placesOf(laurelBush(12)))

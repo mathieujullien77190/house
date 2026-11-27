@@ -49,8 +49,10 @@ describe('fern', () => {
 describe('choisya', () => {
   it('une boule basse de seize touffes de deux verts, piquée de sept fleurs blanches au-dessus', () => {
     const shrub = choisya(91)
-    const all = meshesOf(shrub)
+    // (Son bois nu, qu'on ne voit qu'en hiver, est un groupe à part, ajouté à la fin.)
+    const all = meshesOf(shrub).filter((mesh) => mesh.isMesh)
     expect(all).toHaveLength(23)
+    expect(shrub.children).toHaveLength(24)
     const flowers = all.filter((mesh) => colorOf(mesh) === 0xfafaf5)
     expect(flowers).toHaveLength(7)
     expect(new Set(flowers.map((flower) => flower.material)).size).toBe(1)
@@ -64,8 +66,9 @@ describe('choisya', () => {
 describe('hydrangea', () => {
   it('vingt-deux touffes de feuilles et neuf boules de fleurs roses et bleues, un peu écrasées : trois au sommet, six autour', () => {
     const shrub = hydrangea(5)
-    const all = meshesOf(shrub)
+    const all = meshesOf(shrub).filter((mesh) => mesh.isMesh)
     expect(all).toHaveLength(31)
+    expect(shrub.children).toHaveLength(32)
     const heads = all.slice(22)
     for (const head of heads) {
       expect(head.scale.y).toBe(0.8)
@@ -257,8 +260,9 @@ describe('creeper', () => {
 
   it('un seul maillage de feuilles, chacune à sa teinte, et deux tiges qui partent du bac', () => {
     const group = grown()
+    // (Le second maillage : ses grappes d'automne.)
     const [leaves] = instancedOf(group)
-    expect(instancedOf(group)).toHaveLength(1)
+    expect(instancedOf(group)).toHaveLength(2)
     // Les cent soixante du dessus, plus celles du grillage (une partie des neuf cents tirages).
     expect(leaves.count).toBeGreaterThan(160 + 200)
     expect(leaves.count).toBeLessThan(160 + 900)
@@ -281,5 +285,79 @@ describe('creeper', () => {
     const near = onWire.filter((at) => at.x - SITE.backX < 1.05).length
     expect(near).toBeGreaterThan((onWire.length - near) * 2)
     expect(matricesOf(instancedOf(grown())[0])).toEqual(matricesOf(leaves))
+  })
+
+  it('une feuille de vigne : un seul limbe large, à cinq lobes pointus séparés par des creux peu profonds, au bord denté', () => {
+    const [leaves] = instancedOf(grown())
+    const shape = (leaves.geometry as THREE.ShapeGeometry).parameters.shapes as THREE.Shape
+    const outline = shape.getPoints()
+    expect(outline).toHaveLength(120)
+    // Le contour autour du pétiole : l'écart de chaque point, par son angle (0 : le bout de la feuille).
+    const reachAt = (turn: number): number => {
+      const nearest = outline.reduce((best, point) => (Math.abs(Math.atan2(point.x, point.y) - turn) < Math.abs(Math.atan2(best.x, best.y) - turn) ? point : best))
+      return nearest.length()
+    }
+    const tip = reachAt(0)
+    expect(tip).toBeCloseTo(0.097)
+    const axes = [0, 1.1, -1.1, 2.05, -2.05]
+    const sinuses = [0.55, -0.55, 1.575, -1.575]
+    // Cinq lobes : celui du bout est le plus long, ceux du bas les plus courts.
+    expect(reachAt(1.1)).toBeLessThan(tip)
+    expect(reachAt(2.05)).toBeLessThan(reachAt(1.1))
+    expect(reachAt(-1.1)).toBeCloseTo(reachAt(1.1), 2)
+    for (const sinus of sinuses) {
+      // Entre deux lobes, le limbe se creuse, mais reste large : ce ne sont pas cinq folioles séparées.
+      for (const axis of axes) if (Math.abs(axis - sinus) < 0.6) expect(reachAt(sinus)).toBeLessThan(reachAt(axis))
+      expect(reachAt(sinus)).toBeGreaterThan(tip * 0.4)
+    }
+    // Vers le pétiole, il se creuse en cœur.
+    expect(reachAt(Math.PI - 0.01)).toBeLessThan(tip * 0.2)
+    // Plus large que haute.
+    const xs = outline.map((point) => point.x)
+    const ys = outline.map((point) => point.y)
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(Math.max(...ys) - Math.min(...ys))
+    // Les dents : le bord monte et redescend bien plus souvent que cinq fois.
+    const reaches = outline.map((point) => point.length())
+    const peaks = reaches.filter((reach, index) => reach > reaches[(index + 119) % 120] && reach > reaches[(index + 1) % 120]).length
+    expect(peaks).toBeGreaterThan(12)
+  })
+
+  it('en automne : chaque feuille a sa teinte rouge ou orangée, et vingt-huit grappes de neuf baies sombres pendent devant le grillage', () => {
+    const group = grown()
+    const [leaves, grapes] = instancedOf(group)
+    const tints = leaves.userData.tints as { base: Float32Array; autumn: Float32Array }
+    expect(tints.autumn).toHaveLength(leaves.count * 3)
+    expect(Array.from(tints.base)).toEqual(Array.from((leaves.instanceColor as THREE.InstancedBufferAttribute).array))
+    expect(tints.base).not.toBe((leaves.instanceColor as THREE.InstancedBufferAttribute).array)
+    for (let index = 0; index < leaves.count; index += 1) expect(tints.autumn[index * 3]).toBeGreaterThan(tints.autumn[index * 3 + 1])
+    expect(grapes.userData.season).toBe('harvest')
+    expect(grapes.count).toBe(28 * 9)
+    expect((grapes.material as THREE.MeshStandardMaterial).color.getHex()).toBe(0x2b2147)
+    for (const at of placesIn(grapes)) {
+      // Devant le grillage (dehors), entre le sol et le haut de la cage.
+      expect(at.z).toBeLessThan(SITE.cageZ1)
+      expect(at.y).toBeGreaterThan(GRASS)
+      expect(at.y).toBeLessThan(CAGE_HEIGHT)
+    }
+    expect(matricesOf(instancedOf(grown())[1])).toEqual(matricesOf(grapes))
+  })
+})
+
+describe('le vent et la neige sur les plantes', () => {
+  it('fougère, arbustes, buisson et massif se balancent tout entiers ; spirées et glycine par leurs feuilles et leurs fleurs', () => {
+    for (const plant of [fern(21), choisya(91), hydrangea(5), bush(111, 1.2, 1.5), flowerPatch(121, 1.3, 0.6, 0xd6247f)]) expect(plant.userData.sway).toBeGreaterThan(0)
+    const hedge = spireaHedge([[0, 400], [200, 400]], 2.6, 0, 71)
+    expect(hedge.userData.sway).toBeUndefined()
+    expect(instancedOf(hedge).map((mesh) => mesh.userData.sway)).toEqual([0.04, 0.04])
+    const vine = wisteria(83)
+    expect(vine.userData.sway).toBeUndefined()
+    expect(instancedOf(vine).map((mesh) => mesh.userData.sway)).toEqual([0.015, 0.015])
+  })
+
+  it('la neige tient sur le bloc des spirées, au-dessus des bouquets qui le couvrent', () => {
+    const hedge = spireaHedge([[0, 400], [200, 400], [300, 500]], 2.6, 0, 71)
+    const blocks = ofType(hedge, 'BoxGeometry')
+    expect(blocks).toHaveLength(2)
+    expect(blocks.map((block) => block.userData.snow)).toEqual([0.2, 0.2])
   })
 })

@@ -120,3 +120,15 @@ export const fixtureBulb = (mesh: THREE.Mesh, name?: string): THREE.Mesh => {
   if (name) mesh.userData.fixtureName = name
   return mesh
 }
+
+/** L'épaisseur de la neige sur le sol (pelouses, carrelages, béton) (m). */
+export const SNOW_DEEP = 0.04
+
+/**
+ * Marque un objet du dehors sur lequel la neige tient (un sol, le dessus d'une haie, d'un muret, d'une table) : quand il neige,
+ * `weather.ts` le coiffe d'une couche blanche, soulevée de `lift` mètres (`userData.snow`).
+ */
+export const snowTop = <T extends THREE.Object3D>(object: T, lift = 0.03): T => {
+  object.userData.snow = lift
+  return object
+}
