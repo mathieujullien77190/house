@@ -276,6 +276,31 @@ void handleUpdateUpload() {
   }
 }
 
+// Essai de la LED infrarouge : pendant la durée demandée, elle reste allumée 3 s puis éteinte 2 s, en boucle (à regarder à travers
+// l'appareil photo d'un téléphone, qui voit l'infrarouge). Sert à vérifier le montage, sans rapport avec un code de télécommande.
+unsigned long irTestStart = 0;
+unsigned long irTestEnd = 0;
+
+void handleIrTest() {
+  const long seconds = server.hasArg("seconds") ? server.arg("seconds").toInt() : 60;
+  irTestStart = millis();
+  irTestEnd = irTestStart + static_cast<unsigned long>(constrain(seconds, 0L, 600L)) * 1000UL;
+  pinMode(IR_PIN, OUTPUT);
+  if (seconds <= 0) digitalWrite(IR_PIN, LOW);
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
+void runIrTest() {
+  if (irTestEnd == 0) return;
+  const unsigned long now = millis();
+  if (now >= irTestEnd) {
+    digitalWrite(IR_PIN, LOW);
+    irTestEnd = 0;
+    return;
+  }
+  digitalWrite(IR_PIN, (now - irTestStart) % 5000UL < 3000UL ? HIGH : LOW);
+}
+
 void setup() {
   Serial.begin(115200);
   settings.begin("box", false);
@@ -311,6 +336,7 @@ void setup() {
   server.on("/api/ac/program/delete", HTTP_POST, handleProgramDelete);
   server.on("/api/frequency", HTTP_POST, handleFrequency);
   server.on("/api/ac", HTTP_POST, handleAc);
+  server.on("/api/ir/test", HTTP_POST, handleIrTest);
   const char *headers[] = {"X-Update-Key"};
   server.collectHeaders(headers, 1);
   server.on("/api/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
@@ -321,5 +347,6 @@ void setup() {
 void loop() {
   server.handleClient();
   runSchedule();
+  runIrTest();
   ArduinoOTA.handle();
 }

@@ -9,7 +9,7 @@ Câblage et schémas : onglet « Volet + clim » du site (`code/stack/site`, `Re
 
 ## État
 
-Compile (PlatformIO, ESP32 `esp32dev`). **Testé sur le matériel** : appairage et ordres d'un volet Somfy RTS (radio CC1101). **Pas encore testés** : la clim infrarouge (LED), les horaires du volet et les programmes de la clim. Chaque moitié se teste seule (le boîtier marche sans LED IR, et sans CC1101).
+Compile (PlatformIO, ESP32 `esp32dev`). **Testé sur le matériel** : appairage et ordres d'un volet Somfy RTS (radio CC1101). **Pas encore testés** : la clim infrarouge (LED), les horaires du volet et les programmes de la clim. **En cours d'essai** : le montage de la LED infrarouge (`POST /api/ir/test`, voir « API »), pas encore confirmé. Chaque moitié se teste seule (le boîtier marche sans LED IR, et sans CC1101).
 
 ## Fichiers
 
@@ -36,6 +36,7 @@ CC1101 : SCK 18, MISO 19, MOSI 23, CSN 5, GDO0 13 (émission), GDO2 12 (récepti
 - `POST /api/name?id=&name=`, `POST /api/frequency?mhz=433.42`.
 - `POST /api/update` (en-tête `X-Update-Key` = `OTA_PASSWORD`, fichier `.bin` en multipart) : met à jour le programme depuis la page ; la mémoire NVS (Wi-Fi, codes tournants) est conservée.
 - `POST /api/ac?power=1&mode=heat&temp=21&fan=auto&vane=auto&protocol=heavy152`.
+- `POST /api/ir/test?seconds=60` : essai du montage de la LED infrarouge, sans code de télécommande. Pendant la durée demandée (60 s par défaut, 600 au plus, `0` arrête), la broche de la LED reste allumée 3 s puis éteinte 2 s, en boucle : à regarder à travers l'appareil photo d'un téléphone, qui voit l'infrarouge.
 
 ## Mise en route
 
