@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { CAMERA_ORDER, cameraOrderSql, compareCameras } from './cameraOrder.ts'
 
 test('l’ordre d’arrivée des caméras : huit caméras connues', () => {
-  assert.deepEqual(CAMERA_ORDER, ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'potager', 'cerisier', 'pommier', 'portail'])
+  assert.deepEqual(CAMERA_ORDER, ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'potager', 'pommier-inverse', 'pommier', 'portail'])
 })
 
 test('compareCameras : les connues dans l’ordre d’arrivée, puis les autres par ordre alphabétique', () => {
@@ -15,7 +15,7 @@ test('compareCameras : les connues dans l’ordre d’arrivée, puis les autres 
 test('cameraOrderSql : une clause CASE sur la colonne, les inconnues après, puis la colonne', () => {
   assert.equal(
     cameraOrderSql(),
-    "CASE camera WHEN 'voliere-interieur' THEN 0 WHEN 'voliere-exterieur' THEN 1 WHEN 'salon-de-jardin' THEN 2 WHEN 'voliere-toit' THEN 3 WHEN 'potager' THEN 4 WHEN 'cerisier' THEN 5 WHEN 'pommier' THEN 6 WHEN 'portail' THEN 7 ELSE 8 END, camera",
+    "CASE camera WHEN 'voliere-interieur' THEN 0 WHEN 'voliere-exterieur' THEN 1 WHEN 'salon-de-jardin' THEN 2 WHEN 'voliere-toit' THEN 3 WHEN 'potager' THEN 4 WHEN 'pommier-inverse' THEN 5 WHEN 'pommier' THEN 6 WHEN 'portail' THEN 7 ELSE 8 END, camera",
   )
   assert.ok(cameraOrderSql('l.camera').endsWith('ELSE 8 END, l.camera'))
 })

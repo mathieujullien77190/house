@@ -52,14 +52,14 @@ streams:
   potager_guest_sub_mjpeg: ffmpeg:potager_sub#video=mjpeg2
   potager_guest_main_mjpeg: ffmpeg:potager_main#video=mjpeg2
   # La sixième caméra (RLC-810A), pas encore branchée : adresse, compte et mot de passe viennent de .env (CAMERA6_IP, CAMERA6_USER, CAMERA6_PASSWORD). go2rtc ne se connecte qu'à la demande : tant qu'elle n'est pas dans CAMERAS, ces flux ne coûtent rien.
-  cerisier_main: rtsp://${CAMERA6_USER}:${CAMERA6_PASSWORD}@${CAMERA6_IP}:554/h264Preview_01_main
-  cerisier_sub: rtsp://${CAMERA6_USER}:${CAMERA6_PASSWORD}@${CAMERA6_IP}:554/h264Preview_01_sub
-  cerisier_sub_mjpeg: ffmpeg:cerisier_sub#video=mjpeg
-  cerisier_main_mjpeg: ffmpeg:cerisier_main#video=mjpeg
-  cerisier_sub_mjpeg_m: ffmpeg:cerisier_sub#video=mjpeg
-  cerisier_main_mjpeg_m: ffmpeg:cerisier_main#video=mjpeg
-  cerisier_guest_sub_mjpeg: ffmpeg:cerisier_sub#video=mjpeg2
-  cerisier_guest_main_mjpeg: ffmpeg:cerisier_main#video=mjpeg2
+  pommier-inverse_main: rtsp://${CAMERA6_USER}:${CAMERA6_PASSWORD}@${CAMERA6_IP}:554/h264Preview_01_main
+  pommier-inverse_sub: rtsp://${CAMERA6_USER}:${CAMERA6_PASSWORD}@${CAMERA6_IP}:554/h264Preview_01_sub
+  pommier-inverse_sub_mjpeg: ffmpeg:pommier-inverse_sub#video=mjpeg
+  pommier-inverse_main_mjpeg: ffmpeg:pommier-inverse_main#video=mjpeg
+  pommier-inverse_sub_mjpeg_m: ffmpeg:pommier-inverse_sub#video=mjpeg
+  pommier-inverse_main_mjpeg_m: ffmpeg:pommier-inverse_main#video=mjpeg
+  pommier-inverse_guest_sub_mjpeg: ffmpeg:pommier-inverse_sub#video=mjpeg2
+  pommier-inverse_guest_main_mjpeg: ffmpeg:pommier-inverse_main#video=mjpeg2
   # La septième caméra (RLC-811A, zoom optique), pas encore branchée : adresse, compte et mot de passe viennent de .env (CAMERA7_IP, CAMERA7_USER, CAMERA7_PASSWORD). go2rtc ne se connecte qu'à la demande : tant qu'elle n'est pas dans CAMERAS, ces flux ne coûtent rien.
   pommier_main: rtsp://${CAMERA7_USER}:${CAMERA7_PASSWORD}@${CAMERA7_IP}:554/h264Preview_01_main
   pommier_sub: rtsp://${CAMERA7_USER}:${CAMERA7_PASSWORD}@${CAMERA7_IP}:554/h264Preview_01_sub

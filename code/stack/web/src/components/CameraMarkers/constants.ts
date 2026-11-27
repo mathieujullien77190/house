@@ -25,4 +25,6 @@ export const MARKER_ROTATIONS: Record<string, Record<string, number>> = {
   'voliere-interieur': { 'salon-de-jardin': 180, 'voliere-exterieur': 90 },
   'voliere-exterieur': { 'voliere-toit': 90, 'voliere-interieur': 90 },
   'salon-de-jardin': { 'voliere-exterieur': 270, 'voliere-toit': 90, 'voliere-interieur': 90 },
+  pommier: { 'voliere-toit': 180, 'pommier-inverse': 90 },
+  'pommier-inverse': { pommier: 90 },
 }

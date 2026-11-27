@@ -74,6 +74,8 @@ export const ADDRESS_ROWS: string[][] = [
   ['192.168.1.33', 'Switch TP-Link ES208GP', '80'],
   ['192.168.1.141', 'Caméra Reolink voliere-exterieur', '554'],
   ['192.168.1.52', 'Caméra Reolink voliere-interieur', '554'],
+  ['192.168.1.116', 'Caméra Reolink RLC-811A pommier', '80, 554, 9000'],
+  ['192.168.1.178', 'Caméra Reolink RLC-810A pommier-inverse', '554, 9000'],
   ['192.168.1.81', 'Pont Philips Hue', '80, 443'],
   ['192.168.1.115', 'ESP32 servos des volets (page « Volet salon »)', '80'],
   ['192.168.1.200', 'Prise TP-Link Kasa HS100', '9999'],

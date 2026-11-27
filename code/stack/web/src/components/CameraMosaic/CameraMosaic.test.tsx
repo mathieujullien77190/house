@@ -87,7 +87,7 @@ describe('CameraMosaic : vignettes', () => {
 })
 
 describe('CameraMosaic : caméras prévues', () => {
-  const PLANNED = ['potager', 'cerisier', 'pommier', 'portail']
+  const PLANNED = ['potager', 'pommier-inverse', 'pommier', 'portail']
   const planned = (name: string) => screen.getByText(name).closest('div[class*="rounded-md"]')?.parentElement as HTMLElement
 
   it('absentes de l’API : un cadre noir « Pas encore de flux » par caméra prévue, sans flux ni ouverture', () => {
@@ -103,19 +103,19 @@ describe('CameraMosaic : caméras prévues', () => {
     fireEvent.click(screen.getAllByText('Pas encore de flux')[0])
     expect(onOpen).not.toHaveBeenCalled()
   })
-  it('leur ordre : potager, cerisier, portail, pommier, après les quatre premières', () => {
+  it('leur ordre : potager, pommier-inverse, portail, pommier, après les quatre premières', () => {
     mount({ cameras: [camera('voliere-interieur'), camera('autre')] })
     const names = [...document.querySelectorAll('div')].map((e) => e.textContent ?? '').filter((text) => PLANNED.includes(text))
-    expect(names).toEqual(['potager', 'cerisier', 'portail', 'pommier'])
+    expect(names).toEqual(['potager', 'pommier-inverse', 'portail', 'pommier'])
     expect(screen.getByTestId('tile-autre').compareDocumentPosition(screen.getByText('pommier')) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
   })
-  it('le potager est empilé sous le salon de jardin (colonne 3) ; cerisier, portail et pommier sont sur la deuxième rangée', () => {
+  it('le potager est empilé sous le salon de jardin (colonne 3) ; pommier-inverse, portail et pommier sont sur la deuxième rangée', () => {
     mount({ cameras: [camera('salon-de-jardin')] })
     const right = wrapper('salon-de-jardin').parentElement as HTMLElement
     expect(right.className).toContain('lg:col-start-3')
     expect(within(right).getByText('potager')).toBeInTheDocument()
-    expect(planned('cerisier').className).toContain('lg:col-start-1')
-    expect(planned('cerisier').className).toContain('lg:row-start-2')
+    expect(planned('pommier-inverse').className).toContain('lg:col-start-1')
+    expect(planned('pommier-inverse').className).toContain('lg:row-start-2')
     expect(planned('portail').className).toContain('lg:col-start-2')
     expect(planned('pommier').className).toContain('lg:col-start-3')
   })

@@ -1,8 +1,8 @@
 // L'ordre des caméras partout où on les liste (page de House Sync, énergie, clips) : celui de leur arrivée. Une caméra qui n'est pas dans la liste vient après,
 // par ordre alphabétique. **Copié dans `api/src/lib/cameraOrder.ts`** (l'API ne dépend pas de House Sync) : si l'un change, changer l'autre.
 
-/** Les caméras connues, dans l'ordre où elles sont arrivées (les quatre dernières, potager, cerisier, pommier et portail, sont prévues : pas encore branchées). */
-export const CAMERA_ORDER = ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'potager', 'cerisier', 'pommier', 'portail']
+/** Les caméras connues, dans l'ordre où elles sont arrivées (les quatre dernières, potager, pommier-inverse, pommier et portail, sont prévues : pas encore branchées). */
+export const CAMERA_ORDER = ['voliere-interieur', 'voliere-exterieur', 'salon-de-jardin', 'voliere-toit', 'potager', 'pommier-inverse', 'pommier', 'portail']
 
 const rank = (camera: string): number => {
   const index = CAMERA_ORDER.indexOf(camera)
