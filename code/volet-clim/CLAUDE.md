@@ -9,7 +9,7 @@ Câblage et schémas : onglet « Volet + clim » du site (`code/stack/site`, `Re
 
 ## État
 
-Compile (PlatformIO, ESP32 `esp32dev`). **Testé sur le matériel** : appairage et ordres d'un volet Somfy RTS (radio CC1101). **Pas encore testés** : la clim infrarouge (LED), les horaires du volet et les programmes de la clim. **En cours d'essai** : le montage de la LED infrarouge (`POST /api/ir/test`, voir « API »), pas encore confirmé. Chaque moitié se teste seule (le boîtier marche sans LED IR, et sans CC1101).
+Compile (PlatformIO, ESP32 `esp32dev`). **Testé sur le matériel** : appairage et ordres d'un volet Somfy RTS (radio CC1101). **Testé aussi** (27 nov. 2026) : la LED infrarouge, sur une Mitsubishi Electric MSZ-AY de la maison, avec la famille `mitsubishi_ac` : l'ordre est reçu en ligne de mire (vérifié en relisant la clim par son module Wi-Fi, qui met une quinzaine de secondes à annoncer le changement). **Pas encore testés** : la clim du proche (MSZ-SF35VE, même famille attendue), les horaires du volet et les programmes de la clim. Chaque moitié se teste seule (le boîtier marche sans LED IR, et sans CC1101).
 
 ## Fichiers
 
@@ -56,4 +56,6 @@ Au premier démarrage le boîtier crée le Wi-Fi `volet-clim-reglage` : s'y conn
 - **Appairage** : appui long sur PROG de la télécommande d'origine (va-et-vient du volet), puis le bouton « Appairage » de la page (roue des réglages, section Volet). Adresse RTS d'un volet = `SHUTTER_ADDRESS_BASE + n`, unique par volet.
 - **Fréquence** : 433,42 MHz par défaut, 433,36 sur certains boîtiers (réglage dans la page).
 - **Clim** : la famille de télécommande (`mitsubishi_ac` par défaut : Mitsubishi Electric, comme la MSZ-SF35VE ; puis `mitsubishi112`, `heavy152`, `heavy88`) dépend du modèle ; la page les laisse essayer une à une. L'IR est à sens unique : le boîtier ne sait pas l'état réel de la clim.
+- **Résistances** : bien lire l'étiquette du sachet : une 47 kΩ à la place de la 47 Ω (ou 330 kΩ pour 330 Ω) et la LED ne s'allume pas. `POST /api/ir/test` sert à vérifier le montage à travers l'appareil photo d'un téléphone.
+- **Ligne de mire** : l'infrarouge ne passe pas les obstacles ; la LED doit viser l'unité intérieure.
 - Les mots de passe de `config.h` (mise à jour sans fil) sont à changer avant de donner le boîtier.
