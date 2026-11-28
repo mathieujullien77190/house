@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { SAS } from '@/components/Kitchen3D/constants'
 import { mirrorGlass } from '@/components/Kitchen3D/materials'
 import type { RoomMaterials } from '@/components/Kitchen3D/materials'
-import { box, BULB_OFF, cylinder, facing, standard } from '@/components/Kitchen3D/primitives'
+import { box, BULB_OFF, bulbBall, cylinder, facing, fixtureBulb, standard } from '@/components/Kitchen3D/primitives'
 
 /** Un petit tableau : un cadre noir large, un passe-partout crème, et dedans une vue en deux plans (le ciel et la mer d'un côté, un dôme de l'autre), liseré de `edge`. Il regarde vers +z. */
 const framed = (wide: number, tall: number, [sky, dome]: [number, number], [edge]: [number]): THREE.Group => {
@@ -98,9 +98,8 @@ export const sas = (m: RoomMaterials): THREE.Group => {
   group.add(cylinder(0.06, 0.06, 0.02, m.black, north - 0.01, 2.0, lampZ).rotateZ(Math.PI / 2), box(0.26, 0.012, 0.012, m.black, north - 0.14, 2.05, lampZ))
   const cage = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0xb08a55, roughness: 0.9, wireframe: true }))
   cage.position.set(north - 0.26, 1.92, lampZ)
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 10), m.bulb)
-  glow.position.copy(cage.position)
-  group.add(cage, glow)
+  // Son ampoule est un luminaire de la scène (`fixtureBulb`) : elle suit la lampe de la maison la plus proche, se clique, et se voit en vue Matrix (ses trois cercles rouges).
+  group.add(cage, fixtureBulb(bulbBall(0.035, cage.position.x, cage.position.y, cage.position.z)))
   // Une seconde applique, au mur du fond côté maison (d'après photo) : une platine ronde noire, un bras coudé et un abat-jour noir en dôme, qui regarde vers le bas.
   // Elle n'est reliée à rien (la vraie s'allume et s'éteint, mais ne fait rien) : ni luminaire marqué, ni lumière, et son ampoule reste éteinte.
   const sideX = (south + north) / 2

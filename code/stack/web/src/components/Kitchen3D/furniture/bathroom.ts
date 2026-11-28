@@ -78,6 +78,9 @@ const toilet = (group: THREE.Group, m: RoomMaterials): void => {
   hollow.position.set(bowlX, alcoveY, east + WC_ALCOVE.depth / 2)
   group.add(hollow)
   group.add(box(WC_ALCOVE.width + 0.06, 0.025, WC_ALCOVE.depth + 0.04, m.oak, bowlX, WC_ALCOVE.bottom + 0.0125, east + WC_ALCOVE.depth / 2 - 0.02))
+  // Au plafond de l'alcôve, un petit spot encastré (la lampe « sdb 2 » de la maison) : une collerette chromée et son ampoule.
+  const alcoveTop = WC_ALCOVE.bottom + WC_ALCOVE.height
+  group.add(cylinder(0.035, 0.035, 0.01, m.chrome, bowlX, alcoveTop - 0.005, east + WC_ALCOVE.depth / 2, 20), fixtureBulb(bulbBall(0.022, bowlX, alcoveTop - 0.016, east + WC_ALCOVE.depth / 2), 'sdb 2'))
   group.add(box(0.14, 0.07, 0.05, standard(0x5a4636, 0.9), bowlX - 0.05, WC_ALCOVE.bottom + 0.06, east + 0.07), cylinder(0.035, 0.035, 0.08, m.cream, bowlX + 0.1, WC_ALCOVE.bottom + 0.065, east + 0.07, 14))
   // Le balai des WC : un pot carré noir et son manche, posé à droite de la cuvette pour qui la regarde (côté sud).
   group.add(box(0.1, 0.32, 0.1, m.black, bowlX - 0.32, 0.16, east - 0.1), box(0.02, 0.12, 0.02, m.black, bowlX - 0.32, 0.38, east - 0.1))

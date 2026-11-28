@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
-import { box, cylinder, noShadow, standard } from '@/components/Kitchen3D/primitives'
+import { box, bulbBall, cylinder, fixtureBulb, noShadow, standard } from '@/components/Kitchen3D/primitives'
 import { wireTexture } from '@/components/Kitchen3D/textures'
 import { CAGE_HEIGHT, CAGE_LOW, GRASS, LOW, PANEL } from './constants'
 import { SITE } from './layout'
@@ -147,6 +147,9 @@ export const cagePanels = (group: THREE.Group, m: GardenMaterials): void => {
   for (const [index, tall] of [CAGE_LOW, midTall, CAGE_HEIGHT, CAGE_HEIGHT].entries()) woodPan(group, post, 'z', cageX2, cageZ2 - pan * (index + 0.5), tall)
   // Le mur des deux pans grillagés du bac (`backX`) continue dans la cage, sous la tôle, sur deux pans jusqu'au côté de la haie : une porte (en face de celle de l'entrée), puis un pan de bois plein.
   woodPan(group, post, 'z', SITE.backX, cageZ2 - pan / 2, CAGE_LOW)
+  // Au fond de la cage, sur la limite entre le toit de tôle et le toit grillagé (`turnZ`) : trois panneaux d'OSB de 85 cm, debout, du fond vers le milieu de la cage.
+  const osb = standard(0xc9a56b, 0.9)
+  for (let panel = 0; panel < 3; panel += 1) group.add(box(pan - 0.01, CAGE_HEIGHT - 0.02, 0.018, osb, cageX2 - pan * (panel + 0.5), (CAGE_HEIGHT - 0.02) / 2, SITE.turnZ))
   cageDoor(group, post, iron, cageX1, doorZ, midTall)
   // En face d'elle, dans la cloison de bois (`backX`), une seconde porte, la même.
   cageDoor(group, post, iron, SITE.backX, doorZ, midTall)
@@ -248,4 +251,33 @@ export const cageTools = (group: THREE.Group, m: GardenMaterials): void => {
     tool.rotation.y = -Math.PI / 2
     group.add(tool)
   })
+}
+
+/**
+ * Dans la cage : la lampe des perruches (une boule d'osier posée par terre, son ampoule est la lampe « perruche » de la maison) et le chauffage
+ * (un petit radiateur blanc qu'on transporte, posé sur les carreaux, branché sur la prise connectée : marqué `userData.plug`, il se clique ; son voyant,
+ * `userData.plugLed`, dit si la prise est allumée).
+ */
+export const cageComfort = (group: THREE.Group): void => {
+  const { cageX2, turnZ } = SITE
+  // La lampe : une boule d'osier posée par terre, à côté du radiateur.
+  const [lampX, lampY, lampZ] = [cageX2 - PANEL * 1.5 - 0.5, 0.16, turnZ + 0.2]
+  const wicker = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshStandardMaterial({ color: 0xb98a4e, roughness: 0.9, wireframe: true }))
+  wicker.position.set(lampX, lampY, lampZ)
+  group.add(noShadow(wicker), fixtureBulb(bulbBall(0.05, lampX, lampY, lampZ), 'perruche'))
+  // Le radiateur : un corps blanc à ailettes sur deux pieds, une poignée, un bandeau de commande et son voyant.
+  const heater = new THREE.Group()
+  const white = standard(0xeeeeea, 0.5)
+  heater.add(box(0.42, 0.4, 0.1, white, 0, 0.27, 0), box(0.42, 0.05, 0.12, standard(0x2a2c2f, 0.6), 0, 0.495, 0))
+  for (let fin = 0; fin < 7; fin += 1) heater.add(box(0.012, 0.36, 0.13, white, -0.18 + fin * 0.06, 0.27, 0))
+  for (const side of [-1, 1]) heater.add(box(0.04, 0.07, 0.2, standard(0x2a2c2f, 0.6), side * 0.17, 0.035, 0))
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), new THREE.MeshBasicMaterial({ color: 0x4a4640 }))
+  led.position.set(0.16, 0.5, 0.062)
+  led.userData.plugLed = true
+  heater.add(led)
+  // Contre les panneaux d'OSB (leur face côté toit de tôle), au milieu de leur longueur, parallèle à eux.
+  heater.position.set(cageX2 - PANEL * 1.5, 0, turnZ + 0.09)
+  heater.rotation.y = 0
+  heater.userData.plug = true
+  group.add(heater)
 }

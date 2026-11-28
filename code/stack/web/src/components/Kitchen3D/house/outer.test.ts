@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
 import { BASE, ENTRY, MAST, MAST_CAMERA, NOOK_WINDOW, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import { kitchenMaps, kitchenMaterials } from '@/components/Kitchen3D/materials'
+import { kindOf } from '@/components/Kitchen3D/merge'
 import { outerWalls } from './outer'
 import { wallKit } from './walls'
 import type { Shell } from './walls'
@@ -18,6 +19,8 @@ const built = (): Shell => {
 const boxOf = (mesh: THREE.Mesh) => (mesh.geometry as THREE.BoxGeometry).parameters
 const colorOf = (mesh: THREE.Mesh) => (mesh.material as THREE.MeshStandardMaterial).color.getHex()
 const boxes = (shell: Shell) => (shell.group.children as THREE.Mesh[]).filter((child) => child.geometry?.type === 'BoxGeometry')
+/** Ce qui est dehors, devant l'entrée (marches, lanterne) : un groupe de genre `garden`, éclairé comme le jardin. */
+const outsideOf = (shell: Shell) => shell.group.children.find((child) => child.name === 'garden') as THREE.Group
 
 describe('outerWalls', () => {
   beforeEach(() => {
@@ -73,7 +76,8 @@ describe('outerWalls', () => {
     expect(shell.floors).toEqual([[SAS.south, SAS.north, SAS.west, SAS.east]])
     expect(boxes(shell).filter((mesh) => mesh.material === shell.sill)).toHaveLength(1)
     // Les marches, carrelées de terre cuite : la première à la hauteur du sol de la maison, la seconde à mi-hauteur.
-    const steps = boxes(shell).filter((mesh) => Math.abs(boxOf(mesh).depth - 1.2) < 1e-9 && boxOf(mesh).width === 0.3 && mesh.position.y < 0)
+    expect(kindOf(outsideOf(shell).children[0])).toBe('garden')
+    const steps = (outsideOf(shell).children as THREE.Mesh[]).filter((mesh) => mesh.geometry?.type === 'BoxGeometry' && Math.abs(boxOf(mesh).depth - 1.2) < 1e-9 && boxOf(mesh).width === 0.3 && mesh.position.y < 0)
     expect(steps.map((step) => boxOf(step).height)).toEqual([BASE.rise, BASE.rise / 2])
     expect(steps[0].position.y + BASE.rise / 2).toBeCloseTo(0)
     expect(steps[1].position.y - BASE.rise / 4).toBeCloseTo(-BASE.rise)
@@ -85,7 +89,7 @@ describe('outerWalls', () => {
 
   it('la lanterne de l’entrée, à droite de la porte du sas vers 1,80 m, tournée vers le dehors : un luminaire non nommé, sur sa platine', () => {
     const shell = built()
-    const lantern = shell.group.children.find((child) => child.type === 'Group' && child.children.some((part) => part.userData.fixture === true)) as THREE.Group
+    const lantern = outsideOf(shell).children.find((child) => child.type === 'Group' && child.children.some((part) => part.userData.fixture === true)) as THREE.Group
     expect(lantern.position.y).toBe(1.8)
     expect(lantern.position.z).toBeCloseTo((SAS.door[1] + SAS.east) / 2)
     // Contre le mur sud du sas, la face vers le dehors (−x).

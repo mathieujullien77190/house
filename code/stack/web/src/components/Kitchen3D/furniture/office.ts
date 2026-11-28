@@ -9,7 +9,12 @@ const monitor = (m: FurnitureMaterials, x: number): THREE.Group => {
   const group = new THREE.Group()
   group.position.set(x, 0.77, 0.12)
   group.add(box(0.58, 0.34, 0.025, m.black, 0, 0.3, 0.02))
-  group.add(box(0.55, 0.31, 0.005, new THREE.MeshBasicMaterial({ color: SCREEN_OFF }), 0, 0.3, 0.005))
+  // La dalle : marquée `userData.tv`, comme la télé du salon, elle se clique et montre alors la vue d'une caméra de la scène (`tv.ts`).
+  const panel = box(0.55, 0.31, 0.005, new THREE.MeshBasicMaterial({ color: SCREEN_OFF }), 0, 0.3, 0.005)
+  panel.userData.tv = true
+  // Elle regarde vers −z (le fauteuil) : c'est de ce côté que la vue vient se placer.
+  panel.userData.tvFacing = -1
+  group.add(panel)
   return group
 }
 
@@ -74,7 +79,7 @@ export const office = (m: FurnitureMaterials): THREE.Group => {
   group.add(led)
   group.add(box(0.8, 0.02, 0.02, m.metal, acX, 1.95, ROOM.zMax - z - 0.24))
   // Le plafonnier du bureau : le même modèle que celui du salon, en plus petit, à pétales en fil d'acier.
-  const flower = petalLamp(m, true, 'salle à manger', 0.65)
+  const flower = petalLamp(m, true, 'salle à manger', 0.65, 5)
   flower.position.set(0, ROOM.height, -0.7)
   group.add(flower)
   return group

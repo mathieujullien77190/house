@@ -171,13 +171,25 @@ describe('lawns', () => {
     }
     // Le tour de la partie basse va jusqu'à la limite nord.
     expect(Math.max(...skirt.map((pan) => boundsOf(pan).max.x))).toBeCloseTo(gardenX(LOT.north))
+    // À l'ouest, il suit le bord de la pelouse (le même rayon que le mur de l'arc), pas la limite du terrain.
+    expect(Math.min(...skirt.filter((pan) => topOf(pan) === mm(-LOW - 0.02)).map((pan) => boundsOf(pan).min.z))).toBeCloseTo(gardenZ(LOT.centerX - LAWN_RADIUS))
   })
 
-  it('dans la rue, le long de la haie : un trottoir de 1 m, épais de 20 cm, qui monte du niveau du portail du garage à celui du portillon', () => {
+  it('dans la rue, le long de la haie : un trottoir de 1 m, épais de 20 cm, qui monte du niveau du portail du garage à celui du portillon ; il continue tout droit le long de la limite ouest', () => {
     const { meshes } = built(lawns)
-    const pavement = quadsOf(meshes).filter((mesh) => colorOf(mesh) === 0xb9b8b2)
-    // 320 pas : un dessus et un chant chacun.
-    expect(pavement).toHaveLength(640)
+    const all = quadsOf(meshes).filter((mesh) => colorOf(mesh) === 0xb9b8b2)
+    // 320 pas le long de l'arc : un dessus et un chant chacun ; puis la bande droite du coin nord-ouest : un dessus et un chant.
+    expect(all).toHaveLength(642)
+    const pavement = all.slice(0, 640)
+    const [stripTop, stripEdge] = all.slice(640)
+    // La bande droite : à plat, au niveau du portail du garage, du bout de l'arc (à l'ouest du centre) jusqu'à la limite nord, large de 1 m ; son chant descend de 20 cm.
+    expect([footOf(stripTop), topOf(stripTop)]).toEqual([GATE_LEVEL, GATE_LEVEL])
+    expect([footOf(stripEdge), topOf(stripEdge)]).toEqual([mm(GATE_LEVEL - 0.2), GATE_LEVEL])
+    const strip = boundsOf(stripTop)
+    expect([strip.min.x, strip.max.x].sort((a, b) => a - b)).toEqual([gardenX(LOT.centerY), gardenX(LOT.north)].sort((a, b) => a - b).map((x) => expect.closeTo(x)))
+    expect(strip.max.z - strip.min.z).toBeCloseTo(1, 1)
+    expect(strip.max.z).toBeCloseTo(gardenZ(LOT.centerX - LAWN_RADIUS - 0.4))
+    expect(boundsOf(stripEdge).max.z).toBeCloseTo(strip.min.z)
     const tops = pavement.filter((_, index) => index % 2 === 0)
     const edges = pavement.filter((_, index) => index % 2 === 1)
     // Il ne redescend jamais : de l'ouest (avant le portail) vers le sud puis l'est (après le portillon).
@@ -417,10 +429,10 @@ describe('paving', () => {
     const boxes = boxesOf(meshes)
     const long = gardenX(gateNorth[1]) - gardenX(gateSouth[1])
     const drainLong = gardenX(gateNorth[1]) - gardenX(gateSouth[1] - 0.4 * UNITS_PER_METER)
-    // Le caniveau : un fond sombre de 8 cm de large, deux bords et des barrettes de fonte, 5 cm avant le pied de la terrasse.
+    // Le caniveau : un fond sombre de 8 cm de large, deux bords et des barrettes de fonte, 1 cm avant le pied de la terrasse.
     const bottom = boxes.find((mesh) => colorOf(mesh) === 0x101114) as THREE.Mesh
     expect(sizeOf(bottom).depth).toBe(0.08)
-    expect(bottom.position.z).toBeCloseTo(RAMP_END - 0.05)
+    expect(bottom.position.z).toBeCloseTo(RAMP_END - 0.01)
     expect(bottom.position.y).toBeCloseTo(-GARAGE_DEPTH + 0.004)
     // Du mur de gauche au mur plein de droite (40 cm du plan en deçà du mur de l'allée).
     expect(sizeOf(bottom).width).toBeCloseTo(drainLong)

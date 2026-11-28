@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { ENTRY, LAYOUT, PATIO_DOOR, ROOM } from '@/components/Kitchen3D/constants'
 import type { FurnitureMaterials } from '@/components/Kitchen3D/materials'
 import { box, standard } from '@/components/Kitchen3D/primitives'
@@ -26,7 +27,12 @@ export const windowOnWall = (m: FurnitureMaterials, wallX: number, dir: 1 | -1, 
   const pitch = inner / count
   const slats = new THREE.Group()
   for (let slat = 0; slat < count; slat += 1) {
-    const lame = box(0.015, pitch - 0.006, width - bar * 2 - 0.02, m.slat, -0.03 * dir, inner / 2 - pitch / 2 - slat * pitch, 0)
+    // Une lame : son profil (un peu moins haut que le pas, pour qu'on voie les lames, horizontales) sur une âme plus mince qui, elle, touche ses voisines : fermé, le volet est occultant,
+    // sans jour entre les lames ni sur les côtés, mais on distingue chaque lame par sa rainure.
+    const long = width - bar * 2 + 0.01
+    const shape = mergeGeometries([new THREE.BoxGeometry(0.015, pitch - 0.006, long), new THREE.BoxGeometry(0.006, pitch + 0.002, long)])
+    const lame = new THREE.Mesh(shape, m.slat)
+    lame.position.set(-0.03 * dir, inner / 2 - pitch / 2 - slat * pitch, 0)
     lame.visible = slat < count / 2
     slats.add(lame)
   }

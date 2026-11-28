@@ -47,8 +47,8 @@ describe('buildFurniture', () => {
     expect(armchair.position.toArray()).toEqual([LAYOUT.armchair.x, 0, LAYOUT.armchair.z])
     expect(armchair.rotation.y).toBeCloseTo(Math.atan2(-0.25, -1))
     expect(root.children[5].position.toArray()).toEqual([LAYOUT.dining.x, 0, LAYOUT.dining.z])
-    // La bibliothèque : trois maillages de copies.
-    expect(root.children[7].children.map((child) => (child as THREE.InstancedMesh).isInstancedMesh)).toEqual([true, true, true])
+    // La bibliothèque : trois maillages de copies, puis ce qui y est rangé (switch, mini PC, box, pont Hue).
+    expect(root.children[7].children.slice(0, 3).map((child) => (child as THREE.InstancedMesh).isInstancedMesh)).toEqual([true, true, true])
     // La chambre d'invité, la salle de bain, le sas et la chambre de Matou (`rooms.ts`).
     expect(root.children[16].children).toHaveLength(4)
   })
@@ -68,16 +68,19 @@ describe('buildFurniture', () => {
     }
   })
 
-  it('seize ampoules de luminaires, éteintes, chacune avec son matériau et le nom de sa lampe Hue', () => {
+  it('dix-huit ampoules de luminaires, éteintes, chacune avec son matériau ; dix-sept portent le nom de leur lampe Hue', () => {
     const { root } = furniture()
-    const bulbs = meshesOf(root).filter((mesh) => mesh.userData.fixture === true)
-    expect(bulbs).toHaveLength(16)
-    expect(new Set(bulbs.map((bulb) => bulb.material)).size).toBe(16)
-    for (const bulb of bulbs) expect((bulb.material as THREE.MeshBasicMaterial).color.getHex()).toBe(BULB_OFF)
+    const all = meshesOf(root).filter((mesh) => mesh.userData.fixture === true)
+    expect(all).toHaveLength(18)
+    expect(new Set(all.map((bulb) => bulb.material)).size).toBe(18)
+    for (const bulb of all) expect((bulb.material as THREE.MeshBasicMaterial).color.getHex()).toBe(BULB_OFF)
+    // L'applique du sas n'a pas de nom : elle suit la lampe de la maison la plus proche.
+    const bulbs = all.filter((bulb) => bulb.userData.fixtureName !== undefined)
+    expect(all.filter((bulb) => !bulbs.includes(bulb)).map((bulb) => worldOf(bulb).z > ROOM.zMax)).toEqual([true])
     const names = bulbs.map((bulb) => bulb.userData.fixtureName as string)
-    expect(new Set(names).size).toBe(16)
-    // Toutes sauf les deux que portent le gros œuvre et la cuisine (le couloir et la suspension de la cuisine).
-    expect([...names, 'couloir', 'cuisine 1'].sort()).toEqual([...LAMP_FIXTURES].sort())
+    expect(new Set(names).size).toBe(17)
+    // Toutes sauf celles que portent le gros œuvre, la cuisine et le jardin (le couloir, la suspension de la cuisine, la lampe de la cage).
+    expect([...names, 'couloir', 'cuisine 1', 'perruche'].sort()).toEqual([...LAMP_FIXTURES].sort())
     const placeOf = (name: string) => worldOf(bulbs[names.indexOf(name)])
     const near = (name: string, x: number, z: number) => Math.hypot(placeOf(name).x - x, placeOf(name).z - z)
     // Le salon, le coin repas, le bar (deux), le bureau (deux lampes et le plafonnier).
@@ -90,11 +93,12 @@ describe('buildFurniture', () => {
     expect(near('ordi 2', LAYOUT.desk.x + 0.75, LAYOUT.desk.z + 0.26)).toBeCloseTo(0)
   })
 
-  it('les deux écrans du bureau et la télé sont éteints : trois dalles noires', () => {
+  it('les deux écrans du bureau et la télé sont éteints : trois dalles noires, marquées pour montrer une caméra au clic', () => {
     const { root } = furniture()
     // Une dalle : un pavé de 5 mm d'épaisseur, large de 55 cm (bureau) ou de presque toute la télé.
     const slabs = meshesOf(root).filter((mesh) => {
-      const size = (mesh.geometry as THREE.BoxGeometry).parameters
+      // (Une lame de volet est une géométrie fondue, sans cotes.)
+      const size = (mesh.geometry as Partial<THREE.BoxGeometry>).parameters ?? { depth: 0, width: 0 }
       return size.depth === 0.005 && (size.width === 0.55 || size.width === LAYOUT.tv.width - 0.03)
     })
     expect(slabs.map((slab) => worldOf(slab).x).sort((a, b) => a - b)).toEqual(
@@ -102,8 +106,10 @@ describe('buildFurniture', () => {
     )
     for (const slab of slabs) {
       expect((slab.material as THREE.MeshBasicMaterial).color.getHex()).toBe(SCREEN_OFF)
-      expect(slab.userData).toEqual({})
+      expect(slab.userData.tv).toBe(true)
     }
+    // Les écrans du bureau regardent vers −z (le fauteuil), la télé vers +z.
+    expect(slabs.map((slab) => (slab.userData.tvFacing as number | undefined) ?? 1).sort()).toEqual([-1, -1, 1])
   })
 
   it('trois clims à cliquer (le salon et les deux chambres), chacune avec son voyant', () => {

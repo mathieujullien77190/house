@@ -9,14 +9,14 @@ import { box, bulbBall, cylinder, fixtureBulb } from '@/components/Kitchen3D/pri
  * et retombent vers l'extérieur en se chevauchant (un sur deux un peu plus bas), l'ampoule au milieu. Les pétales sont pleins, en cannage
  * (salon), ou `wire` : vides, tendus de rayons d'acier qui partent de leur pointe (bureau).
  */
-export const petalLamp = (m: FurnitureMaterials, wire: boolean, name: string, size = 1): THREE.Group => {
+export const petalLamp = (m: FurnitureMaterials, wire: boolean, name: string, size = 1, petals = 8): THREE.Group => {
   const group = new THREE.Group()
   const flower = new THREE.Group()
   flower.position.y = -0.14
   flower.scale.setScalar(size)
-  for (let petal = 0; petal < 8; petal += 1) {
+  for (let petal = 0; petal < petals; petal += 1) {
     const holder = new THREE.Group()
-    holder.rotation.y = (petal / 8) * Math.PI * 2
+    holder.rotation.y = (petal / petals) * Math.PI * 2
     const leaf = new THREE.Group()
     leaf.scale.set(1, 1.6, 1)
     leaf.rotation.x = Math.PI / 2 + 0.22

@@ -88,11 +88,15 @@ describe('sas', () => {
   it('l’applique à cage de jute entre la buanderie et la niche, et le miroir du mur sud', () => {
     const { m, meshes } = build()
     const cage = meshes.find((mesh) => (mesh.material as THREE.MeshStandardMaterial).wireframe === true) as THREE.Mesh
-    const glow = meshes.find((mesh) => mesh.material === m.bulb) as THREE.Mesh
+    // Son ampoule est un luminaire sans nom : elle suit la lampe de la maison la plus proche, et se clique.
+    const fixtures = meshes.filter((mesh) => mesh.userData.fixture !== undefined)
+    expect(fixtures).toHaveLength(1)
+    const [glow] = fixtures
     expect(glow.position.toArray()).toEqual(cage.position.toArray())
+    expect(glow.userData).toEqual({ fixture: true })
+    expect((glow.material as THREE.MeshBasicMaterial).color.getHex()).toBe(BULB_OFF)
+    expect(meshes.filter((mesh) => mesh.material === m.bulb)).toHaveLength(0)
     expect(cage.position.z).toBeCloseTo((SAS.laundry[1] + SAS.nook[0]) / 2)
-    // Ce n'est pas une lampe Hue : rien à relier.
-    expect(meshes.filter((mesh) => mesh.userData.fixture !== undefined)).toHaveLength(0)
     const mirror = meshes.find((mesh) => (mesh.material as THREE.MeshStandardMaterial).metalness === 0.8) as THREE.Mesh
     expect(mirror.position.toArray()).toEqual([SAS.south + 0.033, 1.15, SAS.west + 0.5])
   })
@@ -115,7 +119,7 @@ describe('sas', () => {
     const dome = meshes.find((mesh) => mesh.geometry.type === 'SphereGeometry' && mesh.material === m.black) as THREE.Mesh
     expect(worldOf(dome).z).toBeGreaterThan(SAS.west)
     expect(worldOf(dome).y).toBeCloseTo(1.86)
-    const bulb = meshes.find((mesh) => mesh.material !== m.bulb && (mesh.material as THREE.MeshBasicMaterial).color?.getHex() === BULB_OFF) as THREE.Mesh
+    const bulb = meshes.find((mesh) => mesh.userData.fixture !== true && (mesh.material as THREE.MeshBasicMaterial).color?.getHex() === BULB_OFF) as THREE.Mesh
     expect(worldOf(bulb).y).toBeLessThan(worldOf(dome).y)
     expect(bulb.userData.fixture).toBeUndefined()
   })

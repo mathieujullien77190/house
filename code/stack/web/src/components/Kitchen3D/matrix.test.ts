@@ -1,6 +1,11 @@
 import * as THREE from 'three'
-import { createMatrix, MATRIX_CAMERA, MATRIX_COLORS, MATRIX_SHUTTER } from './matrix'
+import { fakeContext2d, stubCanvasContext } from '@/test/canvas'
+import { createAcLabels, createMatrix, MATRIX_CAMERA, MATRIX_COLORS, MATRIX_DARK_BACKGROUND, MATRIX_LIGHT, MATRIX_SHUTTER } from './matrix'
 import { KINDS } from './merge'
+import { BULB_OFF } from './primitives'
+
+/** Les couleurs d'état de la vue Matrix : en marche, en démarrage, allumée (une lampe), injoignable (une ampoule). */
+const [GREEN, ORANGE, YELLOW, UNREACHABLE] = [0x2fd45a, 0xff9a1f, 0xffd23a, 0xff2a1f]
 
 const boxAt = (name: string, parent: THREE.Object3D, material: THREE.Material = new THREE.MeshStandardMaterial({ color: 0x884422 })): THREE.Mesh => {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material)
@@ -44,7 +49,20 @@ describe('les couleurs de la vue Matrix', () => {
       expect(rgb.g).toBeGreaterThan(rgb.b)
     }
     expect(MATRIX_CAMERA).toBe(0xff3b30)
-    expect(MATRIX_SHUTTER).toBe(0xffb020)
+    // Les volets : violet fermés, bleu ciel ouverts.
+    expect(MATRIX_SHUTTER).toEqual({ closed: 0x9b59ff, open: 0x6fc8ff })
+  })
+
+  it('le thème clair : un gris par genre (ni vert ni couleur), des objets pleins foncés, un fond clair ; le thème sombre a un fond noir', () => {
+    expect(Object.keys(MATRIX_LIGHT.colors).sort()).toEqual([...KINDS].sort())
+    for (const color of Object.values(MATRIX_LIGHT.colors)) {
+      const rgb = new THREE.Color(color)
+      expect(Math.max(rgb.r, rgb.g, rgb.b) - Math.min(rgb.r, rgb.g, rgb.b)).toBeLessThan(0.08)
+    }
+    const hsl = { h: 0, s: 0, l: 0 }
+    expect(new THREE.Color(MATRIX_LIGHT.background).getHSL(hsl).l).toBeGreaterThan(0.85)
+    expect(new THREE.Color(MATRIX_LIGHT.solid).getHSL(hsl).l).toBeLessThan(0.3)
+    expect(MATRIX_DARK_BACKGROUND).toBe(0x000000)
   })
 })
 
@@ -136,25 +154,35 @@ describe('createMatrix', () => {
     expect(lone.visible).toBe(true)
   })
 
-  it('une ampoule de luminaire ou de lampe nue garde son matériau et son maillage, entourée de trois cercles rouges', () => {
+  it('une ampoule de luminaire ou de lampe nue garde son matériau et son maillage, entourée de trois cercles : jaunes allumée, rouges éteinte ou injoignable', () => {
     const root = new THREE.Group()
     const fixtureMaterial = new THREE.MeshBasicMaterial({ color: 0xffd080 })
     const fixture = boxAt('fixture', root, fixtureMaterial)
     fixture.userData.fixture = true
-    const bare = boxAt('bare', root, new THREE.MeshBasicMaterial({ color: 0x4a4640 }))
+    const bareMaterial = new THREE.MeshBasicMaterial({ color: BULB_OFF })
+    const bare = boxAt('bare', root, bareMaterial)
     bare.userData.lampBulb = true
     const show = createMatrix(root)
     show(true)
     expect(fixture.visible).toBe(true)
     expect(bare.visible).toBe(true)
     expect(fixture.material).toBe(fixtureMaterial)
-    // Pas d'arêtes pour une ampoule : seulement ses cercles, rouges, dans trois plans.
+    // Pas d'arêtes pour une ampoule : seulement ses cercles, dans trois plans.
     expect(linesOf(root).filter((line) => !(line as unknown as THREE.LineLoop).isLineLoop)).toHaveLength(0)
     const rings = ringsOf(root)
     expect(rings).toHaveLength(2)
     expect(rings.every((ring) => ring.visible && ring.scale.x === 1)).toBe(true)
     const [flat, upright, side] = rings[0].children as THREE.LineLoop[]
-    expect((flat.material as THREE.LineBasicMaterial).color.getHex()).toBe(MATRIX_CAMERA)
+    const ringColor = (ring: THREE.Group) => ((ring.children[0] as THREE.LineLoop).material as THREE.LineBasicMaterial).color.getHex()
+    // Les trois cercles d'une ampoule partagent un matériau, propre à elle : celle du luminaire est allumée (jaune), l'ampoule nue éteinte (rouge).
+    expect(upright.material).toBe(flat.material)
+    expect(side.material).toBe(flat.material)
+    expect(rings.map(ringColor)).toEqual([YELLOW, MATRIX_CAMERA])
+    // `tint` les remet à jour quand les lampes changent : injoignable (ampoule rouge), elle a des cercles rouges ; rallumée, jaunes.
+    fixtureMaterial.color.set(UNREACHABLE)
+    bareMaterial.color.set(0xffe0a0)
+    show.tint()
+    expect(rings.map(ringColor)).toEqual([MATRIX_CAMERA, YELLOW])
     expect([flat.rotation.x, upright.rotation.x, side.rotation.y]).toEqual([0, Math.PI / 2, Math.PI / 2])
     // Cercles de 10 cm de rayon.
     flat.geometry.computeBoundingSphere()
@@ -182,20 +210,46 @@ describe('createMatrix', () => {
     expect(ringsOf(root)[0].visible).toBe(false)
   })
 
-  it('un volet roulant reste en place, en fil de fer ambre, puis retrouve son matériau', () => {
+  it('un volet roulant reste en place, en fil de fer, et le cadre de sa fenêtre prend sa couleur : bleu ciel ouvert, violet fermé ; puis il retrouve son matériau', () => {
     const root = new THREE.Group()
     const window = group('', root)
     const slats = group('', window)
     slats.userData.shutter = 'cuisine'
     const material = new THREE.MeshStandardMaterial({ color: 0xddddcc })
     const slat = boxAt('slat', slats, material)
+    // Le cadre de la fenêtre (dans un sous-groupe), et un mur qui n'est pas d'elle.
+    const frame = boxAt('frame', group('', window))
+    const wall = boxAt('wall', group('shell', root))
+    // Une seconde fenêtre, fermée d'emblée.
+    const other = group('', root)
+    const otherSlats = group('', other)
+    otherSlats.userData.shutter = 'salon'
+    otherSlats.userData.goal = 1
+    const otherSlat = boxAt('slat', otherSlats)
     const show = createMatrix(root)
     show(true)
     expect(slat.visible).toBe(true)
     const wire = slat.material as THREE.MeshBasicMaterial
     expect(wire.wireframe).toBe(true)
-    expect(wire.color.getHex()).toBe(MATRIX_SHUTTER)
-    expect(linesOf(root)).toHaveLength(0)
+    // Sans but connu : ouvert.
+    expect(wire.color.getHex()).toBe(MATRIX_SHUTTER.open)
+    expect((otherSlat.material as THREE.MeshBasicMaterial).color.getHex()).toBe(MATRIX_SHUTTER.closed)
+    expect(otherSlat.material).not.toBe(wire)
+    // Des arêtes pour le cadre et le mur seulement : celles du cadre à la couleur du volet, celles du mur à celle de son genre.
+    const lines = linesOf(root)
+    expect(lines).toHaveLength(2)
+    const edgesOf = (mesh: THREE.Mesh) => (lines.find((line) => line.parent === mesh.parent) as THREE.LineSegments).material as THREE.LineBasicMaterial
+    expect(edgesOf(frame).color.getHex()).toBe(MATRIX_SHUTTER.open)
+    expect(edgesOf(wall).color.getHex()).toBe(MATRIX_COLORS.shell)
+    // Le volet se ferme (sa part fermée à atteindre passe la moitié) : `tint` le passe au violet, lames et cadre.
+    slats.userData.goal = 0.5
+    show.tint()
+    expect(wire.color.getHex()).toBe(MATRIX_SHUTTER.closed)
+    expect(edgesOf(frame).color.getHex()).toBe(MATRIX_SHUTTER.closed)
+    slats.userData.goal = 0.4
+    show.tint()
+    expect(wire.color.getHex()).toBe(MATRIX_SHUTTER.open)
+    expect(edgesOf(frame).color.getHex()).toBe(MATRIX_SHUTTER.open)
     show(false)
     expect(slat.material).toBe(material)
   })
@@ -230,5 +284,197 @@ describe('createMatrix', () => {
     expect(barrel.material).toBe(barrelMaterial)
     expect(lens.material).toBe(lensMaterial)
     expect(rings[0].visible).toBe(false)
+  })
+
+  it('les cercles d’une caméra disent son état : verts en marche, orange en démarrage, rouges coupée ou sans état ; un état reçu avant la première vue est gardé', () => {
+    const root = new THREE.Group()
+    const models = ['voliere-toit', 'pommier', 'portail', 'potager'].map((name) => {
+      const model = group('', root)
+      model.userData.camera = name
+      boxAt('barrel', model)
+      return model
+    })
+    const show = createMatrix(root)
+    // Les cercles n'existent pas encore : l'état est retenu.
+    show.cameras({ 'voliere-toit': 'on', pommier: 'starting', portail: 'off' })
+    expect(ringsOf(root)).toHaveLength(0)
+    show(true)
+    const colorOf = (model: THREE.Object3D) => ((ringsOf(model)[0].children[0] as THREE.LineLoop).material as THREE.LineBasicMaterial).color.getHex()
+    expect(models.map(colorOf)).toEqual([GREEN, ORANGE, MATRIX_CAMERA, MATRIX_CAMERA])
+    // Chaque caméra a son propre matériau de cercles.
+    expect(new Set(models.map((model) => (ringsOf(model)[0].children[0] as THREE.LineLoop).material)).size).toBe(4)
+    // Un nouvel état les recolore tout de suite.
+    show.cameras({ 'voliere-toit': 'off', potager: 'on' })
+    expect(models.map(colorOf)).toEqual([MATRIX_CAMERA, MATRIX_CAMERA, MATRIX_CAMERA, GREEN])
+  })
+
+  it('une clim et le radiateur de la cage : pleins, en blanc, leur voyant intact, et trois cercles verts en marche, rouges à l’arrêt ou sans état', () => {
+    const root = new THREE.Group()
+    // Une clim : son bloc est marqué ; son voyant et une grille sont ses enfants.
+    const acMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+    const ac = boxAt('ac', root, acMaterial)
+    ac.userData.acUnit = 'salon'
+    const grille = boxAt('grille', ac)
+    const ledMaterial = new THREE.MeshBasicMaterial({ color: 0x8a8f96 })
+    const led = boxAt('led', root, ledMaterial)
+    led.userData.acLed = 'salon'
+    const idle = boxAt('idle', root)
+    idle.userData.acUnit = 'chambre-invite'
+    // Le radiateur : un groupe marqué `plug`, son corps et son voyant.
+    const heater = group('', root)
+    heater.userData.plug = true
+    const body = boxAt('body', heater)
+    const plugLedMaterial = new THREE.MeshBasicMaterial({ color: 0x4a4640 })
+    const plugLed = boxAt('plugLed', heater, plugLedMaterial)
+    plugLed.userData.plugLed = true
+    const show = createMatrix(root)
+    show.devices({ salon: true, 'chambre-invite': null, plug: false })
+    show(true)
+    // Pleins et blancs, toujours visibles, sans arêtes.
+    const white = ac.material as THREE.MeshBasicMaterial
+    expect(white.color.getHex()).toBe(0xffffff)
+    expect(white.wireframe).toBe(false)
+    for (const part of [grille, idle, body]) expect(part.material).toBe(white)
+    for (const part of [ac, grille, idle, body, led, plugLed]) expect(part.visible).toBe(true)
+    expect(linesOf(root).filter((line) => !(line as unknown as THREE.LineLoop).isLineLoop)).toHaveLength(0)
+    // Les voyants gardent leur matériau : leur couleur dit l'état.
+    expect(led.material).toBe(ledMaterial)
+    expect(plugLed.material).toBe(plugLedMaterial)
+    // Un jeu de cercles par appareil : larges (50 cm) pour une clim, 35 cm et à mi-hauteur pour le radiateur.
+    const rings = ringsOf(root)
+    expect(rings).toHaveLength(3)
+    expect(rings.map((ring) => [ring.parent, ring.scale.x, ring.position.y])).toEqual([
+      [ac, 5, 0],
+      [idle, 5, 0],
+      [heater, 3.5, 0.27],
+    ])
+    expect(rings.every((ring) => ring.visible)).toBe(true)
+    const colorOf = (ring: THREE.Group) => ((ring.children[0] as THREE.LineLoop).material as THREE.LineBasicMaterial).color.getHex()
+    expect(rings.map(colorOf)).toEqual([GREEN, MATRIX_CAMERA, MATRIX_CAMERA])
+    show.devices({ salon: false, 'chambre-invite': true, plug: true })
+    expect(rings.map(colorOf)).toEqual([MATRIX_CAMERA, GREEN, GREEN])
+    show(false)
+    expect(ac.material).toBe(acMaterial)
+    expect(rings.some((ring) => ring.visible)).toBe(false)
+  })
+
+  it('le thème : clair, les arêtes en gris et les objets pleins en gris foncé, sur fond clair ; sombre, les verts et le blanc, sur fond noir', () => {
+    const root = new THREE.Group()
+    const wall = boxAt('wall', group('shell', root))
+    const trunk = boxAt('trunk', group('tree', root))
+    const model = group('', root)
+    model.userData.camera = 'portail'
+    const barrel = boxAt('barrel', model)
+    const show = createMatrix(root)
+    show(true)
+    const lines = linesOf(root).filter((line) => !(line as unknown as THREE.LineLoop).isLineLoop)
+    const edgesOf = (mesh: THREE.Mesh) => (lines.find((line) => line.parent === mesh.parent) as THREE.LineSegments).material as THREE.LineBasicMaterial
+    expect(show.theme(true)).toBe(MATRIX_LIGHT.background)
+    expect(edgesOf(wall).color.getHex()).toBe(MATRIX_LIGHT.colors.shell)
+    expect(edgesOf(trunk).color.getHex()).toBe(MATRIX_LIGHT.colors.tree)
+    expect((barrel.material as THREE.MeshBasicMaterial).color.getHex()).toBe(MATRIX_LIGHT.solid)
+    expect(show.theme(false)).toBe(MATRIX_DARK_BACKGROUND)
+    expect(edgesOf(wall).color.getHex()).toBe(MATRIX_COLORS.shell)
+    expect(edgesOf(trunk).color.getHex()).toBe(MATRIX_COLORS.tree)
+    expect((barrel.material as THREE.MeshBasicMaterial).color.getHex()).toBe(0xffffff)
+  })
+})
+
+describe('createAcLabels', () => {
+  /** Deux clims (dont une faite de deux morceaux marqués du même identifiant) dans une scène décalée, et une étiquette de plus pour un détecteur. */
+  const stage = (context: ReturnType<typeof fakeContext2d> | null) => {
+    stubCanvasContext(context)
+    const root = new THREE.Group()
+    root.position.set(0, -0.33, 0)
+    const salon = boxAt('salon', root)
+    salon.userData.acUnit = 'salon'
+    const second = boxAt('salon-bis', root)
+    second.userData.acUnit = 'salon'
+    const guest = boxAt('guest', root)
+    guest.position.set(-4, 2, -3)
+    guest.userData.acUnit = 'chambre-invite'
+    root.updateMatrixWorld(true)
+    const labels = createAcLabels(root, [{ id: 'sdb', at: new THREE.Vector3(5, 1.9, 6) }])
+    const sprites = root.children.filter((child): child is THREE.Sprite => (child as THREE.Sprite).isSprite)
+    return { root, labels, sprites }
+  }
+
+  it('une étiquette par clim, 30 cm au-dessus d’elle, et une à chaque place donnée ; cachées, tournées vers l’utilisateur, visibles à travers les murs', () => {
+    const { sprites } = stage(null)
+    // Une seule pour les deux morceaux de la clim du salon.
+    expect(sprites).toHaveLength(3)
+    expect(sprites.map((sprite) => sprite.position.toArray())).toEqual([
+      [1, expect.closeTo(2.3), 3],
+      [-4, expect.closeTo(2.3), -3],
+      [5, 1.9, 6],
+    ])
+    for (const sprite of sprites) {
+      expect(sprite.visible).toBe(false)
+      expect(sprite.material.depthTest).toBe(false)
+      expect(sprite.material.transparent).toBe(true)
+      expect(sprite.renderOrder).toBe(10)
+      expect(sprite.scale.toArray()).toEqual([0.6, 0.3, 1])
+      const canvas = (sprite.material.map as THREE.CanvasTexture).image as HTMLCanvasElement
+      expect([canvas.width, canvas.height]).toEqual([256, 128])
+    }
+    // Chacune sa texture.
+    expect(new Set(sprites.map((sprite) => sprite.material.map)).size).toBe(3)
+  })
+
+  it('sans `extra` : seulement les clims', () => {
+    stubCanvasContext(null)
+    const root = new THREE.Group()
+    boxAt('salon', root).userData.acUnit = 'salon'
+    boxAt('chair', root)
+    createAcLabels(root)
+    expect(root.children.filter((child) => (child as THREE.Sprite).isSprite)).toHaveLength(1)
+  })
+
+  it('`show` les montre ou les cache toutes', () => {
+    const { labels, sprites } = stage(null)
+    labels.show(true)
+    expect(sprites.map((sprite) => sprite.visible)).toEqual([true, true, true])
+    labels.show(false)
+    expect(sprites.map((sprite) => sprite.visible)).toEqual([false, false, false])
+  })
+
+  it('`apply` écrit la température (à la française, un chiffre après la virgule) : verte pour une clim en marche, rouge à l’arrêt ou sans état, orange pour un détecteur ; « – » si elle est inconnue', () => {
+    const context = fakeContext2d()
+    const { labels, sprites } = stage(context)
+    const colors: string[] = []
+    context.fillText.mockImplementation(() => colors.push(context.fillStyle))
+    labels.apply({ salon: 21.46, 'chambre-invite': null, sdb: 19 }, { salon: true, 'chambre-invite': false })
+    expect(context.fillText.mock.calls.map(([text]) => text as string)).toEqual(['21,5°', '–', '19,0°'])
+    expect(colors).toEqual(['#2fd45a', '#ff3b30', '#ff9a1f'])
+    // Écrite au milieu de l'étiquette, cernée de noir pour se lire sur tout fond.
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 256, 128)
+    expect(context.fillText).toHaveBeenCalledWith('21,5°', 128, 64)
+    expect(context.strokeText).toHaveBeenCalledWith('21,5°', 128, 64)
+    expect([context.strokeStyle, context.textAlign, context.textBaseline, context.lineWidth]).toEqual(['#000000', 'center', 'middle', 10])
+    expect(context.font).toContain('bold')
+    const versions = () => sprites.map((sprite) => (sprite.material.map as THREE.Texture).version)
+    // (Une texture de canevas naît à la version 1 : chaque dessin en ajoute une.)
+    expect(versions()).toEqual([2, 2, 2])
+    // Rien n'a changé : rien n'est redessiné.
+    labels.apply({ salon: 21.46, 'chambre-invite': null, sdb: 19 }, { salon: true, 'chambre-invite': false })
+    expect(context.fillText).toHaveBeenCalledTimes(3)
+    expect(versions()).toEqual([2, 2, 2])
+    // La clim du salon s'arrête, celle de la chambre n'a plus d'état connu, une température manque : seules les étiquettes qui changent sont refaites.
+    colors.length = 0
+    context.fillText.mockClear()
+    labels.apply({ salon: 21.46, sdb: 19 }, { salon: false, 'chambre-invite': null })
+    expect(context.fillText.mock.calls.map(([text]) => text as string)).toEqual(['21,5°'])
+    expect(colors).toEqual(['#ff3b30'])
+    expect(versions()).toEqual([3, 2, 2])
+    // Sans état des clims : toutes orange.
+    colors.length = 0
+    labels.apply({ salon: 21.46, sdb: 19 })
+    expect(colors).toEqual(['#ff9a1f', '#ff9a1f'])
+  })
+
+  it('sans contexte 2D (le navigateur ne sait pas dessiner) : rien ne casse, la texture est quand même redemandée', () => {
+    const { labels, sprites } = stage(null)
+    expect(() => labels.apply({ salon: 20 }, { salon: true })).not.toThrow()
+    expect((sprites[0].material.map as THREE.Texture).version).toBe(2)
   })
 })

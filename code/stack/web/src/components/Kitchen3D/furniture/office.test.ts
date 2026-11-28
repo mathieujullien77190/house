@@ -39,13 +39,13 @@ describe('office', () => {
     for (const trestle of trestles) expect(trestle.children).toHaveLength(11)
   })
 
-  it('deux écrans éteints côte à côte : des dalles noires qui ne se cliquent pas', () => {
+  it('deux écrans éteints côte à côte : des dalles noires marquées `tv`, tournées vers le fauteuil (−z)', () => {
     const { meshes } = build()
     const slabs = meshes.filter((mesh) => sizeOf(mesh).depth === 0.005 && sizeOf(mesh).width === 0.55)
     expect(slabs.map((slab) => worldOf(slab).x)).toEqual([LAYOUT.desk.x - 0.3, LAYOUT.desk.x + 0.3].map((x) => expect.closeTo(x)))
     for (const slab of slabs) {
       expect((slab.material as THREE.MeshBasicMaterial).color.getHex()).toBe(SCREEN_OFF)
-      expect(slab.userData).toEqual({})
+      expect(slab.userData).toEqual({ tv: true, tvFacing: -1 })
     }
     expect(slabs[0].material).not.toBe(slabs[1].material)
   })
@@ -61,6 +61,9 @@ describe('office', () => {
     expect(ceiling.x).toBeCloseTo(LAYOUT.desk.x)
     expect(ceiling.z).toBeCloseTo(LAYOUT.desk.z - 0.7)
     expect(ceiling.y).toBeGreaterThan(2)
+    // Le plafonnier du bureau a cinq pétales, répartis sur le tour.
+    const holders = (bulbs[2].parent as THREE.Object3D).children.filter((child) => child.type === 'Group')
+    expect(holders.map((holder) => holder.rotation.y)).toEqual([0, 1, 2, 3, 4].map((petal) => expect.closeTo((petal / 5) * Math.PI * 2)))
     // Des pétales vides : aucun disque de cannage.
     expect(meshes.filter((mesh) => mesh.geometry.type === 'CircleGeometry')).toHaveLength(0)
   })

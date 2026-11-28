@@ -31,7 +31,7 @@ Projet Vite + React + TypeScript à part, mêmes conventions que le site (style 
 
 | Je travaille sur… | Je lis |
 |---|---|
-| Home : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, caméras, volets) ; lumière au choix (plein jour ou heure actuelle) ; dessinée à la demande, allégée sur téléphone | `Home/`, `Kitchen3D/` |
+| Home : la maison et le jardin en 3D, qui suivent la maison (lampes Hue, volets, clims, heure) et se cliquent (ampoules, clims, caméras, radiateur de la cage, écrans, volets) ; lumière au choix (plein jour ou heure actuelle) ; dessinée à la demande, allégée sur téléphone | `Home/`, `Kitchen3D/` |
 | Repère du plan gardé par l'API (unités, cadastre, haies de départ) | `MapPlan/` |
 | Onglet Caméras : mosaïque, clips sauvegardés | `CameraMosaic/`, `SavedClips/` |
 | Détail d'une caméra, frise | `CameraCard/`, `Timeline/` |

@@ -3,13 +3,16 @@ import * as THREE from 'three'
 import type { PlanLamp } from '@house/ui'
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT } from '@/components/MapPlan/constants'
-import { stubCanvasContext } from '@/test/canvas'
-import type { AcUnit, ShutterCommand, ShuttersState } from '@/types'
-import { DAYLIGHT, LAMP_LIGHT, MATRIX_LABEL, NO_WEBGL_TEXT, PLAN_HOUSE, QUALITY, ROOM, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT, WHEEL_STEP } from './constants'
+import { fakeContext2d, stubCanvasContext } from '@/test/canvas'
+import type { AcUnit, CameraPower, HueSensor, PlugState, ShutterCommand, ShuttersState } from '@/types'
+import { DAYLIGHT, LAMP_LIGHT, LAYOUT, MATRIX_LABEL, NO_WEBGL_TEXT, PLAN_HOUSE, QUALITY, ROOM, SCREEN_OFF, SHUTTER_ANIMATE_MS, START, TARGET, TOP, VIEW_HEIGHT, WHEEL_STEP } from './constants'
 import type { Quality } from './constants'
 import Kitchen3D from './Kitchen3D'
+import { INDOOR, OUTDOOR } from './layers'
 import { LIGHT_KEY } from './light'
 import { AC_LED } from './live'
+import { MATRIX_CAMERA, MATRIX_LIGHT } from './matrix'
+import { BULB_OFF } from './primitives'
 import { SHUTTER_KEYS, SHUTTER_TRAVEL_S } from './shutters'
 import type { SceneParts } from './types'
 
@@ -20,9 +23,22 @@ interface FakeRenderer {
   setPixelRatio: ReturnType<typeof vi.fn>
   setClearColor: ReturnType<typeof vi.fn>
   setSize: ReturnType<typeof vi.fn>
+  /** La cible du moment : null pour l'écran, sinon la texture d'un écran de la scène (`tv.ts`). */
+  target: unknown
+  autoClear: boolean
+  setRenderTarget: ReturnType<typeof vi.fn>
+  clear: ReturnType<typeof vi.fn>
   render: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
   forceContextLoss: ReturnType<typeof vi.fn>
+}
+
+/** Une passe de rendu : les couches que voit la caméra, si elle va dans la texture d'un écran, si l'ombre du soleil est refaite, si l'image d'avant est effacée. */
+interface Shot {
+  mask: number
+  screen: boolean
+  stale: boolean
+  autoClear: boolean
 }
 
 interface FakeControls {
@@ -54,6 +70,13 @@ const h = vi.hoisted(() => ({
   shutters: null as ShuttersState | null,
   send: (() => undefined) as (id: string, command: ShutterCommand) => void,
   weather: null as { isDay: boolean; code: number } | null,
+  plug: null as PlugState | null,
+  setPlug: ((): Promise<unknown> => Promise.resolve()) as (key: string, on: boolean) => Promise<unknown>,
+  sensors: [] as HueSensor[],
+  power: ((): Promise<CameraPower[]> => Promise.resolve([])) as (key: string) => Promise<CameraPower[]>,
+  /** Retire les voyants du switch de la scène construite (une scène sans rien qui clignote). */
+  noBlink: false,
+  shots: [] as Shot[],
   planKeys: [] as string[],
   renderers: [] as FakeRenderer[],
   controls: [] as FakeControls[],
@@ -75,8 +98,15 @@ vi.mock('three', async (original) => {
     setPixelRatio = vi.fn()
     setClearColor = vi.fn()
     setSize = vi.fn()
-    // Comme le vrai : une fois l'ombre refaite, elle n'est plus à refaire.
-    render = vi.fn(() => {
+    target: unknown = null
+    autoClear = true
+    setRenderTarget = vi.fn((target: unknown) => {
+      this.target = target
+    })
+    clear = vi.fn()
+    // Comme le vrai : une fois l'ombre refaite, elle n'est plus à refaire. Chaque passe est retenue.
+    render = vi.fn((_scene: THREE.Scene, shot: THREE.Camera) => {
+      h.shots.push({ mask: shot.layers.mask, screen: this.target !== null, stale: this.shadowMap.needsUpdate, autoClear: this.autoClear })
       this.shadowMap.needsUpdate = false
     })
     dispose = vi.fn()
@@ -135,6 +165,13 @@ vi.mock('@/lib/useLampPlan', () => ({
 vi.mock('@/lib/useAcUnits', () => ({ useAcUnits: () => ({ units: h.units, change: h.change }) }))
 vi.mock('@/lib/useShutters', () => ({ useShutters: () => ({ state: h.shutters, send: h.send }) }))
 vi.mock('@/lib/useWeather', () => ({ useWeather: () => h.weather }))
+vi.mock('@/lib/usePlug', () => ({ usePlug: () => h.plug }))
+vi.mock('@/lib/useSensors', () => ({ useSensors: () => h.sensors }))
+vi.mock('@/lib/api', async (original) => ({
+  ...(await original<typeof import('@/lib/api')>()),
+  fetchPower: (key: string) => h.power(key),
+  setPlug: (key: string, on: boolean) => h.setPlug(key, on),
+}))
 // La scène est la vraie ; elle est seulement retenue pour y regarder la hotte et les lumières.
 vi.mock('./helpers', async (original) => {
   const actual = await original<typeof import('./helpers')>()
@@ -142,6 +179,7 @@ vi.mock('./helpers', async (original) => {
     ...actual,
     buildScene: (quality: Quality) => {
       const parts = actual.buildScene(quality)
+      if (h.noBlink) parts.root.traverse((child) => delete child.userData.blink)
       h.qualities.push(quality)
       h.parts.push(parts)
       return parts
@@ -179,6 +217,14 @@ beforeEach(() => {
   h.shutters = null
   h.send = vi.fn()
   h.weather = { isDay: true, code: 0 }
+  h.plug = null
+  h.setPlug = vi.fn(() => Promise.resolve())
+  h.sensors = []
+  // L'état des caméras n'arrive pas, sauf dans les tests qui le donnent.
+  h.power = vi.fn(() => new Promise<CameraPower[]>(() => undefined))
+  h.noBlink = false
+  h.shots.length = 0
+  delete document.documentElement.dataset.theme
   localStorage.clear()
   // Presque tous les tests regardent le jour qui entre vraiment : le choix « Heure actuelle » (au départ, la vue est sur « Jour »).
   localStorage.setItem(LIGHT_KEY, 'now')
@@ -219,8 +265,14 @@ const frame = () => {
   if (!next) throw new Error('aucune image demandée')
   act(() => next())
 }
-/** Le nombre d'images dessinées depuis l'ouverture. */
-const drawn = () => h.renderers[0].render.mock.calls.length
+/** Le nombre d'images dessinées depuis l'ouverture : chacune finit par la passe de la maison, à l'écran (voir `layers.ts`). */
+const drawn = () => h.shots.filter((shot) => shot.mask === 1 << INDOOR && !shot.screen).length
+/** Toutes les couches : ce que voit la passe qui refait l'ombre du soleil, et l'œil d'une caméra de la scène. */
+const ALL_LAYERS = (() => {
+  const layers = new THREE.Layers()
+  layers.enableAll()
+  return layers.mask
+})()
 
 const host = () => screen.getByRole('img')
 const camera = () => h.controls[0].object
@@ -229,18 +281,40 @@ const root = () => h.parts[0].root
 const lightsOf = (parts: SceneParts) => {
   const lights: THREE.PointLight[] = []
   parts.root.traverse((child) => {
-    if ((child as THREE.PointLight).isPointLight) lights.push(child as THREE.PointLight)
+    // Les lampes de la maison : sans portée (celles qui sortent par les fenêtres et les LED des caméras en ont une).
+    if ((child as THREE.PointLight).isPointLight && (child as THREE.PointLight).distance === 0) lights.push(child as THREE.PointLight)
   })
   return lights
 }
+/** Les lumières qui sortent par les fenêtres (`spill.ts`) : celles du dehors, de 5 m de portée. */
+const spillOf = () => {
+  const lights: THREE.PointLight[] = []
+  root().traverse((child) => {
+    if ((child as THREE.PointLight).isPointLight && (child as THREE.PointLight).distance === 5) lights.push(child as THREE.PointLight)
+  })
+  return lights
+}
+/** Tous les objets de la scène marqués par `userData[tag]`. */
+const allTagged = (tag: string): THREE.Mesh[] => {
+  const found: THREE.Mesh[] = []
+  root().traverse((child) => {
+    if (child.userData[tag] !== undefined) found.push(child as THREE.Mesh)
+  })
+  return found
+}
+/** Les trois cercles qui entourent un objet en vue Matrix (un groupe de trois boucles), et leur couleur. */
+const ringsOf = (object: THREE.Object3D) => object.children.find((child) => child.children.length === 3 && child.children.every((part) => (part as THREE.LineLoop).isLineLoop)) as THREE.Group
+const ringColor = (object: THREE.Object3D) => ((ringsOf(object).children[0] as THREE.LineLoop).material as THREE.LineBasicMaterial).color.getHex()
+/** Laisse passer les promesses en attente (une réponse de la maison). */
+const settle = () => act(async () => Promise.resolve())
 
 /** L'objet de la scène marqué par `userData[tag] === value`. */
-const tagged = (tag: string, value: string): THREE.Mesh => {
+const tagged = (tag: string, value: unknown): THREE.Mesh => {
   let found: THREE.Object3D | null = null
   root().traverse((child) => {
     if (child.userData[tag] === value) found = child
   })
-  if (!found) throw new Error(`rien n'est marqué ${tag} = ${value}`)
+  if (!found) throw new Error(`rien n'est marqué ${tag} = ${String(value)}`)
   return found as THREE.Mesh
 }
 
@@ -307,18 +381,25 @@ describe('Kitchen3D', () => {
     // Une première image est demandée, puis dessinée, avec l'ombre du soleil.
     expect(renderer.render).not.toHaveBeenCalled()
     expect(h.frames).toHaveLength(1)
-    const stale: boolean[] = []
-    renderer.render.mockImplementationOnce(() => {
-      stale.push(renderer.shadowMap.needsUpdate)
-      renderer.shadowMap.needsUpdate = false
-    })
     frame()
-    expect(renderer.render).toHaveBeenCalledTimes(1)
-    expect(stale).toEqual([true])
+    // Trois passes : l'ombre du soleil (toutes couches vues), puis le jardin, puis la maison par-dessus, sans effacer.
+    expect(h.shots).toEqual([
+      { mask: ALL_LAYERS, screen: false, stale: true, autoClear: true },
+      { mask: 1 << OUTDOOR, screen: false, stale: false, autoClear: true },
+      { mask: 1 << INDOOR, screen: false, stale: false, autoClear: false },
+    ])
+    expect(renderer.autoClear).toBe(true)
+    expect(drawn()).toBe(1)
     const [scene, shot] = renderer.render.mock.calls[0] as unknown as [THREE.Scene, THREE.Camera]
     expect(shot).toBe(camera())
     expect(scene.children[0]).toBe(h.parts[0].root)
-    expect(scene.children.filter((child) => (child as THREE.Light).isLight)).toHaveLength(2)
+    const sky = scene.children.filter((child) => (child as THREE.Light).isLight)
+    expect(sky).toHaveLength(2)
+    // L'ambiance et le soleil éclairent la maison et le jardin.
+    for (const light of sky) expect(light.layers.mask).toBe((1 << INDOOR) | (1 << OUTDOOR))
+    // Le jardin est dans sa couche, la maison dans la sienne.
+    expect(h.parts[0].root.children[2].layers.mask).toBe(1 << OUTDOOR)
+    expect(h.parts[0].root.children[0].layers.mask).toBe(1 << INDOOR)
     // Au repos : plus aucune image n'est demandée, rien ne tourne.
     expect(h.frames).toHaveLength(0)
     // Un nouveau rendu du composant ne recrée rien.
@@ -680,7 +761,8 @@ describe('Kitchen3D : la molette et la vue Matrix', () => {
     expect(edges()).toHaveLength(0)
     fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.on }))
     expect(screen.getByRole('button', { name: MATRIX_LABEL.off })).toBeInTheDocument()
-    expect(h.renderers[0].setClearColor).toHaveBeenLastCalledWith(0x000000, 1)
+    // (Thème clair de la page, par défaut : fond clair.)
+    expect(h.renderers[0].setClearColor).toHaveBeenLastCalledWith(MATRIX_LIGHT.background, 1)
     expect(edges().length).toBeGreaterThan(0)
     // Le changement de vue est dessiné, ombre comprise.
     expect(h.frames).toHaveLength(1)
@@ -688,7 +770,7 @@ describe('Kitchen3D : la molette et la vue Matrix', () => {
     expect(drawn()).toBe(2)
     fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.off }))
     expect(screen.getByRole('button', { name: MATRIX_LABEL.on })).toBeInTheDocument()
-    expect(h.renderers[0].setClearColor).toHaveBeenLastCalledWith(0x000000, 0)
+    expect(h.renderers[0].setClearColor).toHaveBeenLastCalledWith(MATRIX_LIGHT.background, 0)
     expect(edges()).toHaveLength(0)
   })
 })
@@ -867,7 +949,7 @@ describe('Kitchen3D : l’heure', () => {
     expect(minute.rotation.z).toBeCloseTo((0.5 / 60) * Math.PI * 2)
     // Chaque pas de la pendule est dessiné, avec l'ombre de ses aiguilles ; entre deux, rien ne tourne.
     frame()
-    expect(h.renderers[0].render).toHaveBeenCalledTimes(1)
+    expect(drawn()).toBe(1)
     expect(h.frames).toHaveLength(0)
     const stale: boolean[] = []
     h.renderers[0].render.mockImplementationOnce(() => {
@@ -1073,14 +1155,24 @@ describe('Kitchen3D : la qualité selon l’appareil', () => {
     expect(h.qualities).toEqual([QUALITY.desktop])
   })
 
-  it('sur téléphone : moins de pixels, pas de lissage, une carte d’ombre plus petite, moins d’herbe', () => {
+  it('sur téléphone : la vue Matrix seule (pas de bouton pour en sortir), à la définition de l’écran, une carte d’ombre plus petite, moins d’herbe', () => {
     h.mobile = true
     vi.stubGlobal('devicePixelRatio', 3)
     render(<Kitchen3D apiKey="k" />)
     const [renderer] = h.renderers
-    expect(renderer.options).toEqual({ antialias: false, alpha: true })
-    // Sur téléphone : un pixel par pixel, même sur un écran dense.
-    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(1)
+    // Des traits, bien moins lourds que la scène pleine : lissés, deux pixels par pixel au plus.
+    expect(renderer.options).toEqual({ antialias: true, alpha: true })
+    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(2)
+    expect(QUALITY.phone.matrixOnly).toBe(true)
+    expect(QUALITY.desktop.matrixOnly).toBe(false)
+    // La scène s'ouvre en vue Matrix : fond opaque, arêtes montrées, et pas de bouton « Vue Matrix ».
+    expect(renderer.setClearColor).toHaveBeenLastCalledWith(MATRIX_LIGHT.background, 1)
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Vue du dessus', 'Réinitialiser la vue'])
+    let edges = 0
+    root().traverse((child) => {
+      if ((child as THREE.LineSegments).isLineSegments && child.visible) edges += 1
+    })
+    expect(edges).toBeGreaterThan(100)
     expect(sunOf().shadow.mapSize.toArray()).toEqual([2048, 2048])
     expect(h.qualities).toEqual([QUALITY.phone])
     expect(QUALITY.phone.grass).toBeLessThan(1)
@@ -1101,5 +1193,481 @@ describe('Kitchen3D : la qualité selon l’appareil', () => {
     view.rerender(<Kitchen3D apiKey="k" />)
     expect(h.renderers).toHaveLength(1)
     expect(h.qualities).toEqual([QUALITY.phone])
+  })
+})
+
+describe('Kitchen3D : les couches et la lumière qui sort par les fenêtres', () => {
+  it('une lampe allumée dans la maison éclaire un peu le jardin par les fenêtres aux volets ouverts ; volets fermés ou lampe éteinte, plus rien', () => {
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon' })]
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
+    const view = render(<Kitchen3D apiKey="k" />)
+    // Une lumière du dehors par fenêtre à volet.
+    expect(spillOf()).toHaveLength(SHUTTER_KEYS.length)
+    for (const light of spillOf()) expect(light.layers.mask).toBe(1 << OUTDOOR)
+    expect(spillOf().filter((light) => light.visible).length).toBeGreaterThan(0)
+    // La lampe, elle, n'éclaire que la maison.
+    expect(lightsOf(h.parts[0]).map((light) => light.layers.mask)).toEqual([1 << INDOOR])
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'down', 'Volet PC': 'down', 'Volet porte': 'down' })
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(spillOf().filter((light) => light.visible)).toHaveLength(0)
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'up', 'Volet PC': 'up', 'Volet porte': 'up' })
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon', on: false })]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(spillOf().filter((light) => light.visible)).toHaveLength(0)
+  })
+})
+
+describe('Kitchen3D : les écrans', () => {
+  const screens = () => {
+    const all = allTagged('tv')
+    const tv = all.find((mesh) => mesh.userData.tvFacing === undefined) as THREE.Mesh
+    const monitors = all.filter((mesh) => mesh.userData.tvFacing === -1)
+    return { all, tv, monitors }
+  }
+  const paintOf = (mesh: THREE.Mesh) => mesh.material as THREE.MeshBasicMaterial
+  /** Les LED infrarouges des caméras de la scène : la lumière de 18 m de portée. */
+  const leds = () => {
+    let found: THREE.PointLight | null = null
+    root().traverse((child) => {
+      if ((child as THREE.PointLight).isPointLight && (child as THREE.PointLight).distance === 18) found = child as THREE.PointLight
+    })
+    return found as unknown as THREE.PointLight
+  }
+  /** Clique l'écran, vu de face : la télé regarde vers +z, un écran du bureau vers −z. */
+  const clickScreen = (mesh: THREE.Mesh) => {
+    aim(mesh, [0, 0, mesh.userData.tvFacing === -1 ? -0.8 : 1.5])
+    click()
+  }
+
+  it('la télé et les deux écrans du bureau se cliquent : la souris devient une main, chacun a son matériau', () => {
+    render(<Kitchen3D apiKey="k" />)
+    const { all, tv, monitors } = screens()
+    expect(all).toHaveLength(3)
+    expect(monitors).toHaveLength(2)
+    expect(new Set(all.map((mesh) => mesh.material)).size).toBe(3)
+    lookAway()
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('')
+    aim(tv, [0, 0, 1.5])
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
+  })
+
+  it('un clic sur la télé y montre la vue d’une caméra, la vue vient se placer en face ; clic après clic, les caméras défilent, puis l’écran s’éteint et la vue revient où elle était', () => {
+    render(<Kitchen3D apiKey="k" />)
+    frame()
+    const { tv, monitors } = screens()
+    const [controls] = h.controls
+    aim(tv, [0, 0, 1.5])
+    const before = camera().position.clone()
+    const pivot = controls.target.clone()
+    const updates = controls.update.mock.calls.length
+    click()
+    // La télé montre une image ; les écrans du bureau restent éteints.
+    expect(paintOf(tv).map).not.toBeNull()
+    expect(paintOf(tv).color.getHex()).toBe(0xffffff)
+    for (const monitor of monitors) expect(paintOf(monitor).color.getHex()).toBe(SCREEN_OFF)
+    // La vue est en face de l'écran, à sa hauteur, d'autant plus loin qu'il est large (2,20 m environ pour la télé).
+    const center = worldOf(tv)
+    const wide = LAYOUT.tv.width - 0.03
+    expect(wide * 1.8).toBeGreaterThan(0.9)
+    expect(camera().position.toArray()).toEqual([expect.closeTo(center.x), expect.closeTo(center.y), expect.closeTo(center.z + wide * 1.8)])
+    expect(controls.target.distanceTo(center)).toBeCloseTo(0)
+    expect(controls.update.mock.calls.length).toBe(updates + 1)
+    // L'image : l'écran est redessiné d'abord (dans sa texture, toutes couches vues), puis le jardin et la maison.
+    h.shots.length = 0
+    frame()
+    expect(h.shots).toEqual([
+      { mask: ALL_LAYERS, screen: true, stale: false, autoClear: true },
+      { mask: 1 << OUTDOOR, screen: false, stale: false, autoClear: true },
+      { mask: 1 << INDOOR, screen: false, stale: false, autoClear: false },
+    ])
+    expect(h.renderers[0].clear).toHaveBeenCalledTimes(1)
+    expect(h.renderers[0].target).toBeNull()
+    // Il fait jour : pas d'infrarouge.
+    expect(leds().intensity).toBe(0)
+    // Tant que l'écran est allumé, chaque image le redessine.
+    act(() => controls.move())
+    h.shots.length = 0
+    frame()
+    expect(h.shots.map((shot) => shot.screen)).toEqual([true, false, false])
+    // Six caméras dans la scène : cinq clics de plus, toujours allumée, la vue ne bouge plus ; le septième éteint.
+    for (let more = 0; more < 5; more += 1) {
+      clickScreen(tv)
+      expect(paintOf(tv).map).not.toBeNull()
+    }
+    clickScreen(tv)
+    expect(paintOf(tv).map).toBeNull()
+    expect(paintOf(tv).color.getHex()).toBe(SCREEN_OFF)
+    // La vue d'avant est retrouvée.
+    expect(camera().position.distanceTo(before)).toBeCloseTo(0)
+    expect(controls.target.distanceTo(pivot)).toBeCloseTo(0)
+    // Éteinte, elle n'est plus redessinée.
+    frame()
+    h.shots.length = 0
+    act(() => controls.move())
+    frame()
+    expect(h.shots.map((shot) => shot.screen)).toEqual([false, false])
+  })
+
+  it('on change d’écran en cours de route : la vue passe devant le nouveau (plus près, il est petit), le premier s’éteint, et la vue d’avant reste celle du tout début', () => {
+    render(<Kitchen3D apiKey="k" />)
+    const { tv, monitors } = screens()
+    const [controls] = h.controls
+    aim(tv, [0, 0, 1.5])
+    const before = camera().position.clone()
+    click()
+    clickScreen(monitors[0])
+    expect(paintOf(monitors[0]).map).not.toBeNull()
+    expect(paintOf(tv).map).toBeNull()
+    expect(paintOf(monitors[1]).map).toBeNull()
+    // En face de l'écran du bureau, du côté du fauteuil (−z), à 99 cm.
+    const center = worldOf(monitors[0])
+    expect(camera().position.toArray()).toEqual([expect.closeTo(center.x), expect.closeTo(center.y), expect.closeTo(center.z - 0.55 * 1.8)])
+    expect(controls.target.distanceTo(center)).toBeCloseTo(0)
+    // Le même écran de nouveau : la vue ne bouge pas (on peut l'avoir tournée entre-temps).
+    aim(monitors[0], [0, 0, -0.5])
+    const moved = camera().position.clone()
+    click()
+    expect(camera().position.distanceTo(moved)).toBe(0)
+    // Encore quatre caméras, puis l'écran s'éteint : retour à la vue du tout début.
+    for (let more = 0; more < 4; more += 1) clickScreen(monitors[0])
+    expect(paintOf(monitors[0]).map).toBeNull()
+    expect(camera().position.distanceTo(before)).toBeCloseTo(0)
+  })
+
+  it('la nuit, la caméra voit en infrarouge : ses LED éclairent le temps de l’image', () => {
+    h.weather = { isDay: false, code: 0 }
+    render(<Kitchen3D apiKey="k" />)
+    frame()
+    clickScreen(screens().tv)
+    frame()
+    expect(leds().intensity).toBe(14)
+    expect(leds().visible).toBe(false)
+  })
+
+  it('au démontage, la texture des écrans est libérée', () => {
+    const dispose = vi.spyOn(THREE.WebGLRenderTarget.prototype, 'dispose')
+    const view = render(<Kitchen3D apiKey="k" />)
+    view.unmount()
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Kitchen3D : les voyants du switch', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const colorOf = (rank: number) => (tagged('blink', rank).material as THREE.MeshBasicMaterial).color.getHex()
+  const [GREEN, YELLOW, DARK] = [0x35d06a, 0xf2c531, 0x1c2a1e]
+
+  it('clignotent comme ceux de prises RJ45 : les voyants de lien (pairs) verts presque toujours allumés, ceux d’activité (impairs) jaunes ; une image seulement quand l’un d’eux change', () => {
+    let now = 1000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    const view = render(<Kitchen3D apiKey="k" />)
+    frame()
+    expect(allTagged('blink')).toHaveLength(6)
+    const tick = (to: number) => {
+      now = to
+      act(() => {
+        vi.advanceTimersByTime(60)
+      })
+    }
+    // Premier passage : tous s'éteignent un instant.
+    tick(1000)
+    expect([colorOf(0), colorOf(1)]).toEqual([DARK, DARK])
+    expect(h.frames).toHaveLength(1)
+    frame()
+    // Rien n'est dû : ni changement, ni image.
+    tick(1050)
+    expect(h.frames).toHaveLength(0)
+    // Un voyant de lien ne reste éteint que 0,1 s : il se rallume, vert.
+    tick(1100)
+    expect(colorOf(0)).toBe(GREEN)
+    expect(h.frames).toHaveLength(1)
+    frame()
+    // Un voyant d'activité papillote (60 à 400 ms) : il se rallume à son tour, jaune.
+    tick(1230)
+    expect(colorOf(1)).toBe(YELLOW)
+    frame()
+    // Le lien, allumé pour 2 à 7 s (ici 4,5 s), s'éteint de nouveau à son heure.
+    tick(5590)
+    frame()
+    tick(5600)
+    expect(colorOf(0)).toBe(DARK)
+    frame()
+    // Hors de l'écran, rien ne clignote.
+    act(() => h.visibility[0]([{ isIntersecting: false }]))
+    tick(20_000)
+    expect(colorOf(0)).toBe(DARK)
+    expect(h.frames).toHaveLength(0)
+    // Démontée, la minuterie s'arrête.
+    act(() => h.visibility[0]([{ isIntersecting: true }]))
+    frame()
+    view.unmount()
+    h.frames.length = 0
+    tick(40_000)
+    expect(h.frames).toHaveLength(0)
+  })
+
+  it('sans voyant dans la scène : la minuterie ne demande jamais d’image', () => {
+    h.noBlink = true
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    render(<Kitchen3D apiKey="k" />)
+    frame()
+    act(() => {
+      vi.advanceTimersByTime(600)
+    })
+    expect(h.frames).toHaveLength(0)
+  })
+})
+
+describe('Kitchen3D : la prise connectée (le radiateur de la cage)', () => {
+  const plug = (on: boolean): PlugState => ({ alias: 'chauffage', model: 'HS100', on, rssi: -60, onTime: 0, timerSeconds: null, offOnMotion: false })
+  const heater = () => tagged('plug', true)
+  const ledColor = () => (tagged('plugLed', true).material as THREE.MeshBasicMaterial).color.getHex()
+  /** Vise le corps du radiateur (à mi-hauteur), de face. */
+  const aimHeater = () => {
+    const at = worldOf(heater()).add(new THREE.Vector3(0, 0.27, 0))
+    look(at.clone().add(new THREE.Vector3(0, 0.1, 1)), at)
+  }
+
+  it('un clic sur le radiateur allume ou éteint la prise ; la souris devient une main au-dessus', async () => {
+    h.plug = plug(false)
+    const view = render(<Kitchen3D apiKey="k" />)
+    aimHeater()
+    pointer('pointermove')
+    expect(canvas().style.cursor).toBe('pointer')
+    click()
+    expect(h.setPlug).toHaveBeenCalledExactlyOnceWith('k', true)
+    // Allumée : le clic l'éteint. Un ordre refusé par la maison ne casse rien.
+    h.plug = plug(true)
+    h.setPlug = vi.fn(() => Promise.reject(new Error('prise injoignable')))
+    view.rerender(<Kitchen3D apiKey="k" />)
+    click()
+    expect(h.setPlug).toHaveBeenCalledExactlyOnceWith('k', false)
+    await settle()
+    expect(h.toggle).not.toHaveBeenCalled()
+    expect(h.change).not.toHaveBeenCalled()
+  })
+
+  it('sans état connu de la prise, le clic ne fait rien', () => {
+    render(<Kitchen3D apiKey="k" />)
+    aimHeater()
+    click()
+    expect(h.setPlug).not.toHaveBeenCalled()
+  })
+
+  it('son voyant suit la prise : rouge allumée, gris éteinte ou inconnue ; en vue Matrix, vert allumée et rouge éteinte, comme ses cercles', () => {
+    const view = render(<Kitchen3D apiKey="k" />)
+    frame()
+    expect(ledColor()).toBe(0x4a4640)
+    h.plug = plug(true)
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ledColor()).toBe(0xff3b30)
+    // Le changement est dessiné.
+    frame()
+    expect(h.frames).toHaveLength(0)
+    h.plug = plug(false)
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ledColor()).toBe(0x4a4640)
+    fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.on }))
+    expect(ledColor()).toBe(0xd43a2f)
+    expect(ringColor(heater())).toBe(MATRIX_CAMERA)
+    h.plug = plug(true)
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ledColor()).toBe(0x2fd45a)
+    expect(ringColor(heater())).toBe(0x2fd45a)
+  })
+})
+
+describe('Kitchen3D : la vue Matrix suit la maison', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const matrix = () => fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.on }))
+  const sprites = () => root().children.filter((child): child is THREE.Sprite => (child as THREE.Sprite).isSprite)
+
+  it('les cercles des clims : verts en marche, rouges à l’arrêt ou sans état', () => {
+    h.units = [unit('salon'), unit('chambre-invite', { power: false }), unit('chambre-matou', { reachable: false })]
+    const view = render(<Kitchen3D apiKey="k" />)
+    matrix()
+    const colors = () => ['salon', 'chambre-invite', 'chambre-matou'].map((id) => ringColor(tagged('acUnit', id)))
+    expect(colors()).toEqual([0x2fd45a, MATRIX_CAMERA, MATRIX_CAMERA])
+    h.units = [unit('salon', { power: false }), unit('chambre-invite'), unit('chambre-matou')]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(colors()).toEqual([MATRIX_CAMERA, 0x2fd45a, 0x2fd45a])
+  })
+
+  it('les lampes : cercles jaunes allumée, rouges éteinte ; une lampe injoignable a l’ampoule rouge, en vue Matrix seulement', () => {
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon' }), lamp('l2', 0, 0, { name: 'Chambre', reachable: false })]
+    const view = render(<Kitchen3D apiKey="k" />)
+    const bulbColor = (name: string) => (tagged('fixtureName', name).material as THREE.MeshBasicMaterial).color.getHex()
+    expect(bulbColor('chambre')).toBe(BULB_OFF)
+    matrix()
+    expect(bulbColor('chambre')).toBe(0xff2a1f)
+    expect(ringColor(tagged('fixtureName', 'chambre'))).toBe(MATRIX_CAMERA)
+    expect(ringColor(tagged('fixtureName', 'salon'))).toBe(0xffd23a)
+    // La lampe du salon s'éteint : ses cercles passent au rouge.
+    h.lamps = [lamp('l1', 0, 0, { name: 'Salon', on: false }), h.lamps[1]]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect(ringColor(tagged('fixtureName', 'salon'))).toBe(MATRIX_CAMERA)
+    // De retour à la vue normale, l'ampoule injoignable redevient seulement éteinte.
+    fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.off }))
+    expect(bulbColor('chambre')).toBe(BULB_OFF)
+  })
+
+  it('les volets : violets fermés, bleu ciel ouverts, et leur couleur suit la maison', () => {
+    h.shutters = shuttersOf({ 'Volet cuisine': 'down', 'Volet salon': 'up' })
+    const view = render(<Kitchen3D apiKey="k" />)
+    matrix()
+    const colorOf = (key: string) => ((tagged('shutter', key).children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.getHex()
+    expect([colorOf('cuisine'), colorOf('salon')]).toEqual([0x9b59ff, 0x6fc8ff])
+    h.shutters = shuttersOf({ 'Volet cuisine': 'up', 'Volet salon': 'down' })
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect([colorOf('cuisine'), colorOf('salon')]).toEqual([0x6fc8ff, 0x9b59ff])
+  })
+
+  it('les caméras : leur état est lu sur le switch PoE toutes les 5 s ; cercles verts en marche, orange en démarrage, rouges coupée ou inconnue ; une lecture ratée garde le dernier état', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    // (Sans les voyants du switch : eux aussi demandent des images.)
+    h.noBlink = true
+    const power = (camera: string, powered: boolean, streaming: boolean): CameraPower => ({ camera, powered, streaming }) as CameraPower
+    let late: (list: CameraPower[]) => void = () => undefined
+    const read = vi
+      .fn<(key: string) => Promise<CameraPower[]>>()
+      .mockResolvedValueOnce([power('voliere-toit', true, true), power('salon-de-jardin', true, false), power('voliere-exterieur', false, false)])
+      .mockRejectedValueOnce(new Error('switch injoignable'))
+      .mockResolvedValueOnce([power('voliere-toit', false, false)])
+      .mockImplementation(() => new Promise((resolve) => (late = resolve)))
+    h.power = read
+    const view = render(<Kitchen3D apiKey="k" />)
+    expect(read).toHaveBeenCalledExactlyOnceWith('k')
+    await settle()
+    matrix()
+    const colors = () => ['voliere-toit', 'salon-de-jardin', 'voliere-exterieur', 'pommier'].map((name) => ringColor(tagged('camera', name)))
+    expect(colors()).toEqual([0x2fd45a, 0xff9a1f, MATRIX_CAMERA, MATRIX_CAMERA])
+    // Cinq secondes plus tard, le switch ne répond pas : rien ne change.
+    await act(async () => {
+      vi.advanceTimersByTime(5000)
+      await Promise.resolve()
+    })
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(colors()).toEqual([0x2fd45a, 0xff9a1f, MATRIX_CAMERA, MATRIX_CAMERA])
+    // Puis la caméra du toit est coupée ; les autres ne sont plus dans la réponse : sans état.
+    while (h.frames.length > 0) frame()
+    await act(async () => {
+      vi.advanceTimersByTime(5000)
+      await Promise.resolve()
+    })
+    expect(colors()).toEqual([MATRIX_CAMERA, MATRIX_CAMERA, MATRIX_CAMERA, MATRIX_CAMERA])
+    // Le changement est dessiné.
+    expect(h.frames).toHaveLength(1)
+    // Une réponse arrivée après la fermeture est ignorée, et plus rien n'est lu.
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(read).toHaveBeenCalledTimes(4)
+    view.unmount()
+    await act(async () => {
+      late([power('voliere-toit', true, true)])
+      await Promise.resolve()
+    })
+    act(() => {
+      vi.advanceTimersByTime(20_000)
+    })
+    expect(read).toHaveBeenCalledTimes(4)
+  })
+
+  it('les températures : celle de chaque pièce lue par sa clim, celles des détecteurs Hue (salle de bain, cage dedans et dehors), en étiquettes montrées en vue Matrix seulement', () => {
+    const context = fakeContext2d()
+    stubCanvasContext(context)
+    const written: [string, string][] = []
+    context.fillText.mockImplementation((text: string) => {
+      if (text === '–' || text.endsWith('°')) written.push([text, context.fillStyle])
+    })
+    const sensor = (id: string, name: string, temperature: number | null, reachable = true): HueSensor => ({ id, name, presence: null, presenceSince: null, temperature, lux: null, dark: null, battery: 100, reachable })
+    const view = render(<Kitchen3D apiKey="k" />)
+    // Trois clims et trois détecteurs ; rien n'est encore lu : six « – », orange (aucun état de clim).
+    expect(sprites()).toHaveLength(6)
+    expect(written).toEqual(Array.from({ length: 6 }, () => ['–', '#ff9a1f']))
+    expect(sprites().every((sprite) => !sprite.visible)).toBe(true)
+    written.length = 0
+    h.units = [unit('salon', { roomTemp: 21.46 }), unit('chambre-invite', { power: false, roomTemp: 19 }), unit('chambre-matou', { reachable: false, roomTemp: 18 })]
+    h.sensors = [
+      sensor('60', 'Salle de bain', 23.04),
+      sensor('54', 'Motion interieur', 12.3),
+      sensor('57', 'Motion Exterieur', 4, false),
+      // Un autre détecteur dont le nom contient « ext » : ce n'est pas un de ceux de la cage.
+      sensor('99', 'extension', 30),
+    ]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    // La clim en marche en vert, celle à l'arrêt en rouge, l'injoignable sans température et en rouge ; les détecteurs en orange. Celui du dehors, injoignable, reste « – ».
+    expect([...written].sort()).toEqual(
+      [
+        ['21,5°', '#2fd45a'],
+        ['19,0°', '#ff3b30'],
+        ['–', '#ff3b30'],
+        ['23,0°', '#ff9a1f'],
+        ['12,3°', '#ff9a1f'],
+      ].sort(),
+    )
+    // Les nouvelles étiquettes sont dessinées.
+    expect(h.frames).toHaveLength(1)
+    // Le détecteur du dehors revient ; celui de la salle de bain n'a plus de température.
+    written.length = 0
+    h.sensors = [sensor('60', 'Salle de bain', null), h.sensors[1], sensor('57', 'Motion Exterieur', 4), h.sensors[3]]
+    view.rerender(<Kitchen3D apiKey="k" />)
+    expect([...written].sort()).toEqual(
+      [
+        ['–', '#ff9a1f'],
+        ['4,0°', '#ff9a1f'],
+      ].sort(),
+    )
+    // Elles ne se voient qu'en vue Matrix.
+    matrix()
+    expect(sprites().every((sprite) => sprite.visible)).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: MATRIX_LABEL.off }))
+    expect(sprites().every((sprite) => !sprite.visible)).toBe(true)
+  })
+
+  it('le thème de la page : sombre, les arêtes sont vertes sur fond noir ; il est suivi quand on le change', async () => {
+    document.documentElement.dataset.theme = 'dark'
+    render(<Kitchen3D apiKey="k" />)
+    const [renderer] = h.renderers
+    // Hors de la vue Matrix, le fond reste transparent.
+    expect(renderer.setClearColor).toHaveBeenLastCalledWith(0x000000, 0)
+    matrix()
+    expect(renderer.setClearColor).toHaveBeenLastCalledWith(0x000000, 1)
+    frame()
+    // La page passe au thème clair : fond clair, tout de suite, et une image.
+    await act(async () => {
+      document.documentElement.dataset.theme = 'light'
+      await Promise.resolve()
+    })
+    expect(renderer.setClearColor).toHaveBeenLastCalledWith(MATRIX_LIGHT.background, 1)
+    expect(h.frames).toHaveLength(1)
+    // Sans attribut de thème : clair aussi.
+    await act(async () => {
+      delete document.documentElement.dataset.theme
+      await Promise.resolve()
+    })
+    expect(renderer.setClearColor).toHaveBeenLastCalledWith(MATRIX_LIGHT.background, 1)
+  })
+
+  it('au démontage, le thème de la page n’est plus suivi', async () => {
+    const view = render(<Kitchen3D apiKey="k" />)
+    const [renderer] = h.renderers
+    view.unmount()
+    renderer.setClearColor.mockClear()
+    await act(async () => {
+      document.documentElement.dataset.theme = 'dark'
+      await Promise.resolve()
+    })
+    expect(renderer.setClearColor).not.toHaveBeenCalled()
   })
 })

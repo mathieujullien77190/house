@@ -1,6 +1,6 @@
 # Kitchen3D – la maison en 3D (Home)
 
-Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home** (`../Home/CLAUDE.md`), qui la charge à part (`React.lazy` dans `Home/Home.tsx`). Au-dessus de la vue : le titre, trois boutons (« Vue du dessus », « Réinitialiser la vue » et « Vue Matrix » / « Vue normale », voir « La vue Matrix ») et le compte des lampes allumées, puis le choix de la lumière (« Jour » ou « Heure actuelle », voir « Lumière ») ; dessous, la ligne d’aide (pas de texte d’introduction) ; la hotte est toujours dessinée (`hood` de `buildScene` ne sert plus à la cacher) et les volets suivent toujours ceux de la maison. La scène est construite une fois, démontée avec `forceContextLoss`, dessinée seulement quand quelque chose change, et jamais hors écran (voir « Performance »).
+Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home** (`../Home/CLAUDE.md`), qui la charge à part (`React.lazy` dans `Home/Home.tsx`). Au-dessus de la vue : le titre, trois boutons (« Vue du dessus », « Réinitialiser la vue » et « Vue Matrix » / « Vue normale », voir « La vue Matrix » ; sur téléphone, pas de troisième bouton : la scène n'y est qu'en vue Matrix) et le compte des lampes allumées, puis le choix de la lumière (« Jour » ou « Heure actuelle », voir « Lumière ») ; dessous, la ligne d’aide (pas de texte d’introduction) ; la hotte est toujours dessinée (`hood` de `buildScene` ne sert plus à la cacher) et les volets suivent toujours ceux de la maison. La scène est construite une fois, démontée avec `forceContextLoss`, dessinée seulement quand quelque chose change, et jamais hors écran (voir « Performance »).
 
 - **L'espace de vie**, meublé : la cuisine, le coin repas, l'entrée, le salon et le bureau.
 - **Le reste de la maison** : la chambre d'invité, la salle de bain et le sas de l'entrée (meublés, `furniture/`) ; la chambre de Matou n'a que sa clim et sa suspension (`furniture/matouRoom.ts`) ; le couloir, le placard de Matou et la cage d'escalier (buanderie) sont vides.
@@ -24,7 +24,9 @@ Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home
 - `Kitchen3D.tsx` : le conteneur (rendu WebGL, caméra à la souris, rendu à la demande, boutons, clics, état de la maison) ; `lib/three.ts` : libération d'une scène et test de WebGL (fait une seule fois).
 - `helpers.ts` : `buildScene`, qui assemble le gros œuvre, le mobilier, le jardin et les files de caissons, puis partage les matériaux identiques, fond ce qui ne bouge pas et règle qui porte une ombre. Les trois premières parties sont nommées `shell`, `furniture` et `garden` : c'est leur **genre** (voir `kindOf`).
 - `merge.ts` : `shareMaterials` (un seul matériau par allure) et `mergeStatic` (un maillage par matériau **et par genre** pour tout ce qui ne bouge jamais ; le maillage fondu porte le nom de son genre). `KINDS` (`shell`, `furniture`, `tree`, `garden`) et `kindOf(objet)` : le genre d'un objet est le nom du groupe le plus proche qui en porte un, sinon `furniture` (les caissons de cuisine). Les arbres du jardin sont des groupes nommés `tree` (`garden/garden.ts`).
-- `matrix.ts` : la vue Matrix (`createMatrix`, `MATRIX_COLORS`, `MATRIX_CAMERA`, `MATRIX_SHUTTER`, voir « La vue Matrix »).
+- `matrix.ts` : la vue Matrix (`createMatrix`, `createAcLabels`, `MATRIX_COLORS`, `MATRIX_LIGHT`, `MATRIX_CAMERA`, `MATRIX_SHUTTER`, voir « La vue Matrix »).
+- `layers.ts` : les deux couches de la scène, la maison et le jardin ; `spill.ts` : la lumière des lampes qui sort par les fenêtres (voir « Deux couches »).
+- `tv.ts` : la télé et les écrans du bureau, qui montrent la vue d'une caméra de la scène (voir « Les écrans »).
 - `constants.ts` : pièces, caissons, meubles, fenêtres, repères du gros œuvre (`SHELL`, `PASSAGE`, baies), la qualité selon l'appareil (`QUALITY`), textes, classes.
 - `primitives.ts` : pavé, cylindre, boule, matériau, texture sur canevas, bois veiné (`woodTexture`), `facing`, `fixtureBulb`, `noShadow`.
 - `textures.ts` : les textures dessinées (sisal, plan de travail, carrelages, lambris, terre cuite, grillage, cadran, béton banché : une image couvre 1 m) et les photos (`photoTexture` ; `onPhotoLoad` prévient quand l'une a fini de se charger).
@@ -51,22 +53,22 @@ Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home
 - `parquet.ts` : le parquet lame par lame (un seul maillage `InstancedMesh`, posé au tiers, la même trame pour toute la maison).
 - `living.ts` : l'espace de vie (sols, murs, plafond en lambris sauf la cuisine en plaque de plâtre, bar, mur de l'escalier et ses niches, entrée, plinthes, poutres).
 - `rest.ts` : le reste de la maison (chambre d'invité, salle de bain, couloir, chambre de Matou et son placard, buanderie).
-- `outer.ts` : les murs extérieurs, le soubassement, le sas et ses marches. Dehors, pas de cadre autour des fenêtres : sous chacune, un rebord blanc qui couvre le mur dans toute son épaisseur et déborde de 4 cm.
+- `outer.ts` : les murs extérieurs, le soubassement, le sas et ses marches. Dehors, pas de cadre autour des fenêtres : sous chacune, un rebord blanc qui couvre le mur dans toute son épaisseur et déborde de 4 cm. Les marches et la lanterne de l'entrée sont dans un groupe nommé `garden` : elles sont dehors (voir « Deux couches »).
 
 `furniture/` (le mobilier) :
 
 - `furniture.ts` : `buildFurniture` ; `rooms.ts` : `buildRooms` (chambre d'invité, salle de bain, sas, chambre de Matou).
-- `living.ts` (canapé, table basse, fauteuil, coin télé, buffet), `dining.ts` (table ronde, chaises), `office.ts` (bureau, écrans, clim), `lamps.ts` (plafonniers à pétales, suspensions).
-- `windows.ts` : les fenêtres (`windowOnWall` : le cadre dans l'embrasure, les lames du volet cachées s'il n'y a pas de volet relié) et les rideaux.
+- `living.ts` (canapé, table basse, fauteuil, coin télé, buffet), `dining.ts` (table ronde, chaises), `office.ts` (bureau, écrans, clim, plafonnier à cinq pétales), `lamps.ts` (plafonniers à pétales, dont on choisit le nombre : `petalLamp(…, petals = 8)` ; suspensions).
+- `windows.ts` : les fenêtres (`windowOnWall` : le cadre dans l'embrasure, les lames du volet cachées s'il n'y a pas de volet relié ; une lame est un profil et une âme plus mince fondus en une géométrie, l'âme touche ses voisines : fermé, le volet ne laisse aucun jour) et les rideaux.
 - `nook.ts` : le coin repas (bistrot, cellier, niche à verres, frigo, pendule) ; `entry.ts` : l'entrée et la porte du couloir ; `decor.ts` : cadres et étagères décorées.
-- `guestRoom.ts`, `bathroom.ts`, `sas.ts`, `matouRoom.ts` : le mobilier de ces quatre pièces.
+- `guestRoom.ts`, `bathroom.ts`, `sas.ts`, `matouRoom.ts` : le mobilier de ces quatre pièces. L'alcôve des WC a son spot (`sdb 2`) ; l'ampoule de l'applique à cage de jute du sas est un luminaire sans nom (`fixtureBulb`).
 
 `garden/` (le jardin, tout dans un seul groupe) :
 
 - `garden.ts` : `buildGarden`, qui appelle les constructeurs dans l'ordre et plante les arbres.
 - `constants.ts` : le terrain sur le plan de la maison ; `plan.ts` : du plan à la scène (`gardenX`, `gardenZ`, et l'inverse `planOf` ; `flat` : une surface à plat ; `quad` : un pan dans l'espace, vu des deux côtés, avec des coordonnées de texture en mètres si `textured` ; `along` : des tronçons le long d'une ligne) ; `layout.ts` : les repères calculés (`SITE`).
 - `ground.ts` : pelouses, mur et trottoir côté rue, marches de soutènement, terrasses, pavage, chemin du portillon, chemin de béton le long de la haie, allée du garage (voir « Le relief du jardin ») ; `borders.ts` : haies, murets, portail et portillon.
-- `aviary.ts` : la cage à perruches (pans de bois à planches, deux portes l'une en face de l'autre, bacs creux, outils pendus) ; `equipment.ts` : poubelles, poubelle renversée derrière la cage, table blanche (`gardenTable(group, toward)` : un groupe tourné le long de la haie de l'arc, rapproché d'elle puis de 70 cm vers l'arbre donné, le conifère), pompe à chaleur sur sa dalle, terrasse en ipé et la bande de béton au pied de la haie du nord, ligne électrique (son poteau est sur le trottoir), caméras du jardin et de la cage ; `lounge.ts` : le salon de jardin ; `pergola.ts` : la pergola (d’après son modèle SketchUp).
+- `aviary.ts` : la cage à perruches (pans de bois à planches, deux portes l'une en face de l'autre, bacs creux, outils pendus ; trois panneaux d'OSB debout sur la limite entre le toit de tôle et le toit grillagé, `SITE.turnZ` ; `cageComfort` : la lampe des perruches, une boule d'osier posée par terre, luminaire `perruche`, et contre les panneaux le radiateur blanc de la prise connectée) ; `equipment.ts` : poubelles, poubelle renversée derrière la cage, table blanche (`gardenTable(group, toward)` : un groupe tourné le long de la haie de l'arc, rapproché d'elle puis de 70 cm vers l'arbre donné, le conifère), pompe à chaleur sur sa dalle, terrasse en ipé et la bande de béton au pied de la haie du nord, ligne électrique (son poteau est sur le trottoir), caméras du jardin et de la cage ; `lounge.ts` : le salon de jardin ; `pergola.ts` : la pergola (d’après son modèle SketchUp).
 - `branches.ts` : de quoi dessiner une plante par lots (`woodOf` : tout son bois en un maillage fondu ; `tuftsOf` : ses touffes en un `InstancedMesh` par teinte ; `piecesOf`, fleurs, fruits) ; `trees.ts` (cerisier, pommier, prunus, arbre taillé, néflier), `laurel.ts` (`laurelBush` : le laurier en cépée, dont on choisit les verts et la hauteur ; `roundLaurel` : une couronne ovale feuillue dès le sol), `plants.ts` (fougère à folioles, choisya, hortensia, passiflore, haies de spirées ou de lierre, glycine, buissons, massifs de fleurs, arche de vigne, conifère jamais taillé, arbre clair, romarin), `grass.ts` (touffes d’herbe et fleurs de la pelouse).
 
 **L'ordre compte** : les constructeurs ajoutent leurs objets à un groupe dans un ordre fixe, et un tirage `seeded(n)` est consommé dans l'ordre des appels. Déplacer du code qui partage un tirage change les formes.
@@ -82,6 +84,9 @@ Ce que la scène anime ou rend cliquable est marqué dans `userData` par les con
 | `acUnit`, `acLed` (identifiant de la clim) | `furniture/office.ts`, `furniture/guestRoom.ts`, `furniture/matouRoom.ts` | `live.ts` |
 | `camera` (nom de la vraie caméra, sur le groupe du modèle) | `reolink` (`reolink.ts`) | `live.ts` (`cameraMeshes`) |
 | `clockHand` | `furniture/nook.ts` | `live.ts` |
+| `tv` (un écran à cliquer), `tvFacing` (−1 : il regarde vers −z) | `furniture/living.ts`, `furniture/office.ts` | `tv.ts`, `Kitchen3D.tsx` |
+| `blink` (le rang d'un voyant du switch) | `library.ts` | `Kitchen3D.tsx` |
+| `plug` (le radiateur de la cage), `plugLed` (son voyant) | `cageComfort` (`garden/aviary.ts`) | `Kitchen3D.tsx`, `matrix.ts` |
 | `lampBulb` (l'ampoule nue d'une lampe sans luminaire) | `lighting.ts` | `matrix.ts` |
 | `noShadow` (l'objet ne porte pas d'ombre) | `noShadow` (`primitives.ts`) : voir « Performance » | `buildScene` (`helpers.ts`) |
 
@@ -89,7 +94,30 @@ Ce que la scène anime ou rend cliquable est marqué dans `userData` par les con
 - **Jour** : voir « Lumière ».
 - **Pendule** de la cuisine : à l'heure, remise à jour toutes les 15 s.
 - **Clims** (`useAcUnits`) : le voyant du salon, de la chambre d'invité et de la chambre de Matou est vert en marche, rouge à l'arrêt, gris si l'état est inconnu.
-- **Écrans** : les deux du bureau et la télé sont éteints (dalles noires, `SCREEN_OFF`) et ne se cliquent pas.
+- **Prise connectée** (`usePlug`, relue toutes les 5 s) : le voyant du radiateur de la cage est rouge quand la prise est allumée, gris éteinte ou inconnue.
+- **Voyants du switch** (dans la bibliothèque) : une minuterie de 60 ms les fait clignoter comme ceux de prises RJ45. Rang pair : voyant de lien, vert, allumé 2 à 7 s puis éteint 0,1 s ; rang impair : voyant d'activité, jaune, qui change toutes les 60 à 400 ms. Rien hors de l'écran.
+- **Températures** (vue Matrix) : celle de chaque pièce lue par sa clim, et celles des détecteurs Hue (`useSensors` : le 60 pour la salle de bain ; les 54 et 57 pour la cage, celui dont le nom contient « ext » étant dehors).
+- **État des caméras** (vue Matrix) : lu sur le switch PoE (`fetchPower`) toutes les 5 s ; une lecture ratée garde le dernier état.
+
+## Les écrans
+
+`tv.ts` (`createTv`). La télé du salon et les deux écrans du bureau sont éteints au départ (dalles noires, `SCREEN_OFF`).
+
+- **Un clic** y montre ce que « voit » une caméra de la scène : pas la vraie image, mais la vue 3D prise de la place du modèle de la caméra, 25 cm devant son objectif. Chaque clic passe à la caméra suivante (dans l'ordre où la scène les porte) ; après la dernière, l'écran s'éteint. Un seul écran à la fois : cliquer un autre écran éteint le premier.
+- **La vue se place en face de l'écran cliqué** (d'autant plus près qu'il est petit) ; la vue d'avant est gardée et retrouvée quand l'écran s'éteint.
+- L'image est dessinée dans une texture de 1920 × 1080 (`WebGLRenderTarget`), **avant chaque image** tant qu'un écran est allumé.
+- `TUNING` : les réglages par caméra (angle plus serré, direction, image en portrait au milieu de l'écran entre deux bandes noires).
+- **La nuit** (soleil éteint) : l'image est grise et une lumière posée sur la caméra fait ses LED infrarouges, le temps de l'image.
+- Chaque écran a son propre matériau (cloné par `createTv`) : `shareMaterials` avait fondu ceux des écrans éteints.
+
+## Deux couches
+
+Une `PointLight` sans ombre ne connaît pas les murs : la nuit, les lampes de la maison éclairaient le jardin. La scène est donc dessinée en deux couches (`layers.ts`).
+
+- **`INDOOR` (0)** : la maison ; **`OUTDOOR` (1)** : le jardin (`splitLayers` : tout objet de genre `garden` ou `tree`). L'ambiance et le soleil éclairent les deux.
+- Une lampe est dans la couche de sa place (`indoors(x, z)` : dans les murs extérieurs ou le sas) : elle n'éclaire que la maison, ou que le jardin.
+- `renderLayers` dessine le jardin puis la maison par-dessus, sans effacer ; quand l'ombre du soleil est à refaire, une première passe, toutes couches vues, la met à jour. Les matériaux transparents du jardin (le grillage) n'écrivent plus dans la profondeur.
+- **Par les fenêtres** (`spill.ts`, `createSpill`) : devant chaque fenêtre à volet, une lumière du dehors, dosée par les lampes allumées du dedans à moins de 6 m et par la part ouverte du volet ; elle prend leur couleur.
 
 ## Lumière
 
@@ -115,7 +143,7 @@ Le terrain n'est pas plat côté rue : des chemins descendent sous la pelouse, d
 - **L'allée du garage** (`PLAN_GARAGE_CORNERS`, `../Lights/constants.ts`) : une rampe au sol uni, du portail (`GATE_DROP` : 50 cm plus bas que le portillon) jusqu'au pied de la terrasse, 2 m sous le terrain (`GARAGE_DEPTH`) ; puis du béton à plat sous la terrasse, jusqu'au portail en bois du garage (trois vantaux de planches, entre deux murs de béton). Côté rue, elle continue à plat jusqu'au trottoir. Ses murs sont en béton banché (`formedConcreteTexture`) : 20 cm au-dessus du terrain le long de la rampe, arrêtés sous le bloc de la terrasse ensuite. En bas de la pente, un caniveau à grille ; au-dessus, au bord du carrelage, une barrière noire de 1 m à barreaux.
 - **Le chemin de béton le long de la haie** (`WALK`, `walkOutline`) : un tronçon droit part de l'angle de la terrasse carrelée et descend en biais vers la haie, puis quatre longues marches de 25 cm suivent la haie jusqu'à l'allée du garage, où un palier avance dans la rampe. Il est bordé de murets de béton banché ; le muret du bac de la terrasse est prolongé jusqu'à la haie.
 - **Dans la descente de l'allée**, contre le mur de droite : un muret, une bande de terre, un arbre étroit (`roundLaurel`) et du lierre (sur le mur, la barrière et l'épaisseur de la terrasse). Entre l'allée, l'escalier et la terrasse, **un lopin enclavé** : de la terre sans herbe, et un gros buisson à feuilles claires (`laurelBush`, à demi enterré).
-- **Côté rue** : un mur descend de la pelouse jusqu'à 2,20 m plus bas tout autour de la propriété (on ne voit pas sous le sol) ; il s'abaisse au portail du garage (entre ses poteaux) et au portillon. Le long de l'arc, un trottoir de 1 m monte du niveau du portail du garage à celui du portillon ; le poteau électrique y est planté.
+- **Côté rue** : un mur descend de la pelouse jusqu'à 2,20 m plus bas tout autour de la propriété (on ne voit pas sous le sol) ; il s'abaisse au portail du garage (entre ses poteaux) et au portillon. Le long de l'arc, un trottoir de 1 m monte du niveau du portail du garage à celui du portillon ; le poteau électrique y est planté. Au coin nord-ouest, où l'arc s'arrête, il continue tout droit le long de la limite ouest, au niveau du portail. La pelouse basse et le mur qui l'entoure s'arrêtent au même rayon que l'arc (`LAWN_RADIUS`).
 - **Portails** : le portail du garage (2,10 m) et le portillon (`GATE_HEIGHT`, 1,65 m) sont en contrebas, au niveau de leur sol ; leurs poteaux de béton (2,50 m et 2 m, ceux du portillon écartés de 15 cm) descendent avec eux, même sommet.
 - **Haies de l'arc** : du lierre de part et d'autre du portail du garage (3 m d'un côté, jusqu'au cerisier de l'autre), des spirées ailleurs. Là où deux haies se suivent, leurs bouquets se mêlent sur 75 cm mais leurs blocs verts se relaient exactement à la limite (`blockPoints`, `flush` de `spireaHedge`).
 - **À droite du portillon** : un conifère sombre et un laurier palme, ronds (`roundLaurel`), en dedans de la haie ; la table blanche est près du conifère (`frontTrees` rend sa place à `gardenTable`).
@@ -123,7 +151,21 @@ Le terrain n'est pas plat côté rue : des chemins descendent sous la pelouse, d
 ## La molette et la vue Matrix
 
 - **Molette** (`onWheel`) : un pas fixe de `WHEEL_STEP` (0,5 m) par cran, vers ce qui est sous la souris (au plus trois pas par coup de molette), **sans limite de zoom** (`minDistance` 0, `maxDistance` infinie) ; la caméra et le pivot avancent ensemble, la distance au pivot ne change pas. Le zoom de `OrbitControls` est un facteur (plus on s'approche, moins il avance) : il est coupé par `stopImmediatePropagation`.
-- **La vue Matrix** (`matrix.ts`, bouton « Vue Matrix » / « Vue normale », éteinte à chaque ouverture, rien n'est gardé) : toute la scène est réduite à ses arêtes sur fond noir (`setClearColor`), une teinte de vert par genre (`MATRIX_COLORS`). Les caméras sont en blanc plein, les lampes qu'on peut piloter (`fixture`, `lampBulb`) entourées de trois cercles rouges (`MATRIX_CAMERA`), les volets en fil de fer ambre (`MATRIX_SHUTTER`) ; les copies (herbe, feuilles, fleurs) sont cachées. Les arêtes sont calculées à la première demande puis seulement montrées ou cachées ; ce qui était caché avant (volets relevés) le reste. `SceneHandle.matrix(on)` l'active.
+- **La vue Matrix** (`matrix.ts`, bouton « Vue Matrix » / « Vue normale », éteinte à chaque ouverture, rien n'est gardé) : toute la scène est réduite à ses arêtes sur un fond opaque (`setClearColor`), une teinte par genre ; les copies (herbe, feuilles, fleurs) sont cachées. Les arêtes sont calculées à la première demande puis seulement montrées ou cachées ; ce qui était caché avant (volets relevés) le reste. `SceneHandle.matrix(on)` l'active.
+  - **Thème** : elle suit celui de la page (son attribut `data-theme`, observé). Sombre : des verts (`MATRIX_COLORS`) sur fond noir ; clair, ou sans attribut : des gris sur fond clair, les objets pleins en gris foncé (`MATRIX_LIGHT`).
+  - **Ce qu'on pilote dit son état** (rouge : `MATRIX_CAMERA`) :
+
+    | Objet | Dessin | Couleur |
+    |---|---|---|
+    | Caméra | pleine, trois cercles | verts en marche, orange en démarrage, rouges coupée ou sans état |
+    | Clim, radiateur de la cage | pleins, trois cercles | verts en marche, rouges à l'arrêt ou sans état |
+    | Lampe (`fixture`, `lampBulb`) | son ampoule, trois cercles | jaunes allumée, rouges éteinte ou injoignable (l'ampoule d'une injoignable est rouge aussi) |
+    | Volet et cadre de sa fenêtre | fil de fer, arêtes | violet fermé, bleu ciel ouvert (`MATRIX_SHUTTER`, d'après `userData.goal`) |
+    | Voyant du radiateur | plein | vert allumé, rouge éteint |
+
+  - **Étiquettes de température** (`createAcLabels`) : au-dessus de chaque clim (verte en marche, rouge sinon) et aux places des détecteurs Hue (orange) ; « – » si la température est inconnue. Ce sont des `Sprite` : toujours face à l'utilisateur, visibles à travers les murs.
+  - Les états reçus avant la première ouverture de la vue sont gardés, et appliqués quand les cercles sont créés.
+  - **Sur téléphone**, la scène s'ouvre en vue Matrix et y reste (`QUALITY.phone.matrixOnly`).
 
 ## Les clics
 
@@ -132,20 +174,22 @@ Un clic sans glisser (moins de `CLICK_SLOP` pixels) ; la souris devient une main
 1. **Une ampoule** : allume ou éteint sa lampe Hue (`toggle` de `useLampPlan`). `lighting.pick` vise l'ampoule la plus près du rayon, même derrière un abat-jour ou un mur.
 2. **Une clim** : l'allume ou l'éteint (`change(id, { on })`) ; rien si son état est inconnu.
 3. **Une caméra** (les modèles Reolink : `MAST_CAMERA` sur le mât de l'entrée, `GARDEN_CAMERA` au coin de la cage, `CAGE_CAMERA` à l'autre coin, `INNER_CAGE_CAMERA` (`voliere-interieur`) dans la cage, et les deux du pommier ; avec deux modèles sur le même rayon, c'est **le plus proche de l'œil** qui s'ouvre) : appelle `onOpenCamera(nom)` ; `App` ouvre l'onglet Caméras sur elle (la mosaïque si la maison n'a pas de caméra de ce nom). Sans `onOpenCamera`, rien.
-4. **Une fenêtre à volet** : envoie l'ordre contraire du dernier (`send` de `useShutters`). Pendant `SHUTTER_ANIMATE_MS`, le changement d'état qui suit est animé (`stepShutters`) ; un changement venu d'ailleurs se place d'un coup.
+4. **Le radiateur de la cage** : allume ou éteint la prise connectée (`setPlug`) ; rien si son état est inconnu.
+5. **Un écran** (la télé, un écran du bureau) : voir « Les écrans ».
+6. **Une fenêtre à volet** : envoie l'ordre contraire du dernier (`send` de `useShutters`). Pendant `SHUTTER_ANIMATE_MS`, le changement d'état qui suit est animé (`stepShutters`) ; un changement venu d'ailleurs se place d'un coup.
 
 ## Tests
 
-- Un `*.test.ts` à côté de chaque module, dans son dossier. Les constructeurs de scène (`helpers.ts`, `merge.ts`, `kitchen/`, `house/`, `furniture/`, `garden/`, `library.ts`, `lighting.ts`, `shutters.ts`, `live.ts`, `light.ts`, `primitives.ts`, `textures.ts`, `materials.ts`, `reolink.ts`) sont du three.js sans WebGL : testés tels quels sous jsdom (objets, places, marques, matériaux partagés, même forme pour la même graine, appariement lampe–luminaire, rayons).
-- Le conteneur : `WebGLRenderer` et `OrbitControls` simulés, `ResizeObserver`, `IntersectionObserver` et `requestAnimationFrame` remplacés, les hooks de la maison simulés ; la scène est la vraie. Pour cliquer un objet, le test place la caméra face à lui et clique au milieu de la vue. Le choix de la lumière y est posé dans le `localStorage` avant le rendu (« Heure actuelle » par défaut dans ces tests, pour voir le jour qui entre). Les images demandées (`requestAnimationFrame`) attendent dans une file que le test fait passer une à une (`frame()`) : il vérifie qu'une image est dessinée quand il le faut, et seulement alors ; `useMobile` y est simulé pour choisir la qualité.
+- Un `*.test.ts` à côté de chaque module, dans son dossier. Les constructeurs de scène (`helpers.ts`, `merge.ts`, `kitchen/`, `house/`, `furniture/`, `garden/`, `library.ts`, `lighting.ts`, `shutters.ts`, `live.ts`, `light.ts`, `primitives.ts`, `textures.ts`, `materials.ts`, `reolink.ts`, `matrix.ts`, `layers.ts`, `spill.ts`, `tv.ts`) sont du three.js sans WebGL : testés tels quels sous jsdom (objets, places, marques, matériaux partagés, même forme pour la même graine, appariement lampe–luminaire, rayons).
+- Le conteneur : `WebGLRenderer` et `OrbitControls` simulés, `ResizeObserver`, `IntersectionObserver` et `requestAnimationFrame` remplacés, les hooks de la maison simulés (et `fetchPower`, `setPlug`) ; la scène est la vraie. Le faux rendu retient chaque passe (`h.shots` : couches vues, cible, ombre) : une image dessinée, c'est la passe de la maison à l'écran (`drawn()`). Pour cliquer un objet, le test place la caméra face à lui et clique au milieu de la vue. Le choix de la lumière y est posé dans le `localStorage` avant le rendu (« Heure actuelle » par défaut dans ces tests, pour voir le jour qui entre). Les images demandées (`requestAnimationFrame`) attendent dans une file que le test fait passer une à une (`frame()`) : il vérifie qu'une image est dessinée quand il le faut, et seulement alors ; `useMobile` y est simulé pour choisir la qualité.
 - Les plantes sont dessinées par lots : `src/test/batched.ts` en retrouve les morceaux (`tuftsIn` : les touffes, copie par copie ; `limbsIn` : les tronçons du bois fondu).
-- jsdom n'a pas de contexte 2D et ne charge pas les images : les textures restent vides, sauf avec le faux contexte de `src/test/canvas.ts`.
+- jsdom n'a pas de contexte 2D et ne charge pas les images : les textures et les étiquettes restent vides, sauf avec le faux contexte de `src/test/canvas.ts`.
 
 ## Les lampes Hue éclairent la scène
 
 - `usePlan` et `useLampPlan` donnent les lampes du pont et leur place sur le plan, relues toutes les 5 s.
-- `lampPlace` convertit une place du plan en place dans la scène ; une lampe hors de l'espace de vie (chambres, salle de bain, escalier, jardin) n'y est pas, **sauf si son luminaire est nommé** dans la scène (`LAMP_FIXTURES` : couloir, chambre, spots de la salle de bain…).
-- Chaque lampe a une `PointLight` : couleur de la lampe (blanc chaud sans couleur), intensité selon sa luminosité ; éteinte ou injoignable, sa source est cachée (voir « Performance »). Pas d'ombres portées par les lampes (seul le soleil en porte).
+- `lampPlace` convertit une place du plan en place dans la scène ; une lampe hors de l'espace de vie (chambres, salle de bain, escalier, jardin) n'y est pas, **sauf si son luminaire est nommé** dans la scène (`LAMP_FIXTURES` : couloir, chambre, spots de la salle de bain, lampe de la cage…).
+- Chaque lampe a une `PointLight` : couleur de la lampe (blanc chaud sans couleur), intensité selon sa luminosité ; éteinte ou injoignable, sa source est cachée (voir « Performance »). Pas d'ombres portées par les lampes (seul le soleil en porte) : elles n'éclairent que leur couche (voir « Deux couches »).
 - **Luminaires** : une ampoule dessinée est marquée par `fixtureBulb(mesh, nom)`. Une lampe prend d'abord le luminaire qui porte son nom (nom du pont, en minuscules), sinon le luminaire le plus proche (à moins de `LAMP_LIGHT.matchDistance`, un par lampe) : la lumière part de lui et son ampoule prend la couleur de la lampe. Sans luminaire, une ampoule nue pend du plafond à la place de la lampe.
 - La lumière d'ambiance de nuit est volontairement faible : ce sont les lampes qui éclairent.
 
@@ -153,19 +197,21 @@ Un clic sans glisser (moins de `CLICK_SLOP` pixels) ; la souris devient une main
 
 La vue doit rester fluide sur téléphone. Les règles :
 
-- **Rendu à la demande** (`Kitchen3D.tsx`) : pas de boucle permanente. `invalidate()` demande une image ; elle n'est dessinée que si quelque chose a changé : la caméra (`change` des contrôles, y compris tant qu'elle finit sa course), une lampe, une clim, un volet, la pendule, le choix de la lumière, la taille de la vue, une photo qui finit de se charger, le retour à l'écran. Une image suit l'autre seulement tant qu'un volet bouge (`stepShutters`). Au repos : aucun `requestAnimationFrame`, aucun rendu. **Tout ce qui change la scène doit appeler `invalidate`**, sinon l'écran ne le montre pas.
+- **Rendu à la demande** (`Kitchen3D.tsx`) : pas de boucle permanente. `invalidate()` demande une image ; elle n'est dessinée que si quelque chose a changé : la caméra (`change` des contrôles, y compris tant qu'elle finit sa course), une lampe, une clim, la prise, un volet, la pendule, un voyant du switch, l'état d'une caméra, le choix de la lumière ou du thème, la taille de la vue, une photo qui finit de se charger, le retour à l'écran. Une image suit l'autre seulement tant qu'un volet bouge (`stepShutters`). Au repos : aucun `requestAnimationFrame`, aucun rendu. **Tout ce qui change la scène doit appeler `invalidate`**, sinon l'écran ne le montre pas.
 - **Ombre du soleil** : `shadowMap.autoUpdate = false`. Elle n'est refaite que sur `invalidate(true)` : à la première image, quand une lame de volet apparaît ou disparaît, quand le choix de la lumière change, quand la pendule avance, quand le soleil revient. Ni la caméra, ni les lampes ne la refont. Un soleil d'intensité nulle est caché (`sun.visible`).
 - **Ne portent pas d'ombre** (`noShadow`) : les bouquets d'herbe, les fleurs de la pelouse, les massifs de fleurs, les fleurs et les fruits des arbres (`blossomOf`, `berriesOf`, `fruitsOf`), les bouquets et les fleurs des spirées (leur bloc en porte une), les grappes de la glycine, le grillage de la cage (il laisse passer le soleil) ; et, comme avant, les ampoules. Tout le reste en porte.
 - **Peu d'appels de dessin** (environ 550 au lieu de 7 300) :
   - une plante tient en une poignée de maillages : son bois fondu en un seul (`woodOf`), ses touffes en un `InstancedMesh` par teinte (`tuftsOf`), ses fleurs et ses fruits en un chacun. **Ne jamais créer un `Mesh` par touffe ou par brindille.**
   - `buildScene` partage les matériaux identiques (`shareMaterials`), puis fond en un maillage par matériau tout ce qui ne bouge jamais (`mergeStatic`, groupe `static`). Restent à part : ce qui est marqué dans `userData` (lui ou un parent), les fenêtres à volet et la hotte, ce qui est caché, les `InstancedMesh`, les matériaux transparents. Un objet qui doit bouger, se cacher ou se cliquer après coup doit donc être **marqué** (ou passé à `mergeStatic`), sinon il est fondu.
 - **Lampes** : une lampe éteinte ou injoignable a sa `PointLight` cachée (`visible = false`). three.js ne compte dans ses programmes que les lumières visibles, et chaque pixel boucle sur toutes : une lampe d'intensité nulle coûtait autant qu'une allumée. En échange, quand le **nombre** de lampes allumées change, three.js recompile ses programmes (un à-coup d'une image, au clic ou à la relecture du pont).
-- **Téléphone** (`QUALITY`, `useMobile` : moins de 1024 px) : 1 pixel dessiné par pixel d'écran au plus (2 sur un bureau), pas de lissage MSAA, carte d'ombre de 2048 px (4096), un bouquet d'herbe sur deux, les haies de spirées réduites à leur bloc vert (`leafyHedges`), les mêmes feuilles de passiflore que sur un bureau. La qualité est choisie **à l'ouverture de la vue** : tourner le téléphone ou redimensionner la fenêtre ne reconstruit rien.
+- **Téléphone** (`QUALITY`, `useMobile` : moins de 1024 px) : la vue Matrix seule (`matrixOnly` : des traits, bien moins lourds que la scène pleine), donc à la même définition qu'un bureau (2 pixels dessinés par pixel d'écran au plus, lissage MSAA) ; carte d'ombre de 2048 px (4096), un bouquet d'herbe sur deux, les haies de spirées réduites à leur bloc vert (`leafyHedges`), les mêmes feuilles de passiflore que sur un bureau. La qualité est choisie **à l'ouverture de la vue** : tourner le téléphone ou redimensionner la fenêtre ne reconstruit rien.
 - Dans la boucle : rien n'est créé ni recherché à chaque image (les volets sont retrouvés une fois : `shutterSlats`).
+- **Piège** : `shareMaterials` ne laisse leur propre matériau qu'aux ampoules (`fixture`) et aux voyants des clims (`acLed`). Les six voyants du switch (et celui de la box, de la même couleur) n'en ont donc qu'un : ils changent de couleur ensemble. Le voyant du radiateur (`plugLed`) partage aussi le sien avec un autre maillage gris de la scène. Pour qu'un objet change de couleur seul, lui garder son matériau (le second argument de `shareMaterials`, dans `buildScene`) ou le cloner après coup (ce que fait `createTv`).
 
 ## La bibliothèque
 
 - `library.ts` dessine la bibliothèque du salon le long du mur des baies : les caisses en bois dans le coin du mur est, puis le meuble noir.
 - `libraryData.ts` est **généré** depuis le projet « order » (`C:\projet\order`, base MongoDB : caisses et livres), en lecture seule : chaque caisse devient cinq panneaux, chaque livre un bloc de sa couleur, debout côte à côte ou à plat en piles. Quatre livres qui ne rentraient pas dans ce rangement simplifié n'y sont pas.
 - Ce n'est qu'une copie à sa date (en tête du fichier) : elle ne suit pas la base. Pour la refaire, relire la base et régénérer le fichier.
-- Trois maillages en tout (`InstancedMesh`) : panneaux de bois, panneaux noirs, livres.
+- Trois maillages de copies (`InstancedMesh`) : panneaux de bois, panneaux noirs, livres.
+- La caisse du coin (la plus basse, contre le mur est) est vidée de ses livres : elle porte le switch PoE (six voyants marqués `blink`) et le mini PC. Sur le meuble noir le plus haut : la box (ronde, blanche, barrée de noir) et, posé sur elle, le pont Hue.

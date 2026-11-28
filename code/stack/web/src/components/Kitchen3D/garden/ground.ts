@@ -131,9 +131,9 @@ export const lawns = (group: THREE.Group, m: GardenMaterials): void => {
     const at = ([planX, planY]: PlanPoint, y: number): THREE.Vector3 => new THREE.Vector3(gardenX(planY), y, gardenZ(planX))
     points.slice(1).forEach((point, index) => group.add(quad([at(points[index], -2.2), at(point, -2.2), at(point, top), at(points[index], top)], skirt)))
   }
-  const [lowTop, northEast, northWest] = [-LOW - 0.02, [LOT.east, LOT.north] as PlanPoint, [LOT.centerX - LOT.radius, LOT.north] as PlanPoint]
+  const [lowTop, northEast, northWest] = [-LOW - 0.02, [LOT.east, LOT.north] as PlanPoint, [LOT.centerX - LAWN_RADIUS, LOT.north] as PlanPoint]
   border([[LOT.centerX, LOT.centerY + LAWN_RADIUS + 0.4], [LOT.east, LOT.centerY + LOT.radius], [LOT.east, CAGE_NORTH]], -0.02)
-  border([[LOT.east, CAGE_NORTH], northEast, northWest, [LOT.centerX - LOT.radius, LOT.centerY], ...arc(LOT.radius, [LOT.centerX - LOT.radius, LOT.centerY], stepWest)], lowTop)
+  border([[LOT.east, CAGE_NORTH], northEast, northWest, [LOT.centerX - LAWN_RADIUS, LOT.centerY], ...arc(LAWN_RADIUS, [LOT.centerX - LAWN_RADIUS, LOT.centerY], stepWest)], lowTop)
   // Dans la rue, le long de la haie : un trottoir de 1 m, à la hauteur du portail du garage (en bas), qui monte légèrement jusqu'au portillon (au niveau de son chemin),
   // et continue jusqu'au bout de chaque côté au même niveau. Il a 20 cm d'épaisseur.
   const [gateMiddle, wicketMiddle] = [(gateFrom + gateTo) / 2, (wicketFrom + wicketTo) / 2]
@@ -153,12 +153,17 @@ export const lawns = (group: THREE.Group, m: GardenMaterials): void => {
     group.add(quad([at(polar(inner, from), levelFrom), at(polar(inner, to), levelTo), at(polar(outer, to), levelTo), at(polar(outer, from), levelFrom)], walk))
     group.add(quad([at(polar(outer, from), levelFrom), at(polar(outer, to), levelTo), at(polar(outer, to), levelTo - 0.2), at(polar(outer, from), levelFrom - 0.2)], walk))
   }
-  const lowLawn: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LOT.radius, LOT.north], ...arc(LOT.radius, [LOT.centerX - LOT.radius, LOT.centerY], stepWest), [midPlan, stepY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
+  // Au coin nord-ouest, l'arc s'arrête mais la propriété continue tout droit vers le nord : le trottoir aussi, le long de la limite ouest, jusqu'au bout (au niveau du portail).
+  const streetAt = ([planX, planY]: PlanPoint, y: number): THREE.Vector3 => new THREE.Vector3(gardenX(planY), y, gardenZ(planX))
+  const [westInner, westOuter, westLevel] = [LOT.centerX - inner, LOT.centerX - outer, pavement(Math.PI)]
+  group.add(quad([streetAt([westInner, LOT.centerY], westLevel), streetAt([westInner, LOT.north], westLevel), streetAt([westOuter, LOT.north], westLevel), streetAt([westOuter, LOT.centerY], westLevel)], walk))
+  group.add(quad([streetAt([westOuter, LOT.centerY], westLevel), streetAt([westOuter, LOT.north], westLevel), streetAt([westOuter, LOT.north], westLevel - 0.2), streetAt([westOuter, LOT.centerY], westLevel - 0.2)], walk))
+  const lowLawn: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LAWN_RADIUS, LOT.north], ...arc(LAWN_RADIUS, [LOT.centerX - LAWN_RADIUS, LOT.centerY], stepWest), [midPlan, stepY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
   group.add(flat(lowLawn, grass, -LOW - 0.02))
   // L'herbe de la partie basse est surélevée de 10 cm par rapport au béton qui longe la maison : la même surface, moins la bande de béton.
   const bandY = stepY - (TERRACE + BASE.setback) * UNITS_PER_METER
   const bandWest = PLAN.west - (OUTER_WALL + TERRACE) * UNITS_PER_METER
-  const highGrass: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LOT.radius, LOT.north], ...arc(LOT.radius, [LOT.centerX - LOT.radius, LOT.centerY], stepWest), [bandWest, stepY], [bandWest, bandY], [midPlan, bandY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
+  const highGrass: PlanPoint[] = [[LOT.east, LOT.north], [LOT.centerX - LAWN_RADIUS, LOT.north], ...arc(LAWN_RADIUS, [LOT.centerX - LAWN_RADIUS, LOT.centerY], stepWest), [bandWest, stepY], [bandWest, bandY], [midPlan, bandY], [midPlan, recessPlan], [stepX, recessPlan], [stepX, CAGE_NORTH], [LOT.east, CAGE_NORTH]]
   group.add(flat(highGrass, grass, GRASS))
   const bandNorth = gardenX(bandY)
   const bandFrom = gardenZ(bandWest)
@@ -376,7 +381,7 @@ export const paving = (group: THREE.Group, m: GardenMaterials): void => {
   group.add(quad([at([stepWest, front], stairLevel), at([openTo, front], stairLevel), at([openTo, front], wallLevel(openHigh)), at([stepWest, front], wallLevel(0))], formed, true))
   for (const [edge, share] of [[stepWest, 0], [openTo, openHigh]]) group.add(quad([at([edge, front], stairLevel), at([edge, y], stairLevel), at([edge, y], wallLevel(share)), at([edge, front], wallLevel(share))], formed, true))
   // En bas de la pente, en travers de l'allée : un caniveau à grille pour l'eau, de 8 cm de large (un fond sombre, un cadre et des barrettes de fonte), du mur de gauche au mur plein de droite.
-  const drain = { wide: 0.08, z: gardenZ(rampEnd) - 0.05, y: deep + 0.004 }
+  const drain = { wide: 0.08, z: gardenZ(rampEnd) - 0.01, y: deep + 0.004 }
   const [drainNorth, drainSouth] = [gardenX(gateNorth[1]), gardenX(curbFar)]
   const drainLong = drainNorth - drainSouth
   const drainMiddle = (drainNorth + drainSouth) / 2

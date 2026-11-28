@@ -43,6 +43,10 @@ describe('petalLamp', () => {
     expect(meshes.filter((mesh) => mesh.geometry.type === 'CircleGeometry')).toHaveLength(0)
     // Par pétale : le cerclage et onze rayons ; plus l'ampoule, la rosace et la tige.
     expect(meshes).toHaveLength(8 * 12 + 3)
+    // Le nombre de pétales se choisit (cinq au bureau) : ils se partagent le tour.
+    const five = petalLamp(furnitureMaterials(), true, 'salle à manger', 0.65, 5)
+    expect(meshesOf(five)).toHaveLength(5 * 12 + 3)
+    expect(five.children[0].children.slice(0, 5).map((holder) => holder.rotation.y)).toEqual([0, 1, 2, 3, 4].map((petal) => expect.closeTo((petal / 5) * Math.PI * 2)))
   })
 })
 

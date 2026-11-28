@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
-import { cageFrame, cagePanels, cageRoof, cageTools, cageWire, planters } from './aviary'
+import { BULB_OFF } from '@/components/Kitchen3D/primitives'
+import { cageComfort, cageFrame, cagePanels, cageRoof, cageTools, cageWire, planters } from './aviary'
 import { CAGE_HEIGHT, CAGE_LOW, GRASS, LOW, PANEL } from './constants'
 import { SITE } from './layout'
 
@@ -115,13 +116,24 @@ describe('cageRoof', () => {
 })
 
 describe('cagePanels', () => {
-  it('onze pans de bois à planches (face sud, côté haie, fond, cloison) et deux portes, la même de chaque côté', () => {
+  it('onze pans de bois à planches (face sud, côté haie, fond, cloison), deux portes, la même de chaque côté, et trois panneaux d’OSB à la limite des deux toits', () => {
     const { meshes, m } = built(cagePanels)
     const wood = meshes.filter((mesh) => mesh.material === m.post)
     const iron = meshes.filter((mesh) => mesh.material === m.iron)
     // Deux portes à trois pentures (deux pièces chacune) et un loquet : sept pièces de fer chacune.
     expect(iron).toHaveLength(14)
-    expect(wood).toHaveLength(meshes.length - 14)
+    // Les panneaux d'OSB : trois, d'un même matériau, debout sur toute la hauteur, côte à côte depuis le fond, sur la limite entre la tôle et le grillage.
+    const osb = meshes.filter((mesh) => mesh.material !== m.post && mesh.material !== m.iron)
+    expect(osb).toHaveLength(3)
+    expect(new Set(osb.map((panel) => panel.material)).size).toBe(1)
+    expect(((osb[0].material as THREE.MeshStandardMaterial).color.getHex())).toBe(0xc9a56b)
+    osb.forEach((panel, index) => {
+      expect(panel.position.z).toBe(SITE.turnZ)
+      expect(panel.position.x).toBeCloseTo(SITE.cageX2 - PANEL * (index + 0.5))
+      expect(sizeOf(panel).height).toBeCloseTo(CAGE_HEIGHT - 0.02)
+      expect(sizeOf(panel).width).toBeCloseTo(PANEL - 0.01)
+    })
+    expect(wood).toHaveLength(meshes.length - 14 - 3)
     // Aucune pièce ne dépasse la hauteur de la cage ; toutes sont posées au-dessus du sol.
     for (const piece of meshes) {
       expect(piece.position.y + sizeOf(piece).height / 2).toBeLessThanOrEqual(CAGE_HEIGHT + 0.001)
@@ -205,6 +217,41 @@ describe('planters', () => {
     expect(plants[3].position.x).toBeCloseTo(SITE.cageX2 - 0.55)
     // Trois fougères différentes (une graine chacune).
     expect(new Set(plants.slice(0, 3).map((plant) => (plant.children[0] as THREE.Mesh).geometry.attributes.position.getX(0))).size).toBe(3)
+  })
+})
+
+describe('cageComfort', () => {
+  it('la lampe des perruches (une boule d’osier par terre) et le radiateur blanc contre les panneaux d’OSB, à cliquer, avec son voyant', () => {
+    const group = new THREE.Group()
+    cageComfort(group)
+    expect(group.children).toHaveLength(3)
+    const [wicker, bulb, heater] = group.children as [THREE.Mesh, THREE.Mesh, THREE.Group]
+    // La boule d'osier : en fil, sans ombre ; son ampoule au milieu, au nom de la lampe « perruche ».
+    expect((wicker.material as THREE.MeshStandardMaterial).wireframe).toBe(true)
+    expect(wicker.userData.noShadow).toBe(true)
+    expect(wicker.geometry.type).toBe('IcosahedronGeometry')
+    expect(bulb.position.toArray()).toEqual(wicker.position.toArray())
+    expect(bulb.position.y).toBe(0.16)
+    expect(bulb.userData).toEqual({ fixture: true, fixtureName: 'perruche' })
+    expect((bulb.material as THREE.MeshBasicMaterial).color.getHex()).toBe(BULB_OFF)
+    // Le radiateur : posé par terre, au milieu des trois panneaux, juste devant eux (côté toit de tôle), parallèle à eux.
+    expect(heater.userData).toEqual({ plug: true })
+    expect(heater.position.x).toBeCloseTo(SITE.cageX2 - PANEL * 1.5)
+    expect(heater.position.y).toBe(0)
+    expect(heater.position.z).toBeCloseTo(SITE.turnZ + 0.09)
+    expect(heater.rotation.y).toBe(0)
+    // La lampe est à côté de lui, à 50 cm.
+    expect(heater.position.x - wicker.position.x).toBeCloseTo(0.5)
+    // Un corps, un bandeau, sept ailettes, deux pieds, un voyant.
+    expect(heater.children).toHaveLength(12)
+    const fins = (heater.children as THREE.Mesh[]).filter((part) => part.geometry.type === 'BoxGeometry' && sizeOf(part).width === 0.012)
+    expect(fins).toHaveLength(7)
+    const leds = heater.children.filter((part) => part.userData.plugLed === true) as THREE.Mesh[]
+    expect(leds).toHaveLength(1)
+    expect(leds[0].material).toBeInstanceOf(THREE.MeshBasicMaterial)
+    expect((leds[0].material as THREE.MeshBasicMaterial).color.getHex()).toBe(0x4a4640)
+    // Rien ne dépasse 55 cm de haut.
+    expect(new THREE.Box3().setFromObject(heater).max.y).toBeLessThan(0.55)
   })
 })
 

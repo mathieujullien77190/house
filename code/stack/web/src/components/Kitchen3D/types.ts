@@ -1,5 +1,7 @@
 import type * as THREE from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import type { AcLabels, CameraState } from './matrix'
+import type { Spill } from './spill'
 
 /** Ce qu'un caisson montre en façade : une porte, des tiroirs, le four et son tiroir, le lave-vaisselle, la porte sous l'évier ou le casier à bouteilles. */
 export type ModuleKind = 'door' | 'drawers' | 'oven' | 'dishwasher' | 'sink' | 'wine'
@@ -46,9 +48,12 @@ export interface SceneLamp {
 
 /** L'éclairage de la scène par les lampes Hue : `apply` le met à jour. */
 export interface Lighting {
-  apply: (lamps: SceneLamp[]) => void
+  /** `flagUnreachable` (vue Matrix) : l'ampoule d'une lampe injoignable est rouge. */
+  apply: (lamps: SceneLamp[], flagUnreachable?: boolean) => void
   /** La lampe visée par un rayon (celui de la souris) : son identifiant, ou null si le rayon ne passe près d'aucune ampoule. */
   pick: (ray: THREE.Ray) => string | null
+  /** Les lampes allumées de la scène : leur place, leur force, leur couleur, et si elles sont dans la maison. */
+  sources: () => { position: THREE.Vector3; intensity: number; color: THREE.Color; indoor: boolean }[]
 }
 
 /** Ce que la scène expose au composant pour réagir aux boutons et à la maison. */
@@ -60,12 +65,24 @@ export interface SceneHandle {
   sun: THREE.DirectionalLight
   controls: OrbitControls
   lighting: Lighting
+  /** La lumière des lampes qui sort par les fenêtres aux volets ouverts. */
+  spill: Spill
+  /** Les étiquettes de température des clims (vue Matrix). */
+  labels: AcLabels
   /** Demande une image : la scène n'est dessinée que quand quelque chose a changé. `shadows` : l'ombre du soleil est aussi à refaire. */
   invalidate: (shadows?: boolean) => void
   resetView: () => void
   topView: () => void
   /** La vue « Matrix » : seulement les arêtes de la scène, en vert sur fond noir, et les caméras telles quelles. */
   matrix: (on: boolean) => void
+  /** En vue Matrix, remet la couleur des cercles des lampes : jaunes allumées, rouges éteintes. */
+  tintLamps: () => void
+  /** Le thème de la vue Matrix : clair (gris sur fond clair, thème clair de la WebApp) ou sombre (verts sur fond noir). */
+  matrixTheme: (light: boolean) => void
+  /** En vue Matrix, la couleur des cercles des caméras d'après leur état (vert en marche, orange en démarrage, rouge coupée ou inconnue). */
+  tintCameras: (states: Record<string, CameraState>) => void
+  /** En vue Matrix, la couleur des cercles des clims (par identifiant) et du radiateur (`plug`) : verts en marche, rouges sinon. */
+  tintDevices: (running: Record<string, boolean | null>) => void
 }
 
 /** La lumière de la scène : plein jour forcé (`day`), ou le jour qu'il fait vraiment à cette heure (`now`). */

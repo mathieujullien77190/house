@@ -42,11 +42,18 @@ describe('bathroom', () => {
     expect(inside(group, [REST.bathSouth, ROOM.xMax, REST.bathWest, ROOM.zMin], 0.2)).toBe(true)
   })
 
-  it('six spots au plafond, un par lampe Hue : trois dans l’allée, un sur la douche, deux devant le miroir', () => {
+  it('six spots au plafond, un par lampe Hue : trois dans l’allée, un sur la douche, deux devant le miroir ; un septième dans l’alcôve des WC', () => {
     const { m, meshes } = build()
-    const bulbs = meshes.filter((mesh) => mesh.userData.fixture === true)
-    expect(bulbs.map((bulb) => bulb.userData.fixtureName)).toEqual(['sdb 1', 'sdb 4', 'sdb 3', 'sdb 5', 'sdb 6', 'sdb 7'])
-    expect(new Set(bulbs.map((bulb) => bulb.material)).size).toBe(6)
+    const all = meshes.filter((mesh) => mesh.userData.fixture === true)
+    expect(all.map((bulb) => bulb.userData.fixtureName)).toEqual(['sdb 1', 'sdb 4', 'sdb 3', 'sdb 5', 'sdb 2', 'sdb 6', 'sdb 7'])
+    expect(new Set(all.map((bulb) => bulb.material)).size).toBe(7)
+    // Le spot de l'alcôve des WC (« sdb 2 ») : sous son plafond, dans l'épaisseur du mur, avec sa collerette chromée.
+    const alcove = all[4]
+    expect(alcove.position.y).toBeCloseTo(WC_ALCOVE.bottom + WC_ALCOVE.height - 0.016)
+    expect(alcove.position.z).toBeCloseTo(ROOM.zMin + WC_ALCOVE.depth / 2)
+    const alcoveCollar = meshes.filter((mesh) => mesh.material === m.chrome && mesh.geometry.type === 'CylinderGeometry' && (mesh.geometry as THREE.CylinderGeometry).parameters.height === 0.01)
+    expect(alcoveCollar.map((collar) => [collar.position.x, collar.position.z])).toEqual([[alcove.position.x, alcove.position.z]])
+    const bulbs = all.filter((bulb) => bulb !== alcove)
     for (const bulb of bulbs) expect(bulb.position.y).toBeCloseTo(ROOM.height - 0.02)
     // L'allée : en ligne, de la fenêtre (nord) à la porte (sud).
     const aisle = bulbs.slice(0, 3)

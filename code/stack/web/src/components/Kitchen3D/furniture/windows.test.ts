@@ -50,6 +50,15 @@ describe('windowOnWall', () => {
     expect(slats.children[0].position.y).toBeCloseTo(0.5 - 0.025)
     expect(slats.children[19].position.y).toBeCloseTo(-0.5 + 0.025)
     for (const slat of slats.children) expect((slat as THREE.Mesh).material).toBe(m.slat)
+    // Une lame : un profil et une âme fondus en une géométrie ; l'âme dépasse le pas (5 cm), pour qu'aucun jour ne passe entre deux lames.
+    const shape = (slats.children[0] as THREE.Mesh).geometry
+    expect(shape.type).toBe('BufferGeometry')
+    shape.computeBoundingBox()
+    const size = (shape.boundingBox as THREE.Box3).getSize(new THREE.Vector3())
+    expect(size.y).toBeCloseTo(0.052)
+    expect(size.x).toBeCloseTo(0.015)
+    // D'un montant à l'autre (1 m moins deux montants de 5 cm), avec un demi-centimètre de recouvrement de chaque côté.
+    expect(size.z).toBeCloseTo(0.91)
   })
 
   it('sans volet relié : trois vitres, les lames cachées et sans marque ; dans le mur d’en face, elle est retournée', () => {

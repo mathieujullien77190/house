@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from '@/components/MapPlan/constants'
 import { KITCHEN, LAMP_LIGHT, PLAN_HOUSE, ROOM } from './constants'
+import { INDOOR, OUTDOOR } from './layers'
 import { createLighting, lampPlace } from './lighting'
 import { BULB_OFF, cylinder, fixtureBulb, standard } from './primitives'
 import type { SceneLamp } from './types'
@@ -161,6 +162,48 @@ describe('createLighting', () => {
     expect(colorOf(second).getHex()).not.toBe(BULB_OFF)
     expect(twin.position.toArray()).toEqual([4, LAMP_LIGHT.height - 0.12, 4])
     expect(owns().map((own) => own.visible)).toEqual([false, false, true])
+  })
+})
+
+describe('createLighting : dedans, dehors, injoignable', () => {
+  it('en vue Matrix (`flagUnreachable`), l’ampoule d’une lampe injoignable est rouge, luminaire ou ampoule nue ; les autres gardent leur couleur', () => {
+    const { lighting, lights, owns, first, second, colorOf } = stage()
+    lighting.apply([lamp('a', 0, 0, { reachable: false }), lamp('c', 1, 0, { on: false }), lamp('far', 4, 4, { reachable: false })], true)
+    expect(colorOf(first).getHex()).toBe(0xff2a1f)
+    expect(colorOf(second).getHex()).toBe(BULB_OFF)
+    expect(colorOf(owns()[2].children[0] as THREE.Mesh).getHex()).toBe(0xff2a1f)
+    expect(lights().map((light) => light.visible)).toEqual([false, false, false])
+    // Joignable et allumée : sa couleur, comme hors de la vue Matrix.
+    lighting.apply([lamp('a', 0, 0, { color: '#00ff00' })], true)
+    expect(colorOf(first).getHex()).toBe(new THREE.Color('#00ff00').lerp(new THREE.Color(0xffffff), 0.35).getHex())
+    // Hors de la vue Matrix, une lampe injoignable est seulement éteinte.
+    lighting.apply([lamp('a', 0, 0, { reachable: false })])
+    expect(colorOf(first).getHex()).toBe(BULB_OFF)
+  })
+
+  it('une lampe du dedans n’éclaire que la maison (couche 0), une lampe du dehors que le jardin (couche 1)', () => {
+    const root = new THREE.Group()
+    // Un luminaire dans la maison, un autre dans le jardin (la lampe de la cage), nommé.
+    root.add(fixtureBulb(cylinder(0.05, 0.05, 0.1, standard(0xffffff, 1), 0, 2, 0)), fixtureBulb(cylinder(0.05, 0.05, 0.1, standard(0xffffff, 1), 20, 0.2, 20), 'perruche'))
+    const lighting = createLighting(root)
+    const lights = () => (root.children.at(-1) as THREE.Group).children.filter((child): child is THREE.PointLight => (child as THREE.PointLight).isPointLight)
+    // « perruche » n'a pas de place sur le plan (0, 0) : c'est la place de son luminaire qui dit qu'elle est dehors. Les deux autres, sans luminaire, d'après leur place.
+    lighting.apply([lamp('in', 0, 0), lamp('cage', 0, 0, { name: 'Perruche' }), lamp('bare-in', -3, 3), lamp('bare-out', 30, 30)])
+    expect(lights().map((light) => light.layers.mask)).toEqual([1 << INDOOR, 1 << OUTDOOR, 1 << INDOOR, 1 << OUTDOOR])
+  })
+
+  it('`sources` : les lampes allumées, leur place, leur force, leur couleur, et si elles sont dans la maison', () => {
+    const { lighting, lights } = stage()
+    expect(lighting.sources()).toEqual([])
+    lighting.apply([lamp('a', 0, 0, { color: '#ff0000', brightness: 127 }), lamp('off', 1, 0, { on: false }), lamp('far', 30, 30), lamp('lost', -3, 3, { reachable: false })])
+    const [a, , far] = lights()
+    const sources = lighting.sources()
+    expect(sources).toHaveLength(2)
+    expect(sources[0]).toEqual({ position: a.position, intensity: a.intensity, color: a.color, indoor: true })
+    expect(sources[0].intensity).toBeCloseTo((127 / 254) * LAMP_LIGHT.intensity)
+    expect(sources[0].color.getHex()).toBe(hex('#ff0000'))
+    expect(sources[1].position).toBe(far.position)
+    expect(sources[1].indoor).toBe(false)
   })
 })
 

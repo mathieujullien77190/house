@@ -1,10 +1,17 @@
-import { createMatrix } from './matrix'
+import { createAcLabels, createMatrix } from './matrix'
+import type { CameraState } from './matrix'
+import { createTv } from './tv'
+import { createSpill } from './spill'
+import { OUTDOOR, renderLayers, splitLayers } from './layers'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Button, Tabs } from '@house/ui'
 import { disposeObject, supportsWebGL } from '@/lib/three'
+import { fetchPower, setPlug } from '@/lib/api'
 import { useAcUnits } from '@/lib/useAcUnits'
+import { usePlug } from '@/lib/usePlug'
+import { useSensors } from '@/lib/useSensors'
 import { useMobile } from '@/lib/useMobile'
 import { useLampPlan } from '@/lib/useLampPlan'
 import { usePlan } from '@/lib/usePlan'
@@ -13,6 +20,7 @@ import { useWeather } from '@/lib/useWeather'
 import { HOUSE_LATITUDE, HOUSE_LONGITUDE } from '@/components/Weather/constants'
 import {
   ARIA_LABEL,
+  BASE,
   DAYLIGHT,
   BUTTONS_CLASS,
   SHUTTER_ANIMATE_MS,
@@ -29,7 +37,9 @@ import {
   MATRIX_LABEL,
   NO_WEBGL_TEXT,
   QUALITY,
+  REST,
   RESET_LABEL,
+  ROOM,
   START,
   TARGET,
   TITLE,
@@ -38,6 +48,7 @@ import {
   TOP_LABEL,
   VIEW_HEIGHT,
 } from './constants'
+import { SITE } from './garden/layout'
 import { loadLight, saveLight } from './light'
 import { acMeshes, applyAcLed, applyClock, cameraMeshes } from './live'
 import { buildScene } from './helpers'
@@ -61,7 +72,8 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   // La lumière : plein jour forcé, ou le jour qu'il fait vraiment ; choisie au-dessus de la vue, gardée sur l'appareil.
   const [light, setLight] = useState(loadLight)
   // La vue « Matrix » : éteinte à chaque ouverture (rien n'est gardé).
-  const [matrixOn, setMatrixOn] = useState(false)
+  // Sur téléphone, la scène ne se montre qu'en vue Matrix (pas de bouton pour en sortir).
+  const [matrixOn, setMatrixOn] = useState(mobile)
   const toggleMatrix = () => {
     sceneRef.current?.matrix(!matrixOn)
     setMatrixOn(!matrixOn)
@@ -84,6 +96,27 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   // L'état de chaque clim : en marche, à l'arrêt, ou inconnu (injoignable).
   const acPowers: Record<string, boolean | null> = Object.fromEntries((ac.units ?? []).map((unit) => [unit.id, unit.reachable ? unit.power : null]))
   const acKey = JSON.stringify(acPowers)
+  // La prise connectée (le chauffage de la cage) : son état, relu toutes les 5 s ; un clic sur le radiateur de la scène l'allume ou l'éteint.
+  const plug = usePlug(apiKey, true)
+  const plugOn = plug ? plug.on : null
+  const togglePlug = () => {
+    if (plugOn !== null) void setPlug(apiKey, !plugOn).catch(() => undefined)
+  }
+  const togglePlugRef = useRef(togglePlug)
+  useEffect(() => {
+    togglePlugRef.current = togglePlug
+  })
+  // La température de chaque pièce, lue par sa clim (inconnue si elle est injoignable).
+  // Avec celles des détecteurs Hue : la salle de bain (détecteur 60), et la cage à perruches (détecteurs 54 et 57 : celui du dedans, celui du dehors, d'après leur nom).
+  const sensors = useSensors(apiKey, true)
+  const sensorTemp = (pick: (sensor: (typeof sensors)[number]) => boolean): number | null => sensors.find((sensor) => pick(sensor) && sensor.reachable)?.temperature ?? null
+  const cage = (sensor: (typeof sensors)[number]): boolean => sensor.id === '54' || sensor.id === '57'
+  const acTempsKey = JSON.stringify({
+    ...Object.fromEntries((ac.units ?? []).map((unit) => [unit.id, unit.reachable ? unit.roomTemp : null])),
+    sdb: sensorTemp((sensor) => sensor.id === '60'),
+    'cage-in': sensorTemp((sensor) => cage(sensor) && !sensor.name.toLowerCase().includes('ext')),
+    'cage-out': sensorTemp((sensor) => cage(sensor) && sensor.name.toLowerCase().includes('ext')),
+  })
   // Un clic sur la clim de la scène l'allume ou l'éteint (rien si son état n'est pas connu).
   const toggleAc = (id: string) => {
     const power = acPowers[id] ?? null
@@ -145,6 +178,8 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     scene.add(parts.root)
     // Une lumière d'ambiance faible, et le soleil : dosés plus bas selon le jour qui entre ; le reste vient des lampes de la maison.
     const ambient = new THREE.HemisphereLight(0xffffff, 0xb59a7a, DAYLIGHT.night)
+    // L'ambiance et le soleil éclairent la maison et le jardin (les deux couches).
+    ambient.layers.enable(OUTDOOR)
     scene.add(ambient)
     const sun = new THREE.DirectionalLight(0xfff4e0, 0)
     sun.position.set(3, 9, 7)
@@ -157,7 +192,9 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     sun.shadow.camera.near = 0.5
     sun.shadow.camera.far = 30
     sun.shadow.bias = -0.0005
+    sun.layers.enable(OUTDOOR)
     scene.add(sun)
+    splitLayers(parts.root)
     const lighting = createLighting(parts.root)
     applyClock(parts.root, new Date())
 
@@ -201,9 +238,12 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
         controls.update()
         if (dirty) {
           dirty = false
-          if (stale) renderer.shadowMap.needsUpdate = true
+          const shadows = stale
           stale = false
-          renderer.render(scene, camera)
+          // La télé allumée est redessinée d'abord : elle montre la vue d'une caméra de la scène.
+          if (tv.active()) tv.render(renderer, scene, !sun.visible)
+          // Le jardin puis la maison, chacun avec ses lampes (elles ne traversent pas les murs).
+          renderLayers(renderer, scene, camera, shadows)
         }
       }
       if (moving && frame === 0) frame = requestAnimationFrame(tick)
@@ -228,6 +268,26 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       setHour(now.getHours())
       invalidate(true)
     }, 15_000)
+    // Les voyants du switch (marqués `userData.blink`, leur rang) clignotent comme ceux de prises RJ45, chacun à son rythme : les pairs sont des voyants de lien (verts, presque
+    // toujours allumés, un bref clin de temps en temps), les impairs des voyants d'activité (jaunes, qui papillotent sans arrêt). Une image n'est redemandée que si l'un d'eux change.
+    const blinkers: { light: THREE.MeshBasicMaterial; link: boolean; on: boolean; next: number }[] = []
+    parts.root.traverse((object) => {
+      if (object.userData.blink !== undefined) blinkers.push({ light: (object as THREE.Mesh).material as THREE.MeshBasicMaterial, link: (object.userData.blink as number) % 2 === 0, on: true, next: 0 })
+    })
+    const blinkTimer = setInterval(() => {
+      if (!visible || blinkers.length === 0) return
+      const now = performance.now()
+      let changed = false
+      for (const blinker of blinkers) {
+        if (now < blinker.next) continue
+        blinker.on = !blinker.on
+        // Lien : allumé 2 à 7 s, éteint 0,1 s. Activité : allumé ou éteint 60 à 400 ms.
+        blinker.next = now + (blinker.link ? (blinker.on ? 2000 + Math.random() * 5000 : 100) : 60 + Math.random() * 340)
+        blinker.light.color.set(blinker.on ? (blinker.link ? 0x35d06a : 0xf2c531) : 0x1c2a1e)
+        changed = true
+      }
+      if (changed) invalidate()
+    }, 60)
     const noAutoscroll = (e: MouseEvent) => {
       if (e.button === 1) e.preventDefault()
     }
@@ -235,6 +295,8 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
 
     // Les ampoules se cliquent : la souris devient une main au-dessus d'une ampoule, un clic sans glisser l'allume ou l'éteint.
     const raycaster = new THREE.Raycaster()
+    // Les clics visent la maison comme le jardin.
+    raycaster.layers.enableAll()
     const aim = new THREE.Vector2()
     const canvas = renderer.domElement
     // La molette avance ou recule la caméra d'un pas fixe vers ce qui est sous la souris, sans limite : le pas ne dépend pas de la distance
@@ -271,6 +333,17 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       }
       return nearest?.name ?? null
     }
+    // La télé du salon : un clic sur son écran (ou sur un écran du bureau) y montre la vue 3D d'une caméra de la scène, puis de la suivante, puis l'éteint.
+    const tv = createTv(parts.root)
+    let before: { position: THREE.Vector3; target: THREE.Vector3 } | null = null
+    let shown: THREE.Mesh | null = null
+    const tvUnder = (): THREE.Mesh | null => (raycaster.intersectObjects(tv.screens, false)[0]?.object as THREE.Mesh | undefined) ?? null
+    // Le radiateur de la cage (marqué `userData.plug`) : un clic allume ou éteint la prise connectée.
+    const heaters: THREE.Object3D[] = []
+    parts.root.traverse((object) => {
+      if (object.userData.plug === true) heaters.push(object)
+    })
+    const plugUnder = (): boolean => raycaster.intersectObjects(heaters, true).length > 0
     // Les fenêtres à volet aussi : la plus proche de l'œil sous le rayon.
     const windows = shutterWindows(parts.root)
     const shutterUnder = (): string | null => {
@@ -290,7 +363,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       pressed = e.button === 0 ? { x: e.clientX, y: e.clientY } : null
     }
     const onPointerMove = (e: PointerEvent) => {
-      if (e.buttons === 0) canvas.style.cursor = lampUnder(e) || acUnder() !== null || cameraUnder() !== null || shutterUnder() ? 'pointer' : ''
+      if (e.buttons === 0) canvas.style.cursor = lampUnder(e) || acUnder() !== null || cameraUnder() !== null || tvUnder() !== null || plugUnder() || shutterUnder() ? 'pointer' : ''
     }
     const onPointerUp = (e: PointerEvent) => {
       const start = pressed
@@ -307,6 +380,35 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
         const name = cameraUnder()
         if (name) {
           openCameraRef.current?.(name)
+          return
+        }
+        if (plugUnder()) {
+          togglePlugRef.current()
+          return
+        }
+        const screen = tvUnder()
+        if (screen) {
+          // Au premier clic, la vue vient se placer en face de la télé (à sa hauteur) ; la place d'avant est gardée, et retrouvée quand on a fait le tour des caméras (l'écran s'éteint).
+          if (!tv.active()) before = { position: camera.position.clone(), target: controls.target.clone() }
+          // La vue se place en face de l'écran cliqué (au premier clic, ou si on change d'écran en cours de route).
+          if (shown !== screen) {
+            shown = screen
+            const center = screen.getWorldPosition(new THREE.Vector3())
+            const facing = new THREE.Vector3(0, 0, (screen.userData.tvFacing as number | undefined) ?? 1).applyQuaternion(screen.getWorldQuaternion(new THREE.Quaternion()))
+            // Plus l'écran est petit, plus on s'en approche (2,20 m pour la télé, 1 m environ pour un écran du bureau).
+            const wide = (screen.geometry as THREE.BoxGeometry).parameters.width
+            camera.position.copy(center).addScaledVector(facing, Math.max(0.9, wide * 1.8))
+            controls.target.copy(center)
+          }
+          tv.next(screen)
+          if (!tv.active()) shown = null
+          if (!tv.active() && before) {
+            camera.position.copy(before.position)
+            controls.target.copy(before.target)
+            before = null
+          }
+          controls.update()
+          invalidate()
           return
         }
         const shutter = shutterUnder()
@@ -348,17 +450,36 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
 
     // La vue Matrix : fond noir opaque et arêtes vertes ; à la sortie, le fond redevient transparent.
     const showMatrix = createMatrix(parts.root)
+    // En vue Matrix, la température de chaque pièce s'affiche à côté de sa clim (une étiquette toujours tournée vers l'utilisateur).
+    const labels = createAcLabels(parts.root, [
+      { id: 'sdb', at: new THREE.Vector3((REST.bathSouth + ROOM.xMax) / 2, 1.9, (REST.bathWest + ROOM.zMin) / 2) },
+      // Dans la cage : dans le coin du fond (les deux pans de bois, côté haie). Dehors : juste au-dessus de la caméra « volière extérieur ».
+      { id: 'cage-in', at: new THREE.Vector3(SITE.cageX2 - 0.25, 1.5 - BASE.rise, SITE.cageZ2 - 0.25) },
+      { id: 'cage-out', at: new THREE.Vector3(SITE.cageX2 - 0.2, 0.9 - BASE.rise, SITE.cageZ1 + 0.14 + 0.85) },
+    ])
+    let matrixShown = false
+    let background = 0x000000
     const matrix = (on: boolean) => {
+      matrixShown = on
       showMatrix(on)
-      renderer.setClearColor(0x000000, on ? 1 : 0)
+      showMatrix.tint()
+      labels.show(on)
+      renderer.setClearColor(background, on ? 1 : 0)
       invalidate(true)
     }
-    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, invalidate, resetView: () => lookFrom(START), topView: () => lookFrom(TOP), matrix }
+    const matrixTheme = (day: boolean) => {
+      background = showMatrix.theme(day)
+      renderer.setClearColor(background, matrixShown ? 1 : 0)
+      invalidate(true)
+    }
+    sceneRef.current = { root: parts.root, ambient, sun, controls, lighting, spill: createSpill(parts.root), labels, invalidate, resetView: () => lookFrom(START), topView: () => lookFrom(TOP), matrix, matrixTheme, tintLamps: showMatrix.tint, tintCameras: showMatrix.cameras, tintDevices: showMatrix.devices }
+    if (quality.matrixOnly) matrix(true)
 
     return () => {
       cancelAnimationFrame(frame)
       unwatch()
       clearInterval(clockTimer)
+      clearInterval(blinkTimer)
       controls.removeEventListener('change', onMove)
       observer.disconnect()
       host.removeEventListener('mousedown', noAutoscroll)
@@ -367,6 +488,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', onPointerUp)
       visibility.disconnect()
+      tv.dispose()
       controls.dispose()
       disposeObject(scene)
       sun.shadow.map?.dispose()
@@ -382,9 +504,12 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
   useEffect(() => {
     const current = sceneRef.current
     if (!current) return
-    current.lighting.apply(JSON.parse(lampsKey) as SceneLamp[])
+    current.lighting.apply(JSON.parse(lampsKey) as SceneLamp[], matrixOn)
+    current.tintLamps()
+    // Par les fenêtres aux volets ouverts, un peu de la lumière des lampes sort dehors.
+    current.spill.apply(current.lighting.sources(), JSON.parse(closedKey) as Record<string, number>)
     current.invalidate()
-  }, [lampsKey, supported])
+  }, [lampsKey, closedKey, supported, matrixOn])
 
   // Les volets de la scène se règlent, et le jour qui entre avec eux : la part de vitre découverte, fois la clarté du ciel, éclaire toute
   // la pièce d'une manière générale (ambiance et soleil), sans rayon par fenêtre.
@@ -398,6 +523,8 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     current.sun.intensity = DAYLIGHT.sun * daylight
     // Un soleil éteint ne compte plus dans les programmes ni dans la carte d'ombre.
     current.sun.visible = current.sun.intensity > 0
+    // En vue Matrix, la couleur des volets suit leur état.
+    current.tintLamps()
     current.invalidate(true)
   }, [closedKey, sky, light, supported])
 
@@ -406,8 +533,62 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
     const current = sceneRef.current
     if (!current) return
     applyAcLed(current.root, JSON.parse(acKey) as Record<string, boolean | null>)
+    current.labels.apply(JSON.parse(acTempsKey) as Record<string, number | null>, JSON.parse(acKey) as Record<string, boolean | null>)
     current.invalidate()
-  }, [acKey, supported])
+  }, [acKey, acTempsKey, supported])
+
+  // L'état des caméras, lu sur le switch PoE toutes les 5 s : il colore leurs cercles en vue Matrix. Une lecture ratée garde le dernier état.
+  const [cameraStates, setCameraStates] = useState('{}')
+  useEffect(() => {
+    let alive = true
+    const load = () =>
+      fetchPower(apiKey)
+        .then((list) => {
+          if (alive) setCameraStates(JSON.stringify(Object.fromEntries(list.map((item) => [item.camera, item.powered ? (item.streaming ? 'on' : 'starting') : 'off']))))
+        })
+        .catch(() => undefined)
+    load()
+    const timer = setInterval(load, 5000)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [apiKey])
+  useEffect(() => {
+    const current = sceneRef.current
+    if (!current) return
+    current.tintCameras(JSON.parse(cameraStates) as Record<string, CameraState>)
+    current.invalidate()
+  }, [cameraStates, supported])
+
+  // La vue Matrix suit le thème de la WebApp (l'attribut `data-theme` de la page, posé par son bouton) : clair, gris sur fond clair ; sombre, verts sur fond noir.
+  const [pageTheme, setPageTheme] = useState(() => document.documentElement.dataset.theme ?? 'light')
+  useEffect(() => {
+    const watcher = new MutationObserver(() => setPageTheme(document.documentElement.dataset.theme ?? 'light'))
+    watcher.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => watcher.disconnect()
+  }, [])
+  useEffect(() => {
+    sceneRef.current?.matrixTheme(pageTheme !== 'dark')
+  }, [pageTheme, supported])
+
+  // Les cercles des clims et du radiateur, en vue Matrix : verts en marche, rouges à l'arrêt.
+  useEffect(() => {
+    const current = sceneRef.current
+    if (!current) return
+    current.tintDevices({ ...(JSON.parse(acKey) as Record<string, boolean | null>), plug: plugOn })
+    current.invalidate()
+  }, [acKey, plugOn, matrixOn, supported])
+
+  // Le voyant du radiateur suit la prise : rouge allumée, gris éteinte ou inconnue ; en vue Matrix, vert allumée, rouge éteinte (comme ceux des clims).
+  useEffect(() => {
+    const current = sceneRef.current
+    if (!current) return
+    current.root.traverse((object) => {
+      if (object.userData.plugLed === true) ((object as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(matrixOn ? (plugOn ? 0x2fd45a : 0xd43a2f) : plugOn ? 0xff3b30 : 0x4a4640)
+    })
+    current.invalidate()
+  }, [plugOn, matrixOn, supported])
 
   const lit = sceneLamps.filter((lamp) => lamp.on && lamp.reachable).length
   return (
@@ -420,7 +601,7 @@ const Kitchen3D = ({ apiKey, onOpenCamera }: Kitchen3DProps) => {
           <div className={BUTTONS_CLASS}>
             <Button onClick={() => sceneRef.current?.topView()}>{TOP_LABEL}</Button>
             <Button onClick={() => sceneRef.current?.resetView()}>{RESET_LABEL}</Button>
-            <Button onClick={toggleMatrix}>{matrixOn ? MATRIX_LABEL.off : MATRIX_LABEL.on}</Button>
+            {quality.matrixOnly ? null : <Button onClick={toggleMatrix}>{matrixOn ? MATRIX_LABEL.off : MATRIX_LABEL.on}</Button>}
             <span className={HINT_CLASS}>{LAMPS_ON_TEXT(lit, sceneLamps.length)}</span>
           </div>
           <div className={BUTTONS_CLASS}>

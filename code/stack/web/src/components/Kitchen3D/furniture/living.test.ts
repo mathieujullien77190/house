@@ -79,7 +79,8 @@ describe('le séjour', () => {
     expect(sizeOf(slab).width).toBeCloseTo(LAYOUT.tv.width - 0.03)
     expect((slab.material as THREE.MeshBasicMaterial).type).toBe('MeshBasicMaterial')
     expect((slab.material as THREE.MeshBasicMaterial).color.getHex()).toBe(SCREEN_OFF)
-    expect(slab.userData).toEqual({})
+    // Marquée : elle se clique et montre alors la vue d'une caméra (`tv.ts`).
+    expect(slab.userData).toEqual({ tv: true })
     // Devant le cadre de la télé.
     expect(slab.position.z).toBeGreaterThan(frame.position.z)
     expect(load.mock.calls.map(([url]) => url)).toEqual([`${import.meta.env.BASE_URL}kitchen3d/fuji.jpg`])

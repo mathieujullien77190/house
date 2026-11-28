@@ -52,10 +52,11 @@ describe('buildRooms', () => {
     expect(units[0].material).toBe(units[1].material)
   })
 
-  it('les luminaires portent le nom de leur lampe Hue : le plafonnier de la chambre, les six spots de la salle de bain, la suspension de Matou', () => {
+  it('les luminaires portent le nom de leur lampe Hue : le plafonnier de la chambre, les sept spots de la salle de bain, la suspension de Matou ; l’applique du sas n’a pas de nom', () => {
     const bulbs = meshesOf(buildRooms()).filter((mesh) => mesh.userData.fixture === true)
-    expect(bulbs.map((bulb) => bulb.userData.fixtureName)).toEqual(['chambre', 'sdb 1', 'sdb 4', 'sdb 3', 'sdb 5', 'sdb 6', 'sdb 7', 'hue ambiance lamp 1'])
-    expect(new Set(bulbs.map((bulb) => bulb.material)).size).toBe(8)
-    for (const bulb of bulbs) expect(bulb.position.y).toBeGreaterThan(ROOM.height - 0.6)
+    expect(bulbs.map((bulb) => bulb.userData.fixtureName)).toEqual(['chambre', 'sdb 1', 'sdb 4', 'sdb 3', 'sdb 5', 'sdb 2', 'sdb 6', 'sdb 7', undefined, 'hue ambiance lamp 1'])
+    expect(new Set(bulbs.map((bulb) => bulb.material)).size).toBe(10)
+    // Au plafond ou presque, sauf le spot de l'alcôve des WC et l'applique du sas, au mur.
+    for (const bulb of bulbs) expect(bulb.position.y).toBeGreaterThan(['sdb 2', undefined].includes(bulb.userData.fixtureName as string | undefined) ? 1.9 : ROOM.height - 0.6)
   })
 })

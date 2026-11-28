@@ -10,7 +10,7 @@ export const HINT = 'Glisse (clic gauche ou clic molette) pour tourner, clic dro
 export const ARIA_LABEL =
   'Cuisine en U en 3D : caissons bas bleu nuit, plan de travail en bois, plaque à induction sous une hotte en inox, évier de ferme blanc, lave-vaisselle et parquet : glisser pour tourner, molette pour zoomer'
 /** Les lampes Hue dont le luminaire est dessiné et nommé dans la scène (noms du pont, en minuscules) : elles s'y allument même sans place sur le plan. */
-export const LAMP_FIXTURES = ['salon', 'salle à manger', 'ordi 1', 'ordi 2', 'cuisine 1', 'cuisine 2', 'bar 1', 'bar 2', 'entrée', 'couloir', 'chambre', 'sdb 1', 'sdb 3', 'sdb 4', 'sdb 5', 'sdb 6', 'sdb 7', 'hue ambiance lamp 1']
+export const LAMP_FIXTURES = ['salon', 'salle à manger', 'ordi 1', 'ordi 2', 'cuisine 1', 'cuisine 2', 'bar 1', 'bar 2', 'entrée', 'couloir', 'chambre', 'sdb 1', 'sdb 2', 'sdb 3', 'sdb 4', 'sdb 5', 'sdb 6', 'sdb 7', 'hue ambiance lamp 1', 'perruche']
 /**
  * La lumière du jour, mise d'une manière générale (pas de rayon par fenêtre) : l'ambiance de nuit (`night`), ce que le plein jour y ajoute
  * tous volets ouverts (`day`), et la force du soleil qui porte les ombres (`sun`). Entre les deux, elle suit la part de vitre découverte et le ciel (choix « Heure actuelle » : `LIGHT_OPTIONS`).
@@ -48,8 +48,9 @@ export const LIGHT_OPTIONS: { id: LightMode; label: string }[] = [
  * bouquets d'herbe semés, et si les haies de spirées gardent leurs feuilles et leurs fleurs (sur téléphone : le bloc vert seul).
  */
 export const QUALITY = {
-  desktop: { pixelRatio: 2, antialias: true, shadowMap: 4096, grass: 1, leafyHedges: true },
-  phone: { pixelRatio: 1, antialias: false, shadowMap: 2048, grass: 0.5, leafyHedges: false },
+  desktop: { pixelRatio: 2, antialias: true, shadowMap: 4096, grass: 1, leafyHedges: true, matrixOnly: false },
+  // Le téléphone : la vue Matrix seule (des traits, bien moins lourds que la scène pleine), donc à la définition normale de l'écran, avec l'anticrénelage.
+  phone: { pixelRatio: 2, antialias: true, shadowMap: 2048, grass: 0.5, leafyHedges: false, matrixOnly: true },
 }
 export type Quality = (typeof QUALITY)['desktop']
 

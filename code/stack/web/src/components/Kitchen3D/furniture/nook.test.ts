@@ -20,7 +20,8 @@ const tagged = (root: THREE.Object3D, tag: string): THREE.Object3D[] => {
   return found
 }
 
-const sizeOf = (mesh: THREE.Mesh) => (mesh.geometry as THREE.BoxGeometry).parameters
+/** Les cotes d'un pavé (vides pour une géométrie fondue : une lame de volet). */
+const sizeOf = (mesh: THREE.Mesh) => (mesh.geometry as Partial<THREE.BoxGeometry>).parameters ?? ({} as THREE.BoxGeometry['parameters'])
 
 describe('nook', () => {
   beforeEach(() => {

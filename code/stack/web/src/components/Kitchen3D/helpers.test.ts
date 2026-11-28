@@ -34,10 +34,15 @@ describe('buildScene', () => {
     // Chaque partie porte son genre, que la vue Matrix et la fonte par genre retrouvent.
     expect(root.children.slice(0, 3).map((part) => part.name)).toEqual(['shell', 'furniture', 'garden'])
     const meshes = meshesOf(root)
-    // Une ampoule par lampe Hue nommée dans la scène, plus la lanterne de l'entrée, qui n'est reliée à aucune lampe.
+    // Une ampoule par lampe Hue nommée dans la scène, plus la lanterne de l'entrée et l'applique du sas, sans nom (elles suivent la lampe la plus proche).
     const bulbs = meshes.filter((mesh) => mesh.userData.fixture === true)
     expect(bulbs.map((bulb) => bulb.userData.fixtureName as string | undefined).filter((name) => name !== undefined).sort()).toEqual([...LAMP_FIXTURES].sort())
-    expect(bulbs.filter((bulb) => bulb.userData.fixtureName === undefined)).toHaveLength(1)
+    expect(bulbs.filter((bulb) => bulb.userData.fixtureName === undefined)).toHaveLength(2)
+    // Ce que le conteneur anime ou rend cliquable reste à part, avec sa marque : trois écrans, les six voyants du switch, le radiateur de la cage et son voyant.
+    expect(meshes.filter((mesh) => mesh.userData.tv === true)).toHaveLength(3)
+    expect(meshes.filter((mesh) => mesh.userData.blink !== undefined).map((mesh) => mesh.userData.blink as number)).toEqual([0, 1, 2, 3, 4, 5])
+    expect(meshes.filter((mesh) => mesh.userData.plugLed === true)).toHaveLength(1)
+    expect(meshes.filter((mesh) => mesh.parent?.userData.plug === true).length).toBeGreaterThan(10)
     // Tout maillage reçoit les ombres ; n'en portent pas : les ampoules des luminaires et les petites choses du jardin marquées.
     for (const mesh of meshes) {
       expect(mesh.receiveShadow).toBe(true)

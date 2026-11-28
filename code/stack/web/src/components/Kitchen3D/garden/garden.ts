@@ -4,7 +4,7 @@ import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, PATIO_DOOR, REST } from '@/compo
 import { box } from '@/components/Kitchen3D/primitives'
 import { reolink } from '@/components/Kitchen3D/reolink'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
-import { cageFrame, cagePanels, cageRoof, cageTools, cageWire, planters } from './aviary'
+import { cageComfort, cageFrame, cagePanels, cageRoof, cageTools, cageWire, planters } from './aviary'
 import { binWalls, hedges, pathAndGates } from './borders'
 import { CAGE_HEIGHT, GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
 import { bins, deck, gardenCamera, gardenTable, heatPump, powerLine, upturnedBin } from './equipment'
@@ -190,6 +190,7 @@ export const buildGarden = (grass = 1, leafyHedges = true): THREE.Group => {
   raisedTerrace(group, m)
   cagePanels(group, m)
   cageTools(group, m)
+  cageComfort(group)
   planters(group, m)
   passionflower(group)
   vineArch(group, m.post)

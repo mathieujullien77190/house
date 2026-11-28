@@ -144,7 +144,11 @@ export const outerWalls = (shell: Shell): void => {
   for (const bar of [-1, 0, 1]) shell.group.add(box(0.012, vent.tall, 0.012, standard(0x2a2c2f, 0.5, 0.5), face + 0.036, vent.y, vent.z + bar * (vent.wide / 3)))
   outer('x', xMin, ENTRY.x + 0.05, zMax, 1)
   sasShell(shell, outer, outerMaterial)
-  entrySteps(shell.group)
-  entryLantern(shell.group)
+  // Les marches et la lanterne de l'entrée sont dehors : leur groupe porte le genre `garden`, pour être éclairées comme le jardin (pas par les lampes de la maison, voir `layers.ts`).
+  const outside = new THREE.Group()
+  outside.name = 'garden'
+  shell.group.add(outside)
+  entrySteps(outside)
+  entryLantern(outside)
   outer('x', SAS.north + 0.01, xMax, zMax, 1)
 }

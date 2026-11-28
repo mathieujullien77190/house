@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { HOUSE_SHIFT } from '@/components/Lights/constants'
 import { MAP_HOUSE_HEIGHT, MAP_UNITS_PER_METER } from '@/components/MapPlan/constants'
 import { KITCHEN, LAMP_LIGHT, PLAN_HOUSE, ROOM } from './constants'
+import { INDOOR, OUTDOOR, indoors } from './layers'
 import { BULB_OFF, box } from './primitives'
 import type { Lighting, SceneLamp } from './types'
 
@@ -81,7 +82,7 @@ export const createLighting = (root: THREE.Group): Lighting => {
     return rig
   }
 
-  const apply = (lamps: SceneLamp[]) => {
+  const apply = (lamps: SceneLamp[], flagUnreachable = false) => {
     // Les paires lampe–luminaire possibles, des plus proches aux plus lointaines : chacun ne sert qu'une fois.
     const pairs = lamps
       .flatMap((lamp) => fixtures.map((fixture) => ({ lamp, fixture, distance: Math.hypot(fixture.position.x - lamp.x, fixture.position.z - lamp.z) })))
@@ -115,15 +116,19 @@ export const createLighting = (root: THREE.Group): Lighting => {
       rig.light.color.copy(color)
       rig.light.intensity = level * LAMP_LIGHT.intensity
       rig.light.visible = lit
-      const bulbColor = lit ? color.clone().lerp(new THREE.Color(0xffffff), 0.35) : new THREE.Color(BULB_OFF)
+      // En vue Matrix, une lampe injoignable se voit : son ampoule est rouge.
+      const bulbColor = flagUnreachable && !lamp.reachable ? new THREE.Color(0xff2a1f) : lit ? color.clone().lerp(new THREE.Color(0xffffff), 0.35) : new THREE.Color(BULB_OFF)
       if (fixture) {
         // Un peu sous l'ampoule dessinée : une lumière collée à son abat-jour l'éclairerait à blanc.
         rig.light.position.set(fixture.position.x, fixture.position.y - 0.12, fixture.position.z)
+        rig.light.layers.set(indoors(fixture.position.x, fixture.position.z) ? INDOOR : OUTDOOR)
         colorOf(fixture.bulb).copy(bulbColor)
         rig.own.visible = false
         places.set(lamp.id, fixture.position)
       } else {
         rig.light.position.set(lamp.x, LAMP_LIGHT.height - 0.12, lamp.z)
+        // Une lampe du dedans n'éclaire que la maison, une lampe du dehors que le jardin (voir `layers.ts`).
+        rig.light.layers.set(indoors(lamp.x, lamp.z) ? INDOOR : OUTDOOR)
         rig.own.position.set(lamp.x, LAMP_LIGHT.height, lamp.z)
         rig.ownBulb.color.copy(bulbColor)
         rig.own.visible = true
@@ -160,5 +165,7 @@ export const createLighting = (root: THREE.Group): Lighting => {
     return hit ?? best
   }
 
-  return { apply, pick }
+  const sources = () => [...rigs.values()].filter((rig) => rig.light.visible).map((rig) => ({ position: rig.light.position, intensity: rig.light.intensity, color: rig.light.color, indoor: rig.light.layers.mask === 1 << INDOOR }))
+
+  return { apply, pick, sources }
 }

@@ -95,7 +95,10 @@ export const tvCorner = (m: FurnitureMaterials): THREE.Group => {
   const { x, width } = LAYOUT.tv
   group.add(box(width, 0.72, 0.04, m.black, x, 1.4, wall + 0.04))
   // La dalle de la télé, éteinte.
-  group.add(box(width - 0.03, 0.69, 0.005, new THREE.MeshBasicMaterial({ color: SCREEN_OFF }), x, 1.4, wall + 0.065))
+  // L'écran de la télé : marqué `userData.tv`, il se clique et montre alors la vue d'une caméra de la scène (`tv.ts`).
+  const tvScreen = box(width - 0.03, 0.69, 0.005, new THREE.MeshBasicMaterial({ color: SCREEN_OFF }), x, 1.4, wall + 0.065)
+  tvScreen.userData.tv = true
+  group.add(tvScreen)
   // La petite peluche jaune posée sur la télé : un poisson rond à gros yeux blancs, deux nageoires et une crête.
   const plushYellow = standard(0xf2dc1e, 0.95)
   const plush = new THREE.Group()
