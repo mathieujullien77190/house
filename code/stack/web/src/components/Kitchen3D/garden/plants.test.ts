@@ -232,6 +232,28 @@ describe('spireaHedge', () => {
     expect(low(wide)).toBeGreaterThan(low(normal))
   })
 
+  it('`blockPoints` : les blocs verts suivent leur propre ligne, plus courte que celle des bouquets ; `flush` : un bout net, sans le prolongement de 15 cm', () => {
+    const bent: PlanPoint[] = [[HEDGE.east, LOT.centerY + 40], [HEDGE.east, LOT.centerY + 400], [HEDGE.east, LOT.centerY + HEDGE.radius]]
+    const depthOf = (mesh: THREE.Mesh) => (mesh.geometry as THREE.BoxGeometry).parameters.depth
+    const long = (from: number, to: number) => Math.abs(gardenX(bent[to][1]) - gardenX(bent[from][1]))
+    // Par défaut : un bloc par tronçon de la ligne, prolongé de 15 cm à chaque bout.
+    const whole = ofType(spireaHedge(bent, 2.6, 0, 79), 'BoxGeometry')
+    expect(whole.map(depthOf)).toEqual([expect.closeTo(long(0, 1) + 0.3), expect.closeTo(long(1, 2) + 0.3)])
+    // Les blocs sur le premier tronçon seulement : un seul bloc, mais les mêmes bouquets tout du long.
+    const half = spireaHedge(bent, 2.6, 0, 79, true, false, 1, false, bent.slice(0, 2))
+    expect(ofType(half, 'BoxGeometry')).toHaveLength(1)
+    expect(matricesOf(instancedOf(half)[0])).toEqual(matricesOf(instancedOf(spireaHedge(bent, 2.6, 0, 79))[0]))
+    // Un bout net au départ, à l'arrivée, ou aux deux : 15 cm de moins chacun.
+    const blocks = (flush: { start?: boolean; end?: boolean }) => ofType(spireaHedge(bent, 2.6, 0, 79, false, false, 1, false, bent, flush), 'BoxGeometry')
+    expect(blocks({ start: true }).map(depthOf)).toEqual([expect.closeTo(long(0, 1) + 0.15), expect.closeTo(long(1, 2) + 0.3)])
+    expect(blocks({ end: true }).map(depthOf)).toEqual([expect.closeTo(long(0, 1) + 0.3), expect.closeTo(long(1, 2) + 0.15)])
+    expect(blocks({ start: true, end: true }).map(depthOf)).toEqual([expect.closeTo(long(0, 1) + 0.15), expect.closeTo(long(1, 2) + 0.15)])
+    // Le bout net s'arrête exactement au point de la ligne ; l'autre bout garde son prolongement.
+    const first = new THREE.Box3().setFromObject(blocks({ start: true })[0])
+    expect(first.max.x).toBeCloseTo(gardenX(bent[0][1]))
+    expect(first.min.x).toBeCloseTo(gardenX(bent[1][1]) - 0.15)
+  })
+
   it('rien ne dépasse de la propriété : les bouquets sont tous dans les limites du terrain', () => {
     const hedge = spireaHedge([[HEDGE.east, LOT.centerY + 40], [HEDGE.east, LOT.centerY + HEDGE.radius]], 2.6, 0, 79, true, false, 1.9, true)
     for (const mesh of instancedOf(hedge)) for (const at of placesIn(mesh)) expect(inLot(at.x, at.z)).toBe(true)
@@ -385,39 +407,37 @@ describe('vineArch', () => {
 })
 
 describe('wildConifer', () => {
-  it('un tronc, et une masse de quatre verts du plus sombre au plus clair ; rien par-dessus la cage si l’arbre est trop bas', () => {
-    const tree = wildConifer(151, 3, 99)
+  it('un tronc, et une masse de quatre verts du plus sombre au plus clair', () => {
+    const tree = wildConifer(151, 3, 2, 1)
     expect(plainIn(tree)).toHaveLength(1)
     const greens = tuftsIn(tree)
-    // Quatre teintes au plus, une copie par touffe.
+    // Quatre teintes au plus, une copie par touffe : la masse (85), les branches par-dessus la cage (7 × 5), celles qui vont au voisin (7 × 7).
     expect(instancedIn(tree).length).toBeLessThanOrEqual(4)
-    expect(greens.length).toBe(85)
+    expect(greens.length).toBe(85 + 7 * 5 + 7 * 7)
     // Le tronc monte à 95 % de la hauteur.
     const [trunk] = limbsIn(tree)
     expect(trunk.to.y).toBeCloseTo(3 * 0.95, 1)
-    // Rien ne passe par-dessus la cage (`over` plus haut que l'arbre) ni vers un voisin (`mingle` à 0) : un seul tronçon de bois.
-    expect(limbsIn(tree)).toHaveLength(1)
+    expect(limbsIn(tree)).toHaveLength(1 + 7 + 7)
   })
 
   it('au-dessus de `over`, sept branches partent vers −x, par-dessus la cage, avec leurs touffes', () => {
-    const tree = wildConifer(137, 4.3, 2)
-    expect(limbsIn(tree)).toHaveLength(1 + 7)
-    expect(tuftsIn(tree).length).toBe(85 + 7 * 5)
+    const tree = wildConifer(137, 4.3, 2, 3)
     // Elles s'étendent vers −x, et aucune n'est sous `over`.
-    const [, ...branches] = limbsIn(tree)
+    const branches = limbsIn(tree).slice(1, 8)
     for (const branch of branches) {
       expect(branch.to.x).toBeLessThan(branch.from.x)
       expect(branch.to.y).toBeGreaterThanOrEqual(2 + 0.12 - 1e-5)
     }
   })
 
-  it('`mingle` : sept branches de plus filent le long de la haie vers −z, pour se mêler à l’arbre voisin', () => {
-    const alone = wildConifer(137, 4.3, 2)
-    const mingled = wildConifer(137, 4.3, 2, 3)
-    expect(limbsIn(mingled)).toHaveLength(limbsIn(alone).length + 7)
-    expect(tuftsIn(mingled).length).toBe(tuftsIn(alone).length + 7 * 7)
-    const reach = limbsIn(mingled).slice(-7)
-    for (const branch of reach) expect(branch.to.z).toBeLessThan(branch.from.z - 2)
+  it('`mingle` : sept autres branches filent le long de la haie vers −z, pour se mêler à l’arbre voisin, d’autant plus loin qu’il est loin', () => {
+    const near = wildConifer(137, 4.3, 2, 1)
+    const far = wildConifer(137, 4.3, 2, 3)
+    expect(limbsIn(far)).toHaveLength(limbsIn(near).length)
+    expect(tuftsIn(far).length).toBe(tuftsIn(near).length)
+    const reach = (tree: THREE.Group) => limbsIn(tree).slice(-7)
+    for (const branch of reach(far)) expect(branch.to.z).toBeLessThan(branch.from.z - 2)
+    for (const branch of reach(near)) expect(branch.to.z).toBeGreaterThan(branch.from.z - 1.2)
   })
 })
 

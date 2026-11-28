@@ -51,15 +51,23 @@ describe('cherryTree', () => {
     expect(Math.max(...leaves.map((leaf) => leaf.at.y))).toBeGreaterThan(3)
   })
 
-  it('`apple` : un pommier, aux fleurs rosées, sans cerises ni pommes ; ce n’est pas le cerisier de la même graine', () => {
+  it('`apple` : un pommier, sans fleurs ni cerises, qui porte des pommes orange sous une touffe sur trois environ ; ce n’est pas le cerisier de la même graine', () => {
     const cherry = cherryTree(31)
     const apple = cherryTree(31, true)
-    // Le bois, les touffes par vert, les fleurs : rien d'autre.
-    expect(partsOf(apple)).toEqual(['BufferGeometry', 'IcosahedronGeometry', 'IcosahedronGeometry', 'IcosahedronGeometry', 'OctahedronGeometry'])
-    expect(fruitsOf(apple, 0xffdbe6)).toHaveLength(leavesOf(apple).length * 3)
+    // Le bois, les touffes par vert, les pommes (des cailloux à facettes, comme les touffes) : rien d'autre.
+    expect(partsOf(apple)).toEqual(['BufferGeometry', 'IcosahedronGeometry', 'IcosahedronGeometry', 'IcosahedronGeometry', 'IcosahedronGeometry'])
+    expect(fruitsOf(apple, 0xffdbe6)).toHaveLength(0)
     expect(fruitsOf(apple, 0xfff3f7)).toHaveLength(0)
     expect(fruitsOf(apple, 0xb3122a)).toHaveLength(0)
-    // Le pommier tire un nombre de plus par touffe (ses anciennes pommes) : sa forme n'est pas celle du cerisier.
+    const apples = fruitsOf(apple, 0xe5822a)
+    const leaves = leavesOf(apple)
+    expect(apples.length).toBeGreaterThan(leaves.length * 0.2)
+    expect(apples.length).toBeLessThan(leaves.length * 0.45)
+    expect((apples[0].mesh.geometry as THREE.IcosahedronGeometry).parameters.radius).toBe(0.06)
+    // Elles pendent dans la couronne, et ne portent pas d'ombre.
+    expect(Math.min(...apples.map((fruit) => fruit.at.y))).toBeGreaterThan(0.3)
+    expect(apples[0].mesh.userData.noShadow).toBe(true)
+    // Le pommier tire un nombre de plus par touffe : sa forme n'est pas celle du cerisier.
     expect(limbsIn(apple).length).toBeGreaterThan(200)
     expect(shapeOf(apple)[0]).not.toEqual(shapeOf(cherry)[0])
     expect(shapeOf(cherryTree(31, true))).toEqual(shapeOf(apple))

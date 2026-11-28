@@ -242,15 +242,15 @@ export const PLAN_CAMERAS = [
   { id: 'camera-9', name: 'Caméra 9 (à placer)', x: 170, y: -240, angle: 0, fov: 60, near: 18, far: 200 },
 ]
 /**
- * Les quatre coins du chemin de béton gris clair, du portail au pavage de la maison (x = -21,75) : un peu plus large que le portail (3 unités de chaque côté, dans le prolongement
+ * Les quatre coins de l'allée du garage, du portail jusque sous la terrasse de la maison (x = 10 : le portail en bois du garage, dans la vue 3D) : un peu plus large que le portail (3 unités de chaque côté, dans le prolongement
  * du portail) pour qu'il arrive pile à lui et pile aux carreaux ; il passe sous le pavage. Dans l'ordre : haut gauche, bas gauche (côté portail), bas droite, haut droite.
  * En modification, on déplace chaque coin à la main (`garage-corner-<n>` dans les éléments du plan gardé par l'API).
  */
 export const PLAN_GARAGE_CORNERS: [number, number][] = [
   [-259, 93],
-  [-204, 240],
-  [-10, 240],
-  [-10, 93],
+  [-204, 252],
+  [10, 252],
+  [10, 93],
 ]
 /**
  * Le chemin carrelé de 1,5 m de large du portillon à la terrasse de la maison (y = 358) : son bout bas suit l'arc de la haie (rayon 1000)

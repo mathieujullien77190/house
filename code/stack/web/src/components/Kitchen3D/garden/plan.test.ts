@@ -62,19 +62,6 @@ describe('flat', () => {
   })
 })
 
-describe('flat avec des trous', () => {
-  it('chaque trou du plan est percé dans la surface', () => {
-    const outline: PlanPoint[] = [[HOUSE_SHIFT, 0], [HOUSE_SHIFT + 540, 0], [HOUSE_SHIFT + 540, 300], [HOUSE_SHIFT, 300]]
-    const hole: PlanPoint[] = [[HOUSE_SHIFT + 100, 100], [HOUSE_SHIFT + 200, 100], [HOUSE_SHIFT + 200, 200], [HOUSE_SHIFT + 100, 200]]
-    const material = new THREE.MeshStandardMaterial()
-    const full = flat(outline, material, 0)
-    const holed = flat(outline, material, 0, [hole])
-    // Le trou ajoute des sommets et des triangles, et l'emprise ne change pas.
-    expect(holed.geometry.attributes.position.count).toBeGreaterThan(full.geometry.attributes.position.count)
-    expect(new THREE.Box3().setFromObject(holed).equals(new THREE.Box3().setFromObject(full))).toBe(true)
-  })
-})
-
 describe('quad', () => {
   it('deux triangles à la suite, avec leurs normales, dans le matériau donné', () => {
     const material = new THREE.MeshStandardMaterial()
@@ -84,6 +71,16 @@ describe('quad', () => {
     expect(mesh.geometry.attributes.position.count).toBe(6)
     expect(mesh.geometry.attributes.normal.count).toBe(6)
     expect(new THREE.Box3().setFromObject(mesh).max.toArray()).toEqual([1, 1, 0])
+    // Sans `textured`, pas de coordonnées de texture.
+    expect(mesh.geometry.attributes.uv).toBeUndefined()
+  })
+
+  it('`textured` : des coordonnées de texture en mètres, le long du premier côté puis du suivant (un motif d’un mètre s’y répète)', () => {
+    const corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3] = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(3, 0, 4), new THREE.Vector3(3, 2, 4), new THREE.Vector3(0, 2, 0)]
+    const mesh = quad(corners, new THREE.MeshStandardMaterial(), true)
+    expect(mesh.geometry.attributes.uv.count).toBe(6)
+    // Un pan de 5 m de long sur 2 m de haut : les mêmes sommets que les deux triangles (a, b, c puis a, c, d).
+    expect(Array.from(mesh.geometry.attributes.uv.array)).toEqual([0, 0, 5, 0, 5, 2, 0, 0, 5, 2, 0, 2])
   })
 })
 

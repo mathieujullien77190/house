@@ -51,11 +51,9 @@ export const arc = (radius: number, from: PlanPoint, to: PlanPoint): PlanPoint[]
 }
 
 /** Une surface à plat sur le sol, donnée par son contour sur le plan. */
-export const flat = (points: PlanPoint[], material: THREE.Material, y: number, holes: PlanPoint[][] = []): THREE.Mesh => {
+export const flat = (points: PlanPoint[], material: THREE.Material, y: number): THREE.Mesh => {
   // Dans le repère de la forme : (x de la scène, −z de la scène) ; couchée d'un quart de tour, elle retombe à sa place.
   const shape = new THREE.Shape(points.map(([planX, planY]) => new THREE.Vector2(gardenX(planY), -gardenZ(planX))))
-  // Des trous dans la surface (un chemin en contrebas, par exemple).
-  shape.holes = holes.map((hole) => new THREE.Path(hole.map(([planX, planY]) => new THREE.Vector2(gardenX(planY), -gardenZ(planX)))))
   const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
   mesh.rotation.x = -Math.PI / 2
   mesh.position.y = y
@@ -63,10 +61,16 @@ export const flat = (points: PlanPoint[], material: THREE.Material, y: number, h
 }
 
 /** Un quadrilatère dans l'espace (quatre points de la scène, dans l'ordre du tour), vu des deux côtés : une rampe, la face d'un mur de soutènement. */
-export const quad = (corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3], material: THREE.Material): THREE.Mesh => {
+export const quad = (corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3], material: THREE.Material, textured = false): THREE.Mesh => {
   const [a, b, c, d] = corners
   const geometry = new THREE.BufferGeometry().setFromPoints([a, b, c, a, c, d])
   geometry.computeVertexNormals()
+  // `textured` : des coordonnées de texture en mètres (le long de a→b, puis de b→c), pour qu'un motif d'un mètre s'y répète.
+  if (textured) {
+    const [wide, long] = [a.distanceTo(b), b.distanceTo(c)]
+    const uv = [[0, 0], [wide, 0], [wide, long], [0, 0], [wide, long], [0, long]].flat()
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  }
   return new THREE.Mesh(geometry, material)
 }
 

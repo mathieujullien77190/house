@@ -1,12 +1,13 @@
 import * as THREE from 'three'
 import { stubCanvasContext } from '@/test/canvas'
+import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { APPLE_BACK_CAMERA, APPLE_CAMERA, BASE, CAGE_CAMERA, GARDEN_CAMERA, INNER_CAGE_CAMERA, REST } from '@/components/Kitchen3D/constants'
 import { cameraMeshes } from '@/components/Kitchen3D/live'
-import { GRASS, HEDGE, LOT, TERRACE } from './constants'
+import { GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
 import { buildGarden } from './garden'
-import { laurelBush } from './laurel'
+import { laurelBush, roundLaurel } from './laurel'
 import { SITE } from './layout'
-import { gardenX, gardenZ } from './plan'
+import { gardenX, gardenZ, planOf } from './plan'
 import { PERGOLA } from './pergola'
 import { cherryTree, clippedTree, medlarTree, prunusTree } from './trees'
 
@@ -30,12 +31,13 @@ describe('buildGarden', () => {
     expect(again.children).toHaveLength(garden.children.length)
     expect(again.children.map((child) => child.position.toArray())).toEqual(garden.children.map((child) => child.position.toArray()))
     expect(garden.children.length).toBeGreaterThan(150)
-    // Les arbres et les arbustes sont dessinés par lots : tout le jardin tient en moins de mille maillages (avant que la scène les fonde par matière).
+    // Les arbres et les arbustes sont dessinés par lots. Le mur côté rue, le trottoir et les murs de béton sont faits de petits pans (un millier) : avec eux, le jardin tient en
+    // moins de 2 500 maillages, que la scène fond ensuite par matière (voir « peu d'appels de dessin », `helpers.test.ts`).
     let meshes = 0
     garden.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) meshes += 1
     })
-    expect(meshes).toBeLessThan(1000)
+    expect(meshes).toBeLessThan(2500)
   })
 
   it('les caméras du jardin portent le nom de la vraie : celle du salon de jardin, celle du coin de la cage, celle posée dedans et les deux du pommier', () => {
@@ -66,7 +68,8 @@ describe('buildGarden', () => {
     expect(apple.children).toHaveLength(cherryTree(31, true).children.length)
     expect(apple.position.z).toBeCloseTo(REST.west + 3.6)
     const cherryTwo = groupsLike(garden, cherryTree(19)).find((tree) => tree.position.y === 0) as THREE.Group
-    expect(cherryTwo.position.x).toBeCloseTo(house[0] - TERRACE - 0.6)
+    expect(cherryTwo.position.x).toBeCloseTo(house[0] - TERRACE - 0.9)
+    expect(cherryTwo.position.z).toBeCloseTo(REST.west - 0.32)
     // Un massif : trois maillages de copies, posé au pied de son arbre.
     const patches = (garden.children as THREE.Group[]).filter((child) => child.children.length === 3 && child.children.every((part) => (part as THREE.InstancedMesh).isInstancedMesh))
     const fuchsia = patches.filter((patch) => ((patch.children[2] as THREE.Mesh).material as THREE.MeshStandardMaterial).color.getHex() === 0xd6247f)
@@ -95,8 +98,9 @@ describe('buildGarden', () => {
   it('les arbres portent le nom « tree » (la vue Matrix les distingue du reste du jardin) : le conifère et l’arbre clair derrière la cage, le romarin, les deux gros buissons', () => {
     const garden = buildGarden()
     const trees = (garden.children as THREE.Group[]).filter((child) => child.name === 'tree')
-    // Le cerisier du fond, le second, le pommier, le néflier, le conifère et le laurier à droite du portillon, le prunus, le romarin, l'arbre taillé, les deux derrière la cage, le laurier de la cage.
-    expect(trees).toHaveLength(12)
+    // L'arbre étroit de l'allée du garage, le cerisier du fond, le second, le pommier, le néflier, le conifère et le laurier à droite du portillon, le buisson clair du lopin, le prunus, le romarin,
+    // l'arbre taillé, les deux derrière la cage, le laurier de la cage.
+    expect(trees).toHaveLength(14)
     // Derrière la cage, dans la haie du nord : le conifère au droit du milieu du toit, l'arbre clair du côté du salon de jardin, tous deux hauts de plus de 4 m.
     const behind = trees.filter((tree) => tree.position.x === gardenX(HEDGE.north))
     expect(behind).toHaveLength(2)
@@ -106,6 +110,43 @@ describe('buildGarden', () => {
     // La pergola porte sa glycine, elle aussi nommée.
     const pergola = (garden.children as THREE.Group[]).find((child) => child.rotation.y === Math.PI / 2 && child.position.y === SITE.raised) as THREE.Group
     expect((pergola.children.at(-1) as THREE.Group).name).toBe('tree')
+  })
+
+  it('à droite du portillon : un conifère sombre et un laurier palme, ronds et feuillus dès le sol, en dedans de la haie ; la table blanche près du conifère', () => {
+    const garden = buildGarden()
+    const planOfTree = (tree: THREE.Object3D) => planOf(tree.position.x, tree.position.z)
+    const fromCenter = (tree: THREE.Object3D) => Math.hypot(planOfTree(tree)[0] - LOT.centerX, planOfTree(tree)[1] - LOT.centerY)
+    const [conifer] = groupsLike(garden, roundLaurel(151, 1.2, 4, [0x2f5a35, 0x37663a, 0x284d30], true)).filter((tree) => tree.scale.x === 1)
+    const [palm] = groupsLike(garden, roundLaurel(14, 1.25, 4.8))
+    for (const tree of [conifer, palm]) {
+      expect(tree.name).toBe('tree')
+      expect(tree.position.y).toBe(0)
+    }
+    // Le laurier est à 1,40 m de l'axe de la haie (sa couronne de 1,25 m ne dépasse pas sur la rue), à l'ouest du chemin du portillon.
+    expect(fromCenter(palm)).toBeCloseTo(HEDGE.radius - 1.4 * UNITS_PER_METER)
+    expect(palm.position.z).toBeLessThan(gardenZ(PAVING.pathWest) - 1.25)
+    // Le conifère est plus à l'ouest le long de la haie, en dedans d'elle, à plus de 2,45 m du laurier (leurs couronnes ne se mêlent pas).
+    expect(conifer.position.z).toBeLessThan(palm.position.z)
+    expect(fromCenter(conifer)).toBeLessThan(HEDGE.radius - 1.2 * UNITS_PER_METER)
+    expect(conifer.position.distanceTo(palm.position)).toBeGreaterThan(2.45)
+    // La table blanche (un groupe : un plateau ovale, quatre pieds, quatre chaises), posée après les arbres, à moins de 4 m du conifère.
+    const table = (garden.children as THREE.Group[]).find((child) => child.type === 'Group' && child.children.length === 9 && (child.children[0] as THREE.Mesh).geometry?.type === 'CylinderGeometry') as THREE.Group
+    expect(table.children[0].scale.z).toBe(1.5)
+    expect(table.position.y).toBe(0)
+    expect(table.position.distanceTo(conifer.position)).toBeLessThan(4)
+    expect(garden.children.indexOf(table)).toBeGreaterThan(garden.children.indexOf(conifer))
+  })
+
+  it('sur le lopin de terre entre l’allée du garage, l’escalier et la terrasse : un gros buisson à feuilles claires, à demi-taille, ses troncs nus enterrés', () => {
+    const garden = buildGarden()
+    const [bush] = groupsLike(garden, laurelBush(157, [0x7fb552, 0x8fc25a, 0x6aa548], 6.1))
+    expect(bush.name).toBe('tree')
+    expect(bush.scale.toArray()).toEqual([0.5, 0.5, 0.5])
+    expect(bush.position.toArray()).toEqual([gardenX(296), -0.75, gardenZ(-65)])
+    // L'arbre étroit de l'allée du garage, lui, est en contrebas, à l'ouest de la maison.
+    const column = (garden.children as THREE.Group[]).find((child) => child.name === 'tree' && child.scale.x === 0.4) as THREE.Group
+    expect(column.position.y).toBeCloseTo(-1.05)
+    expect(column.position.z).toBeLessThan(SITE.house[2])
   })
 
   it('derrière la cage : de la terre à la place de l’herbe, une poubelle renversée, les outils de la cage', () => {

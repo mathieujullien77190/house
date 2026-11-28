@@ -4,6 +4,7 @@ import { COLORS } from './constants'
 import {
   butcherTexture,
   clockDialTexture,
+  formedConcreteTexture,
   lambrisTexture,
   onPhotoLoad,
   photoTexture,
@@ -124,8 +125,31 @@ describe('les textures dessinées', () => {
     expect(context.restore).toHaveBeenCalledTimes(12)
   })
 
+  it('le béton banché : un gris moucheté, les joints des banches tous les 25 cm et huit trous de serre-joint, sur une image d’un mètre', () => {
+    const { context, size, rects } = drawn(formedConcreteTexture)
+    expect(size).toBe(512)
+    // Le fond, puis 2 200 mouchetures.
+    expect(rects[0]).toEqual([0, 0, 512, 512])
+    expect(rects).toHaveLength(2201)
+    for (const [x, y, wide, tall] of rects.slice(1)) {
+      expect(x).toBeLessThan(512)
+      expect(y).toBeLessThan(512)
+      expect(wide).toBeLessThan(5)
+      expect(tall).toBeLessThan(4)
+    }
+    // Quatre joints horizontaux, un tous les 128 px (25 cm), d'un bord à l'autre.
+    expect(context.stroke).toHaveBeenCalledTimes(4)
+    expect(context.moveTo.mock.calls).toEqual([0, 1, 2, 3].map((line) => [0, line * 128 + 1]))
+    expect(context.lineTo.mock.calls).toEqual([0, 1, 2, 3].map((line) => [512, line * 128 + 1]))
+    expect(context.lineWidth).toBe(2)
+    // Huit trous ronds, en quinconce.
+    expect(context.arc.mock.calls).toHaveLength(8)
+    expect(context.arc.mock.calls[0]).toEqual([64, 64, 4, 0, Math.PI * 2])
+    expect(context.fill).toHaveBeenCalledTimes(8)
+  })
+
   it('le même dessin à chaque fois : les tirages partent d’une graine fixe', () => {
-    for (const texture of [butcherTexture, sisalTexture, terracottaTexture, showerTilesTexture]) expect(drawn(texture).rects).toEqual(drawn(texture).rects)
+    for (const texture of [butcherTexture, sisalTexture, terracottaTexture, showerTilesTexture, formedConcreteTexture]) expect(drawn(texture).rects).toEqual(drawn(texture).rects)
   })
 })
 

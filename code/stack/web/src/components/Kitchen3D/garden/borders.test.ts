@@ -3,7 +3,7 @@ import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { stubCanvasContext } from '@/test/canvas'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
 import { binWalls, hedges, pathAndGates } from './borders'
-import { GATE_HEIGHT, HEDGE, LOT, LOW, PATH_DROP, PAVING } from './constants'
+import { GATE_DROP, GATE_HEIGHT, HEDGE, LOT, LOW, PATH_DROP, PAVING } from './constants'
 import { SITE } from './layout'
 import { gardenX, gardenZ } from './plan'
 
@@ -77,16 +77,21 @@ describe('hedges', () => {
     expect(leavesOf(children[2])).toBe(0x28592d)
   })
 
-  it('les deux tronçons du lierre et des spirées se chevauchent : le lierre jusqu’au cerisier se mêle aux spirées, sans coupure nette', () => {
+  it('le lierre et les spirées se mêlent par leurs bouquets, mais leurs blocs verts se relaient à la limite : autant de blocs que de tronçons de l’arc, pas un de plus', () => {
     const { children } = built(hedges)
     const reach = (hedge: THREE.Object3D) => {
       const boxes = hedge.children.filter((part) => part.type === 'Mesh').map((part) => new THREE.Box3().setFromObject(part))
       return new THREE.Box3().union(boxes[0]).union(boxes.at(-1) as THREE.Box3)
     }
-    // Les deux blocs se recouvrent sur plus d'un segment.
+    // Les blocs du lierre s'arrêtent là où ceux des spirées reprennent : leurs emprises se touchent.
     expect(reach(children[2]).intersectsBox(reach(children[3]))).toBe(true)
-    // Le lierre d'après le portail se termine avant les poteaux du portail du garage (20 cm).
+    // Le lierre d'après le portail s'arrête à la face des poteaux du portail du garage : il ne traverse pas le portail.
     expect(reach(children[1]).intersectsBox(reach(children[2]))).toBe(false)
+    // Du portail au portillon, les deux haies se partagent les tronçons de l'arc : le dernier bloc du lierre finit net où le premier des spirées commence.
+    const blocksOf = (hedge: THREE.Object3D) => (hedge.children as THREE.Mesh[]).filter((part) => part.geometry.type === 'BoxGeometry')
+    const [lastIvy, firstSpirea] = [blocksOf(children[2]).at(-1) as THREE.Mesh, blocksOf(children[3])[0]]
+    // (Un bout net de chaque côté de la limite : les deux blocs se touchent sans se recouvrir.)
+    expect(lastIvy.position.distanceTo(firstSpirea.position)).toBeCloseTo((sizeOf(lastIvy).depth + sizeOf(firstSpirea).depth) / 2, 1)
   })
 
   it('sur téléphone (`leafy` faux), il ne reste que le bloc vert de chaque haie : ni feuilles ni fleurs', () => {
@@ -113,7 +118,9 @@ describe('pathAndGates', () => {
     for (const [low, high] of [[westLow, west], [eastLow, east]]) {
       expect(low.material).toBe(m.wall)
       expect(sizeOf(low).height).toBeCloseTo(SITE.raised + PATH_DROP)
-      expect(low.position.y).toBeCloseTo(high.position.y)
+      // Son dessus reste au niveau de celui du haut ; seul son pied descend avec le chemin.
+      expect(low.position.y + sizeOf(low).height / 2).toBeCloseTo(high.position.y + sizeOf(high).height / 2)
+      expect(low.position.y - sizeOf(low).height / 2).toBeCloseTo(-PATH_DROP)
       expect(low.position.z).toBeCloseTo(high.position.z)
       // Il continue le haut, vers le portillon.
       expect(low.position.x).toBeLessThan(high.position.x)
@@ -126,36 +133,40 @@ describe('pathAndGates', () => {
     expect(earth.position.z).toBeCloseTo((west.position.z + outer.position.z) / 2)
     expect(sizeOf(earth).height).toBeCloseTo(SITE.raised - 0.04)
     expect(sizeOf(earth).width).toBeCloseTo(0.28)
-    // Le portail du garage monte à 2,10 m, le portillon reste à 1,40 m ; tous deux en fer sombre.
-    for (const door of [gate, wicket]) {
+    // Le portail du garage monte à 2,10 m, le portillon fait 1,65 m ; tous deux en fer sombre.
+    for (const [door, drop] of [[gate, GATE_DROP], [wicket, PATH_DROP]] as const) {
       expect(door.material).toBe(m.iron)
       expect(sizeOf(door).width).toBe(0.06)
-      // Au niveau du chemin en contrebas.
-      expect(door.position.y + sizeOf(door).height / 2).toBeCloseTo(sizeOf(door).height - PATH_DROP)
+      // En contrebas : le portillon au niveau de son chemin, le portail du garage 50 cm plus bas encore.
+      expect(door.position.y - sizeOf(door).height / 2).toBeCloseTo(-drop)
     }
+    expect(GATE_DROP).toBeCloseTo(PATH_DROP + 0.5)
+    expect(GATE_HEIGHT).toBe(1.65)
     expect(sizeOf(gate).height).toBe(2.1)
     expect(sizeOf(wicket).height).toBe(GATE_HEIGHT)
     expect(sizeOf(gate).depth).toBeGreaterThan(sizeOf(wicket).depth)
-    // Un poteau de béton de 30 cm à chaque bout : 2,50 m au portail du garage, 2,20 m au portillon, dans l'axe de la porte.
+    // Un poteau de béton de 30 cm à chaque bout : 2,50 m au portail du garage, 2 m au portillon, dans l'axe de la porte.
     expect(posts).toHaveLength(4)
     expect(posts.every((post) => post.material === m.concrete)).toBe(true)
-    expect(posts.map((post) => sizeOf(post))).toEqual([2.5, 2.5, 2.2, 2.2].map((height) => ({ width: 0.3, height, depth: 0.3, widthSegments: 1, heightSegments: 1, depthSegments: 1 })))
+    expect(posts.map((post) => sizeOf(post))).toEqual([2.5, 2.5, 2, 2].map((height) => ({ width: 0.3, height, depth: 0.3, widthSegments: 1, heightSegments: 1, depthSegments: 1 })))
     // En contrebas, le poteau descend avec le chemin : même sommet, plus long (le pied est au niveau du chemin).
     const planned = [SITE.gate, SITE.gate, SITE.wicket, SITE.wicket]
     posts.forEach((post, index) => {
       const door = planned[index]
-      const tall = index < 2 ? 2.5 : 2.2
+      const [tall, drop] = index < 2 ? [2.5, GATE_DROP] : [2, PATH_DROP]
       const [x, z] = index % 2 === 0 ? [gardenX(door.y1), gardenZ(door.x1)] : [gardenX(door.y2), gardenZ(door.x2)]
-      expect(post.position.x).toBeCloseTo(x)
-      expect(post.position.z).toBeCloseTo(z)
-      expect(post.scale.y).toBeCloseTo((tall + PATH_DROP) / tall)
+      // Ceux du portail du garage sont à ses bouts ; ceux du portillon sont écartés de 15 cm de chaque côté.
+      expect(Math.hypot(post.position.x - x, post.position.z - z)).toBeCloseTo(index < 2 ? 0 : 0.15)
+      expect(post.scale.y).toBeCloseTo((tall + drop) / tall)
       expect(post.position.y + (tall * post.scale.y) / 2).toBeCloseTo(tall)
-      expect(post.position.y - (tall * post.scale.y) / 2).toBeCloseTo(-PATH_DROP)
+      expect(post.position.y - (tall * post.scale.y) / 2).toBeCloseTo(-drop)
     })
     // Chaque poteau est tourné comme sa porte.
     const turn = (door: typeof SITE.gate) => Math.atan2(gardenX(door.y2) - gardenX(door.y1), gardenZ(door.x2) - gardenZ(door.x1))
     ;[SITE.gate, SITE.gate, SITE.wicket, SITE.wicket].forEach((door, index) => expect(posts[index].rotation.y).toBeCloseTo(turn(door)))
     expect(wicket.position.z).toBeCloseTo((posts[2].position.z + posts[3].position.z) / 2)
+    // Les poteaux du portillon sont plus écartés que le portillon n'est large.
+    expect(posts[2].position.distanceTo(posts[3].position)).toBeGreaterThan(Math.hypot(gardenX(SITE.wicket.y2) - gardenX(SITE.wicket.y1), gardenZ(SITE.wicket.x2) - gardenZ(SITE.wicket.x1)) + 0.29)
   })
 })
 

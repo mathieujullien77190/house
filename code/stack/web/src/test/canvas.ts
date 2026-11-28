@@ -12,6 +12,7 @@ export const fakeContext2d = () => ({
   stroke: vi.fn(),
   fill: vi.fn(),
   ellipse: vi.fn(),
+  arc: vi.fn(),
   fillText: vi.fn(),
   save: vi.fn(),
   restore: vi.fn(),

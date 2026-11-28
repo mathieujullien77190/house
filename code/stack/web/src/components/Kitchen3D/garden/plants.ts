@@ -232,9 +232,9 @@ export const passionflower = (group: THREE.Group): void => {
  * Une haie de spirées le long d'une ligne du plan : un bloc vert au cœur, et autour une masse très dense de rameaux. Chaque rameau part du pied, monte haut,
  * s'arque et retombe ; la plupart retombent du côté du jardin (vers le centre du terrain), quelques-uns de l'autre. Tout du long, de
  * petits amas de feuilles et des bouquets de fleurs blanches, plus serrés sur la retombée. `sink` : de combien le pied est sous le niveau
- * du terrain (là où le jardin est plus bas). Deux maillages par ligne (feuilles, fleurs), plus le bloc de chaque tronçon. Seul le bloc porte une ombre, pas les bouquets. `leafy` faux : le bloc seul. `ivy` : c'est en fait du lierre (le tronçon du portail du garage au cerisier) : pas de fleurs blanches, et un vert bien plus foncé. `spread` : de combien les rameaux avancent sur le terrain (1 : comme d'habitude). `toGround` : ils retombent jusqu'à terre.
+ * du terrain (là où le jardin est plus bas). Deux maillages par ligne (feuilles, fleurs), plus le bloc de chaque tronçon. Seul le bloc porte une ombre, pas les bouquets. `leafy` faux : le bloc seul. `ivy` : c'est en fait du lierre (le tronçon du portail du garage au cerisier) : pas de fleurs blanches, et un vert bien plus foncé. `spread` : de combien les rameaux avancent sur le terrain (1 : comme d'habitude). `toGround` : ils retombent jusqu'à terre. `blockPoints` : la ligne où sont posés les blocs verts (par défaut `points`) : là où deux haies se mêlent, leurs bouquets se chevauchent mais pas leurs blocs : `flush` dit quel bout de la ligne des blocs (`start`, `end`) s'arrête net, sans le prolongement de 15 cm qui sert à raccorder deux tronçons d'une même haie.
  */
-export const spireaHedge = (points: PlanPoint[], height: number, sink: number, seed: number, leafy = true, ivy = false, spread = 1, toGround = false): THREE.Group => {
+export const spireaHedge = (points: PlanPoint[], height: number, sink: number, seed: number, leafy = true, ivy = false, spread = 1, toGround = false, blockPoints = points, flush: { start?: boolean; end?: boolean } = {}): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
   const heart = new THREE.Vector3(gardenX(LOT.centerY), 0, gardenZ(LOT.centerX))
@@ -243,6 +243,17 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
   const block = 2.1
   const spots: [number, number, number, number][] = []
   const blooms: [number, number, number, number][] = []
+  // Les blocs verts du cœur : un par tronçon de `blockPoints`.
+  blockPoints.slice(1).forEach((point, index) => {
+    const from = new THREE.Vector3(gardenX(blockPoints[index][1]), 0, gardenZ(blockPoints[index][0]))
+    const to = new THREE.Vector3(gardenX(point[1]), 0, gardenZ(point[0]))
+    const [extraStart, extraEnd] = [index === 0 && flush.start ? 0 : 0.15, index === blockPoints.length - 2 && flush.end ? 0 : 0.15]
+    const way = to.clone().sub(from).normalize()
+    const [head, tail] = [from.clone().addScaledVector(way, -extraStart), to.clone().addScaledVector(way, extraEnd)]
+    const body = box(ivy ? 0.56 : 0.6, block + sink, head.distanceTo(tail), core, (head.x + tail.x) / 2, (block - sink) / 2, (head.z + tail.z) / 2)
+    body.rotation.y = Math.atan2(to.x - from.x, to.z - from.z)
+    group.add(body)
+  })
   points.slice(1).forEach((point, index) => {
     const from = new THREE.Vector3(gardenX(points[index][1]), 0, gardenZ(points[index][0]))
     const to = new THREE.Vector3(gardenX(point[1]), 0, gardenZ(point[0]))
@@ -250,11 +261,7 @@ export const spireaHedge = (points: PlanPoint[], height: number, sink: number, s
     const across = new THREE.Vector3(heading.z, 0, -heading.x)
     // Le côté du jardin : celui du centre du terrain.
     if (across.dot(heart.clone().sub(from)) < 0) across.negate()
-    // Le cœur de la haie : un bloc vert, plein, d'où sortent les rameaux.
     const long = from.distanceTo(to)
-    const body = box(ivy ? 0.56 : 0.6, block + sink, long + 0.3, core, (from.x + to.x) / 2, (block - sink) / 2, (from.z + to.z) / 2)
-    body.rotation.y = Math.atan2(to.x - from.x, to.z - from.z)
-    group.add(body)
     // Sur ce bloc, la haie est la plus dense : de gros bouquets de feuilles posés sur ses flancs et son dessus, et des fleurs parmi eux.
     for (let clump = 0; clump < long * (toGround ? 40 : 70); clump += 1) {
       const at = from.clone().lerp(to, rand())
@@ -545,9 +552,9 @@ export const vineArch = (group: THREE.Group, timber: THREE.Material): void => {
 /**
  * Un conifère jamais taillé, pris dans une haie qui court le long de z : un tronc nu jusqu'à 1 m, puis une masse de touffes sombres, à peine
  * plus étroite en haut, étirée le long de la haie ; au-dessus de `over` (m), des branches partent vers −x (par-dessus la cage) avec leurs touffes.
- * `tall` : sa hauteur (m). `mingle` : jusqu'où ses branches s'allongent le long de la haie, vers −z, pour se mêler à l'arbre voisin (m ; 0 : pas de voisin).
+ * `tall` : sa hauteur (m). `mingle` : jusqu'où ses branches s'allongent le long de la haie, vers −z, pour se mêler à l'arbre voisin (m).
  */
-export const wildConifer = (seed: number, tall: number, over: number, mingle = 0): THREE.Group => {
+export const wildConifer = (seed: number, tall: number, over: number, mingle: number): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
   const wood = woodOf(faceted(0x4a3a2c, 0.95))
@@ -566,7 +573,7 @@ export const wildConifer = (seed: number, tall: number, over: number, mingle = 0
     tuft(lean.clone().multiplyScalar(share).add(new THREE.Vector3(Math.cos(turn) * wide, (rand() - 0.5) * 0.15, Math.sin(turn) * wide * 2)), 0.2 + rand() * 0.14, wide / 0.75)
   }
   // Les branches qui passent par-dessus la cage : elles partent du tronc au-dessus de `over`, s'allongent vers −x en retombant un peu.
-  for (let branch = 0; over < tall * 0.9 && branch < 7; branch += 1) {
+  for (let branch = 0; branch < 7; branch += 1) {
     const from = lean.clone().multiplyScalar((over + 0.15 + rand() * (tall * 0.9 - over - 0.15)) / lean.y)
     const reach = 0.7 + rand() * 0.9
     const to = from.clone().add(new THREE.Vector3(-reach, -0.05 - rand() * 0.2, (rand() - 0.5) * 1.6))
@@ -575,7 +582,7 @@ export const wildConifer = (seed: number, tall: number, over: number, mingle = 0
     for (let index = 0; index < 5; index += 1) tuft(from.clone().lerp(to, 0.35 + index * 0.16).add(new THREE.Vector3(0, (rand() - 0.3) * 0.1, (rand() - 0.5) * 0.2)), 0.13 + rand() * 0.1, 0.4 + index * 0.15)
   }
   // Les branches qui vont se mêler au voisin : elles filent le long de la haie, garnies de touffes jusqu'au bout.
-  for (let branch = 0; mingle > 0 && branch < 7; branch += 1) {
+  for (let branch = 0; branch < 7; branch += 1) {
     const from = lean.clone().multiplyScalar(0.4 + rand() * 0.5)
     const to = from.clone().add(new THREE.Vector3((rand() - 0.5) * 0.6, (rand() - 0.4) * 0.5, -mingle * (0.75 + rand() * 0.4)))
     wood.limb(from, to, 0.025, 0.008)

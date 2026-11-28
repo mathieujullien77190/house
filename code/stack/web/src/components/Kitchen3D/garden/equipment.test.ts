@@ -1,11 +1,12 @@
 import * as THREE from 'three'
+import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { stubCanvasContext } from '@/test/canvas'
 import { BASE, CAGE_CAMERA, GARDEN_CAMERA, INNER_CAGE_CAMERA, MAST, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import { gardenMaterials } from '@/components/Kitchen3D/materials'
-import { DECK, GRASS, HEDGE, PANEL, TERRACE } from './constants'
+import { DECK, GRASS, HEDGE, LOT, PANEL, PATH_DROP, TERRACE } from './constants'
 import { bins, deck, gardenCamera, gardenTable, heatPump, powerLine, upturnedBin } from './equipment'
 import { SITE } from './layout'
-import { gardenX, gardenZ } from './plan'
+import { gardenX, gardenZ, planOf } from './plan'
 
 const built = (build: (group: THREE.Group, m: ReturnType<typeof gardenMaterials>) => void) => {
   const group = new THREE.Group()
@@ -43,15 +44,18 @@ describe('bins', () => {
 })
 
 describe('gardenTable', () => {
-  it('la table blanche ovale sur ses quatre pieds, et quatre chaises tournées vers elle', () => {
+  it('la table blanche ovale sur ses quatre pieds, et quatre chaises tournées vers elle, dans un seul groupe', () => {
     const group = new THREE.Group()
-    gardenTable(group)
-    expect(group.children).toHaveLength(9)
-    const [top, ...rest] = group.children as THREE.Mesh[]
+    gardenTable(group, new THREE.Vector3(-14, 0, 2))
+    expect(group.children).toHaveLength(1)
+    const [set] = group.children
+    expect(set.type).toBe('Group')
+    expect(set.children).toHaveLength(9)
+    const [top, ...rest] = set.children as THREE.Mesh[]
     expect(top.geometry.type).toBe('CylinderGeometry')
     expect(top.scale.z).toBe(1.5)
-    expect(top.position.x).toBeCloseTo(SITE.house[0] - TERRACE - 3)
-    expect(top.position.z).toBeCloseTo(REST.west + 2.95 - 0.76)
+    // Le plateau est au milieu du groupe : c'est le groupe qui est placé et tourné.
+    expect(top.position.toArray()).toEqual([0, 0.72, 0])
     const legs = rest.slice(0, 4)
     expect(legs.every((leg) => sizeOf(leg).height === 0.7 && leg.position.y === 0.35)).toBe(true)
     const chairs = rest.slice(4)
@@ -69,6 +73,33 @@ describe('gardenTable', () => {
       if ((child as THREE.Mesh).isMesh) materials.add((child as THREE.Mesh).material)
     })
     expect(materials.size).toBe(1)
+  })
+
+  it('rapprochée de la haie de l’arc, puis de 70 cm vers l’arbre donné ; son grand axe suit la haie', () => {
+    const place = (toward: THREE.Vector3): THREE.Object3D => {
+      const group = new THREE.Group()
+      gardenTable(group, toward)
+      return group.children[0]
+    }
+    // Son ancienne place, sur la pelouse devant la chambre de Matou.
+    const [baseX, baseZ] = [SITE.house[0] - TERRACE - 3, REST.west + 2.95 - 0.76]
+    const [planX, planY] = planOf(baseX, baseZ)
+    const away = Math.hypot(planX - LOT.centerX, planY - LOT.centerY)
+    // Un mètre plus loin du centre du terrain, sur le même rayon : vers la haie.
+    const reach = (away + UNITS_PER_METER) / away
+    const hedge = new THREE.Vector3(gardenX(LOT.centerY + (planY - LOT.centerY) * reach), 0, gardenZ(LOT.centerX + (planX - LOT.centerX) * reach))
+    const [west, east] = [new THREE.Vector3(hedge.x, 0, hedge.z - 5), new THREE.Vector3(hedge.x, 0, hedge.z + 5)]
+    const [toWest, toEast] = [place(west), place(east)]
+    expect(toWest.position.distanceTo(hedge)).toBeCloseTo(0.7)
+    expect(toWest.position.z).toBeCloseTo(hedge.z - 0.7)
+    expect(toEast.position.z).toBeCloseTo(hedge.z + 0.7)
+    expect(toWest.position.y).toBe(0)
+    // Tournée, pareil quel que soit l'arbre visé : son grand axe (z, étiré d'une fois et demie) est perpendiculaire au rayon du terrain.
+    expect(toWest.rotation.y).toBe(toEast.rotation.y)
+    expect(Math.abs(toWest.rotation.y)).toBeGreaterThan(0.2)
+    const axis = new THREE.Vector3(0, 0, 1).applyEuler(toWest.rotation)
+    const radial = new THREE.Vector3(-(planY - LOT.centerY), 0, planX - LOT.centerX).normalize()
+    expect(axis.dot(radial)).toBeCloseTo(0)
   })
 })
 
@@ -167,21 +198,28 @@ describe('deck', () => {
 })
 
 describe('powerLine', () => {
-  it('un poteau de bois dans la rue, et le câble qui pend jusqu’au sommet du poteau d’acier du sas', () => {
+  it('un poteau de bois sur le trottoir, et le câble qui pend jusqu’au sommet du poteau d’acier du sas', () => {
     const group = new THREE.Group()
     powerLine(group)
     expect(group.children).toHaveLength(3)
     const [pole, arm, cable] = group.children as THREE.Mesh[]
     expect((pole.geometry as THREE.CylinderGeometry).parameters.height).toBe(7.5)
-    expect(pole.position.toArray()).toEqual([gardenX(880), 3.75, gardenZ(600)])
+    // Son pied est sur le trottoir, au niveau du portillon (51 cm sous le terrain, comme son chemin).
+    const foot = pole.position.y - 3.75
+    expect(foot).toBeCloseTo(-0.008 - PATH_DROP)
     expect(arm.material).toBe(pole.material)
-    // Il est dans la rue : au-delà de l'arc de la haie.
-    expect(Math.hypot(600 - 700, 880 + 190)).toBeGreaterThan(HEDGE.radius)
+    expect(arm.position.y).toBeCloseTo(foot + 7.5 - 0.35)
+    // Il est dans la rue, au milieu du trottoir : à 50 cm de son bord intérieur (8,4 unités au-delà de l'axe de la haie), dans la direction du point (600, 880) du plan.
+    const [planX, planY] = planOf(pole.position.x, pole.position.z)
+    expect(Math.hypot(planX - LOT.centerX, planY - LOT.centerY)).toBeCloseTo(HEDGE.radius + 8.4 + 0.5 * UNITS_PER_METER)
+    expect(Math.atan2(planY - LOT.centerY, planX - LOT.centerX)).toBeCloseTo(Math.atan2(880 - LOT.centerY, 600 - LOT.centerX))
     const curve = (cable.geometry as THREE.TubeGeometry).parameters.path as THREE.CatmullRomCurve3
     expect(curve.points).toHaveLength(17)
     const first = curve.points[0]
     const last = curve.points[16]
-    expect(first.toArray()).toEqual([pole.position.x, 7.2, pole.position.z])
+    expect(first.x).toBe(pole.position.x)
+    expect(first.z).toBe(pole.position.z)
+    expect(first.y).toBeCloseTo(foot + 7.2)
     // Le sommet du poteau d'acier, dans le repère du jardin (plus bas que le sol de la maison).
     expect(last.x).toBeCloseTo(MAST.x)
     expect(last.y).toBeCloseTo(MAST.from + MAST.tall + BASE.rise)

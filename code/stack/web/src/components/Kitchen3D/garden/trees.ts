@@ -6,8 +6,7 @@ import { berriesOf, blossomOf, fruitsOf, sprinkleOf, tuftOf, tuftsOf, woodOf } f
 /**
  * Un cerisier à facettes (peu de polygones) : un tronc qui penche un peu, des branches maîtresses qui partent au hasard vers le haut et
  * le dehors, chacune avec ses rameaux et leurs brindilles, et beaucoup de petites touffes de feuilles au bout et le long du bois. `seed` fixe le hasard :
- * le même nombre donne le même arbre. Il est en fleurs (blanches) et porte ses cerises ; `apple` : c'est un pommier, aux fleurs rosées,
- * sans fruits. Les fleurs et les cerises ont leur propre tirage : la forme de l'arbre n'en dépend pas.
+ * le même nombre donne le même arbre. Il est en fleurs (blanches) et porte ses cerises ; `apple` : c'est un pommier, sans fleurs, qui porte ses pommes. Les fleurs et les cerises ont leur propre tirage : la forme de l'arbre n'en dépend pas.
  */
 /** Le tronc d'un cerisier, en deux tronçons qui ne sont pas d'aplomb : son genou et sa fourche (les quatre premiers tirages de l'arbre). */
 const trunkOf = (rand: () => number): { knee: THREE.Vector3; fork: THREE.Vector3 } => {
@@ -124,7 +123,13 @@ export const cherryTree = (seed: number, apple = false): THREE.Group => {
   wood.grow(group)
   crown.grow(group)
   // L'arbre est en fleurs (blanches, rosées pour le pommier), et le cerisier porte ses cerises, par deux sous une touffe sur cinq.
-  group.add(blossomOf(tufts, apple ? 0xffdbe6 : 0xfff3f7, seed + 5000, 3))
+  // Le pommier n'a pas de fleurs : il porte ses pommes (orange), une sous une touffe sur trois.
+  if (apple) {
+    const pick = seeded(seed + 7000)
+    const apples = tufts.filter(() => pick() < 0.33).map(([at, size]) => new THREE.Vector3(at.x + (pick() - 0.5) * 0.1, at.y - size * 0.7 - 0.04, at.z + (pick() - 0.5) * 0.1))
+    // Des pommes orange.
+    group.add(fruitsOf(apples, 0.06, 0xe5822a))
+  } else group.add(blossomOf(tufts, 0xfff3f7, seed + 5000, 3))
   if (!apple) {
     const pick = seeded(seed + 6000)
     const cherries = tufts.filter(() => pick() < 0.2).flatMap(([at, size]) => [-1, 1].map((side) => new THREE.Vector3(at.x + side * 0.022, at.y - size * 0.8 - 0.02, at.z + (pick() - 0.5) * 0.03)))

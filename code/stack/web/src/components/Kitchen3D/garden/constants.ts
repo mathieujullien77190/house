@@ -30,23 +30,25 @@ export const PATH_SHIFT = -0.1 * UNITS_PER_METER
 /** Le pavage : à l'est de la maison jusqu'à la limite, du bas de la cage jusqu'au sud de la terrasse ; et le chemin du portillon. */
 export const PAVING = { south: 358, pathWest: 498 - PATH_SHIFT, pathEast: 556 - PATH_SHIFT, pathEnd: 800, pathEndWest: 789 }
 /**
- * Sur l'allée du portillon, entre le romarin et le néflier, le chemin descend de trois marches et s'enfonce dans le terrain : où elles
+ * Sur l'allée du portillon, vers le portillon (à 1,50 m du néflier), le chemin descend de trois marches et s'enfonce dans le terrain : où elles
  * commencent (ordonnée du plan), leur nombre, leur giron (unités du plan), la hauteur de chacune (m) ; `PATH_DROP` : de combien le chemin est plus bas ensuite.
  */
-export const PATH_STEPS = { from: 615, count: 3, tread: 15, drop: 0.17 }
+export const PATH_STEPS = { from: 690, count: 3, tread: 15, drop: 0.17 }
 export const PATH_DROP = PATH_STEPS.count * PATH_STEPS.drop
 /**
  * L'allée du garage : du portail, au niveau du chemin du portillon (`PATH_DROP` sous le terrain), elle descend en rampe jusqu'au pied de la
  * terrasse, devant la fenêtre de la chambre d'invité, où le garage est en dessous : 2 m plus bas que le terrain (m).
  */
 export const GARAGE_DEPTH = 2
+/** Le portail du garage est encore 50 cm plus bas que le portillon (m sous le terrain). */
+export const GATE_DROP = PATH_DROP + 0.5
 /** La terrasse qui fait le tour de la maison (m). */
 export const TERRACE = 1.5
 /** La hauteur de la cage à perruches, puis celle du portail (m). */
 export const CAGE_HEIGHT = 2.1
 /** Sous le bas du toit de tôle (côté haie), la cage ne fait plus que tant de haut (m). */
 export const CAGE_LOW = 2
-export const GATE_HEIGHT = 1.4
+export const GATE_HEIGHT = 1.65
 /** Derrière la maison, le jardin est plus bas que le reste du terrain, de tant (m). */
 export const LOW = 0.2
 /** Dans cette partie basse, l'herbe est 10 cm plus haute que la bande de béton qui longe la maison : son niveau (m). */

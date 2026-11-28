@@ -5,7 +5,7 @@ Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home
 - **L'espace de vie**, meublé : la cuisine, le coin repas, l'entrée, le salon et le bureau.
 - **Le reste de la maison** : la chambre d'invité, la salle de bain et le sas de l'entrée (meublés, `furniture/`) ; la chambre de Matou n'a que sa clim et sa suspension (`furniture/matouRoom.ts`) ; le couloir, le placard de Matou et la cage d'escalier (buanderie) sont vides.
 - **Les murs extérieurs** : 30 cm (`OUTER_WALL`), percés aux fenêtres, sur un soubassement en retrait (`BASE` : le sol de la maison est 33 cm au-dessus du terrain).
-- **Le jardin** (`garden/`), d'après le plan de la maison : pelouse sur deux niveaux (murs de soutènement), terrasses, pavage, haies, portail, cage à perruches et ses bacs, poubelles, table, pompe à chaleur, ligne électrique, terrasse en ipé et son salon de jardin, pergola, arbres, massifs, herbes.
+- **Le jardin** (`garden/`), d'après le plan de la maison : pelouse sur deux niveaux (murs de soutènement), terrasses, pavage, chemins et allée du garage en contrebas (voir « Le relief du jardin »), haies, portail, cage à perruches et ses bacs, poubelles, table, pompe à chaleur, ligne électrique, terrasse en ipé et son salon de jardin, pergola, arbres, massifs, herbes.
 
 ## D'où viennent les formes
 
@@ -27,7 +27,7 @@ Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home
 - `matrix.ts` : la vue Matrix (`createMatrix`, `MATRIX_COLORS`, `MATRIX_CAMERA`, `MATRIX_SHUTTER`, voir « La vue Matrix »).
 - `constants.ts` : pièces, caissons, meubles, fenêtres, repères du gros œuvre (`SHELL`, `PASSAGE`, baies), la qualité selon l'appareil (`QUALITY`), textes, classes.
 - `primitives.ts` : pavé, cylindre, boule, matériau, texture sur canevas, bois veiné (`woodTexture`), `facing`, `fixtureBulb`, `noShadow`.
-- `textures.ts` : les textures dessinées (sisal, plan de travail, carrelages, lambris, terre cuite, grillage, cadran) et les photos (`photoTexture` ; `onPhotoLoad` prévient quand l'une a fini de se charger).
+- `textures.ts` : les textures dessinées (sisal, plan de travail, carrelages, lambris, terre cuite, grillage, cadran, béton banché : une image couvre 1 m) et les photos (`photoTexture` ; `onPhotoLoad` prévient quand l'une a fini de se charger).
 - `materials.ts` : un jeu de matériaux par partie (cuisine et gros œuvre, mobilier, pièces, jardin), créé une fois par scène.
 - `library.ts`, `libraryData.ts` : la bibliothèque (voir plus bas).
 - `lighting.ts` : les lampes Hue dans la scène.
@@ -51,7 +51,7 @@ Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home
 - `parquet.ts` : le parquet lame par lame (un seul maillage `InstancedMesh`, posé au tiers, la même trame pour toute la maison).
 - `living.ts` : l'espace de vie (sols, murs, plafond en lambris sauf la cuisine en plaque de plâtre, bar, mur de l'escalier et ses niches, entrée, plinthes, poutres).
 - `rest.ts` : le reste de la maison (chambre d'invité, salle de bain, couloir, chambre de Matou et son placard, buanderie).
-- `outer.ts` : les murs extérieurs, le soubassement, le sas et ses marches.
+- `outer.ts` : les murs extérieurs, le soubassement, le sas et ses marches. Dehors, pas de cadre autour des fenêtres : sous chacune, un rebord blanc qui couvre le mur dans toute son épaisseur et déborde de 4 cm.
 
 `furniture/` (le mobilier) :
 
@@ -64,10 +64,10 @@ Toute la maison et son jardin en Three.js (mètres) : c'est ce que montre **Home
 `garden/` (le jardin, tout dans un seul groupe) :
 
 - `garden.ts` : `buildGarden`, qui appelle les constructeurs dans l'ordre et plante les arbres.
-- `constants.ts` : le terrain sur le plan de la maison ; `plan.ts` : du plan à la scène (`gardenX`, `gardenZ`, surfaces à plat, tronçons le long d'une ligne) ; `layout.ts` : les repères calculés (`SITE`).
-- `ground.ts` : pelouses, marches de soutènement, terrasses, pavage (le chemin du portillon descend de trois marches, `PATH_STEPS` ; l'allée du garage est une rampe entre trois murs, `GARAGE_DEPTH`) ; `borders.ts` : haies, murets, portail et portillon.
-- `aviary.ts` : la cage à perruches (pans de bois à planches, deux portes l'une en face de l'autre, bacs creux, outils pendus) ; `equipment.ts` : poubelles, poubelle renversée derrière la cage, table, pompe à chaleur sur sa dalle, terrasse en ipé et la bande de béton au pied de la haie du nord, ligne électrique, caméras du jardin et de la cage ; `lounge.ts` : le salon de jardin ; `pergola.ts` : la pergola (d’après son modèle SketchUp).
-- `branches.ts` : de quoi dessiner une plante par lots (`woodOf` : tout son bois en un maillage fondu ; `tuftsOf` : ses touffes en un `InstancedMesh` par teinte ; `piecesOf`, fleurs, fruits) ; `trees.ts` (cerisier, prunus, arbre taillé, néflier), `laurel.ts`, `plants.ts` (fougère à folioles, choisya, hortensia, passiflore, haies de spirées ou de lierre, glycine, buissons, massifs de fleurs, arche de vigne, conifère jamais taillé, arbre clair, romarin), `grass.ts` (touffes d’herbe et fleurs de la pelouse).
+- `constants.ts` : le terrain sur le plan de la maison ; `plan.ts` : du plan à la scène (`gardenX`, `gardenZ`, et l'inverse `planOf` ; `flat` : une surface à plat ; `quad` : un pan dans l'espace, vu des deux côtés, avec des coordonnées de texture en mètres si `textured` ; `along` : des tronçons le long d'une ligne) ; `layout.ts` : les repères calculés (`SITE`).
+- `ground.ts` : pelouses, mur et trottoir côté rue, marches de soutènement, terrasses, pavage, chemin du portillon, chemin de béton le long de la haie, allée du garage (voir « Le relief du jardin ») ; `borders.ts` : haies, murets, portail et portillon.
+- `aviary.ts` : la cage à perruches (pans de bois à planches, deux portes l'une en face de l'autre, bacs creux, outils pendus) ; `equipment.ts` : poubelles, poubelle renversée derrière la cage, table blanche (`gardenTable(group, toward)` : un groupe tourné le long de la haie de l'arc, rapproché d'elle puis de 70 cm vers l'arbre donné, le conifère), pompe à chaleur sur sa dalle, terrasse en ipé et la bande de béton au pied de la haie du nord, ligne électrique (son poteau est sur le trottoir), caméras du jardin et de la cage ; `lounge.ts` : le salon de jardin ; `pergola.ts` : la pergola (d’après son modèle SketchUp).
+- `branches.ts` : de quoi dessiner une plante par lots (`woodOf` : tout son bois en un maillage fondu ; `tuftsOf` : ses touffes en un `InstancedMesh` par teinte ; `piecesOf`, fleurs, fruits) ; `trees.ts` (cerisier, pommier, prunus, arbre taillé, néflier), `laurel.ts` (`laurelBush` : le laurier en cépée, dont on choisit les verts et la hauteur ; `roundLaurel` : une couronne ovale feuillue dès le sol), `plants.ts` (fougère à folioles, choisya, hortensia, passiflore, haies de spirées ou de lierre, glycine, buissons, massifs de fleurs, arche de vigne, conifère jamais taillé, arbre clair, romarin), `grass.ts` (touffes d’herbe et fleurs de la pelouse).
 
 **L'ordre compte** : les constructeurs ajoutent leurs objets à un groupe dans un ordre fixe, et un tirage `seeded(n)` est consommé dans l'ordre des appels. Déplacer du code qui partage un tirage change les formes.
 
@@ -103,9 +103,22 @@ Au-dessus de la vue : **Lumière** (`LIGHT_OPTIONS`), deux choix. Le choix est g
 
 Il n'y a plus ni saisons, ni pluie, ni neige, ni vent : le jardin reste tel qu'il était au printemps par beau temps (l'ancien choix `house-garden-climate` du `localStorage` n'est plus lu).
 
-- En fleurs : les cerisiers (blanc) et le pommier (blanc rosé), les spirées (blanc), la glycine, les choisyas, l'hortensia, le buisson jaune, la passiflore, les massifs fuchsia sous les arbres, les petites fleurs de couleur et les pâquerettes de la pelouse. Les cerisiers portent leurs cerises, le néflier ses nèfles. **Le prunus n'a pas de fleurs** (son bois et son feuillage bordeaux).
-- Ce qui ne se voyait qu'à une autre saison n'est plus construit : pommes, bois nu des choisyas et de l'hortensia.
-- **Les formes n'ont pas bougé** : les fleurs et les cerises ont leur propre tirage (`seed + 5000`, `+ 6000`), et le pommier tire toujours un nombre par touffe (ses anciennes pommes, `cherryTree(seed, true)`) ; retirer ce tirage changerait l'arbre.
+- En fleurs : les cerisiers (blanc), les spirées (blanc), la glycine, les choisyas, l'hortensia, le buisson jaune, la passiflore, les massifs fuchsia sous les arbres, les petites fleurs de couleur et les pâquerettes de la pelouse. Les cerisiers portent leurs cerises, le néflier ses nèfles. **Le pommier n'a pas de fleurs** : il porte des pommes orange, sous une touffe sur trois (`fruitsOf`). **Le prunus n'a pas de fleurs** (son bois et son feuillage bordeaux).
+- Ce qui ne se voyait qu'à une autre saison n'est plus construit : bois nu des choisyas et de l'hortensia.
+- **Les formes n'ont pas bougé** : les fleurs, les cerises et les pommes ont leur propre tirage (`seed + 5000`, `+ 6000`, `+ 7000`), et le pommier tire toujours un nombre par touffe dans le tirage de sa forme (`cherryTree(seed, true)`) ; retirer ce tirage changerait l'arbre.
+
+## Le relief du jardin
+
+Le terrain n'est pas plat côté rue : des chemins descendent sous la pelouse, dont le contour fait un creux à chacun (pas de trou dans la surface : `lawns`, `ground.ts`). Les brins d'herbe et les pâquerettes s'arrêtent 25 cm avant ces creux (`nearInside`, `grass.ts`).
+
+- **Le chemin du portillon** : de plain-pied depuis le pavage, puis trois marches de 17 cm (`PATH_STEPS`, à 1,50 m du néflier), puis en contrebas (`PATH_DROP`, 51 cm) jusqu'au portillon. Ses murets gardent leur dessus au même niveau : seul leur pied descend.
+- **L'allée du garage** (`PLAN_GARAGE_CORNERS`, `../Lights/constants.ts`) : une rampe au sol uni, du portail (`GATE_DROP` : 50 cm plus bas que le portillon) jusqu'au pied de la terrasse, 2 m sous le terrain (`GARAGE_DEPTH`) ; puis du béton à plat sous la terrasse, jusqu'au portail en bois du garage (trois vantaux de planches, entre deux murs de béton). Côté rue, elle continue à plat jusqu'au trottoir. Ses murs sont en béton banché (`formedConcreteTexture`) : 20 cm au-dessus du terrain le long de la rampe, arrêtés sous le bloc de la terrasse ensuite. En bas de la pente, un caniveau à grille ; au-dessus, au bord du carrelage, une barrière noire de 1 m à barreaux.
+- **Le chemin de béton le long de la haie** (`WALK`, `walkOutline`) : un tronçon droit part de l'angle de la terrasse carrelée et descend en biais vers la haie, puis quatre longues marches de 25 cm suivent la haie jusqu'à l'allée du garage, où un palier avance dans la rampe. Il est bordé de murets de béton banché ; le muret du bac de la terrasse est prolongé jusqu'à la haie.
+- **Dans la descente de l'allée**, contre le mur de droite : un muret, une bande de terre, un arbre étroit (`roundLaurel`) et du lierre (sur le mur, la barrière et l'épaisseur de la terrasse). Entre l'allée, l'escalier et la terrasse, **un lopin enclavé** : de la terre sans herbe, et un gros buisson à feuilles claires (`laurelBush`, à demi enterré).
+- **Côté rue** : un mur descend de la pelouse jusqu'à 2,20 m plus bas tout autour de la propriété (on ne voit pas sous le sol) ; il s'abaisse au portail du garage (entre ses poteaux) et au portillon. Le long de l'arc, un trottoir de 1 m monte du niveau du portail du garage à celui du portillon ; le poteau électrique y est planté.
+- **Portails** : le portail du garage (2,10 m) et le portillon (`GATE_HEIGHT`, 1,65 m) sont en contrebas, au niveau de leur sol ; leurs poteaux de béton (2,50 m et 2 m, ceux du portillon écartés de 15 cm) descendent avec eux, même sommet.
+- **Haies de l'arc** : du lierre de part et d'autre du portail du garage (3 m d'un côté, jusqu'au cerisier de l'autre), des spirées ailleurs. Là où deux haies se suivent, leurs bouquets se mêlent sur 75 cm mais leurs blocs verts se relaient exactement à la limite (`blockPoints`, `flush` de `spireaHedge`).
+- **À droite du portillon** : un conifère sombre et un laurier palme, ronds (`roundLaurel`), en dedans de la haie ; la table blanche est près du conifère (`frontTrees` rend sa place à `gardenTable`).
 
 ## La molette et la vue Matrix
 

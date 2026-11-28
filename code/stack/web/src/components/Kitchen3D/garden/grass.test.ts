@@ -3,7 +3,7 @@ import { ROOM } from '@/components/Kitchen3D/constants'
 import { DECK, GRASS, HEDGE, LOT, PAVING } from './constants'
 import { grassTufts, lawnFlowers } from './grass'
 import { SITE } from './layout'
-import { gardenX, gardenZ } from './plan'
+import { gardenX, gardenZ, planOf } from './plan'
 
 /** Les places des instances d'un maillage (dans le repère du jardin). */
 const placesOf = (mesh: THREE.InstancedMesh): THREE.Vector3[] => {
@@ -25,6 +25,10 @@ const expectOnGrass = (at: THREE.Vector3): void => {
   expect(at.z > gardenZ(PAVING.pathWest) && at.z < gardenZ(PAVING.pathEast) && at.x < house[0]).toBe(false)
   // La terrasse en ipé.
   expect(at.x > stepLine && at.z < stepZ && at.z > cageZ1 - 0.4 - DECK.long).toBe(false)
+  // Ni au-dessus de l'allée du garage (ni à moins de 25 cm d'elle), ni sur le lopin de terre enclavé entre elle, l'escalier et la terrasse.
+  const [planX, planY] = planOf(at.x, at.z)
+  expect(planX > -204 && planX < 10 && planY > 93 - 9 && planY < 252 + 9).toBe(false)
+  expect(planX > -175 && planX < -31 && planY > 240 && planY < 335).toBe(false)
   // En dedans des haies.
   expect(at.z).toBeLessThan(gardenZ(HEDGE.east))
   expect(at.x).toBeLessThan(gardenX(HEDGE.north))

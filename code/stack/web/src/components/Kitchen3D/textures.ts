@@ -177,3 +177,31 @@ export const photoTexture = (file: string): THREE.Texture => {
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
 }
+
+/**
+ * Un béton banché : un gris moucheté, avec les joints des banches (une ligne tous les 25 cm) et quelques trous de serre-joint. Une image couvre 1 m.
+ */
+export const formedConcreteTexture = (): THREE.CanvasTexture =>
+  canvasTexture(512, (ctx) => {
+    const rand = seeded(29)
+    ctx.fillStyle = '#9a9a96'
+    ctx.fillRect(0, 0, 512, 512)
+    for (let speck = 0; speck < 2200; speck += 1) {
+      ctx.fillStyle = rand() < 0.5 ? 'rgba(255, 255, 255, 0.14)' : 'rgba(40, 40, 40, 0.16)'
+      ctx.fillRect(rand() * 512, rand() * 512, 2 + rand() * 3, 2 + rand() * 2)
+    }
+    ctx.strokeStyle = 'rgba(60, 60, 58, 0.55)'
+    ctx.lineWidth = 2
+    for (let line = 0; line < 4; line += 1) {
+      ctx.beginPath()
+      ctx.moveTo(0, line * 128 + 1)
+      ctx.lineTo(512, line * 128 + 1)
+      ctx.stroke()
+    }
+    ctx.fillStyle = 'rgba(50, 50, 48, 0.6)'
+    for (const [x, y] of [[64, 64], [320, 64], [192, 192], [448, 192], [64, 320], [320, 320], [192, 448], [448, 448]]) {
+      ctx.beginPath()
+      ctx.arc(x, y, 4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  })

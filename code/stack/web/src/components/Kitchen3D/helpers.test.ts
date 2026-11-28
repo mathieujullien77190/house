@@ -53,7 +53,7 @@ describe('buildScene', () => {
     // (Plus de 7 000 avant que les plantes soient dessinées par lots et que ce qui ne bouge pas soit fondu par matériau.)
     expect(meshes.length).toBeGreaterThan(300)
     expect(meshes.length).toBeLessThan(700)
-    expect(new Set(meshes.map((mesh) => mesh.material)).size).toBeLessThan(360)
+    expect(new Set(meshes.map((mesh) => mesh.material)).size).toBeLessThan(400)
     // Le groupe fondu : des maillages simples et opaques, sans marque, un par matériau (ou presque : un par jeu d'attributs).
     const fused = root.children.at(-1) as THREE.Group
     expect(fused.children.length).toBeGreaterThan(100)

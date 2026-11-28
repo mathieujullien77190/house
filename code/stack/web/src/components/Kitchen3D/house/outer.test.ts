@@ -55,15 +55,17 @@ describe('outerWalls', () => {
     expect(boxOf(base[3]).width).toBeCloseTo(ENTRY.x + 0.05 - ROOM.xMin)
   })
 
-  it('un appui blanc sous chaque fenêtre, pas sous les portes ni sous la niche', () => {
-    const sills = boxes(built()).filter((mesh) => colorOf(mesh) === 0xf4f4f1 && boxOf(mesh).height === 0.04)
+  it('un rebord blanc sous chaque fenêtre, dans toute l’épaisseur du mur, pas sous les portes ni sous la niche', () => {
+    const sills = boxes(built()).filter((mesh) => colorOf(mesh) === 0xf4f4f1 && boxOf(mesh).height === 0.03)
     expect(sills).toHaveLength(9)
     expect(new Set(sills.map((sill) => sill.material)).size).toBe(1)
-    // Celui de la fenêtre du sas dépasse du mur est.
+    // Celui de la fenêtre du sas couvre le mur est du nu intérieur au dehors, et déborde de 4 cm ; il est posé sur l'allège.
     const sasSill = sills.find((sill) => Math.abs(sill.position.x - SAS.window.z) < 1e-9) as THREE.Mesh
-    expect(sasSill.position.z).toBeCloseTo(SAS.east + OUTER_WALL + 0.02)
-    expect(sasSill.position.y).toBeCloseTo(SAS.window.bottom - 0.02)
-    expect(boxOf(sasSill).width).toBeCloseTo(SAS.window.width + 0.1)
+    expect(boxOf(sasSill).depth).toBeCloseTo(OUTER_WALL + 0.04)
+    expect(sasSill.position.z - boxOf(sasSill).depth / 2).toBeCloseTo(SAS.east + 0.002)
+    expect(sasSill.position.z + boxOf(sasSill).depth / 2).toBeCloseTo(SAS.east + OUTER_WALL + 0.042)
+    expect(sasSill.position.y - 0.015).toBeCloseTo(SAS.window.bottom - 0.01)
+    expect(boxOf(sasSill).width).toBeCloseTo(SAS.window.width + 0.06)
   })
 
   it('le sas : son parquet est inscrit, sa porte d’entrée a un seuil, deux marches carrelées devant sa porte du dehors', () => {

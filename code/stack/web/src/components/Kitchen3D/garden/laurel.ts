@@ -6,14 +6,14 @@ import { sprinkleOf, tuftOf, tuftsOf, woodOf } from './branches'
 /**
  * Un laurier à facettes : une cépée de gros troncs gris-brun, bien espacés au pied, plutôt droits mais un peu tordus, nus en bas ; à
  * mi-hauteur chaque tronc se sépare en branches, l'une qui monte haut (jusqu'à 5-6 m), les autres plus vers les côtés. Rien ne retombe. Un feuillage persistant sombre, en
- * petites touffes nombreuses mais espacées : on voit le bois et le jour à travers. `seed` fixe le hasard.
+ * petites touffes nombreuses mais espacées : on voit le bois et le jour à travers. `seed` fixe le hasard ; `colors` : les verts de son feuillage ; `leaderTall` : la hauteur du tronc du centre, le plus haut (m).
  */
-export const laurelBush = (seed: number): THREE.Group => {
+export const laurelBush = (seed: number, colors = [0x2f5d2c, 0x386b33, 0x274f26], leaderTall = 6.9): THREE.Group => {
   const group = new THREE.Group()
   const rand = seeded(seed)
   const wood = woodOf(faceted(0x77716a, 0.95))
   const { limb } = wood
-  const crown = tuftsOf([0x2f5d2c, 0x386b33, 0x274f26].map((color) => faceted(color, 0.6)))
+  const crown = tuftsOf(colors.map((color) => faceted(color, 0.6)))
   const leaves = tuftOf(rand, crown, [0.8, 0.3])
   const tuft = (at: THREE.Vector3) => leaves(at, 0.13 + rand() * 0.08)
   // Des touffes espacées le long d'un tronçon (une tous les 30 cm environ), un peu écartées du bois.
@@ -95,7 +95,7 @@ export const laurelBush = (seed: number): THREE.Group => {
   // de courts rameaux tout le long de sa moitié haute, et un toupet au sommet.
   const leader = [new THREE.Vector3(0, 0, 0)]
   for (let step = 1; step <= 6; step += 1) {
-    leader.push(new THREE.Vector3((rand() - 0.5) * 0.3, (6.9 * step) / 6, (rand() - 0.5) * 0.3))
+    leader.push(new THREE.Vector3((rand() - 0.5) * 0.3, (leaderTall * step) / 6, (rand() - 0.5) * 0.3))
     limb(leader[step - 1], leader[step], 0.09 - (step - 1) * 0.013, 0.09 - step * 0.013)
   }
   for (let step = 3; step <= 6; step += 1) {
@@ -134,6 +134,51 @@ export const laurelBush = (seed: number): THREE.Group => {
     tuft(at)
   }
   // Tout le bois fait un seul maillage, les touffes un par teinte.
+  wood.grow(group)
+  crown.grow(group)
+  return group
+}
+
+/**
+ * Un grand laurier palme, de forme ronde : une cépée de troncs courts, puis une couronne en ovale (rayon `radius`, hauteur `tall`, du sol ; `colors` : ses verts ; `hollowBase` : peu de touffes serrées contre le tronc, en bas ; `tufts` : le nombre de touffes de feuilles) qui commence
+ * tout en bas, sans tronc nu. Des branches rayonnent vers sa surface, et sa masse de touffes sombres reste dans l'ovale (un peu irrégulière : le contour
+ * varie de 15 %, sans boule isolée qui s'en détache).
+ */
+export const roundLaurel = (seed: number, radius: number, tall: number, colors = [0x4a8a3c, 0x569a45, 0x3f7d34], hollowBase = false, tufts = 230): THREE.Group => {
+  const group = new THREE.Group()
+  const rand = seeded(seed)
+  const wood = woodOf(faceted(0x77716a, 0.95))
+  const crown = tuftsOf(colors.map((color) => faceted(color, 0.6)))
+  const middle = new THREE.Vector3(0, tall * 0.5, 0)
+  // Un point de l'ovale : sa direction au hasard, à la part `share` du rayon (1 : sa surface), avec un contour qui varie d'un côté à l'autre.
+  const inside = (share: number): THREE.Vector3 => {
+    const turn = rand() * Math.PI * 2
+    const lift = rand() * 2 - 1
+    const flat = Math.sqrt(1 - lift * lift)
+    const wobble = 0.85 + rand() * 0.3
+    return new THREE.Vector3(Math.cos(turn) * flat * radius * share * wobble, middle.y + lift * (tall / 2) * share * wobble, Math.sin(turn) * flat * radius * share * wobble)
+  }
+  for (let trunk = 0; trunk < 5; trunk += 1) {
+    const turn = (trunk / 5) * Math.PI * 2 + rand() * 0.6
+    const foot = new THREE.Vector3(Math.cos(turn) * 0.15, 0, Math.sin(turn) * 0.15)
+    const fork = new THREE.Vector3(Math.cos(turn) * 0.3, 0.7 + rand() * 0.5, Math.sin(turn) * 0.3)
+    wood.limb(foot, fork, 0.1, 0.075)
+    // Trois branches par tronc, vers la surface de la couronne.
+    for (let arm = 0; arm < 3; arm += 1) {
+      const tip = inside(0.75 + rand() * 0.2)
+      const elbow = fork.clone().lerp(tip, 0.5).add(new THREE.Vector3((rand() - 0.5) * 0.2, 0, (rand() - 0.5) * 0.2))
+      wood.limb(fork, elbow, 0.06, 0.04)
+      wood.limb(elbow, tip, 0.04, 0.012)
+    }
+  }
+  // La masse de feuilles : des touffes dans tout l'ovale, plus serrées vers sa surface.
+  for (let tuft = 0; tuft < tufts; tuft += 1) {
+    let at = inside(0.35 + Math.sqrt(rand()) * 0.65)
+    // Avec `hollowBase`, une touffe basse et proche du tronc est tirée de nouveau (au plus trois fois) : le pied est plus dégagé.
+    for (let again = 0; hollowBase && again < 3 && at.y < tall * 0.45 && Math.hypot(at.x, at.z) < radius * 0.5; again += 1) at = inside(0.35 + Math.sqrt(rand()) * 0.65)
+    const size = 0.24 + rand() * 0.14
+    crown.add(Math.floor(rand() * crown.tints), at, [rand() * 3, rand() * 3, rand() * 3], [size, size * 0.8, size])
+  }
   wood.grow(group)
   crown.grow(group)
   return group

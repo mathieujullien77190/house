@@ -1,11 +1,12 @@
 import * as THREE from 'three'
+import { UNITS_PER_METER } from '@/components/Lights/constants'
 import { BASE, CAGE_CAMERA, GARDEN_CAMERA, INNER_CAGE_CAMERA, MAST, OUTER_WALL, REST, ROOM, SAS } from '@/components/Kitchen3D/constants'
 import type { GardenMaterials } from '@/components/Kitchen3D/materials'
 import { box, cylinder, standard, woodTexture } from '@/components/Kitchen3D/primitives'
 import { reolink } from '@/components/Kitchen3D/reolink'
-import { DECK, GRASS, HEDGE, PANEL, TERRACE } from './constants'
+import { DECK, GRASS, HEDGE, LOT, PANEL, TERRACE } from './constants'
 import { SITE } from './layout'
-import { gardenX, gardenZ } from './plan'
+import { gardenX, gardenZ, planOf } from './plan'
 
 /** Les quatre poubelles à roulettes, sur le pavage : une grise à couvercle marron, deux grises à couvercle jaune, une vert sombre. */
 export const bins = (group: THREE.Group, m: GardenMaterials): void => {
@@ -32,25 +33,42 @@ export const bins = (group: THREE.Group, m: GardenMaterials): void => {
 }
 
 /** Sur la pelouse, la table de jardin blanche et ses quatre chaises. */
-export const gardenTable = (group: THREE.Group): void => {
+export const gardenTable = (group: THREE.Group, toward: THREE.Vector3): void => {
   const { house } = SITE
   const plastic = standard(0xf2f2ee, 0.6)
   // Décalée d'1,50 m vers le prunus (vers l'est, un rien vers la maison).
   // Puis d'un mètre vers le cerisier (vers le nord et l'ouest : 65 cm et 76 cm).
-  const tableX = house[0] - TERRACE - 4 + 0.35 + 0.65
-  const tableZ = REST.west + 1.5 + 1.45 - 0.76
-  const top = cylinder(0.55, 0.55, 0.04, plastic, tableX, 0.72, tableZ, 28)
+  const baseX = house[0] - TERRACE - 4 + 0.35 + 0.65
+  const baseZ = REST.west + 1.5 + 1.45 - 0.76
+  // Puis rapprochée de la haie de l'arc d'un mètre (en s'éloignant du centre du terrain).
+  const [basePlanX, basePlanY] = planOf(baseX, baseZ)
+  const away = Math.hypot(basePlanX - LOT.centerX, basePlanY - LOT.centerY)
+  const reach = (away + UNITS_PER_METER) / away
+  const hedgeX = gardenX(LOT.centerY + (basePlanY - LOT.centerY) * reach)
+  const hedgeZ = gardenZ(LOT.centerX + (basePlanX - LOT.centerX) * reach)
+  // Puis un peu (70 cm) vers le conifère vert foncé (`toward`).
+  const gap = Math.hypot(toward.x - hedgeX, toward.z - hedgeZ)
+  const tableX = hedgeX + ((toward.x - hedgeX) / gap) * 0.7
+  const tableZ = hedgeZ + ((toward.z - hedgeZ) / gap) * 0.7
+  // Alignée sur la haie : son grand axe suit la haie (la perpendiculaire du rayon du terrain), ce qui la tourne d'environ 45°.
+  const radialX = -(basePlanY - LOT.centerY) / UNITS_PER_METER
+  const radialZ = (basePlanX - LOT.centerX) / UNITS_PER_METER
+  const set = new THREE.Group()
+  set.position.set(tableX, 0, tableZ)
+  set.rotation.y = Math.atan2(-radialZ, radialX)
+  const top = cylinder(0.55, 0.55, 0.04, plastic, 0, 0.72, 0, 28)
   top.scale.z = 1.5
-  group.add(top)
-  for (const [dx, dz] of [[-0.3, -0.5], [0.3, -0.5], [-0.3, 0.5], [0.3, 0.5]]) group.add(box(0.04, 0.7, 0.04, plastic, tableX + dx, 0.35, tableZ + dz))
+  set.add(top)
+  for (const [dx, dz] of [[-0.3, -0.5], [0.3, -0.5], [-0.3, 0.5], [0.3, 0.5]]) set.add(box(0.04, 0.7, 0.04, plastic, dx, 0.35, dz))
   for (const [dx, dz, turn] of [[0, -1.2, 0], [0, 1.2, Math.PI], [-0.9, 0, Math.PI / 2], [0.9, 0, -Math.PI / 2]]) {
     const chair = new THREE.Group()
-    chair.position.set(tableX + dx, 0, tableZ + dz)
+    chair.position.set(dx, 0, dz)
     chair.rotation.y = turn
     chair.add(box(0.48, 0.04, 0.46, plastic, 0, 0.42, 0), box(0.48, 0.5, 0.04, plastic, 0, 0.68, -0.23))
     for (const side of [-1, 1]) chair.add(box(0.04, 0.42, 0.04, plastic, side * 0.21, 0.21, 0.2), box(0.04, 0.42, 0.04, plastic, side * 0.21, 0.21, -0.2), box(0.04, 0.03, 0.44, plastic, side * 0.24, 0.6, 0))
-    group.add(chair)
+    set.add(chair)
   }
+  group.add(set)
 }
 
 /**
@@ -135,10 +153,13 @@ export const deck = (group: THREE.Group, m: GardenMaterials): void => {
  * peu, et arrive au sommet du poteau d'acier du sas.
  */
 export const powerLine = (group: THREE.Group): void => {
-  const pole = { x: gardenX(880), z: gardenZ(600), tall: 7.5 }
+  // Sur le trottoir (à 50 cm de son bord intérieur, au niveau du portillon : 51 cm sous le terrain) : un point de l'arc, à la même direction qu'avant.
+  const direction = Math.atan2(880 - LOT.centerY, 600 - LOT.centerX)
+  const radius = HEDGE.radius + 8 + 0.4 + 0.5 * UNITS_PER_METER
+  const pole = { x: gardenX(LOT.centerY + Math.sin(direction) * radius), z: gardenZ(LOT.centerX + Math.cos(direction) * radius), tall: 7.5, base: -0.008 - 0.51 }
   const wood = standard(woodTexture(0x6b4f3a, 173), 0.95)
-  group.add(cylinder(0.09, 0.13, pole.tall, wood, pole.x, pole.tall / 2, pole.z, 10), box(0.08, 0.08, 1, wood, pole.x, pole.tall - 0.35, pole.z))
-  const from = new THREE.Vector3(pole.x, pole.tall - 0.3, pole.z)
+  group.add(cylinder(0.09, 0.13, pole.tall, wood, pole.x, pole.base + pole.tall / 2, pole.z, 10), box(0.08, 0.08, 1, wood, pole.x, pole.base + pole.tall - 0.35, pole.z))
+  const from = new THREE.Vector3(pole.x, pole.base + pole.tall - 0.3, pole.z)
   // Le sommet du poteau d'acier, dans le repère du jardin (plus bas que le sol de la maison).
   const to = new THREE.Vector3(MAST.x, MAST.from + MAST.tall + BASE.rise, MAST.z)
   const sag = 0.9

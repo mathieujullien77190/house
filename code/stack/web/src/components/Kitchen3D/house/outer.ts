@@ -38,10 +38,11 @@ const outerKit = (group: THREE.Group) => {
       piece(cursor, start, 0, height)
       piece(start, end, 0, bay.bottom)
       piece(start, end, bay.bottom + bay.height, height)
-      // Sous chaque fenêtre, un appui blanc qui dépasse un peu du mur.
+      // Dehors, pas de cadre autour des fenêtres : seulement, en bas, un rebord blanc horizontal qui couvre le mur dans toute son épaisseur (du nu intérieur au dehors) et déborde de 4 cm.
       if (bay.bottom > 0.3) {
-        const sillAcross = inner + out * (OUTER_WALL + 0.02)
-        group.add(axis === 'z' ? box(0.1, 0.04, bay.width + 0.1, sillMaterial, sillAcross, bay.bottom - 0.02, bay.z) : box(bay.width + 0.1, 0.04, 0.1, sillMaterial, bay.z, bay.bottom - 0.02, sillAcross))
+        const deep = OUTER_WALL + 0.04
+        const sillAcross = inner + out * (deep / 2 + 0.002)
+        group.add(axis === 'z' ? box(deep, 0.03, bay.width + 0.06, sillMaterial, sillAcross, bay.bottom + 0.005, bay.z) : box(bay.width + 0.06, 0.03, deep, sillMaterial, bay.z, bay.bottom + 0.005, sillAcross))
       }
       cursor = end
     }

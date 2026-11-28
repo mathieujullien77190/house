@@ -5,6 +5,7 @@ import { noShadow, seeded } from '@/components/Kitchen3D/primitives'
 import { DECK, GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
 import { SITE } from './layout'
 import { PERGOLA_FRONT } from './pergola'
+import { walkOutline } from './ground'
 import { gardenX, gardenZ } from './plan'
 
 /** Les bouquets d'herbe : combien on en tire au hasard sur le terrain (ceux qui tombent hors de l'herbe sont écartés), et leur taille (m). */
@@ -37,6 +38,15 @@ const tuftGeometry = (): THREE.BufferGeometry => {
   return geometry
 }
 
+/** Vrai si le point, ou un point à 25 cm de lui (dans les quatre sens), est dans le polygone : les brins d'herbe ne penchent pas par-dessus un creux (allée du garage, chemin en contrebas). */
+const nearInside = (x: number, y: number, corners: [number, number][]): boolean => {
+  const reach = 10
+  return [[0, 0], [reach, 0], [-reach, 0], [0, reach], [0, -reach]].some(([dx, dy]) => inside(x + dx, y + dy, corners))
+}
+
+/** L'emprise du chemin de béton le long de la haie (sans herbe dessus). */
+const WALK_AREA = walkOutline()
+
 /** Vrai si le point du plan est dans le polygone. */
 const inside = (x: number, y: number, corners: [number, number][]): boolean =>
   corners.reduce((hit, [cornerX, cornerY], index) => {
@@ -55,12 +65,16 @@ const grassLevel = (planX: number, planY: number): number | null => {
   const inArc = planY > LOT.centerY && Math.hypot(planX - LOT.centerX, planY - LOT.centerY) < HEDGE.radius - margin
   const inBand = planY <= LOT.centerY && planY > HEDGE.north + margin && planX > HEDGE.west + margin
   if ((!inArc && !inBand) || planX > HEDGE.east - margin) return null
-  if (inside(planX, planY, PLAN_GARAGE_CORNERS)) return null
+  if (nearInside(planX, planY, PLAN_GARAGE_CORNERS)) return null
   const [x, z] = [gardenX(planY), gardenZ(planX)]
   // La maison, ses terrasses, la jardinière de devant et la bande de béton de derrière.
   if (x > house[0] - PERGOLA_FRONT - 0.7 && x < house[1] + TERRACE + 0.2 && z > house[2] - TERRACE - 0.15 && z < house[3] + TERRACE) return null
   // Tout l'est de la maison, au nord du muret des poubelles : le pavage, la cage, la dalle, et derrière la cage jusqu'à la haie (de la terre).
   if (z > ROOM.zMax - 0.1 && x > binSouth - 0.3) return null
+  // Le petit bout de pelouse enclavé entre le mur de l'allée du garage, l'escalier et le carrelage de la terrasse : pas d'herbe ni de pâquerettes.
+  if (planX > -175 && planX < -31 && planY > 240 && planY < 335) return null
+  // Le chemin de béton le long de la haie (il descend sous la pelouse).
+  if (nearInside(planX, planY, WALK_AREA)) return null
   // Le chemin du portillon et ses murets.
   if (z > gardenZ(PAVING.pathWest) - 0.2 && z < gardenZ(PAVING.pathEast) + 0.2 && x < house[0]) return null
   // Derrière la maison : la terrasse en ipé et ce qui longe la cage.

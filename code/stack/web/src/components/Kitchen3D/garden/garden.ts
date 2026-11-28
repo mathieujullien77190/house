@@ -10,7 +10,7 @@ import { CAGE_HEIGHT, GRASS, HEDGE, LOT, PAVING, TERRACE } from './constants'
 import { bins, deck, gardenCamera, gardenTable, heatPump, powerLine, upturnedBin } from './equipment'
 import { grassTufts, lawnFlowers } from './grass'
 import { groundTerrace, lawns, paving, raisedTerrace, retainingWalls } from './ground'
-import { laurelBush } from './laurel'
+import { laurelBush, roundLaurel } from './laurel'
 import { SITE } from './layout'
 import { lounge } from './lounge'
 import { buildPergola, PERGOLA, PERGOLA_FRONT } from './pergola'
@@ -28,12 +28,13 @@ const backCherry = (group: THREE.Group): void => {
 }
 
 /** Les arbres de devant : un second cerisier et un pommier près de la table blanche, le prunus près des poubelles et l’arbre taillé à côté. */
-const frontTrees = (group: THREE.Group): void => {
+const frontTrees = (group: THREE.Group): THREE.Vector3 => {
   const { house, wicket, binSouth, binWest, binEast } = SITE
   // Près de la table blanche, entre elle et la maison, devant la chambre de Matou : un second cerisier, et à côté un pommier (plus trapu, avec ses pommes).
   const cherryTwo = cherryTree(19)
   cherryTwo.name = 'tree'
-  cherryTwo.position.set(house[0] - TERRACE - 0.6, 0, REST.west - 0.6)
+  // Rapproché de 30 cm du pommier, et éloigné de 20 cm de la maison (vers le sud) : 30 cm vers le sud, 28 cm vers l'est.
+  cherryTwo.position.set(house[0] - TERRACE - 0.9, 0, REST.west - 0.32)
   const apple = cherryTree(31, true)
   apple.name = 'tree'
   apple.scale.set(1.1, 0.85, 1.1)
@@ -58,16 +59,31 @@ const frontTrees = (group: THREE.Group): void => {
     const radius = HEDGE.radius - 1.5 * UNITS_PER_METER
     return [LOT.centerX - Math.sqrt(radius ** 2 - (planY - LOT.centerY) ** 2), planY]
   }
-  const [coniferPlanX, coniferPlanY] = inside(560)
-  const bigConifer = wildConifer(151, 3, 99)
+  const [coniferPlanX, coniferPlanY] = inside(620)
+  // Même forme que le laurier, un peu plus petit (1,20 m de rayon, 4 m), d'un vert plus sombre : ses touffes commencent tout près du sol.
+  const bigConifer = roundLaurel(151, 1.2, 4, [0x2f5a35, 0x37663a, 0x284d30], true)
   bigConifer.name = 'tree'
-  bigConifer.position.set(gardenX(coniferPlanY), 0, gardenZ(coniferPlanX))
-  const [palmPlanX, palmPlanY] = inside(600)
-  const palmLaurel = laurelBush(14)
+  // Le laurier ne gêne pas le chemin : à 3 m à droite de lui (à l'ouest, quand on va vers le portillon) ; le conifère est reculé de 2 m aussi.
+  // Le laurier palme est rond (couronne de 1,25 m de rayon, 4,80 m de haut, du sol) : à 1,40 m de l'axe de la haie, juste ce qu'il faut pour ne pas dépasser sur la rue.
+  const [roughX, roughY] = [PAVING.pathWest - 3 * UNITS_PER_METER, 735]
+  const pull = (HEDGE.radius - 1.4 * UNITS_PER_METER) / Math.hypot(roughX - LOT.centerX, roughY - LOT.centerY)
+  const [palmPlanX, palmPlanY] = [LOT.centerX + (roughX - LOT.centerX) * pull, LOT.centerY + (roughY - LOT.centerY) * pull]
+  const palmLaurel = roundLaurel(14, 1.25, 4.8)
   palmLaurel.name = 'tree'
-  palmLaurel.scale.setScalar(0.75)
   palmLaurel.position.set(gardenX(palmPlanY), 0, gardenZ(palmPlanX))
+  // Le conifère est rapproché de 1 m du laurier (en ligne droite vers lui).
+  const gap = Math.hypot(palmPlanX - coniferPlanX, palmPlanY - coniferPlanY)
+  const closer = Math.max(0, gap - UNITS_PER_METER) / gap
+  bigConifer.position.set(gardenX(palmPlanY + (coniferPlanY - palmPlanY) * closer), 0, gardenZ(palmPlanX + (coniferPlanX - palmPlanX) * closer))
   group.add(bigConifer, palmLaurel)
+  // Dans le petit bout de pelouse entre l'escalier, l'allée du garage et la terrasse : un gros buisson qui prend toute la place, comme le laurier de la cage (des branches dans tous les sens) mais à
+  // feuilles claires, et feuillu dès le sol (ses troncs nus sont enterrés) ; sa branche la plus haute est raccourcie de 40 cm.
+  const patchBush = laurelBush(157, [0x7fb552, 0x8fc25a, 0x6aa548], 6.1)
+  patchBush.name = 'tree'
+  patchBush.scale.setScalar(0.5)
+  patchBush.position.set(gardenX(296), -0.75, gardenZ(-65))
+  group.add(patchBush)
+  const coniferAt = bigConifer.position
   // Près des poubelles, devant leur muret : un prunus au feuillage bordeaux, qui penche beaucoup du côté du portillon (décalé de 80 cm vers les spirées de l'est, pour l'éloigner du coin).
   const prunus = prunusTree(47)
   prunus.name = 'tree'
@@ -94,6 +110,7 @@ const frontTrees = (group: THREE.Group): void => {
   clipped.name = 'tree'
   clipped.position.set(binSouth - 0.15 - 0.1, 0, binWest + 0.075 + 0.1)
   group.add(clipped)
+  return coniferAt
 }
 
 /**
@@ -171,7 +188,6 @@ export const buildGarden = (grass = 1, leafyHedges = true): THREE.Group => {
   bins(group, m)
   binWalls(group, m)
   raisedTerrace(group, m)
-  gardenTable(group)
   cagePanels(group, m)
   cageTools(group, m)
   planters(group, m)
@@ -198,7 +214,7 @@ export const buildGarden = (grass = 1, leafyHedges = true): THREE.Group => {
   backCherry(group)
   deck(group, m)
   lounge(group)
-  frontTrees(group)
+  gardenTable(group, frontTrees(group))
   pergolaOnTerrace(group)
   laurelByCage(group)
   return group
